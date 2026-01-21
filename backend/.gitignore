@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### .properties file ###
+application-secret.yml
+
+# JWT Private Key
+*.pem

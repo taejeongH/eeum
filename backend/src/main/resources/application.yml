@@ -1,0 +1,34 @@
+spring:
+  profiles:
+    include: secret
+
+  cloud:
+    aws:
+      region:
+        static: ap-northeast-2
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  private-key-path: certs/private_key_pkcs8.pem
+  public-key-path: certs/public_key.pem
+  access-token-expiration: 3600000
+  refresh-token-expiration: 1209600000
+
+logging:
+  level:
+    org.ssafy.eeum: debug
