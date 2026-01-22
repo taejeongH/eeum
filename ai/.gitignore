@@ -1,0 +1,13 @@
+# Python env
+venv/
+.env/
+
+# Cache & Comfile Cache
+__pycache__/
+*.pyc
+
+# AI Model & Data
+pretrained_models/
+voice_samples/
+voice_messages/
+temp_converted/
