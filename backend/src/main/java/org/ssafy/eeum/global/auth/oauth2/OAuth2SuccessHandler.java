@@ -7,8 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.ssafy.eeum.global.auth.oauth2.CustomOAuth2User;
-
+import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import java.io.IOException;
 
 @Slf4j
@@ -18,11 +17,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
+            HttpServletResponse response,
+            Authentication authentication) throws IOException {
 
-        CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
-        Integer userId = oAuth2User.getUserId();
+        CustomUserDetails oAuth2User = (CustomUserDetails) authentication.getPrincipal();
+        Integer userId = oAuth2User.getId();
         String userName = oAuth2User.getName();
 
         log.info("OAuth2 Login Success - UserID: {}, UserName: {}", userId, userName);

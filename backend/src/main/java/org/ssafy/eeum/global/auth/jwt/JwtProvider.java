@@ -11,6 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 
+import org.ssafy.eeum.domain.user.entity.User;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Arrays;
@@ -36,27 +37,31 @@ public class JwtProvider {
     }
 
     public String createAccessToken(Authentication authentication) {
-        return createToken(authentication, jwtProperties.getAccessTokenExpiration());
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return createAccessToken(userDetails.getId(), userDetails.getUsername(), userDetails.getRole());
     }
 
     public String createRefreshToken(Authentication authentication) {
-        return createToken(authentication, jwtProperties.getRefreshTokenExpiration());
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return createRefreshToken(userDetails.getId(), userDetails.getUsername(), userDetails.getRole());
     }
 
-    private String createToken(Authentication authentication, long expiration) {
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+    public String createAccessToken(Number userId, String email, String role) {
+        return createToken(userId, email, role, jwtProperties.getAccessTokenExpiration());
+    }
 
-        String authorities = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(","));
+    public String createRefreshToken(Number userId, String email, String role) {
+        return createToken(userId, email, role, jwtProperties.getRefreshTokenExpiration());
+    }
 
+    private String createToken(Number userId, String email, String role, long expiration) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
-                .subject(authentication.getName())
-                .claim("id", userDetails.getId())
-                .claim("auth", authorities)
+                .subject(email)
+                .claim("id", userId)
+                .claim("auth", role)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(privateKey, Jwts.SIG.RS256)
@@ -70,17 +75,19 @@ public class JwtProvider {
                 .parseSignedClaims(token)
                 .getPayload();
 
-        Collection<? extends GrantedAuthority> authorities =
-                Arrays.stream(claims.get("auth").toString().split(","))
-                        .filter(auth -> !auth.trim().isEmpty())
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+        Collection<? extends GrantedAuthority> authorities = Arrays.stream(claims.get("auth").toString().split(","))
+                .filter(auth -> !auth.trim().isEmpty())
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
 
-        CustomUserDetails principal = CustomUserDetails.builder()
-                .id(claims.get("id", Long.class))
+        User user = User.builder()
+                .id(claims.get("id", Integer.class))
                 .email(claims.getSubject())
-                .role(authorities.iterator().next().getAuthority())
+                .name("Unknown") // 토큰에는 이름 정보가 없으므로 임시 값 혹은 DB 조회 필요. 일단 최소 정보로 구성
                 .build();
+
+        CustomUserDetails principal = new CustomUserDetails(user);
+
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

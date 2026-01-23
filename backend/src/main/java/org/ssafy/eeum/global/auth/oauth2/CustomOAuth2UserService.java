@@ -12,7 +12,8 @@ import org.ssafy.eeum.domain.user.entity.User;
 import org.ssafy.eeum.domain.user.repository.SocialAccountRepository;
 import org.ssafy.eeum.domain.user.repository.UserRepository;
 import org.ssafy.eeum.domain.user.entity.SocialAccount;
-import org.ssafy.eeum.global.auth.oauth2.CustomOAuth2User;
+
+import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -52,9 +53,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
 
         String email = kakaoAccount.get("email") != null ? kakaoAccount.get("email").toString() : null;
+
+        if (email == null || email.isBlank()) {
+            email = "kakao_" + kakaoId + "@social.eeum";
+        }
+
         String nickname = profile.get("nickname").toString();
-        String profileImage = profile.get("profile_image_url") != null ?
-                profile.get("profile_image_url").toString() : null;
+        String profileImage = profile.get("profile_image_url") != null ? profile.get("profile_image_url").toString()
+                : null;
 
         log.info("Kakao User - ID: {}, Nickname: {}, Email: {}", kakaoId, nickname, email);
 
@@ -87,6 +93,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             log.info("New user created: {}", user.getId());
         }
 
-        return new CustomOAuth2User(user, oAuth2User.getAttributes());
+        return new CustomUserDetails(user, oAuth2User.getAttributes());
     }
 }

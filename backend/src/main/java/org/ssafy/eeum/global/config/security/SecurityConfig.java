@@ -15,19 +15,21 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.ssafy.eeum.global.auth.handler.OAuth2LoginSuccessHandler;
 import org.ssafy.eeum.global.auth.oauth2.CustomOAuth2UserService;
-
+import org.ssafy.eeum.global.auth.jwt.JwtProvider;
+import org.ssafy.eeum.global.auth.filter.JwtAuthenticationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 
-
 @RequiredArgsConstructor // oAuth2LoginSuccessHandler 주입을 위해 필요합니다.
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler; // 추가
+    private final JwtProvider jwtProvider;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -41,17 +43,16 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/login/**", "/oauth2/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                        .requestMatchers("/", "/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/login/**",
+                                "/oauth2/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization
-                                .baseUri("/oauth2/authorization")
-                        )
-                        // 이 부분이 핵심입니다! 기존 설정에 userInfo와 successHandler를 추가했습니다.
+                                .baseUri("/oauth2/authorization"))
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                        .successHandler(oAuth2LoginSuccessHandler)
-                );
+                        .successHandler(oAuth2LoginSuccessHandler))
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
