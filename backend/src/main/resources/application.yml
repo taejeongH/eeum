@@ -32,3 +32,8 @@ jwt:
 logging:
   level:
     org.ssafy.eeum: debug
+
+    # 카카오 디버깅용
+    org.springframework.security: debug
+    org.springframework.security.oauth2: debug
+
