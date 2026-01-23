@@ -32,3 +32,7 @@ jwt:
 logging:
   level:
     org.ssafy.eeum: debug
+    # 아래 두 줄을 반드시 추가해야 카카오가 왜 화났는지 알 수 있습니다!
+    org.springframework.security: debug
+    org.springframework.security.oauth2: debug
+
