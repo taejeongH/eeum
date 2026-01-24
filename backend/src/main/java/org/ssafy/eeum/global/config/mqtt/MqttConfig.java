@@ -11,7 +11,6 @@ import org.springframework.integration.mqtt.outbound.Mqttv5PahoMessageHandler;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
-import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import java.nio.charset.StandardCharsets;
 
 @Configuration
@@ -57,7 +56,7 @@ public class MqttConfig {
         Mqttv5PahoMessageDrivenChannelAdapter adapter = new Mqttv5PahoMessageDrivenChannelAdapter(url, clientId + "-in",
                 "eeum/sensor/data", "eeum/ai/sentiment", "eeum/family/code");
         adapter.setCompletionTimeout(5000);
-        adapter.setConverter(new DefaultPahoMessageConverter());
+
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;

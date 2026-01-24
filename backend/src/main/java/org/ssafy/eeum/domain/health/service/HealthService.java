@@ -24,8 +24,8 @@ public class HealthService {
     private final MqttService mqttService;
 
     @Transactional
-    public void saveHealthMetrics(Long userId, List<HealthMetricRequestDTO> requests) {
-        User user = userRepository.findById(userId.intValue())
+    public void saveHealthMetrics(Integer userId, List<HealthMetricRequestDTO> requests) {
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
         List<HealthMetric> metrics = requests.stream()
