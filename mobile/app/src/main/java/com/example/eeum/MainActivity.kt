@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var healthManager: SamsungHealthManager // 브릿지 주입
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        android.util.Log.d("SHD_DEBUG", "앱이 시작되었습니다!")
         healthManager = SamsungHealthManager(this) // 매니저 초기화
 
         setContent {

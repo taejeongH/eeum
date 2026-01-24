@@ -2,6 +2,7 @@ import { ref } from 'vue';
 
 export function useSamsungHealth() {
   const heartRate = ref(null);
+  const steps = ref(null); // 걸음수 상태 추가
   const isLoading = ref(false);
 
   // 1. 네이티브에 데이터 요청
@@ -31,4 +32,24 @@ export function useSamsungHealth() {
     isLoading,
     fetchHeartRate
   };
+
+  const fetchSteps = () => {
+    if (window.Android) {
+        console.log("안드로이드 호출 시도")
+      isLoading.value = true;
+      window.Android.fetchSteps(); // 네이티브 호출
+    }else {
+    console.error("Android 객체를 찾을 수 없습니다. 브릿지 연결 실패!");
+  }
+  };
+
+  // 걸음수 수신 콜백
+  window.onReceiveStepsData = (data) => {
+    isLoading.value = false;
+    steps.value = data;
+    console.log("걸음수 데이터:", data);
+  };
+
+  return { heartRate, steps, isLoading, fetchSteps, fetchHeartRate };
+
 }

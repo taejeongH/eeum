@@ -44,6 +44,7 @@ dependencies {
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("samsung-health-data-api-1.0.0.aar"))))
     // SDK 내부에서 사용하는 Gson 필수 [cite: 4, 9]
     implementation("com.google.code.gson:gson:2.9.0")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -52,6 +53,13 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // 1. 코틀린 표준 라이브러리 (버전을 명시적으로 지정)
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
+// 2. 코루틴 핵심 및 안드로이드 라이브러리
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+// 3. Lifecycle Scope (WebAppInterface에서 사용)
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.appcompat:appcompat:1.6.1") // 의존성 추가
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
