@@ -86,4 +86,14 @@ public class User {
             this.profileImage = profileImage;
         }
     }
+
+    public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address, String profileImage) {
+        this.name = name;
+        this.phone = phone;
+        this.birthDate = birthDate;
+        this.gender = gender;
+        this.address = address;
+        this.profileImage = profileImage;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

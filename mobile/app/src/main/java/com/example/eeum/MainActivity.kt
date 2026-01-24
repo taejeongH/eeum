@@ -1,10 +1,17 @@
 package com.example.eeum
 
+import android.app.Dialog
+import android.net.Uri
 import android.os.Bundle
+import android.os.Message
+import android.view.ViewGroup
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -12,38 +19,62 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.eeum.ui.theme.EeumTheme
 
 class MainActivity : ComponentActivity() {
+
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        filePathCallback?.onReceiveValue(uris.toTypedArray())
+        filePathCallback = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             EeumTheme {
-                WebViewScreen()
+                WebViewScreen(
+                    onShowFileChooser = { callback ->
+                        filePathCallback = callback
+                        fileChooserLauncher.launch("image/*")
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun WebViewScreen() {
+fun WebViewScreen(onShowFileChooser: (ValueCallback<Array<Uri>>) -> Unit) {
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
-                // 🔥 WebView 설정 강화 (여기가 핵심!)
+                webViewClient = WebViewClient()
+                webChromeClient = object : WebChromeClient() {
+                    // 파일 선택창 처리
+                    override fun onShowFileChooser(
+                        webView: WebView,
+                        filePathCallback: ValueCallback<Array<Uri>>,
+                        fileChooserParams: FileChooserParams
+                    ): Boolean {
+                        onShowFileChooser(filePathCallback)
+                        return true
+                    }
+                }
+
                 settings.apply {
                     javaScriptEnabled = true
-                    domStorageEnabled = true   // 로컬 스토리지 사용 (Vue 필수)
+                    domStorageEnabled = true
+                    loadWithOverviewMode = true
+                    useWideViewPort = true
 
-                    // 👇 이 설정들이 있어야 'file://' 경로에서 모듈을 불러올 수 있음
                     allowFileAccess = true
                     allowContentAccess = true
                     allowFileAccessFromFileURLs = true
                     allowUniversalAccessFromFileURLs = true
                 }
 
-                webViewClient = WebViewClient()
-
-                // 웹뷰 로드
                 loadUrl("file:///android_asset/index.html")
             }
         }
