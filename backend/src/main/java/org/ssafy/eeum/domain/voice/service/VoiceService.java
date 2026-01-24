@@ -1,6 +1,11 @@
 package org.ssafy.eeum.domain.voice.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -17,8 +22,11 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,6 +38,14 @@ public class VoiceService {
     private final S3Service s3Service;
     private final MqttService mqttService;
     private final RestTemplate restTemplate;
+
+    @Value("${spring.ai-server.url}")
+    private String AI_SERVER_URL;
+    @Value("${spring.ai-server.key}")
+    private String AI_SERVER_KEY;
+
+    @Value("${spring.cloud.aws.s3.bucket}")
+    private String bucketName;
 
     // 1. 대본 목록 조회
     public List<VoiceScript> getScripts() {
@@ -56,20 +72,66 @@ public class VoiceService {
                 .build();
         sampleRepository.save(sample);
 
-        // 사용자의 샘플이 5개가 모였다면 파이썬 학습 API 호출 로직 추가 가능
+        try {
+            String convertUrl = AI_SERVER_URL + "/api/v1/voice/convert";
+
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("s3_url", request.getSamplePath());
+            requestBody.put("bucket_name", bucketName);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-API-Key", AI_SERVER_KEY);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
+
+            Map<String, Object> response = restTemplate.postForObject(convertUrl, entity, Map.class);
+
+            if (response != null && "success".equals(response.get("status"))) {
+                log.info("AI 변환 성공: {}", response.get("s3_key"));
+            }
+        } catch (Exception e) {
+            log.error("AI 변환 호출 실패: {}", e.getMessage());
+        }
     }
 
     // 4. TTS 생성 및 IoT 전달
     @Transactional
     public void generateTts(Integer userId, TtsRequestDTO request) {
-        // 파이썬 TTS API 호출 (예시)
-        // String pythonUrl = "http://python-ai-server/generate-tts";
-        // TtsResponse response = restTemplate.postForObject(pythonUrl, requestData, TtsResponse.class);
+        List<VoiceSample> samples = sampleRepository.findAllByUserId(userId);
+        if (samples.isEmpty()) {
+            throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "학습된 음성 샘플이 없습니다.");
+        }
+        VoiceSample representativeSample = samples.get(0);
 
-        String generatedS3Url = "https://s3.../generated.wav"; // 파이썬 결과물이라 가정
+        try {
+            String ttsUrl = AI_SERVER_URL + "/api/v1/voice/tts";
 
-        // MQTT 전송
-        String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedS3Url, request.getText());
-        mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
+            // Python 서버의 TtsRequest 규격에 맞춤
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("text", request.getText());
+            requestBody.put("sample_s3_url", representativeSample.getSamplePath());
+            requestBody.put("sample_transcript", representativeSample.getVoiceScript().getContent());
+            requestBody.put("user_id", userId);
+            requestBody.put("bucket_name", bucketName);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-API-Key", AI_SERVER_KEY);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            Map<String, Object> response = restTemplate.postForObject(ttsUrl, entity, Map.class);
+
+            if (response != null && "success".equals(response.get("status"))) {
+                String generatedUrl = (String) response.get("full_url");
+
+                String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl, request.getText());
+                mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
+            }
+        } catch (Exception e) {
+            log.error("TTS 생성 호출 실패: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "TTS 생성 중 오류가 발생했습니다.");
+        }
     }
 }
