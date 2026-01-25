@@ -6,9 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.eeum"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.eeum"
@@ -42,9 +40,23 @@ dependencies {
     // libs 폴더에 있는 aar 파일을 명시적으로 포함
     // 실제 파일명인 'samsung-health-data-api-1.0.0.aar'로 정확히 수정합니다.
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("samsung-health-data-api-1.0.0.aar"))))
-    // SDK 내부에서 사용하는 Gson 필수 [cite: 4, 9]
-    implementation("com.google.code.gson:gson:2.9.0")
-
+    // 1. 코틀린 표준 라이브러리 (버전 1.9.22로 통일)
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.0.21"))
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+//    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8") // 👈 SpillingKt 해결사
+    // 2. 코루틴 라이브러리 (1.7.3 버전으로 통일)
+    // 핵심: core와 android 버전이 반드시 같아야 합니다.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // 3. 삼성 헬스 SDK 필수 런타임 추가
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime")
+    // 4. Lifecycle (2.7.0 버전 유지)
+//    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    // SDK 내부에서 사용하는 Gson 필수
+    implementation("com.google.code.gson:gson:2.10.1")
+    // 기본 유지 //
+    implementation("androidx.appcompat:appcompat:1.6.1") // 의존성 추가
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -53,14 +65,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    // 1. 코틀린 표준 라이브러리 (버전을 명시적으로 지정)
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
-// 2. 코루틴 핵심 및 안드로이드 라이브러리
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-// 3. Lifecycle Scope (WebAppInterface에서 사용)
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.appcompat:appcompat:1.6.1") // 의존성 추가
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -92,8 +96,10 @@ tasks.register<Copy>("copyVueAssets") {
     dependsOn("buildVueApp")
     from("$frontendDir/dist")
     into("${project.projectDir}/src/main/assets")
-}
 
+    // 🔥 항상 새로 복사하도록 설정
+    outputs.upToDateWhen { false }
+}
 // 4. 빌드 전 실행 연결
 tasks.named("preBuild") {
     dependsOn("copyVueAssets")

@@ -13,32 +13,35 @@ class WebAppInterface(
 ) {
 
     @JavascriptInterface
-    fun fetchSteps() {
-        // 💡 Casting 없이 바로 activity.lifecycleScope를 사용합니다.
-        activity.lifecycleScope.launch {
-            try {
-                // 데이터를 가져오다가 여기서 에러가 나면 앱이 죽을 수 있습니다.
-                val data = healthManager.getTodaySteps() ?: "{\"count\": 0}"
-
-                webView.post {
-                    webView.evaluateJavascript("javascript:onReceiveStepsData($data)", null)
-                }
-            } catch (e: Exception) {
-                // 에러 발생 시 앱이 죽지 않도록 방어합니다.
-                android.util.Log.e("SHD_DEBUG", "에러 발생: ${e.message}")
-            }
-        }
-    }
-
-    @JavascriptInterface
     fun fetchHeartRate() {
         activity.lifecycleScope.launch {
-            val data = healthManager.getLatestHeartRate() ?: "null"
+            // 데이터가 없으면 null, 있으면 JSON 문자열
+            val data = healthManager.getLatestHeartRate()
+
             webView.post {
-                webView.evaluateJavascript("javascript:onReceiveHealthData('$data')", null)
+                // data가 null이면 JS로 null이라는 값 자체를 전달합니다.
+                webView.evaluateJavascript("javascript:onReceiveHealthData($data)", null)
             }
         }
     }
+
+//    @JavascriptInterface
+//    fun fetchSteps() {
+//        // 💡 Casting 없이 바로 activity.lifecycleScope를 사용합니다.
+//        activity.lifecycleScope.launch {
+//            try {
+//                // 데이터를 가져오다가 여기서 에러가 나면 앱이 죽을 수 있습니다.
+//                val data = healthManager.getTodaySteps() ?: "{\"count\": 0}"
+//
+//                webView.post {
+//                    webView.evaluateJavascript("javascript:onReceiveStepsData($data)", null)
+//                }
+//            } catch (e: Exception) {
+//                // 에러 발생 시 앱이 죽지 않도록 방어합니다.
+//                android.util.Log.e("SHD_DEBUG", "에러 발생: ${e.message}")
+//            }
+//        }
+//    }
 }
 
 //    // Vue에서 window.Android.fetchHeartRate()로 호출 가능

@@ -17,39 +17,51 @@ export function useSamsungHealth() {
   };
 
   // 2. 네이티브로부터 데이터를 받기 위한 전역 콜백 함수
-  window.onReceiveHeartData = (data) => {
+  window.onReceiveHealthData = (data) => {
+    console.log("네이티브로부터 받은 원본 데이터:", data);
     isLoading.value = false;
-    if (data) {
-      heartRate.value = data;
-      console.log("삼성 헬스 수신 데이터:", data);
+
+    // 안드로이드가 'null' 문자열을 보냈는지, 실제 null을 보냈는지 체크
+    if (!data || data === "null") {
+      heartRate.value = null; // '데이터 없음' 상태 명시
     } else {
-      console.error("수신된 데이터가 비어있습니다.");
+      // 문자열로 왔을 경우를 대비해 파싱
+      heartRate.value = typeof data === 'string' ? JSON.parse(data) : data;
     }
   };
-
+  // 🔥 [가장 중요] 정의한 변수와 함수를 반드시 반환해야 합니다!
   return {
     heartRate,
+    steps,
     isLoading,
     fetchHeartRate
   };
-
-  const fetchSteps = () => {
-    if (window.Android) {
-        console.log("안드로이드 호출 시도")
-      isLoading.value = true;
-      window.Android.fetchSteps(); // 네이티브 호출
-    }else {
-    console.error("Android 객체를 찾을 수 없습니다. 브릿지 연결 실패!");
-  }
-  };
-
-  // 걸음수 수신 콜백
-  window.onReceiveStepsData = (data) => {
-    isLoading.value = false;
-    steps.value = data;
-    console.log("걸음수 데이터:", data);
-  };
-
-  return { heartRate, steps, isLoading, fetchSteps, fetchHeartRate };
-
 }
+
+
+//   // 3. 걸음수 데이터 요청
+//   const fetchSteps = () => {
+//     if (window.Android) {
+//         console.log("안드로이드 호출 시도")
+//       isLoading.value = true;
+//       window.Android.fetchSteps(); // 네이티브 호출
+//     }else {
+//     console.error("Android 객체를 찾을 수 없습니다. 브릿지 연결 실패!");
+//   }
+//   };
+
+//   // 4. 걸음수 수신 콜백
+//   window.onReceiveStepsData = (data) => {
+//     isLoading.value = false;
+//     steps.value = data;
+//     console.log("걸음수 데이터:", data);
+//   };
+
+//   return {
+//     heartRate,
+//     steps,
+//     isLoading,
+//     fetchHeartRate,
+//     fetchSteps
+//   };
+// }
