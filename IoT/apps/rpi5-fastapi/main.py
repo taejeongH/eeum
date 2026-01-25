@@ -5,6 +5,7 @@ from app.ap_manager import async_ap_up, async_get_ipv4_addr
 from app.state import MonitorState
 from app.api import create_app
 from app.consumer import consume_events
+from app.monitor import wifi_active_loop, wifi_scan_loop
 
 async def async_main():
     last_err = None
@@ -31,14 +32,20 @@ async def async_main():
     server = uvicorn.Server(config)
 
     consumer_task = asyncio.create_task(consume_events(state))
+
+    # Wi-Fi cache loops
+    wifi_active_task = asyncio.create_task(wifi_active_loop(state, interval_sec=1.0))
+    wifi_scan_task = asyncio.create_task(wifi_scan_loop(state, interval_sec=3.0, ui_recent_sec=10.0))
     try:
         await server.serve()
     finally:
-        consumer_task.cancel()
-        try:
-            await consumer_task
-        except asyncio.CancelledError:
-            pass
+        for t in (consumer_task, wifi_active_task, wifi_scan_task):
+            t.cancel()
+        for t in (consumer_task, wifi_active_task, wifi_scan_task):
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
 
 def main():
     asyncio.run(async_main())
