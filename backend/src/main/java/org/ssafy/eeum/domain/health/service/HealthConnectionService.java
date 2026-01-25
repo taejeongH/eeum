@@ -7,8 +7,8 @@ import org.ssafy.eeum.domain.health.dto.HealthConnectionRequestDTO;
 import org.ssafy.eeum.domain.health.dto.HealthConnectionResponseDTO;
 import org.ssafy.eeum.domain.health.entity.HealthConnection;
 import org.ssafy.eeum.domain.health.repository.HealthConnectionRepository;
-import org.ssafy.eeum.domain.user.entity.User;
-import org.ssafy.eeum.domain.user.repository.UserRepository;
+import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 

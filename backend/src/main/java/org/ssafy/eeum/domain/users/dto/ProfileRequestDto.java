@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.users.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
-import org.ssafy.eeum.domain.user.entity.User.Gender;
+import org.ssafy.eeum.domain.auth.entity.User.Gender;
 
 import java.time.LocalDate;
 

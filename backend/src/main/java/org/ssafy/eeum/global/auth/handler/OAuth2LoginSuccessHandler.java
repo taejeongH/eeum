@@ -64,7 +64,20 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
                 response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
                 // 6. 프론트엔드로 리다이렉트
-                String targetUrl = "http://localhost:5173/api/auth/login/social";
-                getRedirectStrategy().sendRedirect(request, response, targetUrl);
+//                String targetUrl = "http://localhost:5173/api/auth/login/social";
+//                getRedirectStrategy().sendRedirect(request, response, targetUrl);
+                response.setContentType("text/html;charset=UTF-8");
+                response.getWriter().write("""
+    <html>
+    <head><title>로그인 성공</title></head>
+    <body style="text-align: center; padding-top: 50px; font-family: sans-serif;">
+        <h1 style="color: #4CAF50;"> 카카오 로그인 성공!</h1>
+        <p>사용자 ID: %d 님, 환영합니다.</p>
+        <p>Access Token과 Refresh Token이 쿠키에 안전하게 저장되었습니다.</p>
+        <hr>
+        <p style="color: gray; font-size: 0.9em;">이제 프론트엔드 연동이 준비되었습니다!~~~~~~~</p>
+    </body>
+    </html>
+    """.formatted(userId));
         }
 }

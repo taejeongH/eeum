@@ -1,4 +1,4 @@
-package org.ssafy.eeum.domain.user.entity;
+package org.ssafy.eeum.domain.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

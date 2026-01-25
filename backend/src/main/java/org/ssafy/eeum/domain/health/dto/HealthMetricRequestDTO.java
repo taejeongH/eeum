@@ -3,7 +3,7 @@ package org.ssafy.eeum.domain.health.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.health.entity.HealthMetric;
-import org.ssafy.eeum.domain.user.entity.User;
+import org.ssafy.eeum.domain.auth.entity.User;
 
 import java.time.LocalDateTime;
 

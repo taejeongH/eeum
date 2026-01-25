@@ -1,8 +1,8 @@
-package org.ssafy.eeum.domain.user.repository;
+package org.ssafy.eeum.domain.auth.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import org.ssafy.eeum.domain.user.entity.User;
+import org.ssafy.eeum.domain.auth.entity.User;
 
 import java.util.Optional;
 

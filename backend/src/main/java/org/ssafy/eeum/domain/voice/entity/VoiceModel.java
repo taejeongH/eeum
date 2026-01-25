@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.voice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.ssafy.eeum.domain.user.entity.User;
+import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 @Entity
