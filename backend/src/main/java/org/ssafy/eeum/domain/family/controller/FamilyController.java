@@ -21,6 +21,7 @@ import org.ssafy.eeum.domain.family.dto.FamilySimpleResponseDto;
 import org.ssafy.eeum.domain.family.dto.LeaveFamilyResponseDto;
 import org.ssafy.eeum.domain.family.dto.UpdateFamilyRequestDto;
 import org.ssafy.eeum.domain.family.dto.UpdateFamilyResponseDto;
+import org.ssafy.eeum.domain.family.dto.UpdateMemberRelationshipRequestDto;
 import org.ssafy.eeum.domain.family.service.FamilyService;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 
@@ -70,6 +71,37 @@ public class FamilyController {
         return ResponseEntity.ok(responseDto);
     }
 
+    @Operation(summary = "가족 그룹 초대 코드 조회", description = "가족 대표자가 가족 그룹의 초대 코드를 조회합니다.")
+    @GetMapping("/{familyId}/invite")
+    public ResponseEntity<String> getInviteCode(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long familyId) {
+        String userId = userDetails.getUsername();
+        String inviteCode = familyService.getInviteCode(userId, familyId);
+        return ResponseEntity.ok(inviteCode);
+    }
+
+    @Operation(summary = "가족 그룹 초대 코드 재발급", description = "가족 대표자가 가족 그룹의 초대 코드를 재발급합니다.")
+    @PutMapping("/{familyId}/invite")
+    public ResponseEntity<String> regenerateInviteCode(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long familyId) {
+        String userId = userDetails.getUsername();
+        String newInviteCode = familyService.regenerateInviteCode(userId, familyId);
+        return ResponseEntity.ok(newInviteCode);
+    }
+
+    @Operation(summary = "가족 그룹 참여", description = "초대 코드를 사용하여 가족 그룹에 참여합니다.")
+    @PostMapping("/join")
+    public ResponseEntity<FamilySimpleResponseDto> joinFamily(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody String inviteCode) {
+        System.out.println(inviteCode);
+        String userId = userDetails.getUsername();
+        FamilySimpleResponseDto responseDto = familyService.joinFamily(userId, inviteCode);
+        return ResponseEntity.ok(responseDto);
+    }
+
     @Operation(summary = "가족 그룹 탈퇴/삭제", description = "가족 그룹에서 탈퇴하거나, 대표자일 경우 그룹을 삭제합니다.")
     @DeleteMapping("/{familyId}/leave")
     public ResponseEntity<LeaveFamilyResponseDto> leaveFamily(
@@ -99,6 +131,17 @@ public class FamilyController {
             @PathVariable Long memberUserId) {
         String authenticatedUserId = userDetails.getUsername();
         familyService.deleteFamilyMember(authenticatedUserId, familyId, memberUserId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "멤버 관계 수정", description = "현재 유저가 가족 대표자와의 관계를 수정합니다.")
+    @PutMapping("/{familyId}/members/me/relationship")
+    public ResponseEntity<Void> updateMyRelationship(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long familyId,
+            @RequestBody UpdateMemberRelationshipRequestDto requestDto) {
+        String authenticatedUserId = userDetails.getUsername();
+        familyService.updateMyRelationship(authenticatedUserId, familyId, requestDto);
         return ResponseEntity.noContent().build();
     }
 }

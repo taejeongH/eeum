@@ -60,5 +60,9 @@ public class Supporter {
     public void updateEmergencyPriority(Integer emergencyPriority) {
         this.emergencyPriority = emergencyPriority;
     }
+
+    public void updateRelationship(String relationship) {
+        this.relationship = relationship;
+    }
 }
 

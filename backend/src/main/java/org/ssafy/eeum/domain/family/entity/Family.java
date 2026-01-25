@@ -51,4 +51,8 @@ public class Family {
     public void updateGroupName(String newGroupName) {
         this.groupName = newGroupName;
     }
+
+    public void updateInviteCode(String newInviteCode) {
+        this.inviteCode = newInviteCode;
+    }
 }

@@ -21,6 +21,7 @@ import org.ssafy.eeum.domain.family.dto.FamilyMemberDetailResponseDto;
 import org.ssafy.eeum.domain.family.dto.FamilyMemberPriorityDto;
 import org.ssafy.eeum.domain.family.dto.UpdateFamilyRequestDto;
 import org.ssafy.eeum.domain.family.dto.UpdateFamilyResponseDto;
+import org.ssafy.eeum.domain.family.dto.UpdateMemberRelationshipRequestDto;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
@@ -235,6 +236,43 @@ public class FamilyService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public String getInviteCode(String authenticatedUserId, Long familyId) {
+        User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        // 인증된 유저가 가족의 대표자인지 확인
+        if (!family.getUser().getId().equals(authenticatedUser.getId())) {
+            throw new CustomException(ErrorCode.NOT_FAMILY_REPRESENTATIVE);
+        }
+        return family.getInviteCode();
+    }
+
+    @Transactional
+    public String regenerateInviteCode(String authenticatedUserId, Long familyId) {
+        User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        // 인증된 유저가 가족의 대표자인지 확인
+        if (!family.getUser().getId().equals(authenticatedUser.getId())) {
+            throw new CustomException(ErrorCode.NOT_FAMILY_REPRESENTATIVE);
+        }
+
+        String newInviteCode;
+        do {
+            newInviteCode = generateInviteCode();
+        } while (familyRepository.findByInviteCode(newInviteCode).isPresent());
+
+        family.updateInviteCode(newInviteCode); // Assuming updateInviteCode method in Family
+        familyRepository.save(family);
+
+        return newInviteCode;
+    }
+
     @Transactional
     public void deleteFamilyMember(String authenticatedUserId, Long familyId, Long memberUserId) {
         User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
@@ -259,5 +297,48 @@ public class FamilyService {
                 .orElseThrow(() -> new CustomException(ErrorCode.SUPPORTER_NOT_FOUND));
 
         supporterRepository.delete(supporterToDelete);
+    }
+
+    @Transactional
+    public FamilySimpleResponseDto joinFamily(String authenticatedUserId, String inviteCode) {
+        User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Family family = familyRepository.findByInviteCode(inviteCode)
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INVITE_CODE));
+
+        // 이미 멤버인지 확인
+        if (supporterRepository.findByUserAndFamily(authenticatedUser, family).isPresent()) {
+            throw new CustomException(ErrorCode.ALREADY_FAMILY_MEMBER);
+        }
+
+        // 이미 대표자인지 확인
+        if (family.getUser().getId().equals(authenticatedUser.getId())) {
+            throw new CustomException(ErrorCode.ALREADY_FAMILY_REPRESENTATIVE);
+        }
+
+        Supporter newSupporter = Supporter.builder()
+                .user(authenticatedUser)
+                .family(family)
+                .role(Supporter.Role.CAREGIVER)
+                .representativeFlag(false)
+                .relationship(null) // 가입하는 경우 관계는 기본적으로 null
+                .build();
+        supporterRepository.save(newSupporter);
+
+        return FamilySimpleResponseDto.of(family);
+    }
+
+    @Transactional
+    public void updateMyRelationship(String authenticatedUserId, Long familyId, UpdateMemberRelationshipRequestDto requestDto) {
+        User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        Supporter supporter = supporterRepository.findByUserAndFamily(authenticatedUser, family)
+                .orElseThrow(() -> new CustomException(ErrorCode.SUPPORTER_NOT_FOUND));
+
+        supporter.updateRelationship(requestDto.getRelationship());
+        supporterRepository.save(supporter);
     }
 }
