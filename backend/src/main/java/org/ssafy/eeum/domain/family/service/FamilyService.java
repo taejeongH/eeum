@@ -126,11 +126,13 @@ public class FamilyService {
         Supporter supporter = supporterRepository.findByUserAndFamily(memberUser, family)
                 .orElseThrow(() -> new CustomException(ErrorCode.SUPPORTER_NOT_FOUND));
 
+        FamilyMemberDetailResponseDto responseDto = FamilyMemberDetailResponseDto.of(memberUser, supporter);
+
         String imageKey = memberUser.getProfileImage();
         String presignedUrl = s3Service.getPresignedUrl(imageKey);
-
-        FamilyMemberDetailResponseDto responseDto = FamilyMemberDetailResponseDto.of(memberUser, supporter);
         responseDto.setProfileImage(presignedUrl);
+        responseDto.setCurrentUserOwner(user.getId().equals(family.getUser().getId()));
+
         return responseDto;
     }
 

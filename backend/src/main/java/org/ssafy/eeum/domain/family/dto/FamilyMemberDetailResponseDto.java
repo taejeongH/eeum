@@ -51,6 +51,9 @@ public class FamilyMemberDetailResponseDto {
     @Schema(description = "피부양자 여부")
     private boolean isDependent;
 
+    @Schema(description = "현재 사용자가 그룹의 대표자인지 여부")
+    private boolean isCurrentUserOwner;
+
     public static FamilyMemberDetailResponseDto of(User user, Supporter supporter) {
         boolean isPatient = supporter.getRole() == Supporter.Role.PATIENT;
 
