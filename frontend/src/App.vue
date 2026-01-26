@@ -1,12 +1,16 @@
 <script setup>
-// 이전에 만든 대시보드 컴포넌트를 가져옵니다.
-import HealthDashboard from './components/HealthDashboard.vue'
+import { onMounted } from 'vue'
+import { useUserStore } from './stores/user'
+
+const userStore = useUserStore()
+
+onMounted(() => {
+  userStore.fetchUser()
+})
 </script>
 
 <template>
-  <main>
-    <HealthDashboard />
-  </main>
+  <router-view />
 </template>
 
 <style>

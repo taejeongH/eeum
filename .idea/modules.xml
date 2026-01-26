@@ -2,8 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/S14P11A105.iml" filepath="$PROJECT_DIR$/.idea/S14P11A105.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/eeum.iml" filepath="$PROJECT_DIR$/.idea/modules/eeum.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/eeum.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/eeum.app.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/eeum.main.iml" filepath="$PROJECT_DIR$/.idea/modules/eeum.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/eeum.test.iml" filepath="$PROJECT_DIR$/.idea/modules/eeum.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/mobile.eeum.iml" filepath="$PROJECT_DIR$/.idea/modules/mobile.eeum.iml" />
     </modules>
   </component>
 </project>

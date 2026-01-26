@@ -1,0 +1,257 @@
+# show databases;
+#
+# use eeum_db;
+
+CREATE TABLE `fall_events` (
+	`id`	INT	NOT NULL,
+	`device_id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '그룹 식별번호',
+	`severity`	INT	NULL,
+	`video_clip_url`	TEXT	NULL,
+	`status_type`	ENUM('DETECTED','CONFIRMED','FALSE_ALARM','RESOLVED')	NOT NULL	DEFAULT 'DETECTED',
+	`detected_at`	DATETIME	NOT NULL,
+	`resolved_at`	DATETIME	NULL
+);
+
+CREATE TABLE `voice_models` (
+	`id`	INT	NOT NULL,
+	`user_id`	INT	NOT NULL,
+	`model_path`	TEXT	NULL,
+	`updated_at`	DATETIME	NULL
+);
+
+CREATE TABLE `notification_deliveries` (
+	`id`	INT	NOT NULL,
+	`receiver_user_id`	INT	NOT NULL,
+	`notification_id`	INT	NOT NULL,
+	`channel`	VARCHAR(255)	NULL	COMMENT '푸시알림',
+	`sent_at`	DATETIME	NULL,
+	`created_at`	DATETIME	NULL,
+	`is_read`	TINYINT	NULL,
+	`read_at`	DATETIME	NULL
+);
+
+CREATE TABLE `health_metrics` (
+	`id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '그룹 식별번호',
+	`record_date`	DATETIME	NOT NULL	COMMENT '데이터 기준 날짜',
+	`steps`	INT	NULL	COMMENT '하루 총 걸음 수',
+	`floors_climbed`	INT	NULL	COMMENT '오르내린 계단 수',
+	`resting_heart_rate`	INT	NULL	COMMENT '휴식 심박수',
+	`average_heart_rate`	INT	NULL	COMMENT '평균 심박수',
+	`max_heart_rate`	INT	NULL	COMMENT '최대 심박수',
+	`sleep_total_minutes`	INT	NULL	COMMENT '총 수면 시간(분)',
+	`sleep_deep_minutes`	INT	NULL	COMMENT '깊은 수면 시간(분)',
+	`sleep_light_minutes`	INT	NULL	COMMENT '얕은 수면 시간(분)',
+	`sleep_rem_minutes`	INT	NULL	COMMENT 'REM 수면 시간(분)',
+	`blood_oxygen`	INT	NULL	COMMENT '혈중 산소 포화도(SpO₂ %)',
+	`blood_glucose`	INT	NULL	COMMENT '혈당 수치',
+	`systolic_pressure`	INT	NULL	COMMENT '수축기 혈압',
+	`diastolic_pressure`	INT	NULL	COMMENT '이완기 혈압',
+	`body_temperature`	DOUBLE	NULL	COMMENT '체온(℃)',
+	`created_at`	DATETIME	NULL	DEFAULT CURRENT_TIMESTAMP	COMMENT '생성 시각'
+);
+
+CREATE TABLE `medication_plans` (
+	`id`	INT	NOT NULL,
+	`group_Id`	INT	NOT NULL	COMMENT '그룹 식별번호',
+	`medicine_name`	VARCHAR(100)	NOT NULL,
+	`cycle_type`	ENUM('DAILY', 'WEEKLY', 'INTERVAL')	NOT NULL	DEFAULT 'DAILY'	COMMENT '반복 타입(매일, 주마다, 간격마다)',
+	`total_doses_day`	INT	NULL	COMMENT '하루 총 복용 횟수',
+	`cycle_value`	VARCHAR(50)	NULL	COMMENT 'cycle_type이 간격일 때만 사용 2일마다, 3일마다',
+	`days_of_week`	INT	NULL	COMMENT '요일 비트마스크 월/수/금 (62)',
+	`start_date`	DATE	NOT NULL,
+	`end_date`	DATE	NULL,
+	`created_at`	DATETIME	NULL
+);
+
+CREATE TABLE `family_groups` (
+	`id`	INT	NOT NULL	COMMENT '유저 식별코드',
+	`user_id`	INT	NOT NULL	COMMENT '유저 식별코드',
+	`group_name`	VARCHAR(100)	NOT NULL	COMMENT '가족 그룹명',
+	`invite_code`	VARCHAR(20)	NOT NULL	COMMENT '초대 코드 (QR, 링크)',
+	`created_at`	DATETIME	NOT NULL	COMMENT '생성일',
+	`updated_at`	DATETIME	NOT NULL	COMMENT '수정일',
+	`deleted_at`	DATETIME	NULL	COMMENT '해체일'
+);
+
+CREATE TABLE `messages` (
+	`id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL,
+	`sender_user_id`	INT	NOT NULL,
+	`content`	TEXT	NOT NULL,
+	`created_at`	DATETIME	NOT NULL,
+	`deleted_at`	DATETIME	NULL,
+	`is_read`	TINYINT	NULL	COMMENT '상대방이 음성을 재생했는가? (0: 안읽음, 1: 읽음)',
+	`read_at`	DATETIME	NULL
+);
+
+CREATE TABLE `medication_plan_times` (
+	`id`	INT	NOT NULL,
+	`medication_id`	INT	NOT NULL,
+	`notification_time`	TIME	NOT NULL	COMMENT '예: 09:00:00'
+);
+
+CREATE TABLE `social_accounts` (
+	`id`	INT	NOT NULL	COMMENT '소셜 계정 식별번호',
+	`user_id`	INT	NOT NULL	COMMENT '회원 식별번호',
+	`provider`	VARCHAR(20)	NOT NULL	COMMENT 'KAKAO, NAVER',
+	`provider_user_id`	VARCHAR(255)	NOT NULL	COMMENT '소셜 제공자의 고유 사용자 ID',
+	`connected_at`	DATETIME	NOT NULL	COMMENT '소셜 계정 연동 일시'
+);
+
+CREATE TABLE `sensor_events` (
+	`id`	INT	NOT NULL,
+	`device_id`	INT	NOT NULL,
+	`event_type`	VARCHAR(30)	NOT NULL,
+	`event_data`	TEXT	NULL,
+	`detected_at`	DATETIME	NOT NULL
+);
+
+CREATE TABLE `notifications` (
+	`id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '그룹 식별번호',
+	`title`	VARCHAR(255)	NULL,
+	`message`	TEXT	NULL,
+	`created_at`	DATETIME	NULL,
+	`type`	VARCHAR(20)	NULL	COMMENT '건강, 일상'
+);
+
+CREATE TABLE `users` (
+	`id`	INT	NOT NULL	COMMENT '유저 식별코드',
+	`email`	VARCHAR(255)	NULL	COMMENT 'test@test.com',
+	`password`	VARCHAR(255)	NULL	COMMENT '비밀번호 (해쉬화 필요)',
+	`name`	VARCHAR(100)	NOT NULL	COMMENT '이름',
+	`phone`	VARCHAR(20)	NULL	COMMENT '연락처',
+	`birth_date`	DATE	NULL	COMMENT '생년월일',
+	`gender`	ENUM('M', 'F')	NULL	COMMENT '성별(남자, 여자)',
+	`address`	VARCHAR(255)	NULL	COMMENT '주소',
+	`profile_image`	VARCHAR(255)	NULL	COMMENT 's3 url',
+	`created_at`	DATETIME	NOT NULL	COMMENT '생성일',
+	`updated_at`	DATETIME	NOT NULL	COMMENT '수정일',
+	`deleted_at`	DATETIME	NULL	COMMENT '탈퇴일',
+	`fcm_token`	VARCHAR(255)	NULL	COMMENT 'FCM 알람용 토큰',
+	`chronic_diseases`	VARCHAR(255)	NULL,
+	`notes`	VARCHAR(255)	NULL,
+	`blood_type`	VARCHAR(255)	NULL
+);
+
+CREATE TABLE `voice_samples` (
+	`id`	INT	NOT NULL,
+	`user_id`	INT	NOT NULL,
+	`model_id`	INT	NOT NULL,
+	`sample_url`	TEXT	NOT NULL,
+	`duration_sec`	INT	NULL,
+	`created_at`	DATETIME	NOT NULL
+);
+
+CREATE TABLE `supporters` (
+	`user_id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '그룹 식별코드',
+	`role`	ENUM('PATIENT', 'CAREGIVER')	NULL	COMMENT '부양자, 피부양자',
+	`emergency_priority`	INT	NULL	COMMENT '1, 2, 3, 4, null',
+	`representative_flag`	TINYINT(1)	NOT NULL	COMMENT '1 : 대표자, 0 : 대표자 x',
+	`joined_at`	DATETIME	NOT NULL,
+	`deleted_at`	DATETIME	NULL,
+	`realationship`	VARCHAR(20)	NULL	COMMENT '본인, 손자, 큰아들, 며느리'
+);
+
+CREATE TABLE `schedules` (
+	`id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '그룹 식별번호',
+	`creator_id`	INT	NOT NULL	COMMENT '유저 식별번호',
+	`title`	VARCHAR(100)	NOT NULL	COMMENT '제목',
+	`date`	DATE	NULL	COMMENT '날짜',
+	`category_type`	VARCHAR(20)	NOT NULL	COMMENT 'VISIT, ANNIVERSARY',
+	`description`	TEXT	NULL	COMMENT '내용',
+	`is_visited`	TINYINT(1)	NULL	COMMENT '0, 1',
+	`created_at`	DATETIME	NOT NULL	COMMENT '생성일',
+	`updated_at`	DATETIME	NULL	COMMENT '수정일',
+	`deleted_at`	DATETIME	NULL	COMMENT '삭제일'
+);
+
+CREATE TABLE `media_assets` (
+	`id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '어느 가족 그룹의 사진인지',
+	`uploader_user_id`	INT	NOT NULL	COMMENT '누가 올렸는지',
+	`storage_url`	TEXT	NOT NULL	COMMENT 'S3 등 저장소 원본 주소',
+	`taken_at`	DATE	NULL	COMMENT '사진 찍은 날짜 (사용자 입력)',
+	`description`	TEXT	NULL	COMMENT '사진 설명 (추억 기록)',
+	`created_at`	DATETIME	NOT NULL	COMMENT '생성 시각',
+	`deleted_at`	DATETIME	NULL	COMMENT '삭제 시각'
+);
+
+CREATE TABLE `iot_devices` (
+	`id`	INT	NOT NULL,
+	`group_id`	INT	NOT NULL	COMMENT '그룹 식별번호',
+	`serial_number`	VARCHAR(100)	NOT NULL,
+	`device_name`	VARCHAR(50)	NULL,
+	`location_type`	VARCHAR(20)	NULL,
+	`is_active`	TINYINT(1)	NOT NULL,
+	`created_at`	DATETIME	NOT NULL,
+	`deleted_at`	DATETIME	NULL
+);
+
+ALTER TABLE `fall_events` ADD CONSTRAINT `PK_FALL_EVENTS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `voice_models` ADD CONSTRAINT `PK_VOICE_MODELS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `notification_deliveries` ADD CONSTRAINT `PK_NOTIFICATION_DELIVERIES` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `health_metrics` ADD CONSTRAINT `PK_HEALTH_METRICS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `medication_plans` ADD CONSTRAINT `PK_MEDICATION_PLANS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `family_groups` ADD CONSTRAINT `PK_FAMILY_GROUPS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `messages` ADD CONSTRAINT `PK_MESSAGES` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `medication_plan_times` ADD CONSTRAINT `PK_MEDICATION_PLAN_TIMES` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `social_accounts` ADD CONSTRAINT `PK_SOCIAL_ACCOUNTS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `sensor_events` ADD CONSTRAINT `PK_SENSOR_EVENTS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `notifications` ADD CONSTRAINT `PK_NOTIFICATIONS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `users` ADD CONSTRAINT `PK_USERS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `voice_samples` ADD CONSTRAINT `PK_VOICE_SAMPLES` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `schedules` ADD CONSTRAINT `PK_SCHEDULES` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `media_assets` ADD CONSTRAINT `PK_MEDIA_ASSETS` PRIMARY KEY (
+	`id`
+);
+
+ALTER TABLE `iot_devices` ADD CONSTRAINT `PK_IOT_DEVICES` PRIMARY KEY (
+	`id`
+);

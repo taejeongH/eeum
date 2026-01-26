@@ -11,7 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 
-import org.ssafy.eeum.domain.user.entity.User;
+import org.ssafy.eeum.domain.auth.entity.User;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Arrays;

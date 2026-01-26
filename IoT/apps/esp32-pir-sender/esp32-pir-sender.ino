@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <esp_wifi.h>
 
 // ====== AP 정보 ======
 static const char* AP_SSID = "A105-RPI-PROV";
@@ -13,119 +14,129 @@ static const char* EVENT_ENDPOINT = "/api/event";
 // ====== 디바이스 ======
 static const char* DEVICE_NAME = "E-00000000";
 
-// ====== PIR 핀(GPIO27) ======
+// ====== PIR ======
 static const int PIR_PIN = 27;
 
-// ====== 디바운스/재전송 방지 ======
-static const uint32_t DEBOUNCE_MS = 200;
-uint32_t lastChangeMs = 0;
-int lastState = LOW;
+// ====== 정책 ======
+static const uint32_t WARMUP_MS = 60 * 1000UL;              // 초기 60초 무시
+static const uint32_t MIN_POST_INTERVAL_MS = 10 * 60 * 1000UL; // 최소 간격 10분
+static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
 
-static void connectWifi() {
-  Serial.printf("[WiFi] Connecting to %s\n", AP_SSID);
+// ====== ISR 플래그 ======
+volatile bool pirRiseFlag = false;
+volatile uint32_t pirIsrMs = 0;
+
+void IRAM_ATTR onPirRise() {
+  pirIsrMs = millis();
+  pirRiseFlag = true;
+}
+
+static void setupWifiPowerSave() {
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
+  WiFi.setSleep(true);
+  esp_wifi_set_ps(WIFI_PS_MIN_MODEM); // MAX_MODEM 고려
+}
 
-  WiFi.disconnect(true, true);
-  delay(500);
-  
+static void ensureWifiConnected() {
+  if (WiFi.status() == WL_CONNECTED) return;
+
+  setupWifiPowerSave();
   WiFi.begin(AP_SSID, AP_PASS);
 
   uint32_t start = millis();
   while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
-    Serial.print(".");
-    if (millis() - start > 20000) {
-      Serial.println("\n[WiFi] Timeout. Retry...");
-      WiFi.disconnect(true);
-      delay(300);
+    delay(200);
+    if (millis() - start > WIFI_CONNECT_TIMEOUT_MS) {
+      WiFi.disconnect(false);
+      delay(200);
       WiFi.begin(AP_SSID, AP_PASS);
       start = millis();
     }
   }
-  Serial.println("\n[WiFi] Connected!");
-  Serial.print("[WiFi] IP: "); Serial.println(WiFi.localIP());
-  Serial.print("[WiFi] GW: "); Serial.println(WiFi.gatewayIP());
 }
 
-static bool postPirEvent(int value1) {
-  if (WiFi.status() != WL_CONNECTED) connectWifi();
+static bool postPir1() {
+  ensureWifiConnected();
 
   String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + EVENT_ENDPOINT;
-
   String body = "{";
   body += "\"kind\":\"pir\",";
   body += "\"device\":\"" + String(DEVICE_NAME) + "\",";
   body += "\"data\":{";
   body += "\"event\":\"motion\",";
-  body += "\"value\":" + String(value1);
+  body += "\"value\":1";
   body += "}}";
 
   HTTPClient http;
   http.setConnectTimeout(3000);
   http.setTimeout(5000);
 
-  Serial.printf("[POST] %s\n", url.c_str());
-  Serial.printf("[POST] %s\n", body.c_str());
-
-  if (!http.begin(url)) {
-    Serial.println("[POST] begin failed");
-    return false;
-  }
-
+  if (!http.begin(url)) return false;
   http.addHeader("Content-Type", "application/json");
+
   int code = http.POST((uint8_t*)body.c_str(), body.length());
-  String resp = http.getString();
   http.end();
 
-  Serial.printf("[POST] code=%d resp=%s\n", code, resp.c_str());
   return (code > 0 && code < 400);
 }
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(200);
 
-  pinMode(PIR_PIN, INPUT_PULLUP);
+  pinMode(PIR_PIN, INPUT);
 
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect(true);
-  delay(500);
+  ensureWifiConnected();
 
-  int n = WiFi.scanNetworks();
-  Serial.printf("[WiFi] scan=%d\n", n);
-  for (int i=0; i<n; i++){
-    Serial.printf("%d) %s RSSI=%d CH=%d ENC=%d\n",
-      i,
-      WiFi.SSID(i).c_str(),
-      WiFi.RSSI(i),
-      WiFi.channel(i),
-      WiFi.encryptionType(i));
-  }
-  connectWifi();
+  attachInterrupt(digitalPinToInterrupt(PIR_PIN), onPirRise, RISING);
 
-  lastState = digitalRead(PIR_PIN);
-  lastChangeMs = millis();
-  Serial.printf("[PIR] initial=%d\n", lastState);
+  Serial.println("[BOOT] started");
 }
 
 void loop() {
-  int s = digitalRead(PIR_PIN);
-  uint32_t now = millis();
+  static uint32_t nextAllowedMs = 0; // 다음 전송 허용 시각
 
-  // 상태 변화(엣지) + 디바운스
-  if (s != lastState && (now - lastChangeMs) > DEBOUNCE_MS) {
-    lastState = s;
-    lastChangeMs = now;c
-    Serial.printf("[PIR] changed -> %d\n", s);
+  bool fired = false;
+  uint32_t isrT = 0;
 
-    // 움직임 감지(HIGH)일 때만 1회 전송
-    if (s == HIGH) {
-      postPirEvent(1);
-    } else{
-      postPirEvent(0);
+  noInterrupts();
+  if (pirRiseFlag) {
+    fired = true;
+    isrT = pirIsrMs;
+    pirRiseFlag = false;
+  }
+  interrupts();
+
+  if (fired) {
+    uint32_t now = millis();
+
+    // 1) 워밍업 무시
+    if (now < WARMUP_MS) {
+      Serial.println("[PIR] ignored (warmup)");
+      delay(10);
+      return;
     }
+
+    // 2) rate limit: 10분에 1번만
+    if ((int32_t)(now - nextAllowedMs) < 0) {
+      Serial.println("[PIR] ignored (rate limit)");
+      delay(10);
+      return;
+    }
+
+    // 3) 핀 상태 확인으로 노이즈 컷
+    if (digitalRead(PIR_PIN) != HIGH) {
+      Serial.println("[PIR] ignored (pin not HIGH)");
+      delay(10);
+      return;
+    }
+
+    bool ok = postPir1();
+    Serial.printf("[PIR] sent=1 ok=%d (isr=%lu)\n", ok ? 1 : 0, (unsigned long)isrT);
+
+    // 다음 허용 시각 갱신
+    nextAllowedMs = now + MIN_POST_INTERVAL_MS;
   }
 
-  delay(10);
+  delay(20);
 }

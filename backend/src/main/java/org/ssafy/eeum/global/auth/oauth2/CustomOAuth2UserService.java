@@ -8,10 +8,10 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.ssafy.eeum.domain.user.entity.User;
-import org.ssafy.eeum.domain.user.repository.SocialAccountRepository;
-import org.ssafy.eeum.domain.user.repository.UserRepository;
-import org.ssafy.eeum.domain.user.entity.SocialAccount;
+import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.auth.repository.SocialAccountRepository;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
+import org.ssafy.eeum.domain.auth.entity.SocialAccount;
 
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 

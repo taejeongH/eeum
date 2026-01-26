@@ -1,16 +1,18 @@
-from fastapi import FastAPI, Query, HTTPException
+import asyncio
+import subprocess
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from .config import AP_IFACE, STA_IFACE
-from .ap_manager import get_ipv4_addr
+from .ap_manager import async_get_ipv4_addr
 from .state import MonitorState, Event
 from typing import Any, Dict
 from .wifi_manager import (
-        scan_wifi_wlan0,
-        get_active_on_wlan0,
-        list_wifi_profiles_wlan0,
-        provision_connect_wlan0,
-        delete_profile,
+        async_scan_wifi_wlan0,
+        async_get_active_on_wlan0,
+        async_list_wifi_profiles_wlan0,
+        async_provision_connect_wlan0,
+        async_delete_profile,
         )
 
 class EventIn(BaseModel):
@@ -56,7 +58,7 @@ def create_app(state: MonitorState) -> FastAPI:
     <div><b>Active</b>: <span id="active">(loading)</span></div>
     <div class="muted" id="scanInfo"></div>
     <div style="margin-top:10px" class="row">
-      <button onclick="scan(true)">Rescan</button>
+      <button onclick="scan()">Rescan</button>
       <button onclick="loadProfiles()">Load Profiles</button>
     </div>
   </div>
@@ -82,10 +84,18 @@ def create_app(state: MonitorState) -> FastAPI:
   </div>
 
 <script>
-async function scan(rescan=false){
+async function scan(){
   document.getElementById("scanInfo").innerText = "scanning...";
-  const res = await fetch(`/wifi/scan?rescan=${rescan ? "true" : "false"}`);
-  const data = await res.json();
+  const res = await fetch(`/wifi/scan`);
+  let data = null;
+  try {
+    data = await res.json();
+  } catch(e) {
+    data = {
+      active_ssid:null,
+      aps:[],
+      error:"invalid response" };
+  }
 
   document.getElementById("active").innerText = data.active_ssid ?? "(none)";
   document.getElementById("scanInfo").innerText = `found ${data.aps.length} APs`;
@@ -124,19 +134,27 @@ async function connect(){
     body: JSON.stringify({ssid:ssid, password:pw})
   });
 
-  const txt = await res.text();
-  if(res.ok){
-    document.getElementById("connectMsg").innerText = "* connected";
-  }else{
-    document.getElementById("connectMsg").innerText = "X failed: " + txt;
+  let data = null;
+  try { 
+    data = await res.json();
+  } catch(e) { 
+    data = { ok:false, message:"invalid response" };
   }
+
+  document.getElementById("connectMsg").innerText =
+    data.ok ? ("* connected: " + (data.message ?? "")) : ("X failed: " + (data.message ?? "failed"));
 
   await scan();
 }
 
 async function loadProfiles(){
   const res = await fetch("/wifi/profiles");
-  const data = await res.json();
+  let data = null;
+  try {
+    data = await res.json();
+  } catch(e) {
+    data = { error: "invalid response" };
+  }
   document.getElementById("profiles").innerText = JSON.stringify(data, null, 2);
 }
 
@@ -151,8 +169,8 @@ scan();
         return {"ok": True}
     
     @app.get("/ap/ip")
-    def ap_ip():
-        return {"iface": AP_IFACE, "ip": get_ipv4_addr(AP_IFACE)}
+    async def ap_ip():
+        return {"iface": AP_IFACE, "ip": await async_get_ipv4_addr(AP_IFACE)}
 
     @app.get("/status")
     def status():
@@ -164,62 +182,122 @@ scan();
 
     @app.post("/api/event")
     async def event(data: EventIn):
-        await state.queue.put(Event(**data.model_dump()))
+        ev = Event(**data.model_dump())
+        try:
+            state.queue.put_nowait(ev)
+        except asyncio.QueueFull:
+            try:
+                state.queue.get_nowait()
+            except Exception:
+                pass
+            state.queue.put_nowait(ev)
         return {"ok": True}
     
     @app.get("/wifi/scan")
-    def wifi_scan(rescan: bool = Query(False)):
-        aps = scan_wifi_wlan0(rescan=rescan)
-        return {
-            "iface": STA_IFACE,
-            "active_ssid": get_active_on_wlan0(),
-            "aps": aps,
-        }
+    async def wifi_scan():
+        try:
+            aps = await async_scan_wifi_wlan0()
+            active = await async_get_active_on_wlan0()
+            return {
+                "iface": STA_IFACE,
+                "active_ssid": active,
+                "aps": aps,
+            }
+        except Exception as e:
+            return{
+                "iface": STA_IFACE,
+                "active_ssid": None,
+                "aps": [],
+                "error": str(e),
+            }
 
     @app.get("/wifi/active")
-    def wifi_active():
-        return {"iface": STA_IFACE, "ssid": get_active_on_wlan0()}
+    async def wifi_active():
+        try:
+            active = await async_get_active_on_wlan0()
+            return {"iface": STA_IFACE, "ssid": active}
+        except Exception as e:
+            return {"iface": STA_IFACE, "ssid": None, "error": str(e)}
     
     @app.get("/wifi/profiles")
-    def wifi_profiles():
-        profiles = list_wifi_profiles_wlan0()
-        return {
-            "iface": STA_IFACE,
-            "active_ssid": get_active_on_wlan0(),
-            "profiles": [p.__dict__ for p in profiles],
-        }
+    async def wifi_profiles():
+        try:
+            profiles = await async_list_wifi_profiles_wlan0()
+            active = await async_get_active_on_wlan0()
+            return {
+                "iface": STA_IFACE,
+                "active_ssid": active,
+                "profiles": [p.__dict__ for p in profiles],
+            }
+        except Exception as e:
+            return {
+                "iface": STA_IFACE,
+                "active_ssid": None,
+                "profiles": [],
+                "error": str(e),
+            }
 
     @app.post("/wifi/connect")
-    def wifi_connect(body: WifiConnectIn):
+    async def wifi_connect(body: WifiConnectIn):
         ssid = body.ssid.strip()
         if not ssid:
-            raise HTTPException(status_code=400, detail="ssid is required")
-
-        res = provision_connect_wlan0(ssid, body.password)
-        if not res.ok:
-            raise HTTPException(status_code=400, detail={
-                "message": res.message,
-                "new_profile": res.new_profile,
-            })
-
-        return {
-            "ok": True,
-            "iface": STA_IFACE,
-            "ssid": ssid,
-            "message": res.message,
-        }
-
-    @app.post("/wifi/profile/delete")
-    def wifi_profile_delete(body: WifiDeleteProfileIn):
-        name = body.name.strip()
-        if not name:
-            raise HTTPException(status_code=400, detail="name is required")
+            return {
+                "ok": False, 
+                "code": "bad_request", 
+                "message": "ssid is required"
+                }
 
         try:
-            delete_profile(name)
+            res = await async_provision_connect_wlan0(ssid, body.password)
+        except subprocess.CalledProcessError as e:
+            msg = (e.stderr or e.output or "").strip() or f"nmcli failed (exit={e.returncode})"
+            return {
+                "ok": False, 
+                "code": "wifi_connect_error", 
+                "message": msg
+            }
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"delete failed: {e}")
+            return {
+                "ok": False, 
+                "code": "wifi_connect_error", 
+                "message": str(e)
+            }
 
-        return {"ok": True, "deleted": name}
+        if not res.ok:
+            return {
+                "ok": False, 
+                "code": "wifi_connect_failed", 
+                "message": res.message, 
+                "new_profile": res.new_profile
+            }
+
+        return {
+            "ok": True, 
+            "iface": STA_IFACE, 
+            "ssid": ssid, 
+            "message": res.message
+        }
+    
+    @app.post("/wifi/profile/delete")
+    async def wifi_profile_delete(body: WifiDeleteProfileIn):
+        name = body.name.strip()
+        if not name:
+            return {"ok": False, "code": "bad_request", "message": "name is required"}
+
+        try:
+            await async_delete_profile(name)
+        except subprocess.CalledProcessError as e:
+            msg = (e.stderr or e.output or "").strip()
+            if not msg:
+                msg = f"nmcli failed (exit={e.returncode})"
+            return {
+                "ok": False,
+                "code": "wifi_profile_delete_failed",
+                "message": msg,
+            }
+        except Exception as e:
+            return {"ok": False, "code": "wifi_profile_delete_error", "message": str(e)}
+
+        return {"ok": True, "deleted": name, "message": "deleted"}
 
     return app

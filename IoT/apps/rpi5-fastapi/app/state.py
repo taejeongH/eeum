@@ -16,5 +16,5 @@ class MonitorState:
         self.alert: bool = False
 
         self._timer_task: Optional[asyncio.Task] = None
-        self.queue: asyncio.Queue[Event] = asyncio.Queue()
+        self.queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=2)
 

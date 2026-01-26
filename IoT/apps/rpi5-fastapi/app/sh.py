@@ -1,0 +1,48 @@
+import asyncio
+import subprocess
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class CmdResult:
+    returncode: int
+    stdout: str
+    stderr: str
+
+async def async_sh(
+        cmd: list[str],
+        check: bool = True,
+        timeout: float = 15.0,
+) -> CmdResult:
+    print(">", " ".join(cmd))
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        out_b, err_b = await asyncio.wait_for(
+            proc.communicate(),
+            timeout=timeout
+        )
+    except asyncio.CancelledError:
+        proc.kill()
+        await proc.wait()
+        raise
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise
+
+    stdout = (out_b or b"").decode(errors="replace")
+    stderr = (err_b or b"").decode(errors="replace")
+
+    if check and proc.returncode != 0:
+        raise subprocess.CalledProcessError(
+            proc.returncode, 
+            cmd, 
+            output=stdout, 
+            stderr=stderr
+        )
+    
+    return CmdResult(proc.returncode, stdout, stderr)
