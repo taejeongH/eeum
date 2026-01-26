@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.ssafy.eeum.domain.user.entity.User;
+import org.ssafy.eeum.domain.family.entity.Supporter;
 
 @Getter
 @Setter
@@ -23,11 +23,16 @@ public class FamilyMemberDto {
     @Schema(description = "피부양자 여부")
     private boolean isDependent;
 
-    public static FamilyMemberDto of(User user) {
+    @Schema(description = "응급 우선순위")
+    private Integer emergencyPriority;
+
+    public static FamilyMemberDto of(Supporter supporter) {
         return FamilyMemberDto.builder()
-                .userId(user.getId().longValue())
-                .name(user.getName())
-                .profileImage(user.getProfileImage())
+                .userId(supporter.getUser().getId().longValue())
+                .name(supporter.getUser().getName())
+                .profileImage(supporter.getUser().getProfileImage())
+                .isDependent(supporter.getRole() == Supporter.Role.PATIENT)
+                .emergencyPriority(supporter.getEmergencyPriority())
                 .build();
     }
 }

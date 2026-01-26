@@ -54,6 +54,13 @@ public class FamilyController {
         return ResponseEntity.ok(responseDto);
     }
 
+    @Operation(summary = "가족 그룹 상세 정보 조회", description = "특정 가족 그룹의 이름, 피부양자, 멤버, 우선순위 등 상세 정보를 조회합니다.")
+    @GetMapping("/{familyId}/details")
+    public ResponseEntity<org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto> getFamilyDetails(@PathVariable Long familyId) {
+        org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto responseDto = familyService.getFamilyDetails(familyId);
+        return ResponseEntity.ok(responseDto);
+    }
+
     @Operation(summary = "가족 그룹 멤버 목록 조회", description = "특정 가족 그룹에 속한 모든 멤버의 목록을 조회합니다.")
     @GetMapping("/{familyId}/members")
     public ResponseEntity<List<FamilyMemberDto>> getFamilyMembers(

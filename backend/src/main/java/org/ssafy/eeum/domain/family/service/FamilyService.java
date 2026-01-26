@@ -3,8 +3,7 @@ package org.ssafy.eeum.domain.family.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.ssafy.eeum.domain.family.dto.CreateFamilyRequestDto;
-import org.ssafy.eeum.domain.family.dto.CreateFamilyResponseDto;
+import org.ssafy.eeum.domain.family.dto.*;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
@@ -12,16 +11,7 @@ import org.ssafy.eeum.domain.family.repository.SupporterRepository;
 import org.ssafy.eeum.domain.user.entity.User;
 import org.ssafy.eeum.domain.user.repository.UserRepository;
 
-import org.ssafy.eeum.domain.family.dto.FamilySimpleResponseDto;
-import org.ssafy.eeum.domain.family.dto.LeaveFamilyResponseDto;
 
-
-import org.ssafy.eeum.domain.family.dto.FamilyMemberDto;
-import org.ssafy.eeum.domain.family.dto.FamilyMemberDetailResponseDto;
-import org.ssafy.eeum.domain.family.dto.FamilyMemberPriorityDto;
-import org.ssafy.eeum.domain.family.dto.UpdateFamilyRequestDto;
-import org.ssafy.eeum.domain.family.dto.UpdateFamilyResponseDto;
-import org.ssafy.eeum.domain.family.dto.UpdateMemberRelationshipRequestDto;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.s3.S3Service;
@@ -134,6 +124,45 @@ public class FamilyService {
         responseDto.setCurrentUserOwner(user.getId().equals(family.getUser().getId()));
 
         return responseDto;
+    }
+
+    @Transactional(readOnly = true)
+    public FamilyDetailResponseDto getFamilyDetails(Long familyId) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        List<Supporter> supporters = supporterRepository.findAllByFamily(family);
+
+        Long dependentUserId = supporters.stream()
+                .filter(s -> s.getRole() == Supporter.Role.PATIENT)
+                .map(s -> s.getUser().getId().longValue())
+                .findFirst()
+                .orElse(null);
+
+        List<FamilyMemberPriorityDto> memberPriorities = supporters.stream()
+                .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
+                .map(s -> FamilyMemberPriorityDto.builder()
+                        .userId(s.getUser().getId().longValue())
+                        .emergencyPriority(s.getEmergencyPriority())
+                        .build())
+                .collect(Collectors.toList());
+
+        List<FamilyMemberDto> members = supporters.stream()
+                .map(supporter -> {
+                    FamilyMemberDto familyMemberDto = FamilyMemberDto.of(supporter);
+                    String presignedUrl = s3Service.getPresignedUrl(supporter.getUser().getProfileImage());
+                    familyMemberDto.setProfileImage(presignedUrl);
+                    return familyMemberDto;
+                })
+                .collect(Collectors.toList());
+
+        return FamilyDetailResponseDto.builder()
+                .familyId(family.getId())
+                .groupName(family.getGroupName())
+                .dependentUserId(dependentUserId)
+                .memberPriorities(memberPriorities)
+                .members(members)
+                .build();
     }
 
     private void verifyFamilyMember(User user, Family family) {
