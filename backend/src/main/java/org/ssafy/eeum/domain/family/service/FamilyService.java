@@ -24,6 +24,7 @@ import org.ssafy.eeum.domain.family.dto.UpdateFamilyResponseDto;
 import org.ssafy.eeum.domain.family.dto.UpdateMemberRelationshipRequestDto;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import java.security.SecureRandom;
 import java.util.List;
@@ -38,6 +39,7 @@ public class FamilyService {
     private final FamilyRepository familyRepository;
     private final UserRepository userRepository;
     private final SupporterRepository supporterRepository;
+    private final S3Service s3Service;
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 8;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -95,12 +97,16 @@ public class FamilyService {
         List<Supporter> supporters = supporterRepository.findAllByFamily(family);
 
         return supporters.stream()
-                .map(supporter -> FamilyMemberDto.builder()
-                        .userId(supporter.getUser().getId().longValue())
-                        .name(supporter.getUser().getName())
-                        .profileImage(supporter.getUser().getProfileImage())
-                        .isDependent(supporter.getRole() == Supporter.Role.PATIENT)
-                        .build())
+                .map(supporter -> {
+                    String presignedUrl = s3Service.getPresignedUrl(supporter.getUser().getProfileImage());
+                    FamilyMemberDto familyMemberDto = FamilyMemberDto.builder()
+                            .userId(supporter.getUser().getId().longValue())
+                            .name(supporter.getUser().getName())
+                            .isDependent(supporter.getRole() == Supporter.Role.PATIENT)
+                            .build();
+                    familyMemberDto.setProfileImage(presignedUrl);
+                    return familyMemberDto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -113,7 +119,12 @@ public class FamilyService {
         Supporter supporter = supporterRepository.findByUserAndFamily(memberUser, family)
                 .orElseThrow(() -> new CustomException(ErrorCode.SUPPORTER_NOT_FOUND));
 
-        return FamilyMemberDetailResponseDto.of(memberUser, supporter);
+        String imageKey = memberUser.getProfileImage();
+        String presignedUrl = s3Service.getPresignedUrl(imageKey);
+
+        FamilyMemberDetailResponseDto responseDto = FamilyMemberDetailResponseDto.of(memberUser, supporter);
+        responseDto.setProfileImage(presignedUrl);
+        return responseDto;
     }
 
     private String generateInviteCode() {

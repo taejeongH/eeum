@@ -3,9 +3,11 @@ package org.ssafy.eeum.domain.family.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 import org.ssafy.eeum.domain.user.entity.User;
 
 @Getter
+@Setter
 @Builder
 @Schema(description = "가족 멤버 정보 DTO")
 public class FamilyMemberDto {
