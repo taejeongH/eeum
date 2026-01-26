@@ -63,8 +63,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
                 response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
                 response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
-                // 6. 프론트엔드로 리다이렉트
-                String targetUrl = "http://localhost:5173/api/auth/login/social";
+                // 6. 리다이렉트 경로 설정 (핵심 수정 사항)
+                // localhost:5173 대신 현재 배포된 서버의 스웨거 주소로 보내서 쿠키가 브라우저에 저장되게 합니다.
+                String targetUrl = "http://i14a105.p.ssafy.io:8080/swagger-ui/index.html";
                 getRedirectStrategy().sendRedirect(request, response, targetUrl);
         }
 }
