@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# 삼성 헬스 SDK 및 Kotlin Parcelize 클래스 보존
+-keep class kotlinx.parcelize.** { *; }
+-keep class com.samsung.android.sdk.health.** { *; }
+-dontwarn kotlinx.parcelize.**
