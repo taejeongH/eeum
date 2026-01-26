@@ -1,3 +1,8 @@
+server:
+  # Nginx에서 보낸 X-Forwarded-Proto(https) 헤더를 읽어서
+  # 리다이렉트 주소를 https로 자동 생성하게 합니다. (8080 포트 노출 방지)
+  forward-headers-strategy: native
+
 spring:
   profiles:
     include: secret
