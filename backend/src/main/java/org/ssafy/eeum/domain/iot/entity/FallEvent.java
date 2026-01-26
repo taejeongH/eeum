@@ -35,16 +35,25 @@ public class FallEvent extends BaseEntity {
     @Column(name = "status_type", nullable = false)
     private StatusType statusType;
 
-    @Column(name = "detected_at", nullable = false)
-    private LocalDateTime detectedAt;
+    @Column(name = "stt_content", columnDefinition = "TEXT")
+    private String sttContent;
 
+    @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
     public enum StatusType {
-        DETECTED, CONFIRMED, FALSE_ALARM, RESOLVED
+        UNDER_REVIEW, EMERGENCY, SAFE, RESOLVED
     }
 
-    public void updateSeverity(Integer severity) {
-        this.severity = severity;
+    public void updateToEmergency(String sttContent) {
+        this.severity = 2;
+        this.statusType = StatusType.EMERGENCY;
+        this.sttContent = sttContent;
+    }
+
+    public void updateToSafe(String sttContent) {
+        this.statusType = StatusType.SAFE;
+        this.sttContent = sttContent;
+        this.resolvedAt = LocalDateTime.now();
     }
 }
