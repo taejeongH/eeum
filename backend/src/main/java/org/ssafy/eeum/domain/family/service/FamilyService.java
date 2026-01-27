@@ -8,8 +8,8 @@ import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.family.repository.SupporterRepository;
-import org.ssafy.eeum.domain.user.entity.User;
-import org.ssafy.eeum.domain.user.repository.UserRepository;
+import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
 
 
 import org.ssafy.eeum.global.error.exception.CustomException;

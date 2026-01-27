@@ -4,7 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.ssafy.eeum.domain.family.entity.SupporterId;
-import org.ssafy.eeum.domain.user.entity.User;
+import org.ssafy.eeum.domain.auth.entity.User;
 
 import java.util.List;
 import java.util.Optional;
