@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/http-client-spi/2.20.0/86e1ebdcf2b11dce150d7d45245c77e7880cc5c0/http-client-spi-2.20.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/http-client-spi/2.20.0/9758378d08c92b2da84e9b02b7dc417a8b252668/http-client-spi-2.20.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

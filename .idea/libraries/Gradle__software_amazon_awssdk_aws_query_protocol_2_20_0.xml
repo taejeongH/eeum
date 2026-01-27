@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/aws-query-protocol/2.20.0/8abc98c3b2cc6c226647664ac7fb07211609ed53/aws-query-protocol-2.20.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/aws-query-protocol/2.20.0/e216abb29d93b37bea5a649b01bfaf7abc930407/aws-query-protocol-2.20.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

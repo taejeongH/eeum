@@ -4,23 +4,21 @@ import { useUserStore } from './stores/user'
 
 const userStore = useUserStore()
 
+// App.vue 수정
 onMounted(async () => {
-  // 1. 주소창에서 accessToken이 있는지 확인 (백엔드 성공 핸들러가 보낸 것)
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('accessToken');
+  // Hash 모드 대응: 현재 전체 URL에서 accessToken 추출
+  const fullUrl = window.location.href;
+  const tokenMatch = fullUrl.match(/accessToken=([^&?]*)/);
+  const token = tokenMatch ? tokenMatch[1] : null;
 
   if (token) {
-    // 2. 토큰이 있다면 저장소에 저장
     localStorage.setItem('accessToken', token);
-    
-    // 3. 주소창 지저분하지 않게 파라미터 제거
-    window.history.replaceState({}, document.title, window.location.pathname);
-    
+    // 주소창에서 토큰 제거 (정규표현식으로 깔끔하게)
+    const cleanUrl = fullUrl.split('?')[0];
+    window.location.href = cleanUrl;
     console.log("새로운 토큰 저장 성공!");
   }
 
-  // 4. 이제 토큰이 있는 상태에서 유저 정보를 가져옴
-  // (만약 토큰이 없으면 fetchUser 내부에서 에러 처리가 될 겁니다)
   await userStore.fetchUser();
 });
 </script>

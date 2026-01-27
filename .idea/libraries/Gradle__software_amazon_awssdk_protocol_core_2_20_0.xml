@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/protocol-core/2.20.0/9bba712921fb0925c0f5e944ff95fef08ac1802a/protocol-core-2.20.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/protocol-core/2.20.0/92596c9881e8a7a231398315e7c744f17521cdb1/protocol-core-2.20.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

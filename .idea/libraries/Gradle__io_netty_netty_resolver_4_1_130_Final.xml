@@ -8,6 +8,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver/4.1.130.Final/c22bc6c0a694ce099548b92e88ac58527fe6e9a9/netty-resolver-4.1.130.Final.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver/4.1.130.Final/ef2a356542f764d159bf4b0ee4062c5b949208a9/netty-resolver-4.1.130.Final-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

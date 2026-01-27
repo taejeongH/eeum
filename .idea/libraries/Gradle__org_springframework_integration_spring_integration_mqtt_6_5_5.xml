@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.integration/spring-integration-mqtt/6.5.5/573b9f948124676a2490fab4bca01eff5268e3fc/spring-integration-mqtt-6.5.5.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.integration/spring-integration-mqtt/6.5.5/8f14f74ab9af4e0e4b10846f251b4303e2334b5e/spring-integration-mqtt-6.5.5-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

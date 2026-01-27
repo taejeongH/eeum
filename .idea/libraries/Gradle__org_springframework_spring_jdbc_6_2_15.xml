@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jdbc/6.2.15/c12dc9fb0b4c21a53c1f464645c2af94ef1e638f/spring-jdbc-6.2.15.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jdbc/6.2.15/a3ec5b691c7bb276f71f2ba8bb89b21fe4647f5b/spring-jdbc-6.2.15-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

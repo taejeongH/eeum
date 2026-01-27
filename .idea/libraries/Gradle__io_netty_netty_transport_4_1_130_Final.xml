@@ -8,6 +8,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport/4.1.130.Final/3a25cd7a1c057ed9a1606caa4b693f9c8b5c4b53/netty-transport-4.1.130.Final.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-transport/4.1.130.Final/379e4fc7606e1a086e41fcf80fbdd1c151765c01/netty-transport-4.1.130.Final-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

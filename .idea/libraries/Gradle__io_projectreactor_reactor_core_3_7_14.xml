@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.projectreactor/reactor-core/3.7.14/fbc7e6ce98e3e4a4d9d061b386b3baf410e9bf0/reactor-core-3.7.14.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.projectreactor/reactor-core/3.7.14/60440b81ecaec0297d042156dd73feaa56bf6894/reactor-core-3.7.14-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
