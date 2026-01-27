@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { MOCK_USER } from '../mocks/data';
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 const apiClient = axios.create({
   baseURL: '/api',
@@ -9,13 +12,17 @@ const apiClient = axios.create({
 });
 
 export const getUserProfile = () => {
-    return apiClient.get('/users/profile/me');
+  if (USE_MOCK) {
+    console.log("⚠️ Using MOCK Data for getUserProfile");
+    return Promise.resolve({ data: MOCK_USER });
+  }
+  return apiClient.get('/users/profile/me');
 };
 
 export const updateUserProfile = (formData) => {
-    return apiClient.put('/users/profile', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        }
-    });
+  return apiClient.put('/users/profile', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    }
+  });
 };

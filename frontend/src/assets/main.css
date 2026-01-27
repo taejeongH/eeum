@@ -13,21 +13,27 @@
   --color-primary-soft: #fde8e3;
 
   /* Text */
-  --text-title: #111827;   /* gray-900 */
-  --text-body: #374151;    /* gray-700 */
-  --text-sub: #6b7280;     /* gray-500 */
+  --text-title: #111827;
+  /* gray-900 */
+  --text-body: #374151;
+  /* gray-700 */
+  --text-sub: #6b7280;
+  /* gray-500 */
 
   /* Border / Background */
-  --border-default: #e5e7eb; /* gray-200 */
+  --border-default: #e5e7eb;
+  /* gray-200 */
   --bg-page: #ffffff;
 
   /* Radius */
-  --radius-lg: 0.75rem;   /* 12px */
-  --radius-xl: 1rem;      /* 16px */
+  --radius-lg: 0.75rem;
+  /* 12px */
+  --radius-xl: 1rem;
+  /* 16px */
 
   /* Font */
   --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont,
-               'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
 /* ===============================
@@ -79,5 +85,33 @@
 
   .eeum-btn-primary:disabled {
     background-color: var(--color-primary-light);
+  }
+
+  .eeum-dropdown {
+    @apply absolute mt-2 w-52 bg-white shadow-lg z-20;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-item {
+    @apply px-4 py-2 text-sm cursor-pointer truncate transition;
+    color: var(--text-body);
+  }
+
+  .eeum-dropdown-item:hover {
+    background-color: var(--color-primary-soft);
+  }
+
+  .eeum-dropdown-divider {
+    border-top: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-action {
+    @apply px-4 py-2 text-sm font-semibold cursor-pointer transition;
+    color: var(--color-primary);
+  }
+
+  .eeum-dropdown-action:hover {
+    background-color: var(--color-primary-soft);
   }
 }
