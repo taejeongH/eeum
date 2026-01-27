@@ -2,25 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===============================
+   테마
+================================ */
+
+:root {
+  /* Primary Color */
+  --color-primary: #e76f51;
+  --color-primary-light: #f3a08b;
+  --color-primary-soft: #fde8e3;
+
+  /* Text */
+  --text-title: #111827;   /* gray-900 */
+  --text-body: #374151;    /* gray-700 */
+  --text-sub: #6b7280;     /* gray-500 */
+
+  /* Border / Background */
+  --border-default: #e5e7eb; /* gray-200 */
+  --bg-page: #ffffff;
+
+  /* Radius */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+
+  /* Font */
+  --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont,
+               'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+/* ===============================
+   기본 스타일
+================================ */
+
 @layer base {
+  html {
+    font-family: var(--font-main);
+    color: var(--text-body);
+  }
+
   body {
-    @apply bg-gray-50 font-sans;
+    background-color: var(--bg-page);
   }
 }
 
+/* ===============================
+   컴포넌트
+================================ */
+
 @layer components {
-  /* 기본 버튼 스타일 */
-  .btn {
-    @apply font-bold py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
-  }
-  
-  /* 주황색 메인 버튼 스타일 */
-  .btn-primary {
-    @apply btn w-full bg-primary text-white hover:bg-primary/90 focus:ring-primary disabled:bg-primary/50 disabled:cursor-not-allowed;
+  .eeum-title {
+    @apply text-xl font-bold leading-snug;
+    color: var(--text-title);
   }
 
-  /* 기본 입력창 스타일 */
-  .input-base {
-    @apply block w-full rounded-lg border border-gray-200 bg-white py-2 px-3 text-gray-800 transition duration-150 ease-in-out focus:border-primary focus:ring-primary focus:ring-opacity-50 focus:outline-none;
+  .eeum-sub {
+    @apply text-sm leading-relaxed;
+    color: var(--text-sub);
+  }
+
+  .eeum-input {
+    @apply w-full px-4 py-3 text-sm border focus:outline-none;
+    border-radius: var(--radius-xl);
+    border-color: var(--border-default);
+  }
+
+  .eeum-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
+  }
+
+  .eeum-btn-primary {
+    @apply w-full h-14 font-semibold text-white transition;
+    border-radius: var(--radius-xl);
+    background-color: var(--color-primary);
+  }
+
+  .eeum-btn-primary:disabled {
+    background-color: var(--color-primary-light);
   }
 }
