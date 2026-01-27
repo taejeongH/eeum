@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface IotDeviceRepository extends JpaRepository<IotDevice, Integer> {
-    List<IotDevice> findAllByGroupId(Integer groupId);
+    List<IotDevice> findAllByFamilyId(Long familyId);
 
     Optional<IotDevice> findBySerialNumber(String serialNumber);
 

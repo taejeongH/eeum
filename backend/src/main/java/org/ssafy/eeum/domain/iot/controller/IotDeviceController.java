@@ -29,7 +29,7 @@ public class IotDeviceController {
 
     @Operation(summary = "IoT 기기 목록 조회", description = "특정 그룹의 등록된 기기 목록을 조회합니다.")
     @GetMapping
-    public RestApiResponse<List<IotDeviceResponseDTO>> getDevices(@RequestParam Integer groupId) {
+    public RestApiResponse<List<IotDeviceResponseDTO>> getDevices(@RequestParam Long groupId) {
         return RestApiResponse.success(iotDeviceService.getDevicesByGroup(groupId));
     }
 

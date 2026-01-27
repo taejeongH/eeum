@@ -10,5 +10,5 @@ import org.ssafy.eeum.domain.iot.entity.FallEvent.StatusType;
 public interface FallEventRepository extends JpaRepository<FallEvent, Integer> {
     Optional<FallEvent> findByVideoPath(String videoPath);
 
-    Optional<FallEvent> findTopByGroupIdAndStatusTypeOrderByCreatedAtDesc(Integer groupId, StatusType statusType);
+    Optional<FallEvent> findTopByFamilyIdAndStatusTypeOrderByCreatedAtDesc(Long familyId, StatusType statusType);
 }

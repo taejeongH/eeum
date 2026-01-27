@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceMqttDTO;
 import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.service.IotDeviceService;
-import org.ssafy.eeum.domain.iot.dto.IotDeviceResponseDTO;
 import java.util.List;
 
 @Slf4j
@@ -40,7 +39,7 @@ public class MqttService {
         }
     }
 
-    public void sendToIot(Integer groupId, String category, String jsonPayload) {
+    public void sendToIot(Long groupId, String category, String jsonPayload) {
         // 사용 형식 : eeum/group/{groupId}/{category}
         String topic = String.format("eeum/group/%d/%s", groupId, category);
         publish(topic, jsonPayload);
@@ -92,7 +91,7 @@ public class MqttService {
                 return;
             }
 
-            Integer groupId = devices.get(0).getGroupId();
+            Long groupId = devices.get(0).getGroupId();
             String responsePayload = objectMapper.writeValueAsString(devices);
 
             sendToIot(groupId, "device-list", responsePayload);
@@ -112,7 +111,7 @@ public class MqttService {
                 return;
             }
 
-            Integer groupId = node.path("group_id").asInt();
+            Long groupId = node.path("group_id").asLong();
             String sttContent = node.path("stt_content").asText();
 
             fallEventService.handleVoiceResponse(groupId, sttContent);

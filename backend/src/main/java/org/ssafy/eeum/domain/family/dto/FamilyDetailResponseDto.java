@@ -16,8 +16,7 @@ public class FamilyDetailResponseDto {
     @Schema(description = "가족 이름")
     private String groupName;
 
-    @Schema(description = "피부양자 유저 ID")
-    private Long dependentUserId;
+    private Integer dependentUserId;
 
     @Schema(description = "멤버별 우선순위 목록")
     private List<FamilyMemberPriorityDto> memberPriorities;

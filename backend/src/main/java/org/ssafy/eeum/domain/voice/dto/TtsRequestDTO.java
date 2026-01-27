@@ -15,5 +15,5 @@ public class TtsRequestDTO {
 
     @Schema(description = "전송 대상 기기 그룹 ID", example = "1")
     @NotNull(message = "그룹 ID는 필수입니다.")
-    private Integer groupId;
+    private Long groupId;
 }

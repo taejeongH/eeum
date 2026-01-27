@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.health.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -20,8 +20,8 @@ public class HealthConnection extends BaseEntity {
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "group_id", nullable = false)
+    private Family family;
 
     @Column(nullable = false, length = 50)
     private String provider;

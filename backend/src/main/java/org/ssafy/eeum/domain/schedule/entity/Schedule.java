@@ -3,6 +3,7 @@ package org.ssafy.eeum.domain.schedule.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDate;
@@ -18,8 +19,9 @@ public class Schedule extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "group_id", nullable = false)
-    private Integer groupId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    private Family family;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)

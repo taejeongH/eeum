@@ -16,7 +16,7 @@ import java.util.List;
 @Schema(description = "가족 멤버 상세 조회 응답 DTO")
 public class FamilyMemberDetailResponseDto {
     @Schema(description = "유저 ID")
-    private Long userId;
+    private Integer userId;
 
     @Schema(description = "유저 이름")
     private String name;
@@ -58,7 +58,7 @@ public class FamilyMemberDetailResponseDto {
         boolean isPatient = supporter.getRole() == Supporter.Role.PATIENT;
 
         return FamilyMemberDetailResponseDto.builder()
-                .userId(user.getId().longValue())
+                .userId(user.getId())
                 .name(user.getName())
                 .phone(user.getPhone())
                 .birthDate(user.getBirthDate())

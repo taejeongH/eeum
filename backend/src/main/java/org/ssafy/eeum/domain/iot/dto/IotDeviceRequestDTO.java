@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 public class IotDeviceRequestDTO {
 
     @Schema(description = "가족 ID", example = "1")
-    private Integer groupId;
+    private Long groupId;
 
     @Schema(description = "기기 시리얼 번호", example = "SN-12345678")
     private String serialNumber;

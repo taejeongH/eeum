@@ -12,7 +12,7 @@ import org.ssafy.eeum.domain.iot.entity.IotDevice;
 public class IotDeviceMqttDTO {
 
     @JsonProperty("group_id")
-    private Integer groupId;
+    private Long groupId;
 
     @JsonProperty("serial_number")
     private String serialNumber;
@@ -22,7 +22,7 @@ public class IotDeviceMqttDTO {
 
     public static IotDeviceMqttDTO of(IotDevice device) {
         return IotDeviceMqttDTO.builder()
-                .groupId(device.getGroupId())
+                .groupId(device.getFamily().getId())
                 .serialNumber(device.getSerialNumber())
                 .locationType(device.getLocationType())
                 .build();

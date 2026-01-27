@@ -66,7 +66,8 @@ public class FamilyController {
 
     @Operation(summary = "가족 그룹 상세 정보 조회", description = "특정 가족 그룹의 이름, 피부양자, 멤버, 우선순위 등 상세 정보를 조회합니다.")
     @GetMapping("/{familyId}/details")
-    public ResponseEntity<org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto> getFamilyDetails(@PathVariable Long familyId) {
+    public ResponseEntity<org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto> getFamilyDetails(
+            @PathVariable Long familyId) {
         org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto responseDto = familyService.getFamilyDetails(familyId);
         return ResponseEntity.ok(responseDto);
     }
@@ -86,9 +87,10 @@ public class FamilyController {
     public ResponseEntity<FamilyMemberDetailResponseDto> getFamilyMemberDetails(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long familyId,
-            @PathVariable Long memberUserId) {
+            @PathVariable Integer memberUserId) {
         String userId = userDetails.getUsername();
-        FamilyMemberDetailResponseDto responseDto = familyService.getFamilyMemberDetails(userId, familyId, memberUserId);
+        FamilyMemberDetailResponseDto responseDto = familyService.getFamilyMemberDetails(userId, familyId,
+                memberUserId);
         return ResponseEntity.ok(responseDto);
     }
 
@@ -149,7 +151,7 @@ public class FamilyController {
     public ResponseEntity<Void> deleteFamilyMember(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long familyId,
-            @PathVariable Long memberUserId) {
+            @PathVariable Integer memberUserId) {
         String authenticatedUserId = userDetails.getUsername();
         familyService.deleteFamilyMember(authenticatedUserId, familyId, memberUserId);
         return ResponseEntity.noContent().build();
