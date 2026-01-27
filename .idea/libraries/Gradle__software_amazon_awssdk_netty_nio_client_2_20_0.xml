@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/netty-nio-client/2.20.0/c71a879c8650f797208fa777fbcfa499f5076adc/netty-nio-client-2.20.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/netty-nio-client/2.20.0/97e09b964bb2efa4da531297a3bdee5029287e94/netty-nio-client-2.20.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

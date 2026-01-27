@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.integration/spring-integration-core/6.5.5/2aa6ab7d921e2b06801221dfd3e2f900dd7f69e8/spring-integration-core-6.5.5.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.integration/spring-integration-core/6.5.5/528d3ff4d0bb9735de8ea6d40bf6a1ff3221cb9b/spring-integration-core-6.5.5-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

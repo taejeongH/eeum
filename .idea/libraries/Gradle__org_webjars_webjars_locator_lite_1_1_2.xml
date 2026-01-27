@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.webjars/webjars-locator-lite/1.1.2/e7acbfaaf40f9cc2b67209a2a9c04b7fc4b19a5f/webjars-locator-lite-1.1.2.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.webjars/webjars-locator-lite/1.1.2/ef4eacdc1265e89a2285ea98bdcba8232b5b8e08/webjars-locator-lite-1.1.2-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

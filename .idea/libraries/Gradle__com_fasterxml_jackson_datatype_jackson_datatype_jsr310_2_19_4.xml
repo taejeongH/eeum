@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jsr310/2.19.4/3cbcf2e636a6b062772299bf19a347536e58c4df/jackson-datatype-jsr310-2.19.4.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jsr310/2.19.4/225d239c073ab8ac4ed89188335f94a943645e11/jackson-datatype-jsr310-2.19.4-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

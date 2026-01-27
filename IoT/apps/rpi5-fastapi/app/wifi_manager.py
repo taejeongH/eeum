@@ -91,75 +91,73 @@ async def async_get_active_on_wlan0() -> Optional[str]:
     """
     STA_IFACE에 바인딩된 현재 active connection 이름 반환
     """
-    async with _wifi_lock:
-        r = await async_sh(
-            ["nmcli", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
-            check=False,
-            timeout=5.0,
-        )
-        conn = (r.stdout or "").strip()
-        return conn if conn and conn != "--" else None
+    r = await async_sh(
+        ["nmcli", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
+        check=False,
+        timeout=5.0,
+    )
+    conn = (r.stdout or "").strip()
+    return conn if conn and conn != "--" else None
 
 async def async_list_wifi_profiles_wlan0() -> List[WifiProfile]:
     """
     저장된 Wi-Fi 프로필 목록을 읽고, STA_IFACE에 bind된 것만 필터링 후 정렬
     """
-    async with _wifi_lock:
-        # active connection id
-        r_active = await async_sh(
-            ["nmcli", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
+    # active connection id
+    r_active = await async_sh(
+        ["nmcli", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
+        check=False,
+        timeout=5.0,
+    )
+    active = (r_active.stdout or "").strip()
+    if not active or active == "--":
+        active = ""
+
+    # 전체 connection 목록에서 wifi 타입만 이름 수집
+    r = await async_sh(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"], check=False, timeout=10.0)
+    wifi_names: List[str] = []
+    for line in (r.stdout or "").splitlines():
+        parts = line.split(":")
+        if len(parts) >= 2 and parts[1] == "802-11-wireless":
+            wifi_names.append(parts[0])
+
+    profiles: List[WifiProfile] = []
+    for name in wifi_names:
+        r2 = await async_sh(
+            ["nmcli", "-g",
+                "802-11-wireless.ssid,connection.interface-name,connection.autoconnect",
+                "connection", "show", name],
             check=False,
-            timeout=5.0,
+            timeout=10.0,
         )
-        active = (r_active.stdout or "").strip()
-        if not active or active == "--":
-            active = ""
+        vals = (r2.stdout or "").splitlines()
+        ssid = vals[0].strip() if len(vals) > 0 and vals[0].strip() else None
+        iface_bind = vals[1].strip() if len(vals) > 1 and vals[1].strip() else None
+        autoconnect = _parse_bool(vals[2]) if len(vals) > 2 else None
 
-        # 전체 connection 목록에서 wifi 타입만 이름 수집
-        r = await async_sh(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"], check=False, timeout=10.0)
-        wifi_names: List[str] = []
-        for line in (r.stdout or "").splitlines():
-            parts = line.split(":")
-            if len(parts) >= 2 and parts[1] == "wifi":
-                wifi_names.append(parts[0])
+        # 다른 iface에 bind된 프로필은 제외
+        if iface_bind and iface_bind != STA_IFACE:
+            continue
+        
+        profiles.append(WifiProfile(
+            name=name,
+            ssid=ssid,
+            iface=iface_bind,
+            autoconnect=autoconnect,
+            active_device=(STA_IFACE if active == name else None)
+        ))
 
-        profiles: List[WifiProfile] = []
-        for name in wifi_names:
-            r2 = await async_sh(
-                ["nmcli", "-g",
-                 "802-11-wireless.ssid,connection.interface-name,connection.autoconnect",
-                 "connection", "show", name],
-                check=False,
-                timeout=10.0,
-            )
-            vals = (r2.stdout or "").splitlines()
-            ssid = vals[0].strip() if len(vals) > 0 and vals[0].strip() else None
-            iface_bind = vals[1].strip() if len(vals) > 1 and vals[1].strip() else None
-            autoconnect = _parse_bool(vals[2]) if len(vals) > 2 else None
+    # active / bind 우선 정렬
+    def _score(p: WifiProfile) -> int:
+        score = 0
+        if p.active_device == STA_IFACE:
+            score += 10
+        if p.iface == STA_IFACE:
+            score += 5
+        return -score
 
-            # 다른 iface에 bind된 프로필은 제외
-            if iface_bind and iface_bind != STA_IFACE:
-                continue
-
-            profiles.append(WifiProfile(
-                name=name,
-                ssid=ssid,
-                iface=iface_bind,
-                autoconnect=autoconnect,
-                active_device=(STA_IFACE if active == name else None)
-            ))
-
-        # active / bind 우선 정렬
-        def _score(p: WifiProfile) -> int:
-            score = 0
-            if p.active_device == STA_IFACE:
-                score += 10
-            if p.iface == STA_IFACE:
-                score += 5
-            return -score
-
-        profiles.sort(key=_score)
-        return profiles
+    profiles.sort(key=_score)
+    return profiles
 
 async def async_scan_wifi_wlan0() -> List[Dict[str, object]]:
     """
@@ -168,35 +166,34 @@ async def async_scan_wifi_wlan0() -> List[Dict[str, object]]:
     """
     global _last_scan_ts, _last_scan_result
 
-    async with _wifi_lock:
-        now = time.monotonic()
-        if _SCAN_CACHE_TTL_SEC > 0 and _last_scan_result and (now - _last_scan_ts) < _SCAN_CACHE_TTL_SEC:
-            return _last_scan_result
+    now = time.monotonic()
+    if _SCAN_CACHE_TTL_SEC > 0 and _last_scan_result and (now - _last_scan_ts) < _SCAN_CACHE_TTL_SEC:
+        return _last_scan_result
 
-        # 1) rescan
-        await async_sh(
-            ["sudo", "-n", "nmcli", "dev", "wifi", "rescan", "ifname", STA_IFACE],
-            check=False,
-            timeout=10.0,
-        )
-        # rescan 반영 대기
-        await asyncio.sleep(0.8)
+    # 1) rescan
+    await async_sh(
+        ["sudo", "-n", "nmcli", "dev", "wifi", "rescan", "ifname", STA_IFACE],
+        check=False,
+        timeout=10.0,
+    )
+    # rescan 반영 대기
+    await asyncio.sleep(0.8)
 
-        # 2) list
-        r = await async_sh(
-            ["sudo", "-n", "nmcli", "-t",
-             "-f", "IN-USE,SSID,SIGNAL,SECURITY",
-             "device", "wifi", "list",
-             "ifname", STA_IFACE],
-            check=False,
-            timeout=10.0,
-        )
+    # 2) list
+    r = await async_sh(
+        ["sudo", "-n", "nmcli", "-t",
+            "-f", "IN-USE,SSID,SIGNAL,SECURITY",
+            "device", "wifi", "list",
+            "ifname", STA_IFACE],
+        check=False,
+        timeout=10.0,
+    )
 
-        aps = _parse_wifi_list_text(r.stdout or "")
+    aps = _parse_wifi_list_text(r.stdout or "")
 
-        _last_scan_result = aps
-        _last_scan_ts = time.monotonic()
-        return aps
+    _last_scan_result = aps
+    _last_scan_ts = time.monotonic()
+    return aps
 
 
 
@@ -242,12 +239,12 @@ async def async_set_profile_password(name: str, password: str) -> None:
 
 async def async_up_profile_on_wlan0(name: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "up", "id", name, "ifname", STA_IFACE], timeout=30.0)
+        await async_sh(["sudo", "-n", "nmcli", "connection", "up", "id", name, "ifname", STA_IFACE], timeout=15.0)
 
 
 async def async_down_profile(name: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "down", "id", name], check=False, timeout=20.0)
+        await async_sh(["sudo", "-n", "nmcli", "connection", "down", "id", name], check=False, timeout=10.0)
 
 
 # -------- 프로비저닝(SSID/PW 입력 → 연결 시도) --------

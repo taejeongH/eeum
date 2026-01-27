@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.eclipse.paho/org.eclipse.paho.mqttv5.client/1.2.5/82a20fe54f2bed0ef63b08a904bcfbd546e281f8/org.eclipse.paho.mqttv5.client-1.2.5.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.eclipse.paho/org.eclipse.paho.mqttv5.client/1.2.5/e09247300c5d9430e80322f750f29f3813ea532b/org.eclipse.paho.mqttv5.client-1.2.5-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

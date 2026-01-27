@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/regions/2.20.0/f3f7c2e440ef13955fabd45e03130e8f3b722b5e/regions-2.20.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/software.amazon.awssdk/regions/2.20.0/41ec1395511e8ddb5318067a2f4b8aeb0c34d305/regions-2.20.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

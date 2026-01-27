@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.ibm.icu/icu4j/78.2/31b9d9a35d283432d0ce1a8b6e2631dcfd046ab8/icu4j-78.2.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.ibm.icu/icu4j/78.2/5be998a7421a1afe2f86cfbb903aa8deb4369d07/icu4j-78.2-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

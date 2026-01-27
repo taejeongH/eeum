@@ -32,6 +32,7 @@
     <orderEntry type="library" name="Gradle: org.springframework.boot:spring-boot-starter-data-redis:3.5.9" level="project" />
     <orderEntry type="library" name="Gradle: org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5" level="project" />
     <orderEntry type="library" name="Gradle: org.springframework.boot:spring-boot-starter-oauth2-client:3.5.9" level="project" />
+    <orderEntry type="library" name="Gradle: org.springframework.boot:spring-boot-starter-webflux:3.5.9" level="project" />
     <orderEntry type="library" name="Gradle: io.jsonwebtoken:jjwt-api:0.13.0" level="project" />
     <orderEntry type="library" name="Gradle: software.amazon.awssdk:s3:2.20.0" level="project" />
     <orderEntry type="library" name="Gradle: org.springframework.boot:spring-boot-starter-integration:3.5.9" level="project" />
@@ -60,6 +61,8 @@
     <orderEntry type="library" name="Gradle: org.springframework.security:spring-security-oauth2-client:6.5.7" level="project" />
     <orderEntry type="library" name="Gradle: org.springframework.security:spring-security-oauth2-jose:6.5.7" level="project" />
     <orderEntry type="library" name="Gradle: org.springframework.security:spring-security-core:6.5.7" level="project" />
+    <orderEntry type="library" name="Gradle: org.springframework:spring-webflux:6.2.15" level="project" />
+    <orderEntry type="library" name="Gradle: org.springframework.boot:spring-boot-starter-reactor-netty:3.5.9" level="project" />
     <orderEntry type="library" name="Gradle: software.amazon.awssdk:aws-xml-protocol:2.20.0" level="project" />
     <orderEntry type="library" name="Gradle: software.amazon.awssdk:protocol-core:2.20.0" level="project" />
     <orderEntry type="library" name="Gradle: software.amazon.awssdk:arns:2.20.0" level="project" />
@@ -118,6 +121,7 @@
     <orderEntry type="library" name="Gradle: com.nimbusds:oauth2-oidc-sdk:9.43.6" level="project" />
     <orderEntry type="library" name="Gradle: com.nimbusds:nimbus-jose-jwt:9.37.4" level="project" />
     <orderEntry type="library" name="Gradle: org.springframework.security:spring-security-crypto:6.5.7" level="project" />
+    <orderEntry type="library" name="Gradle: io.projectreactor.netty:reactor-netty-http:1.2.13" level="project" />
     <orderEntry type="library" name="Gradle: software.amazon.awssdk:aws-query-protocol:2.20.0" level="project" />
     <orderEntry type="library" name="Gradle: software.amazon.eventstream:eventstream:1.0.1" level="project" />
     <orderEntry type="library" name="Gradle: org.reactivestreams:reactive-streams:1.0.4" level="project" />
@@ -140,6 +144,12 @@
     <orderEntry type="library" name="Gradle: com.nimbusds:content-type:2.2" level="project" />
     <orderEntry type="library" name="Gradle: net.minidev:json-smart:2.5.2" level="project" />
     <orderEntry type="library" name="Gradle: com.nimbusds:lang-tag:1.7" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-codec-http2:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.projectreactor.netty:reactor-netty-core:1.2.13" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-codec-http:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-resolver-dns-native-macos:osx-x86_64:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-resolver-dns:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-transport-native-epoll:linux-x86_64:4.1.130.Final" level="project" />
     <orderEntry type="library" name="Gradle: ch.qos.logback:logback-core:1.5.22" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-api:2.24.3" level="project" />
     <orderEntry type="library" name="Gradle: io.swagger.core.v3:swagger-models-jakarta:2.2.28" level="project" />
@@ -148,8 +158,14 @@
     <orderEntry type="library" name="Gradle: io.swagger.core.v3:swagger-annotations-jakarta:2.2.28" level="project" />
     <orderEntry type="library" name="Gradle: jakarta.xml.bind:jakarta.xml.bind-api:4.0.4" level="project" />
     <orderEntry type="library" name="Gradle: net.minidev:accessors-smart:2.5.2" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-handler-proxy:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-resolver-dns-classes-macos:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-codec-dns:4.1.130.Final" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-transport-classes-epoll:4.1.130.Final" level="project" />
     <orderEntry type="library" name="Gradle: jakarta.activation:jakarta.activation-api:2.1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.ow2.asm:asm:9.7.1" level="project" />
+    <orderEntry type="library" name="Gradle: io.netty:netty-codec-socks:4.1.130.Final" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Gradle: org.springframework.boot:spring-boot-devtools:3.5.9" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: io.jsonwebtoken:jjwt-impl:0.13.0" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: io.jsonwebtoken:jjwt-jackson:0.13.0" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: com.mysql:mysql-connector-j:9.5.0" level="project" />
@@ -162,9 +178,6 @@
     <orderEntry type="library" scope="RUNTIME" name="Gradle: jakarta.inject:jakarta.inject-api:2.0.1" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: org.apache.httpcomponents:httpclient:4.5.13" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: org.apache.httpcomponents:httpcore:4.4.16" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Gradle: io.netty:netty-codec-http2:4.1.130.Final" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Gradle: io.netty:netty-codec-http:4.1.130.Final" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Gradle: io.netty:netty-transport-classes-epoll:4.1.130.Final" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: org.glassfish.jaxb:jaxb-core:4.0.6" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: commons-logging:commons-logging:1.2" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Gradle: commons-codec:commons-codec:1.18.0" level="project" />

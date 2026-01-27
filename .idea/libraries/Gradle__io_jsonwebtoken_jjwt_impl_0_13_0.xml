@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.jsonwebtoken/jjwt-impl/0.13.0/9e7c70dd7014909556755fb01c465dd184b4b1d9/jjwt-impl-0.13.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.jsonwebtoken/jjwt-impl/0.13.0/fc9d7b8ac0814a1783f7299fef696f0dd62c1801/jjwt-impl-0.13.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -13,8 +13,10 @@ async def async_sh(
         cmd: list[str],
         check: bool = True,
         timeout: float = 15.0,
+        debug: bool=False
 ) -> CmdResult:
-    print(">", " ".join(cmd))
+    if debug:
+        print(">", " ".join(cmd))
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,

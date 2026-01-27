@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.security/spring-security-core/6.5.7/a0c9068ed82f0ddf21231cc7c7dd4bd6b2ef4029/spring-security-core-6.5.7.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.security/spring-security-core/6.5.7/c67a8132a30f7d173f4928ebc755f08c5f2797f5/spring-security-core-6.5.7-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
