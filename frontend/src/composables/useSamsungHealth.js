@@ -13,6 +13,19 @@ export function useSamsungHealth() {
       window.Android.fetchHeartRate();
     } else {
       console.warn("안드로이드 브릿지(Android.fetchHeartRate)를 찾을 수 없습니다.");
+
+      // MOCK Bridge Response for Browser Testing
+      if (import.meta.env.VITE_USE_MOCK === 'true') {
+        console.log("⚠️ Using MOCK Bridge Response");
+        setTimeout(() => {
+          // Simulate Android calling window.onReceiveHealthData
+          const mockData = JSON.stringify({
+            heartRate: 75,
+            timestamp: new Date().toISOString()
+          });
+          window.onReceiveHealthData(mockData);
+        }, 1000);
+      }
     }
   };
 

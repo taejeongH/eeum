@@ -1,5 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import MyProfileView from '../views/MyProfileView.vue';
+import HomePage from '../views/HomePage.vue';
+import VoiceRegistration from '../views/VoiceRegistration.vue';
+import EmergencyAlert from '../views/EmergencyAlert.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue'; 
@@ -77,6 +80,26 @@ const routes = [
     path: '/voice-sample',
     name: 'VoiceSample',
     component: VoiceSample,
+  },
+  {
+    path: '/voice-sample',
+    name: 'VoiceSample',
+    component: VoiceSample,
+  },
+  {
+    path: '/home',
+    name: 'HomePage',
+    component: HomePage,
+  },
+  {
+    path: '/voice-register',
+    name: 'VoiceRegistration',
+    component: VoiceRegistration,
+  },
+  {
+    path: '/emergency',
+    name: 'EmergencyAlert',
+    component: EmergencyAlert,
   },
 ];
 
