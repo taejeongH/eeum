@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @Getter
 @Schema(description = "프로필 응답 DTO")
 public class ProfileResponseDto {
+    @Schema(description = "유저 ID")
+    private Integer id;
     @Schema(description = "이름")
     private String name;
     @Schema(description = "전화번호")
@@ -28,7 +30,8 @@ public class ProfileResponseDto {
     private LocalDateTime updatedAt;
 
     @Builder
-    public ProfileResponseDto(String name, String phone, LocalDate birthDate, Gender gender, String address, String profileImage, LocalDateTime updatedAt) {
+    public ProfileResponseDto(Integer id, String name, String phone, LocalDate birthDate, Gender gender, String address, String profileImage, LocalDateTime updatedAt) {
+        this.id = id;
         this.name = name;
         this.phone = phone;
         this.birthDate = birthDate;
@@ -40,6 +43,7 @@ public class ProfileResponseDto {
 
     public static ProfileResponseDto of(User user) {
         return ProfileResponseDto.builder()
+                .id(user.getId())
                 .name(user.getName())
                 .phone(user.getPhone())
                 .birthDate(user.getBirthDate())

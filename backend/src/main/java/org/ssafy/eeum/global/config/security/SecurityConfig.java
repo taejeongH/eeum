@@ -29,14 +29,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-        private final CustomOAuth2UserService customOAuth2UserService;
-        private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
-        private final JwtProvider jwtProvider;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final JwtProvider jwtProvider;
 
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-                return new BCryptPasswordEncoder();
-        }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
         // [핵심] Swagger 관련 경로를 Security Filter Chain에서 제외
         @Bean
@@ -74,8 +74,8 @@ public class SecurityConfig {
                         .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
                                 UsernamePasswordAuthenticationFilter.class);
 
-                return http.build();
-        }
+        return http.build();
+    }
 
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
@@ -86,8 +86,8 @@ public class SecurityConfig {
                 config.setAllowCredentials(true);
                 config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
 
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                source.registerCorsConfiguration("/**", config);
-                return source;
-        }
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
 }

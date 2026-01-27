@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.users.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +26,7 @@ public class UserController {
 
     private final UserService userService;
 
+    @Operation(summary = "유저 프로필 정보 수정", description = "유저의 프로필 정보를 수정합니다. 프로필 이미지도 변경 가능합니다.")
     @PutMapping(value = "/profile")
     public ResponseEntity<ProfileResponseDto> updateProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -35,6 +37,7 @@ public class UserController {
         return ResponseEntity.ok(profileResponse);
     }
     
+    @Operation(summary = "유저 프로필 정보 조회", description = "현재 인증된 유저의 프로필 정보를 조회합니다.")
     @GetMapping("/profile/me")
     public ResponseEntity<ProfileResponseDto> getProfile(@AuthenticationPrincipal CustomUserDetails userDetails) {
         String userId = userDetails.getUsername();

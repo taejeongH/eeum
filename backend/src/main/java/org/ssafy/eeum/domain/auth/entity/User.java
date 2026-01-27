@@ -4,10 +4,15 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays; // Added import
+import java.util.List;
+import java.util.StringJoiner; // Added import
 
 @Entity
 @Table(name = "users")
@@ -21,6 +26,9 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Supporter> supporters = new ArrayList<>();
 
     @Column(length = 255)
     private String email;
@@ -95,5 +103,27 @@ public class User {
         this.address = address;
         this.profileImage = profileImage;
         this.updatedAt = LocalDateTime.now();
+    }
+    public void updateHealthInfo(String bloodType, List<String> chronicDiseases) { // Changed parameter type
+        if (bloodType != null) {
+            this.bloodType = bloodType;
+        }
+        if (chronicDiseases != null && !chronicDiseases.isEmpty()) {
+            StringJoiner sj = new StringJoiner(",");
+            for (String disease : chronicDiseases) {
+                sj.add(disease.trim());
+            }
+            this.chronicDiseases = sj.toString();
+        } else if (chronicDiseases != null && chronicDiseases.isEmpty()) {
+            this.chronicDiseases = null; // Clear if an empty list is passed
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public List<String> getChronicDiseasesList() {
+        if (this.chronicDiseases == null || this.chronicDiseases.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        return Arrays.asList(this.chronicDiseases.split(","));
     }
 }
