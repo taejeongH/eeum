@@ -25,7 +25,7 @@ public enum ErrorCode {
     ALREADY_FAMILY_MEMBER(HttpStatus.BAD_REQUEST, "FAMILY006", "이미 해당 가족 그룹의 멤버입니다."),
     ALREADY_FAMILY_REPRESENTATIVE(HttpStatus.BAD_REQUEST, "FAMILY007", "이미 해당 가족 그룹의 대표자입니다."),
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "FAMILY008", "유효하지 않은 초대 코드입니다."),
-    FORBIDDEN_FAMILY_ACCESS(HttpStatus.FORBIDDEN, "FAMILY009", "해당 가족 그룹에 접근할 권한이 없습니다.");
+    FORBIDDEN_FAMILY_ACCESS(HttpStatus.FORBIDDEN, "FAMILY009", "해당 가족 그룹에 접근할 권한이 없습니다."),
 
     // 일정
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE001", "존재하지 않는 일정입니다."),
