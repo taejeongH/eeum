@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
+    <!-- 삼성헬스 앱 통신 시 패키지 가시성 설정 -->
+    <queries>
+        <package android:name="com.sec.android.app.shealth" />
+    </queries>
+    <!-- 헬스데이터 사용 권한 설정 -->
+    <uses-permission android:name="com.samsung.android.health.permission.read" />
     <!-- 인터넷 사용 권한 설정 -->
     <uses-permission android:name="android.permission.INTERNET" />
 

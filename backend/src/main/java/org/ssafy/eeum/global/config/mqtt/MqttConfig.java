@@ -1,5 +1,6 @@
 package org.ssafy.eeum.global.config.mqtt;
 
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.mqttv5.client.MqttConnectionOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -11,8 +12,14 @@ import org.springframework.integration.mqtt.outbound.Mqttv5PahoMessageHandler;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.X509Certificate;
+import java.util.UUID;
 
+@Slf4j
 @Configuration
 public class MqttConfig {
 
@@ -39,6 +46,20 @@ public class MqttConfig {
         options.setUserName(username);
         options.setPassword(password.getBytes(StandardCharsets.UTF_8));
 
+        try {
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() { return null; }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                    }
+            }, new java.security.SecureRandom());
+            options.setSocketFactory(sslContext.getSocketFactory());
+        } catch (Exception e) {
+            log.error("MQTT SSL 설정 오류: {}", e.getMessage());
+        }
+
         options.setCleanStart(true);
         options.setKeepAliveInterval(60);
         options.setAutomaticReconnect(true);
@@ -52,11 +73,13 @@ public class MqttConfig {
     }
 
     @Bean
-    public Mqttv5PahoMessageDrivenChannelAdapter inbound() {
-        Mqttv5PahoMessageDrivenChannelAdapter adapter = new Mqttv5PahoMessageDrivenChannelAdapter(url, clientId + "-in",
-                "eeum/sensor/data", "eeum/ai/sentiment", "eeum/family/code");
-        adapter.setCompletionTimeout(5000);
+    public Mqttv5PahoMessageDrivenChannelAdapter inbound(MqttConnectionOptions mqttConnectionOptions) {
+        String uniqueInboundId = clientId + "-in-" + UUID.randomUUID().toString().substring(0, 5);
 
+        Mqttv5PahoMessageDrivenChannelAdapter adapter = new Mqttv5PahoMessageDrivenChannelAdapter(
+                mqttConnectionOptions, uniqueInboundId, "eeum/sensor/data", "eeum/ai/sentiment", "eeum/family/code");
+
+        adapter.setCompletionTimeout(5000);
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
@@ -69,8 +92,10 @@ public class MqttConfig {
 
     @Bean
     @ServiceActivator(inputChannel = "mqttOutboundChannel")
-    public MessageHandler mqttOutbound() {
-        Mqttv5PahoMessageHandler messageHandler = new Mqttv5PahoMessageHandler(url, clientId + "-out");
+    public MessageHandler mqttOutbound(MqttConnectionOptions mqttConnectionOptions) {
+        String uniqueOutboundId = clientId + "-out-" + UUID.randomUUID().toString().substring(0, 5);
+
+        Mqttv5PahoMessageHandler messageHandler = new Mqttv5PahoMessageHandler(mqttConnectionOptions, uniqueOutboundId);
 
         messageHandler.setAsync(true);
         messageHandler.setDefaultTopic(defaultTopic);
