@@ -66,14 +66,17 @@ class MainActivity : ComponentActivity() {
 // ====== JS Bridge (내용 보존 + 실제로 @JavascriptInterface를 쓸 수 있게 통합) ======
 class HealthJsBridge(
     private val activity: ComponentActivity,
-    private val healthManager: SamsungHealthManager
+    private val healthManager: SamsungHealthManager,
+    private val webView: WebView
 ) {
     @JavascriptInterface
-    fun fetchUser() {
-        // (요청에 있던 lifecycleScope + launch 패턴을 살려둠)
+    fun fetchHeartRate() {
         activity.lifecycleScope.launch {
-            // 예: healthManager 쪽 로직 호출 자리 (프로젝트 구현에 맞게 연결)
-            // healthManager.fetchUser()
+            val data = healthManager.getLatestHeartRate()
+            val arg = data ?: "null"
+            webView.post {
+                webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+            }
         }
     }
 }
@@ -111,10 +114,10 @@ fun WebViewScreen(
                     // allowUniversalAccessFromFileURLs = true
                 }
 
-                // JS 브릿지 연결 (JavascriptInterface import/의도 보존)
+                // JS 브릿지 연결
                 addJavascriptInterface(
-                    HealthJsBridge(activity, healthManager),
-                    "AndroidBridge"
+                    HealthJsBridge(activity, healthManager, this),
+                    "Android"
                 )
 
                 // 파일 선택 처리(WebChromeClient)
@@ -130,8 +133,8 @@ fun WebViewScreen(
                     }
                 }
 
-                // (원문에 WebView 로드 URL은 없어서 비워둠)
-                // loadUrl("https://...") 또는 loadUrl("file:///android_asset/index.html") 등
+                // 로컬 assets/index.html 로드
+                loadUrl("file:///android_asset/index.html")
             }
         }
     )

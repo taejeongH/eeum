@@ -80,4 +80,25 @@
   .eeum-btn-primary:disabled {
     background-color: var(--color-primary-light);
   }
+
+  .eeum-input {
+    @apply w-full px-4 py-3 text-sm border focus:outline-none;
+    border-radius: var(--radius-xl);
+    border-color: var(--border-default);
+  }
+
+  .eeum-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
+  }
+
+  .eeum-btn-primary {
+    @apply w-full h-14 font-semibold text-white transition;
+    border-radius: var(--radius-xl);
+    background-color: var(--color-primary);
+  }
+
+  .eeum-btn-primary:disabled {
+    background-color: var(--color-primary-light);
+  }
 }
