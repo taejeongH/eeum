@@ -6,28 +6,44 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class SwaggerConfig {
 
+    @Value("${eeum.swagger-url:http://localhost:8080}")
+    private String swaggerUrl;
+
     @Bean
     public OpenAPI openAPI() {
-        String jwt = "JWT";
 
-        SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwt);
+        Server localServer = new Server();
+        localServer.setUrl("http://localhost:8080");
+        localServer.setDescription("Local Development Server");
 
+        Server prodServer = new Server();
+        prodServer.setUrl("https://i14a105.p.ssafy.io");
+        prodServer.setDescription("Production Server (HTTPS)");
+
+        String jwtSchemeName = "jwtAuth";
+        SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwtSchemeName);
         Components components = new Components()
-                .addSecuritySchemes(jwt, new SecurityScheme()
-                        .name(jwt)
+                .addSecuritySchemes(jwtSchemeName, new SecurityScheme()
+                        .name(jwtSchemeName)
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT"));
 
         return new OpenAPI()
-                .addServersItem(new Server().url("http://localhost:8080"))
-                .info(apiInfo())
+                .info(new Info()
+                        .title("Eeum API Specification")
+                        .description("이음 프로젝트 API 명세서입니다.")
+                        .version("v1.0.0"))
+                .servers(List.of(prodServer, localServer))
                 .addSecurityItem(securityRequirement)
                 .components(components);
     }
