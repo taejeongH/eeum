@@ -33,9 +33,14 @@ if DETERMINISTIC:
 # ---------- model/camera ----------
 model = YOLO(MODEL_PATH)
 
-cap = cv2.VideoCapture(CAM_INDEX)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
+# cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+# cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
+# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+cap.set(cv2.CAP_PROP_FPS, 30)
 
 live = LivePipeline(model=model, cap=cap, jpeg_quality=JPEG_QUALITY, source_id="cam0")
 
@@ -253,6 +258,14 @@ def stream(overlay: str = Query("smooth", pattern="^(raw|smooth|both)$")):
                     elif et == "level1":
                         last_level1_event = ev
 
+                        # 📍 핵심: 실제 낙상 시작 시간(incident_ts)을 기준으로 영상 저장
+                        # (fall_ts가 아니라 incident_ts 사용)
+                        # - incident_ts: 낙상 의심 시작 시간 (abnormal_enter)
+                        # - fall_ts: 낙상 확정 시간 (level1) - 이미 10초 이후
+                        # - 따라서 incident_ts 기준이 실제 낙상 전후 맥락을 정확히 캡처
+                        
+                        fall_ts = float(ev.get("ts", ts_now))
+
                         # event_id 정리
                         current_event_id = ev.get("event_id") or f"level1_{time.strftime('%Y%m%d_%H%M%S')}"
                         current_event_detected_at = ts_now
@@ -273,14 +286,24 @@ def stream(overlay: str = Query("smooth", pattern="^(raw|smooth|both)$")):
                         }
                         notifier.send_event(payload)
 
-                        # (B) 사건 시작 시각 기준으로 전후 구간만 저장
+                        # (B) 사건 시작 시각(incident_ts) 기준으로 전후 구간만 저장
+                        # 중복 저장 방지 로직이 자동으로 3초 내 재저장 차단
                         if incident_ts is not None:
                             # 원하는 전후 길이
-                            pre_sec = 6.0
-                            post_sec = 7.0
+                            pre_sec = 7.0   # 낙상 전 7초
+                            post_sec = 4.0  # 낙상 후 4초
+                            
+                            st = incident_ts - pre_sec
+                            ed = incident_ts + post_sec
+                            buf = clip_recorder.status()
+                            print(
+                                f"[CLIP] incident_ts={incident_ts:.2f} "
+                                f"range=[{st:.2f}, {ed:.2f}] "
+                                f"buffer_len={buf['buffer_len']}"
+                            )
 
                             clip_path = clip_recorder.save_segment(
-                                incident_ts=incident_ts,
+                                incident_ts=incident_ts,  # ← 핵심: fall_ts 대신 incident_ts 사용
                                 pre_sec=pre_sec,
                                 post_sec=post_sec,
                                 filename_prefix="incident"
@@ -291,7 +314,7 @@ def stream(overlay: str = Query("smooth", pattern="^(raw|smooth|both)$")):
                                 payload2["clip_status"] = "ready"
                                 notifier.send_clip(event_id=current_event_id, clip_path=clip_path, payload=payload2)
 
-                        # (C) 사건 정보 초기화(선택)
+                        # (C) 사건 정보 초기화
                         incident_ts = None
                         incident_event_id = None
 
