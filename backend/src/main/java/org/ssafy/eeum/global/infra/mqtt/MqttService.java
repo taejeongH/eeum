@@ -10,8 +10,10 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceMqttDTO;
+import org.ssafy.eeum.domain.iot.dto.IotDeviceInitResponseDTO;
 import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.service.IotDeviceService;
+import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +25,7 @@ public class MqttService {
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final FallEventService fallEventService;
     private final IotDeviceService iotDeviceService;
+    private final JwtProvider jwtProvider;
 
     public void publish(String topic, String payload) {
         try {
@@ -75,6 +78,7 @@ public class MqttService {
     }
 
     private void handleDeviceInit(String payload) {
+        String serialNumber = null;
         try {
             JsonNode node = objectMapper.readTree(payload);
 
@@ -83,22 +87,65 @@ public class MqttService {
                 return;
             }
 
-            String serialNumber = node.path("serial_number").asText();
-            List<IotDeviceMqttDTO> devices = iotDeviceService.getDevicesBySerialNumber(serialNumber);
+            serialNumber = node.path("serial_number").asText();
+            final String finalSerialNumber = serialNumber;
+            List<IotDeviceMqttDTO> allDevicesInGroup = iotDeviceService.getDevicesBySerialNumber(finalSerialNumber);
 
-            if (devices.isEmpty()) {
-                log.warn("No devices found for serialNumber: {}", serialNumber);
-                return;
+            if (allDevicesInGroup.isEmpty()) {
+                throw new org.ssafy.eeum.global.error.exception.CustomException(
+                        org.ssafy.eeum.global.error.model.ErrorCode.IOT_DEVICE_GROUP_NOT_FOUND);
             }
 
-            Integer groupId = devices.get(0).getGroupId();
-            String responsePayload = objectMapper.writeValueAsString(devices);
+            // 요청한 기기 자신의 정보 찾기
+            IotDeviceMqttDTO currentDevice = allDevicesInGroup.stream()
+                    .filter(d -> d.getSerialNumber().equals(finalSerialNumber))
+                    .findFirst()
+                    .orElse(allDevicesInGroup.get(0));
 
-            sendToIot(groupId, "device-list", responsePayload);
-            log.info("Sent Device List via MQTT: Group={}, Count={}", groupId, devices.size());
+            // 기기 전용 JWT 생성
+            String token = jwtProvider.createDeviceToken(finalSerialNumber);
 
+            IotDeviceInitResponseDTO response = IotDeviceInitResponseDTO.builder()
+                    .status("success")
+                    .token(token)
+                    .groupId(currentDevice.getGroupId())
+                    .location(currentDevice.getLocationType())
+                    .serialNumber(finalSerialNumber)
+                    .devices(allDevicesInGroup)
+                    .build();
+
+            String responsePayload = objectMapper.writeValueAsString(response);
+            String responseTopic = String.format("eeum/device/init/res/%s", serialNumber);
+
+            publish(responseTopic, responsePayload);
+            log.info("Sent Device Init Success Response via MQTT: Serial={}, Group={}", serialNumber,
+                    currentDevice.getGroupId());
+
+        } catch (org.ssafy.eeum.global.error.exception.CustomException e) {
+            log.error("Device Init failed - CustomException: {}, Serial={}", e.getErrorCode().getMessage(),
+                    serialNumber);
+            if (serialNumber != null) {
+                sendErrorResponse(serialNumber, e.getMessage());
+            }
         } catch (Exception e) {
-            log.error("Failed to handle Device Init: {}", e.getMessage());
+            log.error("Device Init failed - Internal Error: {}, Serial={}", e.getMessage(), serialNumber);
+            if (serialNumber != null) {
+                sendErrorResponse(serialNumber, "서버 내부 오류가 발생했습니다.");
+            }
+        }
+    }
+
+    private void sendErrorResponse(String serialNumber, String message) {
+        try {
+            IotDeviceInitResponseDTO errorResponse = IotDeviceInitResponseDTO.builder()
+                    .status("error")
+                    .message(message)
+                    .serialNumber(serialNumber)
+                    .build();
+            String payload = objectMapper.writeValueAsString(errorResponse);
+            publish(String.format("eeum/device/init/res/%s", serialNumber), payload);
+        } catch (Exception e) {
+            log.error("Failed to send MQTT error response: {}", e.getMessage());
         }
     }
 

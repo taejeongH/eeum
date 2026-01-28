@@ -72,7 +72,11 @@ public class IotDeviceService {
 
     public List<IotDeviceMqttDTO> getDevicesBySerialNumber(String serialNumber) {
         IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
-                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.IOT_DEVICE_NOT_FOUND));
+
+        if (device.getFamily() == null) {
+            throw new CustomException(ErrorCode.IOT_DEVICE_GROUP_NOT_FOUND);
+        }
 
         return iotDeviceRepository.findAllByFamilyId(device.getFamily().getId()).stream()
                 .map(IotDeviceMqttDTO::of)

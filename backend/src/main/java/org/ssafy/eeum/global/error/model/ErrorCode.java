@@ -30,7 +30,11 @@ public enum ErrorCode {
     // 일정
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE001", "존재하지 않는 일정입니다."),
     INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "SCHEDULE002", "종료일은 시작일보다 빠를 수 없습니다."),
-    RESERVED_TITLE(HttpStatus.BAD_REQUEST, "SCHEDULE003", "'EXCLUDED'는 사용할 수 없는 일정 제목입니다.");
+    RESERVED_TITLE(HttpStatus.BAD_REQUEST, "SCHEDULE003", "'EXCLUDED'는 사용할 수 없는 일정 제목입니다."),
+
+    // IoT 관련 에러 코드
+    IOT_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT001", "존재하지 않는 IoT 기기입니다."),
+    IOT_DEVICE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT002", "기기에 할당된 그룹 정보를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

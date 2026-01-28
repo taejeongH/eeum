@@ -1,10 +1,10 @@
 package org.ssafy.eeum.global.auth.model;
 
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.ssafy.eeum.domain.auth.entity.User;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -14,7 +14,6 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
 
     private final User user;
     private final Map<String, Object> attributes;
-    private final String role = "ROLE_USER";
 
     public CustomUserDetails(User user, Map<String, Object> attributes) {
         this.user = user;
@@ -28,7 +27,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority(role));
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
     @Override
@@ -54,7 +53,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
     }
 
     public String getRole() {
-        return role;
+        return "ROLE_USER";
     }
 
     @Override

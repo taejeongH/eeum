@@ -10,7 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
-
+import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.domain.auth.entity.User;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -38,12 +38,12 @@ public class JwtProvider {
 
     public String createAccessToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return createAccessToken(userDetails.getId(), userDetails.getUsername(), userDetails.getRole());
+        return createAccessToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
     }
 
     public String createRefreshToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return createRefreshToken(userDetails.getId(), userDetails.getUsername(), userDetails.getRole());
+        return createRefreshToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
     }
 
     public String createAccessToken(Number userId, String email, String role) {
@@ -52,6 +52,10 @@ public class JwtProvider {
 
     public String createRefreshToken(Number userId, String email, String role) {
         return createToken(userId, email, role, jwtProperties.getRefreshTokenExpiration());
+    }
+
+    public String createDeviceToken(String serialNumber) {
+        return createToken(0, serialNumber, "ROLE_DEVICE", jwtProperties.getAccessTokenExpiration() * 30);
     }
 
     private String createToken(Number userId, String email, String role, long expiration) {
@@ -80,15 +84,20 @@ public class JwtProvider {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        User user = User.builder()
-                .id(claims.get("id", Integer.class))
-                .email(claims.getSubject())
-                .name("Unknown") // 토큰에는 이름 정보가 없으므로 임시 값 혹은 DB 조회 필요. 일단 최소 정보로 구성
-                .build();
+        boolean isDevice = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_DEVICE"));
 
-        CustomUserDetails principal = new CustomUserDetails(user);
-
-        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        if (isDevice) {
+            DeviceDetails principal = new DeviceDetails(claims.getSubject(), authorities);
+            return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        } else {
+            User user = User.builder()
+                    .id(claims.get("id", Integer.class))
+                    .email(claims.getSubject())
+                    .name("Unknown")
+                    .build();
+            CustomUserDetails principal = new CustomUserDetails(user);
+            return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        }
     }
 
     public boolean validateToken(String token) {

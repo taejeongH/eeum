@@ -40,12 +40,16 @@ public class IotDevice extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
+    @Column(name = "device_secret", length = 255)
+    private String deviceSecret;
+
     @Builder
-    public IotDevice(Family family, String serialNumber, String deviceName, String locationType) {
+    public IotDevice(Family family, String serialNumber, String deviceName, String locationType, String deviceSecret) {
         this.family = family;
         this.serialNumber = serialNumber;
         this.deviceName = deviceName;
         this.locationType = locationType;
+        this.deviceSecret = deviceSecret;
         this.isActive = true;
     }
 

@@ -29,53 +29,54 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
-    private final JwtProvider jwtProvider;
+        private final CustomOAuth2UserService customOAuth2UserService;
+        private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+        private final JwtProvider jwtProvider;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
         // [핵심] Swagger 관련 경로를 Security Filter Chain에서 제외
         @Bean
         public WebSecurityCustomizer webSecurityCustomizer() {
                 return (web) -> web.ignoring().requestMatchers(
-                        "/swagger-ui/**",
-                        "/v3/api-docs/**",
-                        "/v3/api-docs",
-                        "/swagger-resources/**",
-                        "/webjars/**",
-                        "/favicon.ico"
-                );
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/favicon.ico");
         }
 
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
                 http
-                        .csrf(AbstractHttpConfigurer::disable)
-                        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                        .sessionManagement(session -> session
-                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                        .authorizeHttpRequests(auth -> auth
-                                .requestMatchers("/", "/api/auth/**", "/login/**", "/oauth2/**").permitAll()
-                                .anyRequest().authenticated())
-                        .exceptionHandling(exception -> exception
-                                .defaultAuthenticationEntryPointFor(
-                                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                                        request -> request.getRequestURI().startsWith("/api/")))
-                        .oauth2Login(oauth2 -> oauth2
-                                .authorizationEndpoint(authorization -> authorization
-                                        .baseUri("/api/auth/login/social"))
-                                .userInfoEndpoint(userInfo -> userInfo
-                                        .userService(customOAuth2UserService))
-                                .successHandler(oAuth2LoginSuccessHandler))
-                        .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
-                                UsernamePasswordAuthenticationFilter.class);
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/", "/api/auth/**", "/login/**", "/oauth2/**")
+                                                .permitAll()
+                                                .requestMatchers("/api/v1/iot/falls/detection").hasRole("DEVICE")
+                                                .anyRequest().authenticated())
+                                .exceptionHandling(exception -> exception
+                                                .defaultAuthenticationEntryPointFor(
+                                                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                                                                request -> request.getRequestURI().startsWith("/api/")))
+                                .oauth2Login(oauth2 -> oauth2
+                                                .authorizationEndpoint(authorization -> authorization
+                                                                .baseUri("/api/auth/login/social"))
+                                                .userInfoEndpoint(userInfo -> userInfo
+                                                                .userService(customOAuth2UserService))
+                                                .successHandler(oAuth2LoginSuccessHandler))
+                                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
+                                                UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+                return http.build();
+        }
 
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
@@ -86,8 +87,8 @@ public class SecurityConfig {
                 config.setAllowCredentials(true);
                 config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
+                return source;
+        }
 }
