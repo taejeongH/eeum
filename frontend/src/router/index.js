@@ -1,5 +1,4 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import MyProfileView from '../views/MyProfileView.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue';
@@ -11,6 +10,8 @@ import GroupSetupStep1 from '../views/group-setup/Step1GroupName.vue';
 import GroupSetupStep2 from '../views/group-setup/Step2HealthInfo.vue';
 import GroupSetupStep3 from '../views/group-setup/Step3EmergencyContact.vue';
 import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
+import MedicationListView from '../views/MedicationListView.vue';
+import MedicationDetailView from '../views/MedicationDetailView.vue';
 
 import { useUserStore } from '@/stores/user';
 
@@ -30,11 +31,6 @@ const routes = [
     component: HomePage,
   },
   {
-    path: '/my-profile-view',
-    name: 'MyProfileView',
-    component: MyProfileView,
-  },
-  {
     path: '/my-profile-edit',
     name: 'MyProfileEdit',
     component: MyProfileEdit,
@@ -43,6 +39,16 @@ const routes = [
     path: '/members/:familyId/:userId',
     name: 'MemberDetail',
     component: MemberDetailView,
+  },
+  {
+    path: '/families/:familyId/medications',
+    name: 'MedicationList',
+    component: MedicationListView,
+  },
+  {
+    path: '/families/:familyId/medications/:medicationId',
+    name: 'MedicationDetail',
+    component: MedicationDetailView,
   },
   {
     path: '/groups/:familyId/edit',

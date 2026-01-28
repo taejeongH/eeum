@@ -170,12 +170,14 @@
 import { ref, onMounted, watch, nextTick, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '../stores/user';
+import { useFamilyStore } from '../stores/family';
 import { updateUserProfile } from '../services/api';
 import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const familyStore = useFamilyStore(); // Initialize familyStore
 const { profile: userProfile } = storeToRefs(userStore);
 
 const profile = ref({ name: '', phone: '', gender: 'M', address: '' });
@@ -335,7 +337,15 @@ const submitProfile = async () => {
     if (isInitialSetup.value) {
       router.push('/voice-sample');
     } else {
-      router.push('/my-profile-view');
+      // Redirect to Member Detail Page (e.g., /members/4/7)
+      const familyId = familyStore.selectedFamily?.id;
+      const userId = userStore.profile?.id;
+      
+      if (familyId && userId) {
+          router.push({ name: 'MemberDetail', params: { familyId, userId } });
+      } else {
+          router.push('/');
+      }
     }
 
   } catch (error) {
