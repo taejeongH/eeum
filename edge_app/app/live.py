@@ -76,11 +76,27 @@ class LivePipeline:
         self.jpeg_quality = jpeg_quality
         self.source_id = source_id
         self.frame_index = 0
+        
+        # 실제 카메라 해상도 감지
+        ret, test_frame = cap.read()
+        if ret and test_frame is not None:
+            actual_h, actual_w = test_frame.shape[:2]
+            self.actual_w = actual_w
+            self.actual_h = actual_h
+        else:
+            self.actual_w = FRAME_W
+            self.actual_h = FRAME_H
 
     def step(self, overlay: str = "smooth") -> Tuple[Optional[Dict[str, Any]], Optional[bytes], Optional[Any]]:
         ok, frame = self.cap.read()
         if not ok:
             return None, None, None
+        
+        # 프레임이 설정된 해상도와 다르면 업데이트
+        frame_h, frame_w = frame.shape[:2]
+        if frame_w != self.actual_w or frame_h != self.actual_h:
+            self.actual_h = frame_h
+            self.actual_w = frame_w
 
         results = self.model.predict(
             frame,
@@ -92,7 +108,8 @@ class LivePipeline:
         r0 = keep_top1_person(results[0])
 
         ts = time.time()
-        obs = build_observation(r0, FRAME_W, FRAME_H, ts, self.frame_index, source_id=self.source_id)
+        # 실제 카메라 해상도 사용
+        obs = build_observation(r0, self.actual_w, self.actual_h, ts, self.frame_index, source_id=self.source_id)
         obs = ema_smooth_keypoints_inplace(obs)
 
         self.frame_index += 1

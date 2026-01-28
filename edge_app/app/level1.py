@@ -37,20 +37,23 @@ class Level1Params:
     aspect_abs_th: float = 1.2
     aspect_ratio_th: float = 0.55
 
-    # Promote to LEVEL1 when still for sustain_s while in ABNORMAL (Level0)
-    sustain_s: float = 10.0
+    # ⭐ 핵심: Level 0에서 10초 이상 정상 회복 못하면 Level 1 승격
+    sustain_s: float = 10.0  # 정지 상태 누적 시간
+    abnormal_timeout_s: float = 10.0  # Level 0 상태 타임아웃 (움직여도 10초면 Level 1)
 
-    # Recovery to NORMAL
-    recover_s: float = 2.0
-    aspect_recover_ratio: float = 0.80
+    # Recovery to NORMAL - 매우 어려운 조건 (쉽게 회복되지 않도록)
+    recover_s: float = 5.0
+    aspect_recover_ratio: float = 1.0  # 정확히 baseline까지 완전 회복
+    recover_center_move_th: float = 0.10  # 매우 큰 움직임만 "회복"으로 인정
 
-    # Stillness thresholds (normalized coordinates 0~1)
-    still_center_th: float = 0.010   # bbox center movement per frame (norm)
-    still_kp_th: float = 0.008       # mean keypoint movement per frame (norm)
-    still_need_kp: bool = True       # use keypoint movement in stillness 판단
-
-    recover_center_move_th: float = 0.03  # 이 이상 움직여야 '회복 움직임'
+    # Stillness thresholds
+    still_center_th: float = 0.010
+    still_kp_th: float = 0.020
+    still_need_kp: bool = True
     recover_need_move: bool = True
+
+
+
 
 class Level1Engine:
     """
@@ -259,13 +262,51 @@ class Level1Engine:
                 }
 
         if self.state == "ABNORMAL":
-            # Stillness accumulate (10초 정지면 LEVEL1)
+            time_since_abnormal = ts - self.abnormal_start_ts if self.abnormal_start_ts is not None else 0.0
+            
+            # ⭐ Level 0 로직:
+            # 1) 정지 상태(is_still=True)가 10초 누적되면 Level 1
+            # 2) 또는 Level 0에서 10초 이상 있으면 자동으로 Level 1 (움직임 무관)
+            
+            # Stillness accumulate
             if is_still:
                 self.still_acc_s += dt
             else:
                 self.still_acc_s = 0.0
 
-            # Recovery accumulate (자세 회복이면 NORMAL 복귀)
+            # 조건 1: 정지 누적으로 Level 1
+            if self.still_acc_s >= self.p.sustain_s and not self.level1_fired:
+                self.level1_fired = True
+                self.state = "LEVEL1"
+                return {
+                    "type": "level1",
+                    "ts": ts,
+                    "frame_index": frame_index,
+                    "reason": "still_for_sustain_s",
+                    "values": {
+                        "still_acc_s": self.still_acc_s,
+                        "time_since_abnormal": time_since_abnormal,
+                    },
+                }
+
+            # 조건 2: 타임아웃으로 Level 1 (움직여도 10초면 위험)
+            if time_since_abnormal >= self.p.abnormal_timeout_s and not self.level1_fired:
+                self.level1_fired = True
+                self.state = "LEVEL1"
+                return {
+                    "type": "level1",
+                    "ts": ts,
+                    "frame_index": frame_index,
+                    "reason": "abnormal_timeout",
+                    "values": {
+                        "time_since_abnormal": time_since_abnormal,
+                        "center_move": center_move,
+                        "kp_move": kp_move,
+                    },
+                }
+            
+            # Level 0에서 벗어나기: 완전히 일어난 상태 확인
+            # (매우 엄격한 조건으로 쉽게 나가지 못하도록)
             recovered_posture = (
                 baseline is not None
                 and aspect > baseline * self.p.aspect_recover_ratio
@@ -276,15 +317,15 @@ class Level1Engine:
                 and center_move > self.p.recover_center_move_th
             )
 
-            recovered_now = recovered_posture and (
-                recovered_move if self.p.recover_need_move else True
-            )
+            # AND 조건: 자세도 정상 + 움직임도 명확해야 회복 가능
+            recovered_now = recovered_posture and recovered_move
 
             if recovered_now:
                 self.recover_acc_s += dt
             else:
                 self.recover_acc_s = 0.0
 
+            # 5초 이상 완전 회복 상태 유지 → Normal로 돌아감
             if self.recover_acc_s >= self.p.recover_s:
                 self.state = "NORMAL"
                 self.abnormal_start_ts = None
@@ -299,31 +340,7 @@ class Level1Engine:
                     "values": {
                         "aspect": aspect,
                         "baseline_aspect": baseline,
-                        "vy": vy,
-                        "quality": quality,
                         "center_move": center_move,
-                        "kp_move": kp_move,
-                        "still_acc_s": self.still_acc_s,
-                    },
-                }
-
-            # Promote to LEVEL1 when still for sustain_s
-            if self.still_acc_s >= self.p.sustain_s and not self.level1_fired:
-                self.level1_fired = True
-                self.state = "LEVEL1"
-                return {
-                    "type": "level1",
-                    "ts": ts,
-                    "frame_index": frame_index,
-                    "reason": "still_after_abnormal",
-                    "values": {
-                        "aspect": aspect,
-                        "baseline_aspect": baseline,
-                        "vy": vy,
-                        "quality": quality,
-                        "center_move": center_move,
-                        "kp_move": kp_move,
-                        "still_acc_s": self.still_acc_s,
                     },
                 }
 

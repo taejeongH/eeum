@@ -33,14 +33,16 @@ if DETERMINISTIC:
 # ---------- model/camera ----------
 model = YOLO(MODEL_PATH)
 
-# cap = cv2.VideoCapture(0)
-cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
-# cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
-# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
-
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+cap = cv2.VideoCapture(1)
+# 카메라 해상도 설정 시도
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
 cap.set(cv2.CAP_PROP_FPS, 30)
+
+# 실제 설정된 해상도 확인
+actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+print(f"[Main] Camera set to {actual_w}x{actual_h}")
 
 live = LivePipeline(model=model, cap=cap, jpeg_quality=JPEG_QUALITY, source_id="cam0")
 

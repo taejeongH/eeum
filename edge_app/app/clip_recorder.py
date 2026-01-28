@@ -28,6 +28,8 @@ class ClipRecorder:
 
     def __init__(self):
         self.lock = threading.Lock()
+        # 버퍼 크기: PRE_SEC + (abnormal_enter ~ level1 대기 시간) + EVENT_POST_SEC + 여유
+        # abnormal_enter부터 level1까지 최대 10초 + 여유 5초
         buf_size = CLIP_FPS * (CLIP_PRE_SEC + 25 + CLIP_EVENT_POST_SEC + 2)
 
         self.buffer: Deque[Tuple[float, Any]] = collections.deque(maxlen=buf_size)
@@ -48,7 +50,7 @@ class ClipRecorder:
 
     def _open_writer(self, path: str, fps: float, frame_shape: Tuple[int, int, int]):
         """
-        동적 해상도 기반 VideoWriter 생성
+        동적 해상도 기반 VideoWriter 생성 (다중 코덱 재시도)
         
         Args:
             path: 저장 경로
@@ -58,9 +60,50 @@ class ClipRecorder:
         Returns:
             cv2.VideoWriter 인스턴스
         """
+        import logging
+        
         h, w = frame_shape[:2]
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        return cv2.VideoWriter(path, fourcc, float(fps), (w, h))
+        
+        # 유효성 검사
+        if w <= 0 or h <= 0:
+            logging.error(f"[CLIP] Invalid frame dimensions: {w}x{h}")
+            raise ValueError(f"Invalid frame dimensions: {w}x{h}")
+        
+        # fps 범위 검증
+        fps = float(fps)
+        if fps <= 0 or fps > 240:
+            logging.warning(f"[CLIP] FPS out of range: {fps}, clamping to [5, 240]")
+            fps = max(5.0, min(240.0, fps))
+        
+        # 코덱 재시도 목록 (우선순위 순)
+        codecs = [
+            ("mp4v", "mp4v"),
+            ("MJPG", "mjpg"),
+            ("XVID", "xvid"),
+            ("DIVX", "divx"),
+            ("MPEG", "mpeg"),
+        ]
+        
+        for codec_name, codec_code in codecs:
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*codec_code)
+                writer = cv2.VideoWriter(path, fourcc, fps, (w, h))
+                
+                # VideoWriter 유효성 검증
+                if writer.isOpened():
+                    logging.info(f"[CLIP] VideoWriter opened with codec '{codec_name}': {w}x{h} @ {fps}fps")
+                    return writer
+                else:
+                    logging.warning(f"[CLIP] Codec '{codec_name}' failed to open: {w}x{h} @ {fps}fps")
+                    writer.release()
+            except Exception as e:
+                logging.warning(f"[CLIP] Codec '{codec_name}' error: {e}")
+                continue
+        
+        logging.error(f"[CLIP] All codecs failed for {w}x{h} @ {fps}fps. Creating dummy writer.")
+        # 마지막 시도: 기본 코덱
+        writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+        return writer
 
     def start(self, ts_now: float) -> Optional[str]:
         """
@@ -221,10 +264,22 @@ class ClipRecorder:
             # 첫 프레임 기준으로 writer 생성 (동적 해상도)
             first_frame = picked[0][1]
             writer = self._open_writer(path, eff_fps, first_frame.shape)
-            writer_w = int(writer.get(cv2.CAP_PROP_FRAME_WIDTH))
-            writer_h = int(writer.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
+            
             import logging
+            
+            # VideoWriter 검증
+            if not writer.isOpened():
+                logging.error(
+                    f"[CLIP] VideoWriter failed to open: path={path}, "
+                    f"dimensions={first_frame.shape[1]}x{first_frame.shape[0]}, fps={eff_fps}"
+                )
+                writer.release()
+                return None
+            
+            # writer.get()이 정확하지 않을 수 있으므로 frame shape 사용
+            writer_w = first_frame.shape[1]  # 너비
+            writer_h = first_frame.shape[0]  # 높이
+            
             logging.info(
                 f"[CLIP] Saving segment: "
                 f"incident_ts={incident_ts:.2f} "
@@ -246,5 +301,7 @@ class ClipRecorder:
                     writer.release()
                 except Exception:
                     pass
+
+            return path
 
             return path
