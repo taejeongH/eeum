@@ -90,12 +90,14 @@ public class User {
         if (email != null && !email.isEmpty()) {
             this.email = email;
         }
-        if (profileImage != null && !profileImage.isEmpty()) {
+        if ((this.profileImage == null || this.profileImage.isEmpty()) && profileImage != null
+                && !profileImage.isEmpty()) {
             this.profileImage = profileImage;
         }
     }
 
-    public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address, String profileImage) {
+    public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address,
+            String profileImage) {
         this.name = name;
         this.phone = phone;
         this.birthDate = birthDate;
@@ -104,6 +106,7 @@ public class User {
         this.profileImage = profileImage;
         this.updatedAt = LocalDateTime.now();
     }
+
     public void updateHealthInfo(String bloodType, List<String> chronicDiseases) { // Changed parameter type
         if (bloodType != null) {
             this.bloodType = bloodType;

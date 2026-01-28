@@ -213,11 +213,12 @@ watch(showAddressModal, (isShown) => {
 
 
 const submitProfile = async () => {
+  // 1. 저장 중 중복 클릭 방지
   if (isLoading.value) return;
   isLoading.value = true;
   errorMessage.value = '';
 
-  const formData = new FormData();
+  // 2. 생년월일 데이터 포맷팅
   let birthDate = null;
   if (birthYear.value && birthMonth.value && birthDay.value) {
     const month = String(birthMonth.value).padStart(2, '0');
@@ -225,30 +226,37 @@ const submitProfile = async () => {
     birthDate = `${birthYear.value}-${month}-${day}`;
   }
 
+  // 3. 전체 주소 문자열 생성
   const fullAddress = profile.value.address + (detailAddress.value ? ` ${detailAddress.value}` : '');
 
+  // 4. API 전송용 객체 생성
   const requestDto = {
-      name: profile.value.name,
-      phone: profile.value.phone,
-      birthDate: birthDate,
-      gender: profile.value.gender,
-      address: fullAddress,
+    name: profile.value.name,
+    phone: profile.value.phone,
+    birthDate: birthDate,
+    gender: profile.value.gender,
+    address: fullAddress,
   };
-  
+
+  // 5. FormData 생성 (이미지 포함 전송을 위함)
+  const formData = new FormData();
   formData.append('request', new Blob([JSON.stringify(requestDto)], { type: 'application/json' }));
   if (profileFile.value) formData.append('file', profileFile.value);
 
   try {
+    // 6. 서버에 프로필 업데이트 요청
     await updateUserProfile(formData);
+    
+    // 7. Pinia 스토어의 사용자 정보를 최신화 (홈 화면에서 바뀐 이름/사진을 바로 보여주기 위해)
     await userStore.fetchUser();
     
-    if (isInitialSetup.value) {
-      router.push('/voice-sample');
-    } else {
-      router.push('/my-profile-view');
-    }
+    // 8. 홈(/)으로 이동
+    // router-link의 to="/"와 같은 목적지로 프로그래밍 방식으로 이동합니다.
+    router.push('/home');
 
   } catch (error) {
+    // 에러 발생 시 처리
+    console.error(error);
     errorMessage.value = error.response?.data?.message || '프로필 업데이트에 실패했습니다.';
   } finally {
     isLoading.value = false;
