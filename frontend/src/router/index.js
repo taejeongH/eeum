@@ -108,6 +108,21 @@ const routes = [
     name: 'EmergencyAlert',
     component: EmergencyAlert,
   },
+  {
+    path: '/calendar',
+    name: 'CalendarPage',
+    component: () => import('../views/CalendarPage.vue'),
+  },
+  {
+    path: '/calendar/create',
+    name: 'CalendarCreate',
+    component: () => import('../views/CalendarCreate.vue'),
+  },
+  {
+    path: '/calendar/detail',
+    name: 'DetailSchedule',
+    component: () => import('../views/DetailSchedule.vue'),
+  },
 ];
 
 const router = createRouter({
