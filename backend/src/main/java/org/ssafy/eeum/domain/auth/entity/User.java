@@ -78,6 +78,10 @@ public class User {
     @Column(name = "blood_type", length = 255)
     private String bloodType;
 
+    @Column(name = "is_email_verified", nullable = false)
+    @Builder.Default
+    private boolean isEmailVerified = false;
+
     public enum Gender {
         M, F
     }
