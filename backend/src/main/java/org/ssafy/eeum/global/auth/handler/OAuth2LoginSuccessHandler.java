@@ -47,7 +47,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
                     .fragment("/login?accessToken=" + accessToken) 
                     .build().toUriString();
         } else {
-            targetUrl = "https://i14a105.p.ssafy.io/";
+            targetUrl = UriComponentsBuilder.fromUriString("https://i14a105.p.ssafy.io/")
+                    .fragment("/login?accessToken=" + accessToken)
+                    .build().toUriString();
         }
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
