@@ -15,6 +15,11 @@ public enum ErrorCode {
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "COMMON005", "이미 존재하는 리소스입니다."),
 
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH001", "유효하지 않은 토큰입니다."),
+    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "AUTH002", "이미 가입된 이메일입니다."),
+    INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "AUTH003", "인증 코드가 올바르지 않거나 만료되었습니다."),
+    EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "AUTH004", "이메일 인증이 완료되지 않았습니다."),
+    LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH005", "이메일 또는 비밀번호가 일치하지 않습니다."),
+    EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH006", "이메일 발송에 실패했습니다."),
 
     // Family 관련 에러 코드
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY001", "유저를 찾을 수 없습니다."),

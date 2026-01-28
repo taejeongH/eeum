@@ -41,6 +41,7 @@
             <SettingsDropdown 
                 :show="isSettingsOpen" 
                 :family-id="selectedGroup?.id"
+                :is-representative="selectedGroup?.owner"
                 @leave-group="leaveGroup"
             />
         </div>
@@ -217,6 +218,11 @@ const closeSettingsMenu = (event) => {
 
 onMounted(async () => {
     document.addEventListener('click', closeSettingsMenu);
+    
+    // Force refresh families to ensure updated DTO
+    console.log('MainHeader: Fetching families...');
+    await familyStore.fetchFamilies();
+    
     if (!userStore.profile) {
       await userStore.fetchUser();
     }
@@ -351,7 +357,15 @@ watch(() => route.params.userId, (newId) => {
     }
 });
 
-watch(selectedGroup, fetchMembers, { immediate: true });
+watch(selectedGroup, (newGroup) => {
+    console.log('MainHeader: selectedGroup changed:', newGroup);
+    if (newGroup) {
+        console.log('MainHeader: owner field:', newGroup.owner);
+        console.log('MainHeader: all keys:', Object.keys(newGroup));
+        console.log('MainHeader: serialized:', JSON.stringify(newGroup));
+    }
+    fetchMembers();
+}, { immediate: true });
 </script>
 
 <style scoped>

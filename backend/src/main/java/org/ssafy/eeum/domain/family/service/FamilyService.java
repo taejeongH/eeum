@@ -72,7 +72,7 @@ public class FamilyService {
                 List<Supporter> supporters = supporterRepository.findAllByUser(user);
 
                 return supporters.stream()
-                                .map(supporter -> FamilySimpleResponseDto.of(supporter.getFamily()))
+                                .map(supporter -> FamilySimpleResponseDto.of(supporter.getFamily(), supporter.isRepresentativeFlag()))
                                 .collect(Collectors.toList());
         }
 

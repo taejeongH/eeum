@@ -10,7 +10,7 @@ export const useFamilyStore = defineStore('family', () => {
     try {
       const response = await api.get('/families');
       families.value = response.data;
-      
+
       // If no family is selected, or the selected family is no longer in the list, default to the first one
       if (families.value.length > 0) {
         const exists = selectedFamily.value && families.value.find(f => f.id === selectedFamily.value.id);

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 import org.ssafy.eeum.domain.family.entity.Family;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Getter
 @Builder
@@ -19,6 +20,19 @@ public class FamilySimpleResponseDto {
         return FamilySimpleResponseDto.builder()
                 .id(family.getId())
                 .name(family.getGroupName())
+                .owner(false) // Default, will be overridden in Service
                 .build();
     }
+
+    public static FamilySimpleResponseDto of(Family family, boolean owner) {
+        return FamilySimpleResponseDto.builder()
+                .id(family.getId())
+                .name(family.getGroupName())
+                .owner(owner)
+                .build();
+    }
+
+    @Schema(description = "대표자 여부")
+    @JsonProperty("owner")
+    private boolean owner;
 }
