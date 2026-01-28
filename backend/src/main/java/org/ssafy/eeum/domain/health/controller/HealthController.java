@@ -3,14 +3,12 @@ package org.ssafy.eeum.domain.health.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.ssafy.eeum.domain.health.dto.HealthConnectionRequestDTO;
 import org.ssafy.eeum.domain.health.dto.HealthConnectionResponseDTO;
 import org.ssafy.eeum.domain.health.dto.HealthMetricRequestDTO;
 import org.ssafy.eeum.domain.health.service.HealthConnectionService;
 import org.ssafy.eeum.domain.health.service.HealthService;
-import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import org.ssafy.eeum.global.common.response.RestApiResponse;
 import org.ssafy.eeum.global.config.swagger.SwaggerApiSpec;
 import org.ssafy.eeum.global.error.model.ErrorCode;
@@ -19,7 +17,7 @@ import java.util.List;
 
 @Tag(name = "Health", description = "건강 데이터 관리 API")
 @RestController
-@RequestMapping("/api/v1/health")
+@RequestMapping("/api/health")
 @RequiredArgsConstructor
 public class HealthController {
 
@@ -30,10 +28,10 @@ public class HealthController {
                         ErrorCode.ENTITY_NOT_FOUND, ErrorCode.INVALID_INPUT_VALUE, ErrorCode.INTERNAL_SERVER_ERROR })
         @PostMapping("/data")
         public RestApiResponse<String> uploadMetrics(
-                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestParam Integer groupId,
                         @Valid @RequestBody List<HealthMetricRequestDTO> requests) {
 
-                healthService.saveHealthMetrics(userDetails.getId(), requests);
+                healthService.saveHealthMetrics(groupId, requests);
                 return RestApiResponse.success("건강 데이터 저장 및 기기 연동 성공");
         }
 
@@ -41,10 +39,10 @@ public class HealthController {
                         ErrorCode.ENTITY_NOT_FOUND, ErrorCode.INVALID_INPUT_VALUE })
         @PostMapping("/connection")
         public RestApiResponse<HealthConnectionResponseDTO> registerConnection(
-                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestParam Integer groupId,
                         @Valid @RequestBody HealthConnectionRequestDTO request) {
 
-                HealthConnectionResponseDTO response = healthConnectionService.registerConnection(userDetails.getId(),
+                HealthConnectionResponseDTO response = healthConnectionService.registerConnection(groupId,
                                 request);
                 return RestApiResponse.success(response);
         }
@@ -53,10 +51,10 @@ public class HealthController {
                         ErrorCode.ENTITY_NOT_FOUND })
         @GetMapping("/connection")
         public RestApiResponse<HealthConnectionResponseDTO> getConnectionStatus(
-                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestParam Integer groupId,
                         @RequestParam(defaultValue = "SAMSUNG_HEALTH") String provider) {
 
-                HealthConnectionResponseDTO response = healthConnectionService.getConnectionStatus(userDetails.getId(),
+                HealthConnectionResponseDTO response = healthConnectionService.getConnectionStatus(groupId,
                                 provider);
                 return RestApiResponse.success(response);
         }

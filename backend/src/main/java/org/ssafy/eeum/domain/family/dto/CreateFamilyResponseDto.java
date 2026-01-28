@@ -10,7 +10,7 @@ import org.ssafy.eeum.domain.family.entity.Family;
 @Schema(description = "가족 생성 응답 DTO")
 public class CreateFamilyResponseDto {
     @Schema(description = "가족 ID")
-    private Long id;
+    private Integer id;
 
     @Schema(description = "가족 이름")
     private String name;

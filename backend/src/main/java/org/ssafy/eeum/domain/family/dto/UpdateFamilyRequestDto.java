@@ -14,7 +14,7 @@ public class UpdateFamilyRequestDto {
     private String newGroupName;
 
     @Schema(description = "피부양자로 설정할 유저 ID (선택 사항)")
-    private Long dependentUserId;
+    private Integer dependentUserId;
 
     @Schema(description = "피부양자의 혈액형 (선택 사항)")
     private String dependentBloodType;

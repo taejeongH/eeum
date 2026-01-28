@@ -12,7 +12,7 @@ import org.ssafy.eeum.domain.family.entity.Supporter;
 @Schema(description = "가족 멤버 정보 DTO")
 public class FamilyMemberDto {
     @Schema(description = "유저 ID")
-    private Long userId;
+    private Integer userId;
 
     @Schema(description = "유저 이름")
     private String name;
@@ -28,7 +28,7 @@ public class FamilyMemberDto {
 
     public static FamilyMemberDto of(Supporter supporter) {
         return FamilyMemberDto.builder()
-                .userId(supporter.getUser().getId().longValue())
+                .userId(supporter.getUser().getId())
                 .name(supporter.getUser().getName())
                 .profileImage(supporter.getUser().getProfileImage())
                 .isDependent(supporter.getRole() == Supporter.Role.PATIENT)

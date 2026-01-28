@@ -22,7 +22,7 @@ public class IotDeviceMqttDTO {
 
     public static IotDeviceMqttDTO of(IotDevice device) {
         return IotDeviceMqttDTO.builder()
-                .groupId(device.getGroupId())
+                .groupId(device.getFamily().getId())
                 .serialNumber(device.getSerialNumber())
                 .locationType(device.getLocationType())
                 .build();

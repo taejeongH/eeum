@@ -3,7 +3,7 @@ package org.ssafy.eeum.domain.health.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.health.entity.HealthMetric;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 
 import java.time.LocalDateTime;
 
@@ -26,9 +26,9 @@ public class HealthMetricRequestDTO {
     private Integer diastolicPressure;
     private Double bodyTemperature;
 
-    public HealthMetric toEntity(User user) {
+    public HealthMetric toEntity(Family family) {
         return HealthMetric.builder()
-                .user(user)
+                .family(family)
                 .recordDate(this.recordDate)
                 .steps(this.steps)
                 .floorsClimbed(this.floorsClimbed)

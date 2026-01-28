@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.iot.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -19,11 +19,8 @@ public class FallEvent extends BaseEntity {
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @Column(name = "group_id", nullable = false)
-    private Integer groupId;
+    @JoinColumn(name = "group_id", nullable = false)
+    private Family family;
 
     @Column(name = "severity", nullable = false)
     private Integer severity;

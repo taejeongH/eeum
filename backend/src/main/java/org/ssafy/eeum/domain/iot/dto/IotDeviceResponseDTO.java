@@ -20,7 +20,7 @@ public class IotDeviceResponseDTO {
     public static IotDeviceResponseDTO of(IotDevice device) {
         return IotDeviceResponseDTO.builder()
                 .id(device.getId())
-                .groupId(device.getGroupId())
+                .groupId(device.getFamily().getId())
                 .serialNumber(device.getSerialNumber())
                 .deviceName(device.getDeviceName())
                 .locationType(device.getLocationType())

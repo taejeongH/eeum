@@ -18,7 +18,7 @@ import java.util.List;
 
 @Tag(name = "Voice", description = "음성 복제 및 TTS API")
 @RestController
-@RequestMapping("/api/v1/voice")
+@RequestMapping("/api/voice")
 @RequiredArgsConstructor
 public class VoiceController {
     private final VoiceService voiceService;

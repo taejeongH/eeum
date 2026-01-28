@@ -13,6 +13,9 @@ import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
+import org.ssafy.eeum.domain.family.entity.Family;
+import org.ssafy.eeum.domain.family.repository.FamilyRepository;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +26,7 @@ import java.util.stream.Collectors;
 public class IotDeviceService {
 
     private final IotDeviceRepository iotDeviceRepository;
+    private final FamilyRepository familyRepository;
 
     @Transactional
     public Integer registerDevice(IotDeviceRequestDTO request) {
@@ -30,8 +34,11 @@ public class IotDeviceService {
             throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
         }
 
+        Family family = familyRepository.findById(request.getGroupId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
         IotDevice device = IotDevice.builder()
-                .groupId(request.getGroupId())
+                .family(family)
                 .serialNumber(request.getSerialNumber())
                 .deviceName(request.getDeviceName())
                 .locationType(request.getLocationType())
@@ -42,7 +49,7 @@ public class IotDeviceService {
     }
 
     public List<IotDeviceResponseDTO> getDevicesByGroup(Integer groupId) {
-        return iotDeviceRepository.findAllByGroupId(groupId).stream()
+        return iotDeviceRepository.findAllByFamilyId(groupId).stream()
                 .map(IotDeviceResponseDTO::of)
                 .collect(Collectors.toList());
     }
@@ -67,7 +74,7 @@ public class IotDeviceService {
         IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-        return iotDeviceRepository.findAllByGroupId(device.getGroupId()).stream()
+        return iotDeviceRepository.findAllByFamilyId(device.getFamily().getId()).stream()
                 .map(IotDeviceMqttDTO::of)
                 .collect(Collectors.toList());
     }
