@@ -12,10 +12,10 @@
     <!-- Progress -->
     <div class="mt-6">
       <div class="h-2 w-full rounded-full bg-[var(--color-primary-soft)]">
-        <div class="h-2 w-2/3 rounded-full bg-[var(--color-primary)]"></div>
+        <div class="h-2 w-1/2 rounded-full bg-[var(--color-primary)]"></div>
       </div>
       <p class="mt-2 text-xs text-[var(--color-primary)]">
-        단계 2 / 3 · 건강 정보 입력
+        단계 2 / 4 · 건강 정보 입력
       </p>
     </div>
 
@@ -99,21 +99,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import api from '@/services/api'
+import api from '@/services/api' // Still need api for fetching members list for dropdown
+import { useGroupSetupStore } from '@/stores/groupSetup'
+import { storeToRefs } from 'pinia'
 import CareTargetSelect from '../../components/CareTargetSelect.vue'
 
 const router = useRouter()
 const route = useRoute()
+const setupStore = useGroupSetupStore()
+
+// Bind to store state
+const { seniorId, bloodType, diseases } = storeToRefs(setupStore)
 
 const familyId = computed(() => route.params.familyId)
-
 const members = ref([])
-const seniorId = ref(null)
-
-const bloodType = ref('')
 const diseaseInput = ref('')
-const diseases = ref([])
-
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
 
 const addDisease = () => {
@@ -122,10 +122,25 @@ const addDisease = () => {
   diseaseInput.value = ''
 }
 
+const removeDisease = (index) => {
+  diseases.value.splice(index, 1)
+}
+
 onMounted(async () => {
   if (!familyId.value) return
-  const res = await api.get(`/families/${familyId.value}/members`)
-  members.value = res.data
+  
+  // Initialize store data (if not already)
+  setupStore.initData(familyId.value)
+
+  // Fetch Members for the dropdown (Selectable options)
+  // This is UI state/options, not the "Setup Data" per se, although setupStore *could* cache it.
+  // Keeping it here is fine for now.
+  try {
+    const membersRes = await api.get(`/families/${familyId.value}/members`)
+    members.value = membersRes.data
+  } catch (error) {
+    console.error('Failed to fetch members:', error)
+  }
 })
 
 const goNext = () => {
@@ -133,9 +148,5 @@ const goNext = () => {
     name: 'GroupEditStep3',
     params: { familyId: familyId.value },
   })
-}
-
-const removeDisease = (index) => {
-  diseases.value.splice(index, 1)
 }
 </script>

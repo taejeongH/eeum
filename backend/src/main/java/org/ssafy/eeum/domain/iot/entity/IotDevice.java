@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -23,8 +24,9 @@ public class IotDevice extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "group_id", nullable = false)
-    private Integer groupId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    private Family family;
 
     @Column(name = "serial_number", nullable = false, unique = true, length = 100)
     private String serialNumber;
@@ -39,8 +41,8 @@ public class IotDevice extends BaseEntity {
     private Boolean isActive;
 
     @Builder
-    public IotDevice(Integer groupId, String serialNumber, String deviceName, String locationType) {
-        this.groupId = groupId;
+    public IotDevice(Family family, String serialNumber, String deviceName, String locationType) {
+        this.family = family;
         this.serialNumber = serialNumber;
         this.deviceName = deviceName;
         this.locationType = locationType;

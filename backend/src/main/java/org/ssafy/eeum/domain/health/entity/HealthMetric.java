@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.health.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -21,7 +21,7 @@ public class HealthMetric extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)
-    private User user;
+    private Family family;
 
     @Column(name = "record_date", nullable = false)
     private LocalDateTime recordDate;

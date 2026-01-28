@@ -13,10 +13,10 @@
     <!-- Progress -->
     <div class="mt-6">
       <div class="h-2 w-full rounded-full bg-[var(--color-primary-soft)]">
-        <div class="h-2 w-1/3 rounded-full bg-[var(--color-primary)]"></div>
+        <div class="h-2 w-1/4 rounded-full bg-[var(--color-primary)]"></div>
       </div>
       <p class="mt-2 text-xs text-[var(--color-primary)]">
-        단계 1 / 3 · 기본 정보 입력
+        단계 1 / 4 · 기본 정보 입력
       </p>
     </div>
 
@@ -46,17 +46,30 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useGroupSetupStore } from '@/stores/groupSetup'
+import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const route = useRoute()
+const setupStore = useGroupSetupStore()
+const { groupName } = storeToRefs(setupStore)
 
 const familyId = route.params.familyId
 
-const groupName = ref('')
+onMounted(() => {
+  if (familyId) {
+    setupStore.initData(familyId)
+  }
+})
 
 const goNext = () => {
+  // TODO: Maybe save Step 1 changes to server here? Or wait for final step?
+  // User workflow suggests immediate save might be expected for Step 1 if it's "Group Name".
+  // However, to fix "going back reverts changes", we just need to update the STORE.
+  // The store is already updated via v-model binding to `groupName`.
+  
   router.push({
     name: 'GroupEditStep2',
     params: { familyId },

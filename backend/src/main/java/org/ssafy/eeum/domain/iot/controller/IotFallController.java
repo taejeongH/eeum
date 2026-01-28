@@ -2,17 +2,14 @@ package org.ssafy.eeum.domain.iot.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.ssafy.eeum.domain.iot.service.FallEventService;
-import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import org.ssafy.eeum.global.common.response.RestApiResponse;
 
+import java.util.Map;
+
 @RestController
-@RequestMapping("/api/v1/iot/falls")
+@RequestMapping("/api/iot/falls")
 @RequiredArgsConstructor
 public class IotFallController {
 
@@ -20,10 +17,9 @@ public class IotFallController {
 
     @Operation(summary = "낙상 이벤트 로그 URL 발급", description = "낙상 감지 시 영상 업로드를 위한 Presigned URL을 발급받습니다.")
     @PostMapping("/presigned-url")
-    public RestApiResponse<java.util.Map<String, String>> getPresignedUrl(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+    public RestApiResponse<Map<String, String>> getPresignedUrl(
             @RequestParam Integer groupId) {
-        java.util.Map<String, String> response = fallEventService.initiateFallLog(userDetails.getUser(), groupId);
+        Map<String, String> response = fallEventService.initiateFallLog(groupId);
         return RestApiResponse.success(org.springframework.http.HttpStatus.OK, "Presigned URL 발급 성공", response);
     }
 

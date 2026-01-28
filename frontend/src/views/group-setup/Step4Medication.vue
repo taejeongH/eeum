@@ -16,7 +16,7 @@
         <div class="h-2 w-full rounded-full bg-[var(--color-primary)]"></div>
       </div>
       <p class="mt-2 text-xs text-[var(--color-primary)]">
-        단계 3 / 3 · 복약 정보 입력
+        단계 4 / 4 · 복약 정보 입력
       </p>
     </div>
 
@@ -53,25 +53,45 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useGroupSetupStore } from '@/stores/groupSetup'
+import { storeToRefs } from 'pinia'
 
 const router = useRouter()
+const route = useRoute()
+const setupStore = useGroupSetupStore()
+const familyId = route.params.familyId
 
-const medications = ref([
-  {
-    type: '만성질환',
-    name: '고혈압 약',
-    time: '아침 식후 30분',
-    repeat: '매일',
-  },
-])
+const { medications } = storeToRefs(setupStore)
+
+onMounted(() => {
+  if (familyId) {
+    setupStore.initData(familyId)
+  }
+})
 
 const addMedication = () => {
   alert('복약 추가 모달 연결 예정')
 }
 
 const complete = () => {
+  // TODO: Submit all data in setupStore to the server
+  // e.g. await api.put(`/families/${familyId}`, { ...setupStore.state })
+  // For now, just finish and clear.
+  
+  console.log('Group Setup Completed:', {
+      name: setupStore.groupName,
+      seniorId: setupStore.seniorId,
+      bloodType: setupStore.bloodType,
+      diseases: setupStore.diseases,
+      contacts: setupStore.contactSlots,
+      medications: setupStore.medications
+  })
+  
+  // Clear temporary store
+  setupStore.reset()
+  
   router.push('/home')
 }
 </script>

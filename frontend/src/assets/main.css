@@ -87,4 +87,56 @@
   .eeum-btn-primary:disabled {
     background-color: var(--color-primary-light);
   }
+
+  .eeum-dropdown {
+    @apply absolute mt-2 w-52 bg-white shadow-lg z-20;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-item {
+    @apply px-4 py-2 text-sm cursor-pointer truncate transition;
+    color: var(--text-body);
+  }
+
+  .eeum-dropdown-item:hover {
+    background-color: var(--color-primary-soft);
+  }
+
+  .eeum-dropdown-divider {
+    border-top: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-action {
+    @apply px-4 py-2 text-sm font-semibold cursor-pointer transition;
+    color: var(--color-primary);
+  }
+
+  .eeum-dropdown-action:hover {
+    background-color: var(--color-primary-soft);
+  }
+}
+
+/* ===============================
+   Transitions
+================================ */
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
 }

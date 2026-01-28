@@ -68,24 +68,24 @@ const { profile: userProfile } = storeToRefs(userStore);
 <style scoped>
 .info-group {
   padding: 0.75rem 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-default);
 }
 .info-group label {
   display: block;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-sub);
   margin-bottom: 0.25rem;
 }
 .info-group p {
   font-size: 1.125rem;
-  color: #111827;
+  color: var(--text-title);
   font-weight: 500;
 }
 .edit-btn {
   display: block;
   width: 100%;
   text-align: center;
-  background-color: #F68737;
+  background-color: var(--color-primary);
   color: white;
   font-weight: bold;
   padding: 0.75rem 1rem;

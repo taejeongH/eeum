@@ -15,7 +15,7 @@
 
     <!-- step 표시 -->
     <span class="ml-auto text-sm text-gray-400">
-      {{ step }} / 3
+      {{ step }} / 4
     </span>
   </header>
 </template>

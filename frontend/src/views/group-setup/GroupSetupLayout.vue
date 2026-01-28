@@ -20,6 +20,7 @@ const currentStep = computed(() => {
   if (route.name === 'GroupEditStep1') return 1
   if (route.name === 'GroupEditStep2') return 2
   if (route.name === 'GroupEditStep3') return 3
+  if (route.name === 'GroupEditStep4') return 4
   return 1 // fallback
 })
 </script>

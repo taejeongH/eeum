@@ -1,15 +1,25 @@
 <template>
   <div class="relative">
     <transition name="dropdown">
-      <div v-if="isOpen" class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 origin-top-left">
+      <div
+        v-if="isOpen"
+        class="eeum-dropdown left-0 origin-top-left"
+      >
         <ul class="py-1">
-          <li v-for="group in groups" :key="group.id"
-              class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer truncate"
-              @click="selectGroup(group)">
+          <li
+            v-for="group in families"
+            :key="group.id"
+            class="eeum-dropdown-item"
+            @click="selectGroup(group)"
+          >
             {{ group.name }}
           </li>
-          <li class="border-t mt-1 pt-1">
-            <div @click="requestAddGroup" class="px-4 py-2 text-sm text-orange-500 font-semibold hover:bg-orange-50 cursor-pointer">
+
+          <li class="eeum-dropdown-divider mt-1 pt-1">
+            <div
+              class="eeum-dropdown-action"
+              @click="requestAddGroup"
+            >
               + 그룹 추가
             </div>
           </li>
@@ -19,30 +29,19 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, onMounted, defineEmits, defineExpose } from 'vue';
-import api from '@/services/api';
+import { useFamilyStore } from '@/stores/family';
+import { storeToRefs } from 'pinia';
 
-const groups = ref([]);
-const currentSelectedGroup = ref(null);
+const familyStore = useFamilyStore();
+const { families, selectedFamily } = storeToRefs(familyStore);
 const isOpen = ref(false);
-const emit = defineEmits(['group-selected', 'add-group-request']);
-
-const fetchGroups = async () => {
-  try {
-    const response = await api.get('/families');
-    groups.value = response.data;
-    if (groups.value.length > 0 && !currentSelectedGroup.value) {
-      selectGroup(groups.value[0]);
-    }
-  } catch (error) {
-    console.error('Failed to fetch groups:', error);
-  }
-};
+const emit = defineEmits(['add-group-request']); // Removed group-selected
 
 const selectGroup = (group) => {
-  currentSelectedGroup.value = group;
-  emit('group-selected', group);
+  familyStore.selectFamily(group);
   close();
 };
 
@@ -63,6 +62,9 @@ const toggle = () => {
   isOpen.value = !isOpen.value;
 }
 
+const fetchGroups = async () => {
+  await familyStore.fetchFamilies();
+}
 
 defineExpose({
   open,
@@ -72,23 +74,29 @@ defineExpose({
 });
 
 onMounted(() => {
+  // Fetch only if empty or just simply refresh? 
+  // Probably safe to fetch to update list, but store logic handles preservation of selection.
   fetchGroups();
 });
 </script>
 
 <style scoped>
-.dropdown-enter-active, .dropdown-leave-active {
+.dropdown-enter-active,
+.dropdown-leave-active {
   transition: all 0.2s ease-out;
   transform-origin: top left;
 }
 
-.dropdown-enter-from, .dropdown-leave-to {
+.dropdown-enter-from,
+.dropdown-leave-to {
   opacity: 0;
   transform: scale(0.95);
 }
 
-.dropdown-enter-to, .dropdown-leave-from {
+.dropdown-enter-to,
+.dropdown-leave-from {
   opacity: 1;
   transform: scale(1);
 }
 </style>
+

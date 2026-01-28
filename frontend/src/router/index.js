@@ -9,7 +9,8 @@ import JoinGroupView from '../views/JoinGroupView.vue';
 import GroupSetupLayout from '../views/group-setup/GroupSetupLayout.vue';
 import GroupSetupStep1 from '../views/group-setup/Step1GroupName.vue';
 import GroupSetupStep2 from '../views/group-setup/Step2HealthInfo.vue';
-import GroupSetupStep3 from '../views/group-setup/Step3Medication.vue';
+import GroupSetupStep3 from '../views/group-setup/Step3EmergencyContact.vue';
+import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
 
 import { useUserStore } from '@/stores/user';
 
@@ -49,9 +50,26 @@ const routes = [
     component: GroupSetupLayout,
     children: [
       { path: '', redirect: 'step1' },
-      { path: 'step1', name: 'GroupEditStep1', component: GroupSetupStep1 },
-      { path: 'step2', name: 'GroupEditStep2', component: GroupSetupStep2 },
-      { path: 'step3', name: 'GroupEditStep3', component: GroupSetupStep3 },
+      {
+        path: 'step1',
+        name: 'GroupEditStep1',
+        component: GroupSetupStep1,
+      },
+      {
+        path: 'step2',
+        name: 'GroupEditStep2',
+        component: GroupSetupStep2,
+      },
+      {
+        path: 'step3',
+        name: 'GroupEditStep3',
+        component: GroupSetupStep3,
+      },
+      {
+        path: 'step4',
+        name: 'GroupEditStep4',
+        component: GroupSetupStep4,
+      },
     ],
   },
   {

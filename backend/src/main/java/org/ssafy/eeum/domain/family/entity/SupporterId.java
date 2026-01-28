@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode
 public class SupporterId implements Serializable {
     private Integer user;
-    private Long family;
+    private Integer family;
 }

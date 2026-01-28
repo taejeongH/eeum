@@ -14,7 +14,7 @@ import java.util.List;
 
 @Tag(name = "IoT Device", description = "IoT 기기 관리 API")
 @RestController
-@RequestMapping("/api/v1/iot/devices")
+@RequestMapping("/api/iot/devices")
 @RequiredArgsConstructor
 public class IotDeviceController {
 
