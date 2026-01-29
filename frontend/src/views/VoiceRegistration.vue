@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-background-light min-h-screen flex flex-col relative pb-24">
+  <div class="bg-background-light min-h-screen flex flex-col relative pb-20">
     <!-- Header -->
     <header class="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md px-6 pt-12 pb-4">
       <div class="flex items-center">
@@ -135,8 +135,8 @@ const toggleRecord = () => {
 </script>
 
 <style scoped>
+/* Removed local font-family definition to use global one */
 .material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
