@@ -35,8 +35,9 @@ public class Message {
     @Column(name = "voice_url", columnDefinition = "TEXT")
     private String voiceUrl;
 
-    @Column(name = "is_synced", nullable = false)
-    private Boolean isSynced;
+    @Builder.Default
+    @Column(name = "is_synced", columnDefinition = "TINYINT", nullable = false)
+    private Boolean isSynced = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -45,42 +46,35 @@ public class Message {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Builder.Default
     @Column(name = "is_read", columnDefinition = "TINYINT")
-    private Boolean isRead;
+    private Boolean isRead = false;
 
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-
-    @Column(name = "is_synced", columnDefinition = "TINYINT", nullable = false)
-    @Builder.Default
-    private Boolean isSynced = false;
-
-    @Builder
-    public Message(Family group, User sender, String content, String voiceUrl) {
-        this.group = group;
-        this.sender = sender;
-        this.content = content;
-        this.voiceUrl = voiceUrl;
-        this.isRead = false;
-        this.isSynced = false;
-    }
-
+    /**
+     * 로직 메서드
+     */
+    
+    // 목소리 URL 업데이트 시 동기화 상태를 false로 변경
     public void updateVoiceUrl(String voiceUrl) {
         this.voiceUrl = voiceUrl;
         this.isSynced = false;
     }
 
+    // 동기화 완료 표시
     public void markSynced() {
         this.isSynced = true;
     }
 
-
+    // 읽음 처리
     public void markRead() {
         this.isRead = true;
         this.readAt = LocalDateTime.now();
     }
 
+    // 논리 삭제
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }
