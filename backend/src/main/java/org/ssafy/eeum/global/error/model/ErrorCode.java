@@ -15,6 +15,11 @@ public enum ErrorCode {
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "COMMON005", "이미 존재하는 리소스입니다."),
 
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH001", "유효하지 않은 토큰입니다."),
+    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "AUTH002", "이미 가입된 이메일입니다."),
+    INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "AUTH003", "인증 코드가 올바르지 않거나 만료되었습니다."),
+    EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "AUTH004", "이메일 인증이 완료되지 않았습니다."),
+    LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH005", "이메일 또는 비밀번호가 일치하지 않습니다."),
+    EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH006", "이메일 발송에 실패했습니다."),
 
     // Family 관련 에러 코드
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY001", "유저를 찾을 수 없습니다."),
@@ -30,7 +35,14 @@ public enum ErrorCode {
     // 일정
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE001", "존재하지 않는 일정입니다."),
     INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "SCHEDULE002", "종료일은 시작일보다 빠를 수 없습니다."),
-    RESERVED_TITLE(HttpStatus.BAD_REQUEST, "SCHEDULE003", "'EXCLUDED'는 사용할 수 없는 일정 제목입니다.");
+    RESERVED_TITLE(HttpStatus.BAD_REQUEST, "SCHEDULE003", "'EXCLUDED'는 사용할 수 없는 일정 제목입니다."),
+
+    // IoT 관련 에러 코드
+    IOT_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT001", "존재하지 않는 IoT 기기입니다."),
+    IOT_DEVICE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT002", "기기에 할당된 그룹 정보를 찾을 수 없습니다."),
+    IOT_INVALID_PAIRING_CODE(HttpStatus.NOT_FOUND, "IOT003", "유효하지 않거나 만료된 페어링 코드입니다."),
+    IOT_UNREGISTERED_SERIAL_NUMBER(HttpStatus.NOT_FOUND, "IOT004", "등록되지 않은 기기 시리얼 번호입니다."),
+    IOT_MASTER_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT005", "마스터 기기 정보가 등록 목록에 없거나 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

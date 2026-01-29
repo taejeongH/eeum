@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between mb-6">
       
       <!-- Group Selector (Left) -->
-      <div class="flex-shrink-0 w-36 flex justify-start relative">
+      <div class="flex-shrink-0 w-36 flex justify-start relative z-50">
         <div class="relative">
           <div 
             @click="toggleGroupSelector" 
@@ -21,13 +21,15 @@
         </div>
       </div>
 
-      <!-- Title (Center) -->
+       <!-- Title (Center) -->
       <div class="flex-1 text-center">
-        <h1 class="text-xl font-extrabold text-[var(--text-title)] tracking-tight">이음</h1>
+        <router-link to="/home">
+          <h1 class="text-xl font-extrabold text-[var(--text-title)] tracking-tight">이음</h1>
+        </router-link>
       </div>
 
       <!-- Settings (Right) -->
-      <div class="flex-shrink-0 w-36 flex justify-end items-center">
+      <div class="flex-shrink-0 w-36 flex justify-end items-center relative z-50">
         <div class="relative" ref="settingsMenu">
             <button 
               @click="toggleSettings" 
@@ -48,83 +50,104 @@
       </div>
     </div>
 
-    <!-- 가족 프로필 리스트 -->
-    <div class="flex items-end justify-between pt-2 pb-1">
-      <!-- 왼쪽: 고정된 피부양자/본인 + 스크롤 가능한 멤버 목록 -->
-      <div class="flex items-end gap-3 flex-grow min-w-0 pr-2">
-        
-        <!-- 고정된 피부양자/플레이스홀더 -->
-        <div class="flex-shrink-0 text-center min-w-[72px]">
-            <!-- 플레이스홀더 (피부양자 추가) -->
-            <router-link 
-              v-if="dependentOrPlaceholder?.isPlaceholder && selectedGroup" 
-              :to="{ name: 'GroupEditStep1', params: { familyId: selectedGroup.id }, query: { groupName: selectedGroup.name } }" 
-              class="flex flex-col items-center gap-2 group"
-            >
-                <div class="w-[68px] h-[68px] rounded-full flex items-center justify-center bg-[var(--color-primary-soft)] text-[var(--color-primary)] ring-2 ring-white shadow-sm group-hover:bg-orange-100 transition">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                  </svg>
-                </div>
-                <span class="text-xs font-semibold text-[var(--text-sub)] truncate w-full group-hover:text-[var(--color-primary)] transition">
-                  {{ dependentOrPlaceholder.name }}
-                </span>
-            </router-link>
-
-            <!-- 실제 피부양자 -->
-            <router-link 
-              v-else-if="dependentOrPlaceholder" 
-              :to="{ name: 'MemberDetail', params: { familyId: selectedGroup.id, userId: dependentOrPlaceholder.userId } }" 
-              class="flex flex-col items-center gap-2 group"
-            >
+    <!-- Collapsible Wrapper -->
+    <div 
+      class="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
+      :class="isCollapsed ? 'max-h-0 opacity-0' : 'max-h-48 opacity-100'"
+    >
+      <!-- 가족 프로필 리스트 -->
+      <div class="flex items-end justify-between pt-2 pb-1">
+        <!-- 왼쪽: 고정된 피부양자/본인 + 스크롤 가능한 멤버 목록 -->
+        <div class="flex items-end gap-3 flex-grow min-w-0 pr-2">
+          
+          <!-- 고정된 피부양자/플레이스홀더 -->
+          <div class="flex-shrink-0 text-center min-w-[72px]">
+              <!-- 플레이스홀더 (피부양자 추가) -->
+              <router-link 
+                v-if="dependentOrPlaceholder?.isPlaceholder && selectedGroup" 
+                :to="{ name: 'GroupEditStep1', params: { familyId: selectedGroup.id }, query: { groupName: selectedGroup.name } }" 
+                class="flex flex-col items-center gap-2 group"
+              >
+                  <div class="w-[68px] h-[68px] rounded-full flex items-center justify-center bg-[var(--color-primary-soft)] text-[var(--color-primary)] ring-2 ring-white shadow-sm group-hover:bg-orange-100 transition">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                  </div>
+                  <span class="text-xs font-semibold text-[var(--text-sub)] truncate w-full group-hover:text-[var(--color-primary)] transition">
+                    {{ dependentOrPlaceholder.name }}
+                  </span>
+              </router-link>
+  
+              <!-- 실제 피부양자 -->
+              <router-link 
+                v-else-if="dependentOrPlaceholder" 
+                :to="{ name: 'MemberDetail', params: { familyId: selectedGroup.id, userId: dependentOrPlaceholder.userId } }" 
+                class="flex flex-col items-center gap-2 group"
+              >
+                  <div 
+                    class="relative w-[68px] h-[68px] rounded-full p-0.5 bg-white transition-all duration-300"
+                    :class="selectedId === dependentOrPlaceholder.userId ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 shadow-md' : 'ring-1 ring-gray-100 shadow-sm'"
+                  >
+                      <img :src="dependentOrPlaceholder.profileImage || '/default-profile.png'" alt="Profile" class="w-full h-full rounded-full object-cover" />
+                      <div v-if="selectedId === dependentOrPlaceholder.userId" class="absolute inset-0 rounded-full border-2 border-white/20"></div>
+                  </div>
+                  <span 
+                    class="text-xs font-semibold truncate w-full transition-colors"
+                    :class="selectedId === dependentOrPlaceholder.userId ? 'text-[var(--text-title)]' : 'text-[var(--text-sub)]'"
+                  >
+                    {{ dependentOrPlaceholder.name }}
+                  </span>
+              </router-link>
+          </div>
+  
+          <!-- 구분선 (선택사항, 멤버가 있을 때만 표시) -->
+          <div v-if="otherMembers.length > 0" class="w-px h-10 bg-gray-100 mb-6 mx-1"></div>
+  
+          <!-- 스크롤 가능한 나머지 멤버 -->
+          <div class="flex items-end gap-3 overflow-x-auto hide-scrollbar pb-1 px-1 pt-2">
+            <template v-for="member in otherMembers" :key="member.userId">
+              <router-link 
+                :to="{ name: 'MemberDetail', params: { familyId: selectedGroup.id, userId: member.userId } }" 
+                class="flex flex-col items-center flex-shrink-0 gap-2 min-w-[56px] group"
+              >
                 <div 
-                  class="relative w-[68px] h-[68px] rounded-full p-0.5 bg-white transition-all duration-300"
-                  :class="selectedId === dependentOrPlaceholder.userId ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 shadow-md' : 'ring-1 ring-gray-100 shadow-sm'"
+                  class="w-[52px] h-[52px] rounded-full p-0.5 bg-white ring-1 ring-gray-100 shadow-sm group-hover:ring-gray-200 transition-all duration-300"
                 >
-                    <img :src="dependentOrPlaceholder.profileImage || '/default-profile.png'" alt="Profile" class="w-full h-full rounded-full object-cover" />
-                    <div v-if="selectedId === dependentOrPlaceholder.userId" class="absolute inset-0 rounded-full border-2 border-white/20"></div>
+                  <img :src="member.profileImage || '/default-profile.png'" alt="Profile" class="w-full h-full rounded-full object-cover" />
                 </div>
                 <span 
-                  class="text-xs font-semibold truncate w-full transition-colors"
-                  :class="selectedId === dependentOrPlaceholder.userId ? 'text-[var(--text-title)]' : 'text-[var(--text-sub)]'"
+                  class="text-[11px] font-medium truncate w-[60px] text-center transition-colors text-[var(--text-sub)]"
                 >
-                  {{ dependentOrPlaceholder.name }}
+                  {{ member.name }}
                 </span>
-            </router-link>
+              </router-link>
+            </template>
+          </div>
         </div>
-
-        <!-- 구분선 (선택사항, 멤버가 있을 때만 표시) -->
-        <div v-if="otherMembers.length > 0" class="w-px h-10 bg-gray-100 mb-6 mx-1"></div>
-
-        <!-- 스크롤 가능한 나머지 멤버 -->
-        <div class="flex items-end gap-3 overflow-x-auto hide-scrollbar pb-1 px-1 pt-2">
-          <template v-for="member in otherMembers" :key="member.userId">
-            <router-link 
-              :to="{ name: 'MemberDetail', params: { familyId: selectedGroup.id, userId: member.userId } }" 
-              class="flex flex-col items-center flex-shrink-0 gap-2 min-w-[56px] group"
-            >
-              <div 
-                class="w-[52px] h-[52px] rounded-full p-0.5 bg-white ring-1 ring-gray-100 shadow-sm group-hover:ring-gray-200 transition-all duration-300"
-              >
-                <img :src="member.profileImage || '/default-profile.png'" alt="Profile" class="w-full h-full rounded-full object-cover" />
-              </div>
-              <span 
-                class="text-[11px] font-medium truncate w-[60px] text-center transition-colors text-[var(--text-sub)]"
-              >
-                {{ member.name }}
-              </span>
-            </router-link>
-          </template>
+  
+        <!-- Add 버튼 (오른쪽 고정) -->
+        <div 
+          @click="openInviteModal" 
+          class="flex-shrink-0 pl-2 pb-6 flex items-center justify-center"
+        >
+          <button class="w-10 h-10 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          </button>
         </div>
       </div>
+    </div>
 
-      <!-- Add 버튼 (오른쪽 고정) -->
-      <div 
-        @click="openInviteModal" 
-        class="flex-shrink-0 pl-2 pb-6 flex items-center justify-center"
-      >
-        <button class="w-10 h-10 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] transition-all">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    <!-- Toggle Button Container (Integrated with Header) -->
+    <div class="flex justify-center -mb-6 relative z-20">
+      <!-- Collapse Toggle Button -->
+      <div class="flex px-4 py-1 justify-center">
+        <button 
+          @click="isCollapsed = !isCollapsed"
+          class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-white shadow-sm border border-gray-100 text-[#1c140d] hover:bg-gray-50 transition gap-2"
+        >
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform duration-300" :class="isCollapsed ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+          </svg>
         </button>
       </div>
     </div>
@@ -164,6 +187,9 @@ const userStore = useUserStore();
 const familyStore = useFamilyStore();
 const { selectedFamily: selectedGroup } = storeToRefs(familyStore); // Alias for compatibility with existing template code
 
+// Emit modal state changes to parent (HomePage)
+const emit = defineEmits(['modal-state-change']);
+
 const groupSelectorRef = ref(null);
 const members = ref([]);
 const selectedId = ref(null);
@@ -171,6 +197,7 @@ const isGroupCreateModalOpen = ref(false);
 const isInviteModalOpen = ref(false);
 const isSettingsOpen = ref(false);
 const isAddGroupModalOpen = ref(false);
+const isCollapsed = ref(false);
 const settingsMenu = ref(null);
 
 const dependentOrPlaceholder = computed(() => members.value.find(m => m.dependent || m.isPlaceholder));
@@ -216,13 +243,32 @@ const closeSettingsMenu = (event) => {
     }
 }
 
+// Watch modal states and emit change
+watch(
+  [isAddGroupModalOpen, isInviteModalOpen, isGroupCreateModalOpen],
+  ([addGroup, invite, groupCreate]) => {
+    emit('modal-state-change', addGroup || invite || groupCreate);
+  }
+);
+
+// Persistence for isCollapsed
+watch(isCollapsed, (newVal) => {
+  localStorage.setItem('headerCollapsed', JSON.stringify(newVal));
+});
+
 onMounted(async () => {
     document.addEventListener('click', closeSettingsMenu);
     
+    // Load collapsed state
+    const savedCollapsed = localStorage.getItem('headerCollapsed');
+    if (savedCollapsed !== null) {
+      isCollapsed.value = JSON.parse(savedCollapsed);
+    }
+
     // Force refresh families to ensure updated DTO
-    console.log('MainHeader: Fetching families...');
     await familyStore.fetchFamilies();
     
+
     if (!userStore.profile) {
       await userStore.fetchUser();
     }

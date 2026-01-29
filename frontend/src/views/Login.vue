@@ -130,7 +130,11 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import apiClient from '@/services/api'
 import logoUrl from '@/assets/eeum_logo2.png'
+
+const router = useRouter()
 
 const loginForm = reactive({
   username: '',
@@ -152,12 +156,48 @@ const handleKakaoLogin = () => {
 }
 
 const handleLogin = async () => {
+  if (!loginForm.username || !loginForm.password) {
+    errorMessage.value = '아이디와 비밀번호를 입력해주세요.'
+    return
+  }
+
   isLoading.value = true
   errorMessage.value = ''
 
   try {
-    await new Promise((r) => setTimeout(r, 400))
-    errorMessage.value = '이메일 로그인은 현재 UI만 제공됩니다. 카카오 로그인으로 진행해주세요.'
+    const response = await apiClient.post('/auth/login', {
+      email: loginForm.username,
+      password: loginForm.password
+    }, {
+      withCredentials: false
+    })
+
+    const { accessToken } = response.data
+    
+    // 로그인 유지 체크 여부에 따라 스토리지 분기
+    if (loginForm.rememberMe) {
+      localStorage.setItem('accessToken', accessToken)
+      sessionStorage.removeItem('accessToken')
+    } else {
+      sessionStorage.setItem('accessToken', accessToken)
+      localStorage.removeItem('accessToken')
+    }
+    
+    // axios 헤더에 토큰 설정
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+    
+    // 홈 화면으로 이동
+    router.push('/home')
+  } catch (e) {
+    console.error(e)
+    const msg = e.response?.data?.message
+    if (msg) {
+      errorMessage.value = msg
+    } else if (e.response?.status === 401) {
+      errorMessage.value = '이메일 또는 비밀번호가 일치하지 않습니다.'
+    } else {
+      errorMessage.value = '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+    }
   } finally {
     isLoading.value = false
   }
@@ -168,7 +208,7 @@ const handleForgotPassword = () => {
 }
 
 const handleSignup = () => {
-  errorMessage.value = '회원가입 기능은 현재 UI만 제공됩니다.'
+  location.href = '#/signup'
 }
 </script>
 

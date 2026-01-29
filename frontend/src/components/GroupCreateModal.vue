@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" @click.self="close" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div v-if="show" @click.self="close" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm m-4">
       <div class="flex justify-between items-center border-b p-4">
         <h2 class="text-lg font-semibold">새 그룹 생성</h2>

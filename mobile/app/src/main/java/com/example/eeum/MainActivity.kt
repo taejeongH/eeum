@@ -150,17 +150,20 @@ class HealthJsBridge(
     private val activity: ComponentActivity,
     private val healthManager: SamsungHealthManager,
     private val tokenProvider: () -> String, // 토큰 제공자 추가
-    private val notificationIdProvider: () -> String? // 알림 ID 제공자 추가
+    private val notificationIdProvider: () -> String?, // 알림 ID 제공자 추가
+    private val webView: WebView
 ) {
     // SharedPreferences 초기화
     private val prefs = activity.getSharedPreferences("auth_prefs", android.content.Context.MODE_PRIVATE)
 
     @JavascriptInterface
-    fun fetchUser() {
-        // (요청에 있던 lifecycleScope + launch 패턴을 살려둠)
+    fun fetchHeartRate() {
         activity.lifecycleScope.launch {
-            // 예: healthManager 쪽 로직 호출 자리 (프로젝트 구현에 맞게 연결)
-            // healthManager.fetchUser()
+            val data = healthManager.getLatestHeartRate()
+            val arg = data ?: "null"
+            webView.post {
+                webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+            }
         }
     }
 
@@ -241,9 +244,9 @@ fun WebViewScreen(
                     // allowUniversalAccessFromFileURLs = true
                 }
 
-                // JS 브릿지 연결 (JavascriptInterface import/의도 보존)
+                // JS 브릿지 연결
                 addJavascriptInterface(
-                    HealthJsBridge(activity, healthManager, tokenProvider, notificationIdProvider),
+                    HealthJsBridge(activity, healthManager, tokenProvider, notificationIdProvider, webView=this),
                     "AndroidBridge"
                 )
 
@@ -259,7 +262,6 @@ fun WebViewScreen(
                         return true
                     }
                 }
-
                 // 링크 이동이 외부 브라우저(크롬)로 튀지 않도록 WebViewClient 설정
                 webViewClient = android.webkit.WebViewClient()
 
@@ -268,8 +270,6 @@ fun WebViewScreen(
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 }
-
-
                 // 로컬 개발 환경용
                 // loadUrl("http://10.0.2.2:5173")
 

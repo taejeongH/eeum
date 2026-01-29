@@ -115,6 +115,55 @@
   .eeum-dropdown-action:hover {
     background-color: var(--color-primary-soft);
   }
+
+  .eeum-input {
+    @apply w-full px-4 py-3 text-sm border focus:outline-none;
+    border-radius: var(--radius-xl);
+    border-color: var(--border-default);
+  }
+
+  .eeum-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
+  }
+
+  .eeum-btn-primary {
+    @apply w-full h-14 font-semibold text-white transition;
+    border-radius: var(--radius-xl);
+    background-color: var(--color-primary);
+  }
+
+  .eeum-btn-primary:disabled {
+    background-color: var(--color-primary-light);
+  }
+
+  .eeum-dropdown {
+    @apply absolute mt-2 w-52 bg-white shadow-lg z-20;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-item {
+    @apply px-4 py-2 text-sm cursor-pointer truncate transition;
+    color: var(--text-body);
+  }
+
+  .eeum-dropdown-item:hover {
+    background-color: var(--color-primary-soft);
+  }
+
+  .eeum-dropdown-divider {
+    border-top: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-action {
+    @apply px-4 py-2 text-sm font-semibold cursor-pointer transition;
+    color: var(--color-primary);
+  }
+
+  .eeum-dropdown-action:hover {
+    background-color: var(--color-primary-soft);
+  }
 }
 
 /* ===============================
@@ -139,4 +188,30 @@
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
 }

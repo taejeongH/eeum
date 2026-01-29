@@ -10,9 +10,22 @@ export function useSamsungHealth() {
     // window.Android 존재 여부 확인 (JS는 런타임에 체크)
     if (window.Android && typeof window.Android.fetchHeartRate === 'function') {
       isLoading.value = true;
-      window.Android.fetchHeartRate(); 
+      window.Android.fetchHeartRate();
     } else {
       console.warn("안드로이드 브릿지(Android.fetchHeartRate)를 찾을 수 없습니다.");
+
+      // MOCK Bridge Response for Browser Testing
+      if (import.meta.env.VITE_USE_MOCK === 'true') {
+        console.log("⚠️ Using MOCK Bridge Response");
+        setTimeout(() => {
+          // Simulate Android calling window.onReceiveHealthData
+          const mockData = JSON.stringify({
+            heartRate: 75,
+            timestamp: new Date().toISOString()
+          });
+          window.onReceiveHealthData(mockData);
+        }, 1000);
+      }
     }
   };
 
@@ -37,31 +50,3 @@ export function useSamsungHealth() {
     fetchHeartRate
   };
 }
-
-
-//   // 3. 걸음수 데이터 요청
-//   const fetchSteps = () => {
-//     if (window.Android) {
-//         console.log("안드로이드 호출 시도")
-//       isLoading.value = true;
-//       window.Android.fetchSteps(); // 네이티브 호출
-//     }else {
-//     console.error("Android 객체를 찾을 수 없습니다. 브릿지 연결 실패!");
-//   }
-//   };
-
-//   // 4. 걸음수 수신 콜백
-//   window.onReceiveStepsData = (data) => {
-//     isLoading.value = false;
-//     steps.value = data;
-//     console.log("걸음수 데이터:", data);
-//   };
-
-//   return {
-//     heartRate,
-//     steps,
-//     isLoading,
-//     fetchHeartRate,
-//     fetchSteps
-//   };
-// }

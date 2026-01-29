@@ -38,6 +38,7 @@ public class VoiceService {
     private final S3Service s3Service;
     private final MqttService mqttService;
     private final RestTemplate restTemplate;
+    private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService;
 
     @Value("${spring.ai-server.url}")
     private String AI_SERVER_URL;
@@ -78,7 +79,7 @@ public class VoiceService {
             log.info("WAV 형식이 아님을 감지: {}. AI 서버에 변환을 요청합니다.", originalPath);
 
             try {
-                String convertUrl = AI_SERVER_URL + "/api/v1/voice/convert";
+                String convertUrl = AI_SERVER_URL + "/api/voice/convert";
 
                 Map<String, String> requestBody = new HashMap<>();
                 requestBody.put("s3_url", request.getSamplePath());
@@ -103,9 +104,8 @@ public class VoiceService {
         }
     }
 
-    // 4. TTS 생성 및 IoT 전달
-    @Transactional
-    public void generateTts(Integer userId, TtsRequestDTO request) {
+    // 4. TTS 생성 (URL 반환)
+    public String createTtsUrl(Integer userId, String text) {
         List<VoiceSample> samples = sampleRepository.findAllByUserId(userId);
         if (samples.isEmpty()) {
             throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "학습된 음성 샘플이 없습니다.");
@@ -113,10 +113,10 @@ public class VoiceService {
         VoiceSample representativeSample = samples.get(0);
 
         try {
-            String ttsUrl = AI_SERVER_URL + "/api/v1/voice/tts";
+            String ttsUrl = AI_SERVER_URL + "/api/voice/tts";
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("text", request.getText());
+            requestBody.put("text", text);
             requestBody.put("sample_s3_url", representativeSample.getSamplePath());
             requestBody.put("sample_transcript", representativeSample.getVoiceScript().getContent());
             requestBody.put("user_id", userId);
@@ -130,14 +130,25 @@ public class VoiceService {
             Map<String, Object> response = restTemplate.postForObject(ttsUrl, entity, Map.class);
 
             if (response != null && "success".equals(response.get("status"))) {
-                String generatedUrl = (String) response.get("full_url");
-
-                String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl, request.getText());
-                mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
+                return (String) response.get("full_url");
             }
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "TTS 생성 실패");
         } catch (Exception e) {
             log.error("TTS 생성 호출 실패: {}", e.getMessage());
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "TTS 생성 중 오류가 발생했습니다.");
         }
+    }
+
+    // 5. TTS 생성 및 IoT 전달 (기존 유지용)
+    @Transactional
+    public void generateTts(Integer userId, TtsRequestDTO request) {
+        String generatedUrl = createTtsUrl(userId, request.getText());
+
+        String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl,
+                request.getText());
+        mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
+
+        // 새로운 음성 생성 알림
+        iotSyncService.notifyUpdate(request.getGroupId(), "voice", 1);
     }
 }

@@ -32,7 +32,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         String refreshToken = jwtProvider.createRefreshToken(userId, oAuth2User.getEmail(), "ROLE_USER");
 
         // Redis 저장
-        redisTemplate.opsForValue().set("RT:" + userId, refreshToken, 14, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set("RT:" + oAuth2User.getEmail(), refreshToken, 14, TimeUnit.DAYS);
 
         // 로컬 여부 판정
         String referer = request.getHeader("Referer");

@@ -10,7 +10,7 @@
           그룹 설정
         </router-link>
 
-        <a href="#" @click.prevent="emit('leave-group')" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 text-center">그룹 탈퇴</a>
+        <a v-if="familyId" href="#" @click.prevent="emit('leave-group')" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 text-center">그룹 탈퇴</a>
       </div>
     </div>
   </transition>

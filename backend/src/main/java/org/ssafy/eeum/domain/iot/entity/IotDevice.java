@@ -6,18 +6,15 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "iot_devices")
 @SQLDelete(sql = "UPDATE iot_devices SET deleted_at = NOW() WHERE id = ?")
-@Where(clause = "deleted_at IS NULL")
+@org.hibernate.annotations.SQLRestriction("deleted_at IS NULL")
 public class IotDevice extends BaseEntity {
 
     @Id
@@ -37,15 +34,19 @@ public class IotDevice extends BaseEntity {
     @Column(name = "location_type", length = 20)
     private String locationType;
 
+    @Column(name = "device_type", length = 30)
+    private String deviceType; // RASPBERRY_PI, JETSON_ORIN_NANO 등
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
     @Builder
-    public IotDevice(Family family, String serialNumber, String deviceName, String locationType) {
+    public IotDevice(Family family, String serialNumber, String deviceName, String locationType, String deviceType) {
         this.family = family;
         this.serialNumber = serialNumber;
         this.deviceName = deviceName;
         this.locationType = locationType;
+        this.deviceType = deviceType;
         this.isActive = true;
     }
 
@@ -54,5 +55,12 @@ public class IotDevice extends BaseEntity {
             this.deviceName = deviceName;
         if (locationType != null)
             this.locationType = locationType;
+    }
+
+    public void updatePairingInfo(Family family, String deviceType) {
+        this.family = family;
+        if (deviceType != null) {
+            this.deviceType = deviceType;
+        }
     }
 }

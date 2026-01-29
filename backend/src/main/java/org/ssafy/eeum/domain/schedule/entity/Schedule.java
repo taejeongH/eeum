@@ -6,7 +6,7 @@ import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "schedules")
@@ -31,10 +31,10 @@ public class Schedule extends BaseEntity {
     private String title;
 
     @Column(name = "start_at", nullable = false)
-    private LocalDate startAt;
+    private LocalDateTime startAt;
 
     @Column(name = "end_at", nullable = false)
-    private LocalDate endAt;
+    private LocalDateTime endAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "category_type", nullable = false)
@@ -66,15 +66,15 @@ public class Schedule extends BaseEntity {
     private String targetPerson;
 
     @Column(name = "recurrence_end_at")
-    private LocalDate recurrenceEndAt;
+    private LocalDateTime recurrenceEndAt;
 
-    public void update(String title, LocalDate startAt, LocalDate endAt, LocalDate recurrenceEndAt,
+    public void update(String title, LocalDateTime startAt, LocalDateTime endAt, LocalDateTime recurrenceEndAt,
             String description, String visitorName, String visitPurpose,
             RepeatType repeatType, Boolean isLunar, String targetPerson) {
         this.title = title;
         this.startAt = startAt;
         this.endAt = endAt;
-        this.recurrenceEndAt = recurrenceEndAt; // 추가
+        this.recurrenceEndAt = recurrenceEndAt;
         this.description = description;
         this.visitorName = visitorName;
         this.visitPurpose = visitPurpose;
@@ -83,7 +83,7 @@ public class Schedule extends BaseEntity {
         this.targetPerson = targetPerson;
     }
 
-    public void updateBasicInfo(String title, LocalDate startAt, LocalDate endAt, String description,
+    public void updateBasicInfo(String title, LocalDateTime startAt, LocalDateTime endAt, String description,
             String targetPerson) {
         this.title = title;
         this.startAt = startAt;

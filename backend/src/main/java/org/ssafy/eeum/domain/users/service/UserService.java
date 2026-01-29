@@ -43,8 +43,7 @@ public class UserService {
                 profileRequest.getBirthDate(),
                 profileRequest.getGender(),
                 profileRequest.getAddress(),
-                imageKey
-        );
+                imageKey);
 
         // presigned URL을 생성해서 응답 DTO에 담아 반환
         String presignedUrl = s3Service.getPresignedUrl(imageKey);

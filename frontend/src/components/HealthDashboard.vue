@@ -23,7 +23,7 @@ const { heartRate, isLoading, fetchHeartRate } = useSamsungHealth();
         <p class="sub-text">워치를 손목에 꼭 차고 계신가요?</p>
       </div>
     </div>
-
+    <!-- 심박수 버튼 추가 -->
     <button 
       @click="fetchHeartRate" 
       :disabled="isLoading"
