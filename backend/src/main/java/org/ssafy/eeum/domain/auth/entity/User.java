@@ -66,7 +66,7 @@ public class User {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column(name = "fcm_token", length = 255)
+    @Column(name = "fcm_token", length = 1000)
     private String fcmToken;
 
     @Column(name = "chronic_diseases", length = 255)
@@ -119,6 +119,11 @@ public class User {
         } else if (chronicDiseases != null && chronicDiseases.isEmpty()) {
             this.chronicDiseases = null; // Clear if an empty list is passed
         }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
         this.updatedAt = LocalDateTime.now();
     }
 

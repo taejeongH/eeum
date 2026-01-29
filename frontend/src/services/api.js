@@ -50,4 +50,8 @@ export const joinFamilyWithCode = (inviteCode) => {
   });
 };
 
+export const updateFcmToken = (fcmToken) => {
+  return apiClient.put('/users/fcm-token', { fcmToken });
+};
+
 export default apiClient;

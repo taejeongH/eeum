@@ -23,11 +23,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.eeum.ui.theme.EeumTheme
+
+//Firebase 사용을 위해 필요한 import들
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import com.google.firebase.messaging.FirebaseMessaging
 
 // ====== MainActivity ======
 class MainActivity : ComponentActivity() {
 
     private lateinit var healthManager: SamsungHealthManager // 브릿지 주입
+    // FCM 토큰 저장 변수
+    private var fcmToken: String = ""
 
     // 파일 업로드 콜백
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
@@ -46,6 +55,16 @@ class MainActivity : ComponentActivity() {
         Log.d("SHD_DEBUG", "앱이 시작되었습니다!")
         healthManager = SamsungHealthManager(this) // 매니저 초기화
 
+        //webvie 디버깅 활성화
+        WebView.setWebContentsDebuggingEnabled(true)
+
+        //fcm 로그 및 저장
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener {
+                fcmToken = it
+                Log.d("FCM", "TOKEN=$it")
+            }
+
         setContent {
             EeumTheme {
                 // ✅ 기존 1) WebViewScreen(this, healthManager) 유지
@@ -53,6 +72,7 @@ class MainActivity : ComponentActivity() {
                 WebViewScreen(
                     activity = this,
                     healthManager = healthManager,
+                    tokenProvider = { fcmToken }, // 토큰 제공 람다 전달
                     onShowFileChooser = { callback ->
                         filePathCallback = callback
                         fileChooserLauncher.launch("image/*")
@@ -60,14 +80,25 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                1001
+            )
+        }
     }
 }
 
 // ====== JS Bridge (내용 보존 + 실제로 @JavascriptInterface를 쓸 수 있게 통합) ======
 class HealthJsBridge(
     private val activity: ComponentActivity,
-    private val healthManager: SamsungHealthManager
+    private val healthManager: SamsungHealthManager,
+    private val tokenProvider: () -> String // 토큰 제공자 추가
 ) {
+    // SharedPreferences 초기화
+    private val prefs = activity.getSharedPreferences("auth_prefs", android.content.Context.MODE_PRIVATE)
+
     @JavascriptInterface
     fun fetchUser() {
         // (요청에 있던 lifecycleScope + launch 패턴을 살려둠)
@@ -75,6 +106,26 @@ class HealthJsBridge(
             // 예: healthManager 쪽 로직 호출 자리 (프로젝트 구현에 맞게 연결)
             // healthManager.fetchUser()
         }
+    }
+
+    @JavascriptInterface
+    fun getFcmToken(): String {
+        return tokenProvider()
+    }
+
+    // 네이티브에 토큰 저장
+    @JavascriptInterface
+    fun saveAccessToken(token: String) {
+        prefs.edit().putString("access_token", token).apply()
+        Log.d("BRIDGE", "Access Token Saved Native: $token")
+    }
+
+    // 네이티브에서 토큰 가져오기
+    @JavascriptInterface
+    fun getAccessToken(): String? {
+        val token = prefs.getString("access_token", null)
+        Log.d("BRIDGE", "Access Token Retrieved Native: $token")
+        return token
     }
 }
 
@@ -86,6 +137,7 @@ class HealthJsBridge(
 fun WebViewScreen(
     activity: ComponentActivity,
     healthManager: SamsungHealthManager,
+    tokenProvider: () -> String,
     onShowFileChooser: (ValueCallback<Array<Uri>>) -> Unit
 ) {
     AndroidView(
@@ -113,7 +165,7 @@ fun WebViewScreen(
 
                 // JS 브릿지 연결 (JavascriptInterface import/의도 보존)
                 addJavascriptInterface(
-                    HealthJsBridge(activity, healthManager),
+                    HealthJsBridge(activity, healthManager, tokenProvider),
                     "AndroidBridge"
                 )
 
@@ -130,8 +182,21 @@ fun WebViewScreen(
                     }
                 }
 
-                // (원문에 WebView 로드 URL은 없어서 비워둠)
-                // loadUrl("https://...") 또는 loadUrl("file:///android_asset/index.html") 등
+                // 링크 이동이 외부 브라우저(크롬)로 튀지 않도록 WebViewClient 설정
+                webViewClient = android.webkit.WebViewClient()
+
+                // 서버 인증(로그인)을 위해 쿠키 허용 (서드파티 쿠키 포함)
+                android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                   android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                }
+
+
+                // 로컬 개발 환경용
+                loadUrl("http://10.0.2.2:5173")
+
+                // 배포 서버용
+                // loadUrl("https://i14a105.p.ssafy.io")
             }
         }
     )
