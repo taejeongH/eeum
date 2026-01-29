@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.family.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +27,10 @@ public class FamilyMemberDto {
     @Schema(description = "응급 우선순위")
     private Integer emergencyPriority;
 
+    @Schema(description = "관계 (ex: 할머니, 할아버지)")
+    @JsonProperty("relationship")
+    private String relationship;
+
     public static FamilyMemberDto of(Supporter supporter) {
         return FamilyMemberDto.builder()
                 .userId(supporter.getUser().getId())
@@ -33,6 +38,7 @@ public class FamilyMemberDto {
                 .profileImage(supporter.getUser().getProfileImage())
                 .isDependent(supporter.getRole() == Supporter.Role.PATIENT)
                 .emergencyPriority(supporter.getEmergencyPriority())
+                .relationship(supporter.getRelationship())
                 .build();
     }
 }

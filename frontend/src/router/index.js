@@ -12,6 +12,8 @@ import GroupSetupStep3 from '../views/group-setup/Step3EmergencyContact.vue';
 import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
 import MedicationListView from '../views/MedicationListView.vue';
 import MedicationDetailView from '../views/MedicationDetailView.vue';
+import MessageListView from '../views/MessageList.vue';
+import WriteMessageView from '../views/Writemessage.vue';
 
 import { useUserStore } from '@/stores/user';
 
@@ -59,6 +61,16 @@ const routes = [
     path: '/families/:familyId/medications/:medicationId',
     name: 'MedicationDetail',
     component: MedicationDetailView,
+  },
+  {
+    path: '/families/:familyId/messages',
+    name: 'FamilyMessages',
+    component: MessageListView,
+  },
+  {
+    path: '/families/:familyId/message/new',
+    name: 'FamilyMessageNew',
+    component: WriteMessageView,
   },
   {
     path: '/groups/:familyId/edit',

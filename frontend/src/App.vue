@@ -19,7 +19,7 @@ onMounted(async () => {
 
     // 3. [핵심] 쿼리 파라미터를 지우고 프로필 페이지로 부드럽게 이동
     // window.location.href 대신 router.replace를 써야 흐름이 안 끊깁니다.
-    await router.replace('/my-profile-view');
+    await router.replace('/home');
   }
 
   // 4. 저장된 토큰이 있다면 유저 정보 불러오기
