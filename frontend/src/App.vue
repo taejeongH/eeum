@@ -9,7 +9,7 @@ const router = useRouter()
 onMounted(async () => {
   // 1. URL에서 accessToken 추출 (Hash 모드 대응)
   const fullUrl = window.location.href;
-  const tokenMatch = fullUrl.match(/accessToken=([^&?]*)/);
+  const tokenMatch = fullUrl.match(/accessToken=([^&?#]*)/);
   const token = tokenMatch ? tokenMatch[1] : null;
 
   if (token) {

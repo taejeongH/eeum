@@ -1,8 +1,11 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import MyProfileView from '../views/MyProfileView.vue';
+import HomePage from '../views/HomePage.vue';
+import VoiceRegistration from '../views/VoiceRegistration.vue';
+import EmergencyAlert from '../views/EmergencyAlert.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue';
-import HomePage from '../views/HomePage.vue';
 import MemberDetailView from '../views/MemberDetailView.vue';
 import JoinGroupView from '../views/JoinGroupView.vue';
 import GroupSetupLayout from '../views/group-setup/GroupSetupLayout.vue';
@@ -122,6 +125,31 @@ const routes = [
     path: '/voice-sample',
     name: 'VoiceSample',
     component: VoiceSample,
+  },
+  {
+    path: '/voice-register',
+    name: 'VoiceRegistration',
+    component: VoiceRegistration,
+  },
+  {
+    path: '/emergency',
+    name: 'EmergencyAlert',
+    component: EmergencyAlert,
+  },
+  {
+    path: '/calendar',
+    name: 'CalendarPage',
+    component: () => import('../views/CalendarPage.vue'),
+  },
+  {
+    path: '/calendar/create',
+    name: 'CalendarCreate',
+    component: () => import('../views/CalendarCreate.vue'),
+  },
+  {
+    path: '/calendar/detail',
+    name: 'DetailSchedule',
+    component: () => import('../views/DetailSchedule.vue'),
   },
 ];
 

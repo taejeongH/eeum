@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { MOCK_USER } from '../mocks/data';
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 const apiClient = axios.create({
   baseURL: '/api',
