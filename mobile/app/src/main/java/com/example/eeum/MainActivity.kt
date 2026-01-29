@@ -261,6 +261,41 @@ fun WebViewScreen(
                         onShowFileChooser(filePathCallback)
                         return true
                     }
+
+                    // ✅ 추가: JS alert() 처리
+                    override fun onJsAlert(
+                        view: WebView?,
+                        url: String?,
+                        message: String?,
+                        result: android.webkit.JsResult?
+                    ): Boolean {
+                        android.app.AlertDialog.Builder(view?.context)
+                            .setTitle("알림")
+                            .setMessage(message)
+                            .setPositiveButton("확인") { _, _ -> result?.confirm() }
+                            .setCancelable(false)
+                            .create()
+                            .show()
+                        return true
+                    }
+
+                    // ✅ 추가: JS confirm() 처리
+                    override fun onJsConfirm(
+                        view: WebView?,
+                        url: String?,
+                        message: String?,
+                        result: android.webkit.JsResult?
+                    ): Boolean {
+                        android.app.AlertDialog.Builder(view?.context)
+                            .setTitle("확인")
+                            .setMessage(message)
+                            .setPositiveButton("확인") { _, _ -> result?.confirm() }
+                            .setNegativeButton("취소") { _, _ -> result?.cancel() }
+                            .setCancelable(false)
+                            .create()
+                            .show()
+                        return true
+                    }
                 }
                 // 링크 이동이 외부 브라우저(크롬)로 튀지 않도록 WebViewClient 설정
                 webViewClient = android.webkit.WebViewClient()

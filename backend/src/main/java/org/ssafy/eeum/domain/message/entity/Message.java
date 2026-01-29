@@ -61,6 +61,7 @@ public class Message {
         this.readAt = LocalDateTime.now();
     }
 
+    // 논리 삭제
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }
