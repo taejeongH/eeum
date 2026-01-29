@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-handler-proxy/4.1.130.Final/9356fba7a979f4321dbfef39ccd137eef76316a2/netty-handler-proxy-4.1.130.Final.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-handler-proxy/4.1.130.Final/48c8b5976c45f4c0caec63fa9d7e670c600b34b5/netty-handler-proxy-4.1.130.Final-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

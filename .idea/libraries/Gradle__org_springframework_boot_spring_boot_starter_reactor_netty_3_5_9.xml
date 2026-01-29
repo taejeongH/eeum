@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-reactor-netty/3.5.9/9ab4574506d512da2dccc55d7995d15cf29ab5ab/spring-boot-starter-reactor-netty-3.5.9.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-reactor-netty/3.5.9/a2d98cca6b6c2f8c72b6b6acaee66b86ddade2f8/spring-boot-starter-reactor-netty-3.5.9-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

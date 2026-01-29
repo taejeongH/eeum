@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-webflux/3.5.9/5ece9924648e3c5d5d4da55643146b5186c367f2/spring-boot-starter-webflux-3.5.9.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-webflux/3.5.9/5ece9924648e3c5d5d4da55643146b5186c367f2/spring-boot-starter-webflux-3.5.9-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

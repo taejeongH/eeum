@@ -37,51 +37,46 @@
         </div>
       </div>
 
-      <!-- 메시지 작성 폼 -->
-      <div class="mb-8">
-        <div class="mb-4">
-          <textarea
-            v-model="message.content"
-            @input="updateCharCount"
-            placeholder="따뜻한 메세지를 적어보세요!!"
-            class="eeum-input resize-none"
-            rows="6"
-            maxlength="100"
-          ></textarea>
-          <div class="flex justify-between items-center mt-2">
-            <span class="eeum-sub">
-              {{ charCount }}/100자
-            </span>
-          </div>
-        </div>
 
-        <!-- TTS 옵션 -->
-        <div class="p-4 border" style="border-color: var(--border-default); border-radius: var(--radius-lg);">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-3">
-              <svg class="w-5 h-5" style="color: var(--color-primary);" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-              </svg>
-              <span class="font-medium" style="color: var(--text-title);">TTS 음성 읽기</span>
-            </div>
-            <button
-              @click="showTTSSettings = true"
-              class="px-3 py-1 text-sm transition-colors rounded-lg"
-              style="color: var(--color-primary); background-color: var(--color-primary-soft);"
-            >
-              설정
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <!-- 하단 전송 버튼 -->
-      <div class="fixed bottom-0 left-0 right-0 p-4 shadow-lg" style="background-color: var(--bg-page);">
-        <div class="max-w-2xl mx-auto">
+      <!-- 하단 메시지 작성 폼 & 전송 버튼 -->
+      <div class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] rounded-t-3xl z-20">
+        <div class="max-w-2xl mx-auto p-4">
+          <!-- TTS 옵션 (Compact) -->
+          <div class="flex items-center justify-between mb-3 px-1">
+             <div class="flex items-center gap-2 text-sm text-gray-600">
+               <svg class="w-4 h-4 text-[#e76f51]" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+               </svg>
+               <span class="font-medium">TTS 음성 읽기</span>
+             </div>
+             <button
+               @click="showTTSSettings = true"
+               class="text-xs px-3 py-1 rounded-lg bg-orange-50 text-[#e76f51] font-medium hover:bg-orange-100 transition-colors"
+             >
+               설정
+             </button>
+          </div>
+
+          <!-- Input Area -->
+          <div class="relative mb-3">
+             <textarea
+               v-model="message.content"
+               @input="updateCharCount"
+               placeholder="따뜻한 메세지를 적어보세요!!"
+               class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
+               rows="3"
+               maxlength="100"
+             ></textarea>
+             <span class="absolute bottom-3 right-3 text-xs text-gray-400 font-medium">
+               {{ charCount }}/100
+             </span>
+          </div>
+
           <button
             @click="sendMessage"
             :disabled="!canSend || sending"
-            class="eeum-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            class="w-full eeum-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
           >
             <svg v-if="!sending" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -90,7 +85,7 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>{{ sending ? 'Sending...' : 'Send Message' }}</span>
+            <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
           </button>
         </div>
       </div>
@@ -196,7 +191,7 @@
         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
         </svg>
-        Message sent successfully!
+        메세지가 성공적으로 전송되었습니다!
       </div>
     </transition>
   </div>

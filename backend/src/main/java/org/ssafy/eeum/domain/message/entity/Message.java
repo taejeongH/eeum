@@ -45,6 +45,10 @@ public class Message {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
+    @Column(name = "is_synced", columnDefinition = "TINYINT", nullable = false)
+    @Builder.Default
+    private Boolean isSynced = false;
+
     public void markRead() {
         this.isRead = true;
         this.readAt = LocalDateTime.now();

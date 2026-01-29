@@ -106,7 +106,7 @@ const inviteCode = ref('');
 const loading = ref(false);
 const error = ref(null);
 
-const BASE_URL = import.meta.env.VITE_APP_BASE_URL || 'http://localhost:5173';
+const BASE_URL = import.meta.env.VITE_APP_BASE_URL || 'https://i14a105.p.ssafy.io:5173';
 
 const getInviteLink = computed(() => {
     if (!inviteCode.value || inviteCode.value === 'N/A') return '';

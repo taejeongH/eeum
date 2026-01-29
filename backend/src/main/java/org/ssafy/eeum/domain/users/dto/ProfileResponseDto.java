@@ -28,9 +28,12 @@ public class ProfileResponseDto {
     private String profileImage;
     @Schema(description = "수정일")
     private LocalDateTime updatedAt;
+    @Schema(description = "가족 ID")
+    private Integer familyId;
 
     @Builder
-    public ProfileResponseDto(Integer id, String name, String phone, LocalDate birthDate, Gender gender, String address, String profileImage, LocalDateTime updatedAt) {
+    public ProfileResponseDto(Integer id, String name, String phone, LocalDate birthDate, Gender gender, String address,
+            String profileImage, LocalDateTime updatedAt, Integer familyId) {
         this.id = id;
         this.name = name;
         this.phone = phone;
@@ -39,9 +42,15 @@ public class ProfileResponseDto {
         this.address = address;
         this.profileImage = profileImage;
         this.updatedAt = updatedAt;
+        this.familyId = familyId;
     }
 
     public static ProfileResponseDto of(User user) {
+        Integer familyId = null;
+        if (user.getSupporters() != null && !user.getSupporters().isEmpty()) {
+            familyId = user.getSupporters().get(0).getFamily().getId();
+        }
+
         return ProfileResponseDto.builder()
                 .id(user.getId())
                 .name(user.getName())
@@ -50,6 +59,7 @@ public class ProfileResponseDto {
                 .gender(user.getGender())
                 .address(user.getAddress())
                 .updatedAt(user.getUpdatedAt())
+                .familyId(familyId)
                 .build();
     }
 

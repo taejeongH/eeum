@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver-dns/4.1.130.Final/a08b6f50ce63a95a426e79f784158a0a670dbbf4/netty-resolver-dns-4.1.130.Final.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver-dns/4.1.130.Final/866822addfba80b6f22267de3cc28efb6fe5ed4b/netty-resolver-dns-4.1.130.Final-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
