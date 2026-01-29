@@ -32,6 +32,12 @@ public class Message {
     @Column(nullable = false)
     private String content;
 
+    @Column(name = "voice_url", columnDefinition = "TEXT")
+    private String voiceUrl;
+
+    @Column(name = "is_synced", nullable = false)
+    private Boolean isSynced;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -44,6 +50,25 @@ public class Message {
 
     @Column(name = "read_at")
     private LocalDateTime readAt;
+
+    @Builder
+    public Message(Family group, User sender, String content, String voiceUrl) {
+        this.group = group;
+        this.sender = sender;
+        this.content = content;
+        this.voiceUrl = voiceUrl;
+        this.isRead = false;
+        this.isSynced = false;
+    }
+
+    public void updateVoiceUrl(String voiceUrl) {
+        this.voiceUrl = voiceUrl;
+        this.isSynced = false;
+    }
+
+    public void markSynced() {
+        this.isSynced = true;
+    }
 
     public void markRead() {
         this.isRead = true;

@@ -8,6 +8,7 @@ import org.ssafy.eeum.domain.iot.dto.IotDeviceInfoResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDevicePairRequestDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceRequestDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceResponseDTO;
+import org.ssafy.eeum.domain.iot.dto.IotPairingCodeResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotSimpleDeviceInfoResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceUpdateRequestDTO;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
@@ -118,7 +119,7 @@ public class IotDeviceService {
         }
 
         @Transactional
-        public String generatePairingCode(Integer groupId) {
+        public IotPairingCodeResponseDTO generatePairingCode(Integer groupId) {
                 // 1. 해당 그룹 존재 확인
                 if (!familyRepository.existsById(groupId)) {
                         throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
@@ -127,11 +128,20 @@ public class IotDeviceService {
                 // 2. 짧은 희귀 코드 생성 (8자리)
                 String code = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
                 String key = PAIRING_PREFIX + code;
+                long expiresIn = 180; // 3분
 
                 // 3. Redis 저장 (3분 만료)
-                redisTemplate.opsForValue().set(key, String.valueOf(groupId), Duration.ofMinutes(3));
+                redisTemplate.opsForValue().set(key, String.valueOf(groupId), Duration.ofSeconds(expiresIn));
 
-                return code;
+                // 4. QR 콘텐츠 생성 (JSON)
+                long ts = System.currentTimeMillis() / 1000L;
+                String qrContent = String.format("{\"svc\":\"eeum\",\"code\":\"%s\",\"ts\":%d}", code, ts);
+
+                return IotPairingCodeResponseDTO.builder()
+                                .pairingCode(code)
+                                .expiresIn(expiresIn)
+                                .qrContent(qrContent)
+                                .build();
         }
 
         @Transactional

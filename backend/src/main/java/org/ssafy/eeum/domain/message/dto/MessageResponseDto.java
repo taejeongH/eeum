@@ -17,11 +17,12 @@ public class MessageResponseDto {
     private LocalDateTime deletedAt;
     private Boolean isRead;
     private LocalDateTime readAt;
-    
+
     // 발신자 정보
     private String senderName;
     private String senderProfileImage;
     private String senderRelationship;
     private String senderRole;
     private Boolean enableTTS;
+    private String voiceUrl;
 }
