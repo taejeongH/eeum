@@ -1,6 +1,7 @@
 import asyncio
 import subprocess
 import time
+from queue import Queue
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -14,12 +15,16 @@ from .wifi_manager import (
         async_up_profile_on_wlan0,
         async_delete_profile,
         )
+from .mqtt_client import MqttClient
 
 class EventIn(BaseModel):
     kind: str
     device_id: str
     data: Dict[str, Any]
     detected_at: Optional[float] = None
+
+class TokenReq(BaseModel):
+    token: str
 
 class WifiConnectIn(BaseModel):
     ssid: str
@@ -458,13 +463,29 @@ initialLoad();
         return {
                 "alert": state.alert,
                 "last_pir_ts": state.last_pir_ts,
-                "timer_running": state.tasks.get("pir_no_motion") is not None or state.tasks.get("vision_exit_timeout") is not None
+                "timer_running": state.tasks.get("pir_no_motion") is not None or state.tasks.get("vision_exit_absence") is not None
         }
 
     @app.post("/wifi/ui/ping")
     async def wifi_ui_ping():
         state.wifi_ui_last_ping = time.time()
         return {"ok": True, "ts": state.wifi_ui_last_ping}
+
+    @app.post("/eeum/token")
+    async def token(req: TokenReq):
+      await state.device_store.async_set_token(req.token)
+
+      if state.mqtt is None:
+          state.mqtt = MqttClient(
+              inbound_queue=state.mqtt_inbound,
+              token=req.token,
+              link_getter=state.device_store.build_pir_link,
+          )
+          state.mqtt.activate()
+      else:
+          state.mqtt.set_token(req.token)   # 연결 중이면 online 갱신
+
+      return {"ok": True}
 
     @app.post("/eeum/event")
     async def event(data: EventIn):

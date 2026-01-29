@@ -12,7 +12,7 @@ static const uint16_t SERVER_PORT = 8080;
 static const char* EVENT_ENDPOINT = "/eeum/event";
 
 // ====== 디바이스 ======
-static const char* DEVICE_NAME = "EEUM_E105_1";
+static const char* DEVICE_NAME = "EEUM-E105-1";
 
 // ====== PIR ======
 static const int PIR_PIN = 27;

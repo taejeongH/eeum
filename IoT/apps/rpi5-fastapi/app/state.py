@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Any, Dict, List
 import asyncio
 import time
+from queue import Queue
 
 @dataclass
 class Event:
@@ -10,12 +11,22 @@ class Event:
     data: dict[str, Any]
     detected_at: float = field(default_factory=lambda: time.time())
 
+@dataclass
+class Command:
+    topic: str
+    payload: Dict[str, Any]
+    received_at: float = field(default_factory=lambda: time.time())
+
 class MonitorState:
     def __init__(self):
         self.alert: bool = False
 
         self.queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=16)
 
+        # ---- MQTT ----
+        self.cmd_queue: asyncio.Queue[Command] = asyncio.Queue(maxsize=64)
+        self.mqtt = None
+        self.mqtt_inbound = Queue()
         # ---- 최근 이벤트/디바이스 상태 ----
         self.last_event_by_device: dict[str, dict] = {}
         self.device_store = None
@@ -27,7 +38,6 @@ class MonitorState:
         self.occupancy_since_ts: Optional[float] = None
         self.last_pir_ts: Optional[float] = None
         self.last_vision_ts: Optional[float] = None
-        self.occupancy_location: Optional[str] = None
         self.vision_active: bool = False
 
         # ---- Fall FSM ----

@@ -4,16 +4,16 @@ from app.config import AP_IFACE, HOST, PORT, DEVICE_PATH, DEFAULT_DEVICE
 from app.ap_manager import async_ap_up, async_get_ipv4_addr
 from app.state import MonitorState
 from app.api import create_app
-from app.consumer import consume_events
+from app.consumer import consume_events, consume_mqtt_inbound, consume_commands
 from app.monitor import (
     wifi_active_loop,
     wifi_scan_loop,
     refresh_wifi_active,
     refresh_wifi_cache,
-    query_locations_loop,
 )
 from app.json_store import JsonStateStore
 from app.device_store import DeviceStore
+from app.mqtt_client import MqttClient
 
 async def async_main():
     last_err = None
@@ -41,8 +41,19 @@ async def async_main():
     config = uvicorn.Config(app, host=HOST, port=PORT)
     server = uvicorn.Server(config)
     
+    token = state.device_store.get_token()
+    if token:
+        state.mqtt = MqttClient(
+            inbound_queue=state.mqtt_inbound,
+            token=token,
+            link_getter=state.device_store.build_pir_link,  # pir만 반영
+        )
+        state.mqtt.activate()
+    else:
+        state.mqtt = None
     consumer_task = asyncio.create_task(consume_events(state))
-    location_query_task = asyncio.create_task(query_locations_loop(state))
+    mqtt_in_task = asyncio.create_task(consume_mqtt_inbound(state))
+    cmd_task = asyncio.create_task(consume_commands(state))
     await refresh_wifi_active(state)
     await refresh_wifi_cache(state)
     # Wi-Fi cache loops
@@ -51,9 +62,9 @@ async def async_main():
     try:
         await server.serve()
     finally:
-        for t in (consumer_task, location_query_task, wifi_active_task, wifi_scan_task):
+        for t in (consumer_task, mqtt_in_task, cmd_task, wifi_active_task, wifi_scan_task):
             t.cancel()
-        for t in (consumer_task, location_query_task, wifi_active_task, wifi_scan_task):
+        for t in (consumer_task, mqtt_in_task, cmd_task, wifi_active_task, wifi_scan_task):
             try:
                 await t
             except asyncio.CancelledError:

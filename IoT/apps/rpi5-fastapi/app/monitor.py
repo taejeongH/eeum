@@ -39,10 +39,6 @@ async def async_record_event(state: MonitorState, ev: Event) -> None:
     if ds:
         await ds.async_mark_seen(dev, ts)
 
-def _get_saved_location(state: MonitorState, dev: str):
-    ds = state.device_store
-    return ds.get_location(dev) if ds else None
-
 def _set_present(state: MonitorState, ev: Event) -> None:
     ts = ev.detected_at
     kind = ev.kind
@@ -51,7 +47,6 @@ def _set_present(state: MonitorState, ev: Event) -> None:
     devinfo = ds.doc().get("devices", {}).get(kind, {}).get(dev,{})
     if not devinfo:
         return
-    state.occupancy_location = devinfo.get("location")
     
     if not state.occupancy_present:
         state.occupancy_since_ts = ts
@@ -81,6 +76,14 @@ def _set_absent(state: MonitorState, device_id: str, detected_at: float, reason:
     
     # MQTT Publish Event
     print(f"[OCCUPANCY] absent reason={reason} at {evaluated_at}")
+    if state.mqtt:
+        state.mqtt.publish_event({
+            "kind": kind,
+            "serial_number": device_id,
+            "event": "absence" if kind == "vision" else "no_motion",
+            "started_at": detected_at,
+            "detected_at": evaluated_at
+        })
 
 async def pir_absence_timer(state: MonitorState, device_id: str, base_ts: float) -> None:
     try:
@@ -110,7 +113,7 @@ async def vision_exit_absence_timer(state: MonitorState, device_id: str, base_ts
         if state.last_pir_ts is not None and state.last_pir_ts > base_ts:
             return
 
-        _set_absent(state, device_id, base_ts, "vision_exit_timeout")
+        _set_absent(state, device_id, base_ts, "vision_exit_absence")
     except asyncio.CancelledError:
         return
 
@@ -119,9 +122,6 @@ def handle_pir_motion(state: MonitorState, ev: Event) -> None:
     state.last_pir_ts = ts
     dev = ev.device_id
     _set_present(state, ev)
-
-    loc = _get_saved_location(state, dev)
-    state.occupancy_location = str(loc)
 
     if not state.vision_active:
         start_task(state, "pir_no_motion", pir_absence_timer(state, dev, base_ts=ts))
@@ -138,11 +138,6 @@ def handle_vision(state: MonitorState, ev: Event) -> None:
     if v_ev == "enter":
         state.vision_active = True
         _set_present(state, ev)
-
-        loc = data.get("location_id")
-        if loc == None:
-            loc = _get_saved_location(state, dev)
-        state.occupancy_location = str(loc)
 
         cancel_task(state, "pir_no_motion")
         cancel_task(state, "vision_exit_absence")
@@ -163,25 +158,18 @@ def handle_vision(state: MonitorState, ev: Event) -> None:
         _set_present(state, ev)
         print(f"[FALL] triggered level={state.fall_level} from {ev.device_id} at {ts}")
         """
-        tts -> stt 로직 추가
+        tts -> stt 로직 추가 이후 MQTT 로직 (테스트는 임의로)
         """
+        if state.mqtt:
+            state.mqtt.publish_response({
+                "serial_number": state.device_store.get_device_id(),
+                "event": "response",
+                "stt_content": "아이고야",
+                "detected_at": ts,
+                "token": state.device_store.get_token()
+            })
         return
 
-async def query_locations_loop(state: MonitorState):
-    while True:
-        try:
-            # TODO: MQTT Publish를 통해 서버에 location 문의하기
-            """
-            locations = None
-
-            ds = getattr(state, "device_store", None)
-            if ds:
-                await ds.set_locations_bulk(dev별 set_location)   # or dev별 set_location
-            """
-        except Exception as e:
-            print("[location_refresh] error:", e)
-
-        await asyncio.sleep(DAY)
 # ---------------- Wi-Fi refresh ----------------
 
 async def refresh_wifi_active(state: MonitorState) -> None:
