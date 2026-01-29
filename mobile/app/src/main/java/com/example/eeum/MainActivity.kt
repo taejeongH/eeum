@@ -51,10 +51,10 @@ class MainActivity : ComponentActivity() {
         filePathCallback = null
     }
 
-    override fun onNewIntent(intent: Intent) {
+    override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val notiId = intent.getStringExtra("notificationId")
+        val notiId = intent?.getStringExtra("notificationId")
         if (notiId != null) {
             pendingNotificationId = notiId
             Log.d("FCM", "onNewIntent: Received Notification ID: $notiId")
