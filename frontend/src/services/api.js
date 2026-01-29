@@ -52,36 +52,8 @@ export const joinFamilyWithCode = (inviteCode) => {
   });
 };
 
-// [수정] 로그인/회원가입 등 인증 관련 API는 withCredentials: false 로 설정하여 CORS 에러 방지
-
-export const login = (credentials) => {
-  return apiClient.post('/auth/login', credentials, {
-    withCredentials: false
-  });
-};
-
-export const signup = (data) => {
-  return apiClient.post('/auth/signup', data, {
-    withCredentials: false
-  });
-};
-
-export const sendCode = (email) => {
-  return apiClient.post('/auth/email/code', { email }, {
-    withCredentials: false
-  });
-};
-
-export const verifyCode = (data) => {
-  return apiClient.post('/auth/email/verify', data, {
-    withCredentials: false
-  });
-};
-
-export const logout = () => {
-  return apiClient.post('/auth/logout', {}, {
-    withCredentials: false
-  });
+export const updateFcmToken = (fcmToken) => {
+  return apiClient.put('/users/fcm-token', { fcmToken });
 };
 
 export default apiClient;

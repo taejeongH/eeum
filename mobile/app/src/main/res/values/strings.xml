@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">eeum</string>
+    <string name="default_notification_channel_id">default_channel</string>
+    <string name="emergency_notification_channel_id">emergency_channel_v2</string>
 </resources>

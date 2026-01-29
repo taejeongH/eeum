@@ -48,6 +48,9 @@ dependencies {
     implementation 'org.springframework.integration:spring-integration-mqtt'
     implementation 'org.eclipse.paho:org.eclipse.paho.mqttv5.client:1.2.5'
 
+    // Firebase
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
+
     // 음력 변환
     implementation 'com.ibm.icu:icu4j:78.2'
 
