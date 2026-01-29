@@ -27,20 +27,6 @@ onMounted(async () => {
     await router.replace('/home');
   }
 
-  // 4. 저장된 토큰이 있다면 유저 정보 불러오기
-  const savedToken = localStorage.getItem('accessToken');
-  if (savedToken) {
-    try {
-      await userStore.fetchUser();
-      console.log("✅ 유저 정보 로드 완료");
-    } catch (error) {
-      console.error("❌ 유저 정보 로드 실패:", error);
-    }
-    
-    // 3. [핵심] 쿼리 파라미터를 지우고 프로필 페이지로 부드럽게 이동
-    await router.replace('/home');
-  }
-
   // 4. [NEW] 네이티브 세션 복구 및 동기화 (Self-Healing)
   const restoreSession = async (retryCount = 0) => {
       const localToken = localStorage.getItem('accessToken');
@@ -50,7 +36,19 @@ onMounted(async () => {
           if (window.AndroidBridge && window.AndroidBridge.saveAccessToken) {
              window.AndroidBridge.saveAccessToken(localToken);
           }
-          await userStore.fetchUser();
+          try {
+              await userStore.fetchUser();
+              console.log("✅ 유저 정보 로드 완료");
+              // 유효한 토큰이면 홈으로 이동 (로그인 페이지에 갇히지 않도록)
+              if (router.currentRoute.value.path === '/login' || router.currentRoute.value.path === '/') {
+                  router.replace('/home');
+              }
+          } catch (e) { 
+              console.error("❌ 유저 정보 로드 실패 (토큰 만료 등):", e);
+              // 토큰이 유효하지 않으면 삭제하여 로그인 페이지로 갈 수 있게 함
+              localStorage.removeItem('accessToken');
+              router.replace('/login');
+          }
           return;
       }
 
@@ -65,12 +63,12 @@ onMounted(async () => {
                   // 유저 정보 로드 시도
                   await userStore.fetchUser();
                   
-                  // 🎉 복구 성공 시 홈으로 이동 (로그인 페이지에 갇혀있지 않도록)
+                  // 🎉 복구 성공 시 홈으로 이동
                   router.replace('/home');
                   return;
               }
           } catch (e) {
-
+             console.error("❌ Native Token Restore Failed", e);
           }
       }
 
