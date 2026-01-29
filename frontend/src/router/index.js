@@ -13,6 +13,10 @@ import GroupSetupStep1 from '../views/group-setup/Step1GroupName.vue';
 import GroupSetupStep2 from '../views/group-setup/Step2HealthInfo.vue';
 import GroupSetupStep3 from '../views/group-setup/Step3EmergencyContact.vue';
 import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
+import MedicationListView from '../views/MedicationListView.vue';
+import MedicationDetailView from '../views/MedicationDetailView.vue';
+import MessageListView from '../views/MessageList.vue';
+import WriteMessageView from '../views/Writemessage.vue';
 
 import { useUserStore } from '@/stores/user';
 
@@ -27,14 +31,19 @@ const routes = [
     component: LoginView
   },
   {
+    path: '/signup',
+    name: 'signup',
+    component: () => import('../views/SignupView.vue')
+  },
+  {
+    path: '/logout',
+    name: 'logout',
+    component: () => import('../views/LogoutView.vue')
+  },
+  {
     path: '/home',
     name: 'HomePage',
     component: HomePage,
-  },
-  {
-    path: '/my-profile-view',
-    name: 'MyProfileView',
-    component: MyProfileView,
   },
   {
     path: '/my-profile-edit',
@@ -47,8 +56,27 @@ const routes = [
     component: MemberDetailView,
   },
   {
+    path: '/families/:familyId/medications',
+    name: 'MedicationList',
+    component: MedicationListView,
+  },
+  {
+    path: '/families/:familyId/medications/:medicationId',
+    name: 'MedicationDetail',
+    component: MedicationDetailView,
+  },
+  {
+    path: '/families/:familyId/messages',
+    name: 'FamilyMessages',
+    component: MessageListView,
+  },
+  {
+    path: '/families/:familyId/message/new',
+    name: 'FamilyMessageNew',
+    component: WriteMessageView,
+  },
+  {
     path: '/groups/:familyId/edit',
-    name: 'GroupEdit',
     component: GroupSetupLayout,
     children: [
       { path: '', redirect: 'step1' },
@@ -132,7 +160,11 @@ const router = createRouter({
 
 // 전역 가드 설정
 router.beforeEach((to, from, next) => {
-  if (to.name === 'login' && !localStorage.getItem('accessToken')) {
+  const isAuthenticated = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+  if (to.name === 'login' && isAuthenticated) {
+    next({ name: 'HomePage' }); // 이미 로그인된 경우 홈으로
+  } else if (to.name === 'login' && !isAuthenticated) {
     next();
   } else if (to.name === 'JoinGroup' && !to.query.code) {
     next({ name: 'HomePage' });

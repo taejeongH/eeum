@@ -29,8 +29,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Integer> {
                         "  OR (s.startAt <= :endDate AND s.endAt >= :startDate)" +
                         ")")
         List<Schedule> findCandidates(@Param("familyId") Integer familyId,
-                        @Param("startDate") LocalDate startDate,
-                        @Param("endDate") LocalDate endDate);
+                        @Param("startDate") java.time.LocalDateTime startDate,
+                        @Param("endDate") java.time.LocalDateTime endDate);
 
         /**
          * 특정 반복 일정의 특정 날짜에 대한 자식 일정이 존재하는지 확인

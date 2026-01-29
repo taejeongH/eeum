@@ -18,7 +18,7 @@ public class RestApiResponse<T> {
 
     @Builder(access = AccessLevel.PRIVATE)
     private RestApiResponse(String statusCode, T data, String errorCode,
-                            String detail, String message) {
+            String detail, String message) {
         this.statusCode = statusCode;
         this.data = data;
         this.errorCode = errorCode;

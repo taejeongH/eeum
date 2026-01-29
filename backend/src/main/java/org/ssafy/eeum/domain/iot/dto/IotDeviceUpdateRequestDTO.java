@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class IotDeviceUpdateDTO {
+public class IotDeviceUpdateRequestDTO {
 
     @Schema(description = "변경할 기기 별칭", example = "안방 카메라")
     private String deviceName;

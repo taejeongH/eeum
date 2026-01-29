@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.schedule.entity.CategoryType;
 import org.ssafy.eeum.domain.schedule.entity.RepeatType;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor
@@ -15,9 +15,9 @@ import java.time.LocalDate;
 @Builder
 public class ScheduleRequestDTO {
     private String title;
-    private LocalDate startAt;
-    private LocalDate endAt;
-    private LocalDate recurrenceEndAt;
+    private LocalDateTime startAt;
+    private LocalDateTime endAt;
+    private LocalDateTime recurrenceEndAt;
     private CategoryType categoryType;
     private String description;
     private String visitorName;

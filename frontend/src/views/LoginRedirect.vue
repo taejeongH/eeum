@@ -23,10 +23,10 @@ onMounted(async () => {
     } else if (!userStore.profile.phone) {
       router.push({ path: '/my-profile-edit', query: { flow: 'initial' } });
     } else {
-      router.push('/my-profile-view');
+      router.push('/home');
     }
   } else {
-    router.push('/');
+    router.push('/home');
   }
 });
 </script>

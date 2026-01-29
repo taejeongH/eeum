@@ -38,6 +38,7 @@ public class VoiceService {
     private final S3Service s3Service;
     private final MqttService mqttService;
     private final RestTemplate restTemplate;
+    private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService;
 
     @Value("${spring.ai-server.url}")
     private String AI_SERVER_URL;
@@ -78,7 +79,7 @@ public class VoiceService {
             log.info("WAV 형식이 아님을 감지: {}. AI 서버에 변환을 요청합니다.", originalPath);
 
             try {
-                String convertUrl = AI_SERVER_URL + "/api/v1/voice/convert";
+                String convertUrl = AI_SERVER_URL + "/api/voice/convert";
 
                 Map<String, String> requestBody = new HashMap<>();
                 requestBody.put("s3_url", request.getSamplePath());
@@ -113,7 +114,7 @@ public class VoiceService {
         VoiceSample representativeSample = samples.get(0);
 
         try {
-            String ttsUrl = AI_SERVER_URL + "/api/v1/voice/tts";
+            String ttsUrl = AI_SERVER_URL + "/api/voice/tts";
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("text", request.getText());
@@ -132,8 +133,12 @@ public class VoiceService {
             if (response != null && "success".equals(response.get("status"))) {
                 String generatedUrl = (String) response.get("full_url");
 
-                String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl, request.getText());
+                String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl,
+                        request.getText());
                 mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
+
+                // 새로운 음성 생성 알림
+                iotSyncService.notifyUpdate(request.getGroupId(), "voice", 1);
             }
         } catch (Exception e) {
             log.error("TTS 생성 호출 실패: {}", e.getMessage());

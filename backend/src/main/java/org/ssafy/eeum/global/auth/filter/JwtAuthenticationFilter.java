@@ -32,7 +32,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(jwt) && jwtProvider.validateToken(jwt)) {
             Authentication authentication = jwtProvider.getAuthentication(jwt);
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Security Context에 '{}' 인증 정보를 저장했습니다, uri: {}", authentication.getName(), request.getRequestURI());
+            log.debug("Security Context에 '{}' 인증 정보를 저장했습니다, uri: {}", authentication.getName(),
+                    request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);
@@ -44,5 +45,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearerToken.substring(7);
         }
         return null;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        // /api/auth/test는 JWT 필터를 거쳐야 하므로 제외
+        if (path.equals("/api/auth/test")) {
+            return false;
+        }
+        return path.startsWith("/api/auth/") || path.startsWith("/login/") || path.startsWith("/oauth2/");
     }
 }

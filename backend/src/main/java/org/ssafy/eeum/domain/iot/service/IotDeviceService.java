@@ -4,18 +4,25 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.ssafy.eeum.domain.iot.dto.IotDeviceMqttDTO;
+import org.ssafy.eeum.domain.iot.dto.IotDeviceInfoResponseDTO;
+import org.ssafy.eeum.domain.iot.dto.IotDevicePairRequestDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceRequestDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceResponseDTO;
-import org.ssafy.eeum.domain.iot.dto.IotDeviceUpdateDTO;
+import org.ssafy.eeum.domain.iot.dto.IotSimpleDeviceInfoResponseDTO;
+import org.ssafy.eeum.domain.iot.dto.IotDeviceUpdateRequestDTO;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
+import org.ssafy.eeum.domain.iot.dto.IotDeviceInitResponseDTO;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
-
+import org.springframework.data.redis.core.RedisTemplate;
+import org.ssafy.eeum.domain.iot.event.IotDeviceEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import java.time.Duration;
+import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,57 +32,199 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class IotDeviceService {
 
-    private final IotDeviceRepository iotDeviceRepository;
-    private final FamilyRepository familyRepository;
+        private final IotDeviceRepository iotDeviceRepository;
+        private final FamilyRepository familyRepository;
+        private final org.ssafy.eeum.domain.family.repository.SupporterRepository supporterRepository;
+        private final RedisTemplate<String, Object> redisTemplate;
+        private final org.ssafy.eeum.global.auth.jwt.JwtProvider jwtProvider;
+        private final org.ssafy.eeum.global.auth.jwt.JwtProperties jwtProperties;
+        private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
-    public Integer registerDevice(IotDeviceRequestDTO request) {
-        if (iotDeviceRepository.existsBySerialNumber(request.getSerialNumber())) {
-            throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
+        private static final String PAIRING_PREFIX = "PAIR:";
+        private static final String REFRESH_TOKEN_PREFIX = "RT:";
+
+        @Transactional
+        public Integer registerDevice(Integer familyId, IotDeviceRequestDTO request) {
+                if (iotDeviceRepository.existsBySerialNumber(request.getSerialNumber())) {
+                        throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
+                }
+
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+                IotDevice device = IotDevice.builder()
+                                .family(family)
+                                .serialNumber(request.getSerialNumber())
+                                .deviceName(request.getDeviceName())
+                                .locationType(request.getLocationType())
+                                .build();
+
+                iotDeviceRepository.save(device);
+                return device.getId();
         }
 
-        Family family = familyRepository.findById(request.getGroupId())
-                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+        public List<IotDeviceResponseDTO> getDevicesByGroup(Integer groupId) {
+                return iotDeviceRepository.findAllByFamilyId(groupId).stream()
+                                .map(IotDeviceResponseDTO::of)
+                                .collect(Collectors.toList());
+        }
 
-        IotDevice device = IotDevice.builder()
-                .family(family)
-                .serialNumber(request.getSerialNumber())
-                .deviceName(request.getDeviceName())
-                .locationType(request.getLocationType())
-                .build();
+        @Transactional
+        public void updateDevice(org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails, Integer deviceId,
+                        IotDeviceUpdateRequestDTO updateDto) {
+                IotDevice device = iotDeviceRepository.findById(deviceId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-        iotDeviceRepository.save(device);
-        return device.getId();
-    }
+                // 해당 기기가 속한 그룹의 멤버인지 확인
+                supporterRepository.findByUserAndFamily(userDetails.getUser(), device.getFamily())
+                                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-    public List<IotDeviceResponseDTO> getDevicesByGroup(Integer groupId) {
-        return iotDeviceRepository.findAllByFamilyId(groupId).stream()
-                .map(IotDeviceResponseDTO::of)
-                .collect(Collectors.toList());
-    }
+                String oldLocation = device.getLocationType();
+                device.updateInfo(updateDto.getDeviceName(), updateDto.getLocationType());
 
-    @Transactional
-    public void updateDevice(Integer deviceId, IotDeviceUpdateDTO updateDto) {
-        IotDevice device = iotDeviceRepository.findById(deviceId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+                // 위치가 변경되었을 경우 기기에 알림 발행
+                if (updateDto.getLocationType() != null && !updateDto.getLocationType().equals(oldLocation)) {
+                        eventPublisher.publishEvent(
+                                        IotDeviceEvent.updated(device.getSerialNumber(), device.getLocationType()));
+                }
+        }
 
-        device.updateInfo(updateDto.getDeviceName(), updateDto.getLocationType());
-    }
+        @Transactional
+        public void deleteDevice(org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails, Integer deviceId) {
+                IotDevice device = iotDeviceRepository.findById(deviceId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-    @Transactional
-    public void deleteDevice(Integer deviceId) {
-        IotDevice device = iotDeviceRepository.findById(deviceId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+                // 해당 기기가 속한 그룹의 멤버인지 확인
+                supporterRepository.findByUserAndFamily(userDetails.getUser(), device.getFamily())
+                                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-        iotDeviceRepository.delete(device);
-    }
+                // 삭제 전 기기에 알림 발행
+                eventPublisher.publishEvent(IotDeviceEvent.deleted(device.getSerialNumber()));
 
-    public List<IotDeviceMqttDTO> getDevicesBySerialNumber(String serialNumber) {
-        IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
-                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+                iotDeviceRepository.delete(device);
+        }
 
-        return iotDeviceRepository.findAllByFamilyId(device.getFamily().getId()).stream()
-                .map(IotDeviceMqttDTO::of)
-                .collect(Collectors.toList());
-    }
+        public List<IotSimpleDeviceInfoResponseDTO> getDevicesBySerialNumber(String serialNumber) {
+                IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
+                                .orElseThrow(() -> new CustomException(ErrorCode.IOT_DEVICE_NOT_FOUND));
+
+                if (device.getFamily() == null) {
+                        throw new CustomException(ErrorCode.IOT_DEVICE_GROUP_NOT_FOUND);
+                }
+
+                return iotDeviceRepository.findAllByFamilyId(device.getFamily().getId()).stream()
+                                .map(IotSimpleDeviceInfoResponseDTO::of)
+                                .collect(Collectors.toList());
+        }
+
+        @Transactional
+        public String generatePairingCode(Integer groupId) {
+                // 1. 해당 그룹 존재 확인
+                if (!familyRepository.existsById(groupId)) {
+                        throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
+                }
+
+                // 2. 짧은 희귀 코드 생성 (8자리)
+                String code = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                String key = PAIRING_PREFIX + code;
+
+                // 3. Redis 저장 (3분 만료)
+                redisTemplate.opsForValue().set(key, String.valueOf(groupId), Duration.ofMinutes(3));
+
+                return code;
+        }
+
+        @Transactional
+        public IotDeviceInitResponseDTO pairDevice(IotDevicePairRequestDTO request) {
+                String pairingCode = request.getPairingCode();
+                String masterSerialNumber = request.getMasterSerialNumber();
+
+                // 1. 페어링 코드 검증
+                String key = PAIRING_PREFIX + pairingCode;
+                Object val = redisTemplate.opsForValue().get(key);
+                if (val == null) {
+                        throw new CustomException(ErrorCode.IOT_INVALID_PAIRING_CODE);
+                }
+                Integer familyId = Integer.valueOf(val.toString());
+
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+                // 2. 마스터 기기 존재 및 신규 여부 체크 (등록 리스트에 포함되어야 함)
+                boolean isMasterInList = request.getDevices().stream()
+                                .anyMatch(d -> d.getSerialNumber().equals(masterSerialNumber));
+
+                if (!isMasterInList && !iotDeviceRepository.existsBySerialNumber(masterSerialNumber)) {
+                        throw new CustomException(ErrorCode.IOT_MASTER_DEVICE_NOT_FOUND);
+                }
+
+                // 3. 기기 목록 처리 (Find or Create)
+                for (IotDeviceInfoResponseDTO info : request.getDevices()) {
+                        IotDevice device = iotDeviceRepository.findBySerialNumber(info.getSerialNumber())
+                                        .orElseGet(() -> IotDevice.builder()
+                                                        .serialNumber(info.getSerialNumber())
+                                                        .deviceType(info.getDeviceType())
+                                                        .family(family)
+                                                        .build());
+
+                        device.updatePairingInfo(family, info.getDeviceType());
+                        iotDeviceRepository.save(device);
+                }
+
+                // 3. 해당 그룹의 가족 통합 토큰 생성 (가족 공용)
+                String familyAt = jwtProvider.createDeviceAccessToken(familyId);
+                String familyRt = jwtProvider.createDeviceRefreshToken(familyId);
+
+                // 가족 단위로 리프레시 토큰 저장
+                redisTemplate.opsForValue().set(REFRESH_TOKEN_PREFIX + familyId, familyRt,
+                                Duration.ofMillis(jwtProperties.getRefreshTokenExpiration()));
+
+                // 페어링 성공 시 코드 삭제
+                redisTemplate.delete(key);
+
+                // 4. 응답 생성 (마스터 기기용 토큰 포함)
+                return IotDeviceInitResponseDTO.builder()
+                                .status("success")
+                                .accessToken(familyAt)
+                                .refreshToken(familyRt)
+                                .serialNumber(masterSerialNumber)
+                                .groupId(familyId)
+                                .build();
+        }
+
+        @Transactional
+        public IotDeviceInitResponseDTO refreshDeviceTokens(String serialNumber, String refreshToken) {
+                // 1. 기기 존재 확인
+                IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
+                                .orElseThrow(() -> new CustomException(ErrorCode.IOT_DEVICE_NOT_FOUND));
+
+                Integer familyId = device.getFamily().getId();
+
+                // 2. Redis에서 해당 가족의 Refresh Token 조회
+                String savedToken = (String) redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + familyId);
+                if (savedToken == null || !savedToken.equals(refreshToken)) {
+                        throw new CustomException(ErrorCode.INVALID_TOKEN);
+                }
+
+                // 3. 토큰 유효성 자체 검증
+                if (!jwtProvider.validateToken(refreshToken)) {
+                        throw new CustomException(ErrorCode.INVALID_TOKEN);
+                }
+
+                // 4. 새로운 가족 통합 토큰 쌍 생성
+                String newAccessToken = jwtProvider.createDeviceAccessToken(familyId);
+                String newRefreshToken = jwtProvider.createDeviceRefreshToken(familyId);
+
+                // 5. Redis 업데이트 (가족 단위)
+                redisTemplate.opsForValue().set(REFRESH_TOKEN_PREFIX + familyId, newRefreshToken,
+                                Duration.ofMillis(jwtProperties.getRefreshTokenExpiration()));
+
+                return IotDeviceInitResponseDTO.builder()
+                                .status("success")
+                                .accessToken(newAccessToken)
+                                .refreshToken(newRefreshToken)
+                                .serialNumber(serialNumber)
+                                .groupId(familyId)
+                                .build();
+        }
 }
