@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between mb-6">
       
       <!-- Group Selector (Left) -->
-      <div class="flex-shrink-0 w-36 flex justify-start relative">
+      <div class="flex-shrink-0 w-36 flex justify-start relative z-50">
         <div class="relative">
           <div 
             @click="toggleGroupSelector" 
@@ -29,7 +29,7 @@
       </div>
 
       <!-- Settings (Right) -->
-      <div class="flex-shrink-0 w-36 flex justify-end items-center">
+      <div class="flex-shrink-0 w-36 flex justify-end items-center relative z-50">
         <div class="relative" ref="settingsMenu">
             <button 
               @click="toggleSettings" 
