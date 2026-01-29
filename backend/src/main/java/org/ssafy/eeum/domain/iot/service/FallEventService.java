@@ -17,6 +17,9 @@ import org.ssafy.eeum.domain.iot.dto.FallDetectionRequestDTO;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 
+import org.springframework.scheduling.annotation.Scheduled;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
@@ -132,6 +135,39 @@ public class FallEventService {
         } else {
             event.updateToSafe(sttContent);
             log.info("낙상 안전 확인 (LLM): Group={}, Text={}", familyId, sttContent);
+        }
+    }
+
+    /**
+     * 빈 STT 응답 처리 - 즉시 비상 상태로 전환
+     */
+    @Transactional
+    public void handleEmptyVoiceResponse(Integer familyId) {
+        FallEvent event = fallEventRepository.findTopByFamilyIdAndStatusTypeOrderByCreatedAtDesc(
+                familyId, FallEvent.StatusType.UNDER_REVIEW)
+                .orElseThrow(() -> new CustomException(
+                        ErrorCode.ENTITY_NOT_FOUND, "분석 중인 낙상 이벤트를 찾을 수 없습니다."));
+
+        event.updateToEmergency("응답 없음 (STT 실패)");
+        log.warn("낙상 비상 처리 (빈 STT 응답): Group={}, EventId={}", familyId, event.getId());
+    }
+
+    /**
+     * 30초마다 체크하여 1분 이상 응답이 없는 이벤트를 비상 처리 (타임아웃)
+     */
+    @Scheduled(fixedDelay = 30000)
+    @Transactional
+    public void checkTimeoutFallEvents() {
+        LocalDateTime timeout = LocalDateTime.now().minusMinutes(1);
+
+        List<FallEvent> timedOutEvents = fallEventRepository.findByStatusTypeAndCreatedAtBefore(
+                FallEvent.StatusType.UNDER_REVIEW,
+                timeout);
+
+        for (FallEvent event : timedOutEvents) {
+            event.updateToEmergency("응답 없음 (타임아웃)");
+            log.warn("낙상 이벤트 타임아웃 - 자동 위급 처리: EventId={}, GroupId={}",
+                    event.getId(), event.getFamily().getId());
         }
     }
 }

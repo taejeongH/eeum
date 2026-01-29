@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.ssafy.eeum.domain.iot.service.SensorEventService;
 import org.ssafy.eeum.domain.iot.service.DeviceStatusService;
+import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.event.IotDeviceEvent;
 import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 import org.springframework.context.event.EventListener;
@@ -34,6 +35,7 @@ public class MqttService {
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final SensorEventService sensorEventService;
     private final DeviceStatusService deviceStatusService;
+    private final FallEventService fallEventService;
     private final JwtProvider jwtProvider;
 
     public void publish(String topic, String payload) {
@@ -125,6 +127,14 @@ public class MqttService {
             double detectedAtTimestamp = node.path("detected_at").asDouble();
 
             LocalDateTime detectedAt = convertTimestamp(detectedAtTimestamp);
+
+            // STT 내용이 비어있으면 즉시 비상 처리
+            if (sttContent == null || sttContent.trim().isEmpty()) {
+                fallEventService.handleEmptyVoiceResponse(groupId);
+                log.warn("Empty STT Response - Auto EMERGENCY: MsgId={}, Family={}, SN={}",
+                        msgId, groupId, serialNumber);
+                return;
+            }
 
             // 기존 로직: 이벤트 ID로 센서 이벤트 조회 후 FallEvent 업데이트
             // Note: 기존 코드에서는 "id" 필드를 사용했으나, 새 명세에는 없음
@@ -243,6 +253,34 @@ public class MqttService {
                     msgId, deviceId, kind, updateCnt);
         } catch (Exception e) {
             log.error("Failed to send Device Update Notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * IoT 기기로 알람 전송 (복약, 일정 등)
+     * Topic: eeum/device/{device_id}/alarm
+     */
+    public void sendAlarm(String serialNumber, String kind, String content, java.util.Map<String, Object> data) {
+        try {
+            String topic = String.format("eeum/device/%s/alarm", serialNumber);
+            String msgId = java.util.UUID.randomUUID().toString();
+            double sentAt = System.currentTimeMillis() / 1000.0;
+
+            org.ssafy.eeum.domain.iot.dto.MqttAlarmMessageDTO message = org.ssafy.eeum.domain.iot.dto.MqttAlarmMessageDTO
+                    .builder()
+                    .msgId(msgId)
+                    .kind(kind)
+                    .content(content)
+                    .data(data)
+                    .sentAt(sentAt)
+                    .build();
+
+            String jsonPayload = objectMapper.writeValueAsString(message);
+            publish(topic, jsonPayload);
+
+            log.info("Sent Alarm: SN={}, Kind={}, Content={}", serialNumber, kind, content);
+        } catch (Exception e) {
+            log.error("Failed to send alarm: {}", e.getMessage());
         }
     }
 
