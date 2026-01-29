@@ -17,13 +17,19 @@ import MedicationListView from '../views/MedicationListView.vue';
 import MedicationDetailView from '../views/MedicationDetailView.vue';
 import MessageListView from '../views/MessageList.vue';
 import WriteMessageView from '../views/Writemessage.vue';
+import OnboardingView from '../views/Onboarding.vue';
 
 import { useUserStore } from '@/stores/user';
 
 const routes = [
   {
     path: '/',
-    redirect: '/login', // 처음 접속 시 로그인 페이지로 보냄
+    redirect: '/onboarding', // 처음 접속 시 온보딩 페이지로 보냄
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: OnboardingView
   },
   {
     path: '/login',

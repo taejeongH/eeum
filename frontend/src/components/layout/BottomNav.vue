@@ -63,6 +63,18 @@
             </svg>
             <span class="text-[10px] font-bold uppercase tracking-wider">Voice</span>
           </button>
+          
+          <div class="w-10 h-[1px] bg-orange-50 rounded-full"></div>
+          
+          <button 
+            @click="handleLogout" 
+            class="flex flex-col items-center justify-center gap-1.5 transition-colors text-[#8d6e63] hover:text-[#e76f51] w-full"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Logout</span>
+          </button>
         </div>
       </transition>
 
@@ -73,6 +85,15 @@
         <span class="text-xs font-semibold">Menu</span>
       </button>
     </div>
+
+    <!-- Custom Logout Confirmation Modal -->
+    <ConfirmModal 
+      :show="showLogoutModal"
+      title="로그아웃"
+      message="정말로 로그아웃하시겠습니까?"
+      @confirm="performLogout"
+      @cancel="showLogoutModal = false"
+    />
   </div>
 </template>
 
@@ -80,12 +101,14 @@
 import { ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import ConfirmModal from '@/components/common/ConfirmModal.vue';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 const activeTab = ref('home');
 const showMenu = ref(false);
+const showLogoutModal = ref(false);
 
 const updateActiveTab = () => {
     if (route.path.startsWith('/calendar')) {
@@ -164,5 +187,24 @@ const navigateTo = (type) => {
       alert('가족 정보를 찾을 수 없습니다.');
     }
   }
+};
+
+const handleLogout = () => {
+  showMenu.value = false;
+  showLogoutModal.value = true;
+};
+
+const performLogout = () => {
+  showLogoutModal.value = false;
+  // Clear tokens and profile
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('familyId');
+  localStorage.removeItem('currentFamilyId');
+  sessionStorage.removeItem('accessToken');
+  
+  userStore.clearUser();
+  
+  // Redirect to login or onboarding
+  router.push('/login');
 };
 </script>
