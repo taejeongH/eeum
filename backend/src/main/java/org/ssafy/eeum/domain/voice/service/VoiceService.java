@@ -105,6 +105,7 @@ public class VoiceService {
     }
 
     // 4. TTS 생성 (URL 반환)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String createTtsUrl(Integer userId, String text) {
         List<VoiceSample> samples = sampleRepository.findAllByUserId(userId);
         if (samples.isEmpty()) {
