@@ -35,6 +35,7 @@ public class MessageService {
 
         @Transactional
         public MessageResponseDto send(Integer groupId, Integer senderUserId, MessageRequestDto requestDto) {
+                // 1. 기본 검증 로직
                 Family group = familyRepository.findById(groupId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
@@ -44,24 +45,37 @@ public class MessageService {
                 supporterRepository.findByUserAndFamily(sender, group)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
+                // 2. 메시지 객체 생성 (일단 DB에 저장하여 ID를 확보)
                 Message message = Message.builder()
                                 .group(group)
                                 .sender(sender)
                                 .content(requestDto.getContent())
+                                .isRead(false)
+                                .isSynced(false)
                                 .build();
 
-                // 1. TTS 생성 및 저장
-                try {
-                        String voiceUrl = voiceService.createTtsUrl(senderUserId, requestDto.getContent());
-                        message.updateVoiceUrl(voiceUrl);
-                } catch (Exception e) {
-                        log.error("TTS generation failed for message: {}", e.getMessage());
-                }
-
+                // 3. 메시지 먼저 저장 (TTS 실패 시에도 롤백되지 않도록 함)
                 Message saved = messageRepository.save(message);
 
-                // 2. IoT 동기화 알림 (Notification)
-                iotSyncService.notifyUpdate(groupId, "voice", 1);
+                // 4. TTS 생성 및 업데이트 (예외가 발생해도 현재 트랜잭션에 영향을 주지 않도록 내부에서 완전 격리)
+                try {
+                        // voiceService.createTtsUrl 내부에서 예외가 발생해도 catch 문으로 이동함
+                        String voiceUrl = voiceService.createTtsUrl(senderUserId, requestDto.getContent());
+                        if (voiceUrl != null) {
+                                saved.updateVoiceUrl(voiceUrl);
+                                // JPA 더티 체킹에 의해 메서드 종료 시 voiceUrl이 업데이트됨
+                        }
+                } catch (Exception e) {
+                        // "학습된 음성 샘플이 없습니다" 등의 에러를 여기서 차단
+                        log.warn("TTS 생성이 중단되었습니다 (메시지 전송은 계속됨): {}", e.getMessage());
+                }
+
+                // 5. IoT 동기화 알림 (목소리가 없더라도 텍스트 업데이트 알림은 보냄)
+                try {
+                        iotSyncService.notifyUpdate(groupId, "voice", 1);
+                } catch (Exception e) {
+                        log.error("IoT Sync Notification failed: {}", e.getMessage());
+                }
 
                 return toDto(saved);
         }
@@ -129,9 +143,6 @@ public class MessageService {
                 message.softDelete();
         }
 
-        /**
-         * IoT 기기용 목소리 메시지 동기화
-         */
         @Transactional
         public org.ssafy.eeum.domain.album.dto.AlbumDTOs.IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
                 List<Message> unsyncedMessages = messageRepository.findAllByGroupIdAndIsSyncedFalse(familyId);
@@ -166,7 +177,6 @@ public class MessageService {
         }
 
         private MessageResponseDto toDto(Message message) {
-                // 발신자의 Supporter 정보를 찾기
                 Supporter senderSupporter = supporterRepository
                                 .findByUserAndFamily(message.getSender(), message.getGroup())
                                 .orElse(null);
@@ -191,7 +201,7 @@ public class MessageService {
                                 .senderProfileImage(message.getSender().getProfileImage())
                                 .senderRelationship(senderRelationship)
                                 .senderRole(senderRole)
-                                .enableTTS(true)
+                                .enableTTS(message.getVoiceUrl() != null) // 실제 URL 유무에 따라 클라이언트에 TTS 가능 여부 전달
                                 .voiceUrl(message.getVoiceUrl() != null
                                                 ? s3Service.getPresignedUrl(message.getVoiceUrl())
                                                 : null)
