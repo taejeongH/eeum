@@ -99,6 +99,11 @@ public class User {
         }
     }
 
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address,
             String profileImage) {
         this.name = name;
