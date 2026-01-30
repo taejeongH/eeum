@@ -2,9 +2,12 @@
 import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from './stores/user'
+import { useEmergencyStore } from './stores/emergency'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
+import GlobalEmergencyModal from '@/components/common/GlobalEmergencyModal.vue'
 
 const userStore = useUserStore()
+const emergencyStore = useEmergencyStore()
 const router = useRouter()
 
 // 5. [NEW] Android FCM Token 연동 (Retry Logic 추가)
@@ -57,6 +60,30 @@ window.onFcmTokenReceived = (fcmToken) => {
     import('@/services/api').then(({ updateFcmToken }) => {
       updateFcmToken(fcmToken);
     });
+  }
+};
+
+  window.handlePushRoute = (route) => {
+    console.log("FCM handlePushRoute called with:", route);
+    if (route) {
+      // 만약 응급 상황 경로라면 모달을 띄웁니다.
+      if (route.includes('/emergency')) {
+        console.log("FCM: Emergency detected, opening modal...");
+        emergencyStore.open();
+        // 홈으로 이동하여 모달이 홈 위에서 보이게 함
+        router.push('/home');
+        return;
+      }
+      
+      try {
+      console.log("FCM: Current path before push:", router.currentRoute.value.path);
+      router.push(route);
+      console.log("FCM: router.push executed for:", route);
+    } catch (e) {
+      console.error("FCM: router.push failed:", e);
+    }
+  } else {
+    console.warn("FCM: handlePushRoute received empty route");
   }
 };
 
@@ -236,6 +263,7 @@ onMounted(async () => {
   <div id="app">
     <router-view />
     <GlobalConfirmModal />
+    <GlobalEmergencyModal />
   </div>
 </template>
 

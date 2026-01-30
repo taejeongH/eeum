@@ -36,6 +36,7 @@ import { useModalStore } from '@/stores/modal';
 import { useFamilyStore } from '@/stores/family';
 
 
+const router = useRouter();
 const modalStore = useModalStore();
 const familyStore = useFamilyStore();
 

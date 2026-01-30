@@ -4,8 +4,10 @@
       
       <!-- Header -->
       <header class="flex items-center justify-between px-6 py-4 mt-6">
-        <button @click="$router.push('/')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm">
-          <span class="material-symbols-rounded text-slate-700">arrow_back_ios_new</span>
+        <button @click="$router.push('/')" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
+          <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
         </button>
         <div class="w-10"></div> 
       </header>
