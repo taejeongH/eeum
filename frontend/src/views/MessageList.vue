@@ -83,12 +83,7 @@
         </div>
         <h3 class="eeum-title text-xl mb-2" style="color: var(--text-title);">아직 메세지가 없습니다</h3>
         <p class="eeum-sub mb-6">가족에게 따뜻한 메시지를 보내보세요!</p>
-        <button
-          @click="goToNewMessage"
-          class="eeum-btn-primary hover:scale-105 transition-transform"
-        >
-          첫번째 메세지를 보내보세요!
-        </button>
+
       </div>
 
       <div v-else class="space-y-3">
@@ -169,97 +164,106 @@
          </svg>
       </button>
 
-      <!-- Message Composer Modal -->
+      <!-- Message Composer Modal: Scrollable Bottom Sheet with Sticky Header -->
       <transition name="fade">
         <div 
           v-if="showMessageModal"
-          class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end"
-          @click.self="closeMessageModal"
+          class="fixed inset-0 bg-black/50 z-[60]"
+          @click="closeMessageModal"
+        ></div>
+      </transition>
+
+      <transition name="slide-up">
+        <div 
+          v-if="showMessageModal"
+          ref="messageSheet"
+          class="fixed inset-x-0 bottom-0 z-[70] bg-white rounded-t-3xl shadow-2xl min-h-[470px] max-h-[90vh] overflow-y-auto touch-pan-y pb-20"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove"
+          @touchend="onTouchEnd"
         >
-          <transition name="slide-up">
-            <div 
-              v-if="showMessageModal"
-              class="w-full max-w-2xl mx-auto bg-white rounded-t-3xl shadow-2xl"
+          <!-- Drag Handle -->
+          <div class="sticky top-0 bg-white z-20 w-full flex justify-center pt-6 pb-2" @click="closeMessageModal">
+             <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <!-- Modal Header (Sticky below handle) -->
+          <div class="sticky top-6 bg-white z-10 flex items-center px-4 pb-4 border-b border-gray-100 relative">
+            <h2 class="text-lg font-bold text-gray-800 w-full text-center">메시지 작성</h2>
+            <button 
+              @click="closeMessageModal"
+              class="absolute right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <!-- Modal Header -->
-              <div class="flex items-center justify-between p-4 border-b border-gray-200">
-                <h2 class="text-lg font-bold text-gray-800">메시지 작성</h2>
-                <button 
-                  @click="closeMessageModal"
-                  class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
+              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
 
-              <!-- Modal Content -->
-              <div class="p-4 max-h-[70vh] overflow-y-auto">
-                <!-- Recipient Info -->
-                <div class="bg-orange-50 rounded-xl p-3 mb-4 flex items-center gap-3">
-                  <img 
-                    :src="patientImage || getFullImageUrl(null, 'Family')"
-                    :alt="patientName || 'Family'"
-                    class="w-10 h-10 rounded-full object-cover border-2 border-orange-200"
-                  />
-                  <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">To: {{ patientName || '우리 가족' }}</p>
-                    <p class="text-xs text-gray-500">{{ deviceName || 'IoT 스피커' }}</p>
-                  </div>
-                </div>
-
-                <!-- Message Input -->
-                <div class="mb-4">
-                  <div class="relative">
-                    <textarea
-                      v-model="newMessage.content"
-                      @input="updateCharCount"
-                      placeholder="따뜻한 메시지를 적어보세요!"
-                      class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
-                      rows="4"
-                      maxlength="100"
-                    ></textarea>
-                    <span class="absolute bottom-3 right-3 text-xs text-gray-400 font-medium">
-                      {{ charCount }}/100
-                    </span>
-                  </div>
-                </div>
-
-                <!-- TTS Settings -->
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-4">
-                  <div class="flex items-center gap-2 text-sm text-gray-600">
-                    <svg class="w-4 h-4 text-[#e76f51]" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                    </svg>
-                    <span class="font-medium">TTS 음성 읽기</span>
-                  </div>
-                  <button
-                    @click="showTTSSettings = true"
-                    class="text-xs px-3 py-1 rounded-lg bg-orange-50 text-[#e76f51] font-medium hover:bg-orange-100 transition-colors"
-                  >
-                    설정
-                  </button>
-                </div>
-
-                <!-- Send Button -->
-                <button
-                  @click="sendMessage"
-                  :disabled="!canSend || sending"
-                  class="w-full eeum-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
-                >
-                  <svg v-if="!sending" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                  </svg>
-                  <svg v-else class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
-                </button>
+          <!-- Modal Content -->
+          <div class="p-4 pb-10">
+            <!-- Recipient Info -->
+            <div class="bg-orange-50 rounded-xl p-3 mb-4 flex items-center gap-3">
+              <img 
+                :src="patientImage || getFullImageUrl(null, 'Family')"
+                :alt="patientName || 'Family'"
+                class="w-10 h-10 rounded-full object-cover border-2 border-orange-200"
+              />
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-700">To: {{ patientName || '우리 가족' }}</p>
+                <p class="text-xs text-gray-500">{{ deviceName || 'IoT 스피커' }}</p>
               </div>
             </div>
-          </transition>
+
+            <!-- Message Input -->
+            <div class="mb-4">
+              <div class="relative">
+                <textarea
+                  v-model="newMessage.content"
+                  @input="updateCharCount"
+                  placeholder="따뜻한 메시지를 적어보세요!"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
+                  rows="4"
+                  maxlength="100"
+                ></textarea>
+                <span class="absolute bottom-3 right-3 text-xs text-gray-400 font-medium">
+                  {{ charCount }}/100
+                </span>
+              </div>
+            </div>
+
+            <!-- TTS Settings -->
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-4">
+              <div class="flex items-center gap-2 text-sm text-gray-600">
+                <svg class="w-4 h-4 text-[#e76f51]" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+                <span class="font-medium">TTS 음성 읽기</span>
+              </div>
+              <button
+                @click="showTTSSettings = true"
+                class="text-xs px-3 py-1 rounded-lg bg-orange-50 text-[#e76f51] font-medium hover:bg-orange-100 transition-colors"
+              >
+                설정
+              </button>
+            </div>
+
+            <!-- Send Button -->
+            <button
+              @click="sendMessage"
+              :disabled="!canSend || sending"
+              class="w-full eeum-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+            >
+              <svg v-if="!sending" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+              <svg v-else class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
+            </button>
+          </div>
         </div>
       </transition>
 
@@ -425,12 +429,46 @@ const voiceOptions = [
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/'
 
 // 이미지 URL 생성 함수 추가
+// 이미지 URL 생성 함수 추가
 const getFullImageUrl = (path, name) => {
   if (!path) {
     return `https://ui-avatars.com/api/?name=${name || 'User'}&background=FF9B6A&color=fff&size=48`
   }
   // http로 시작하면(절대경로) 그대로 쓰고, 아니면 S3 주소를 붙임
   return path.startsWith('http') ? path : `${S3_BASE_URL}${path}`
+}
+
+/* Swipe Logic */
+const messageSheet = ref(null)
+let startY = 0
+let currentY = 0
+
+const onTouchStart = (e) => {
+  // Only allow swipe if scrollTop is 0 (at the top)
+  if (messageSheet.value && messageSheet.value.scrollTop > 0) return
+  startY = e.touches[0].clientY
+}
+
+const onTouchMove = (e) => {
+  if (startY === 0) return // Started not at top
+  currentY = e.touches[0].clientY
+  const diff = currentY - startY
+  if (diff > 0 && messageSheet.value) {
+     // visual feedback
+     messageSheet.value.style.transform = `translateY(${diff}px)`
+  }
+}
+
+const onTouchEnd = () => {
+  if (startY === 0) return
+  const diff = currentY - startY
+  if (diff > 100) {
+    closeMessageModal()
+  } else if (messageSheet.value) {
+    messageSheet.value.style.transform = ''
+  }
+  startY = 0
+  currentY = 0
 }
 
 // Computed
@@ -461,12 +499,15 @@ const openMessageModal = () => {
   showMessageModal.value = true
   newMessage.value = { content: '', enableTTS: true }
   charCount.value = 0
+  // Reset transform if reused
+  if (messageSheet.value) messageSheet.value.style.transform = ''
 }
 
 const closeMessageModal = () => {
   showMessageModal.value = false
   newMessage.value = { content: '', enableTTS: true }
   charCount.value = 0
+  if (messageSheet.value) messageSheet.value.style.transform = ''
 }
 
 const updateCharCount = () => {
@@ -507,9 +548,7 @@ const goBack = () => {
   router.back()
 }
 
-const goToNewMessage = () => {
-  router.push(`/families/${familyId.value}/message/new`)
-}
+
 
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
@@ -622,6 +661,27 @@ onMounted(() => {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease-out;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
 }
 
 .line-clamp-3 {
