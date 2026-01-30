@@ -79,6 +79,13 @@ async def consume_mqtt_inbound(state: MonitorState):
                 return
 
             topic, payload = item
+            
+            logger.debug(
+                "[mqtt_inbound] topic=%s payload=%s",
+                topic,
+                payload,
+            )
+            
             cmd = Command(topic=topic, payload=payload)
 
             try:
@@ -107,22 +114,40 @@ async def consume_commands(state: MonitorState):
             info = parse_device_topic(cmd.topic)
             if info is None:
                 # 관심 없는 토픽이면 무시
-                logger.debug("[commands] ignore topic=%s", cmd.topic)
+                logger.debug("[commands] ignore topic=%s payload=%s", cmd.topic, cmd.payload)
                 continue
 
             # 내 장치가 아니면 무시(또는 로그만)
             if my_id and info.device_id != my_id:
+                logger.debug(
+                    "[commands] ignore other device device_id=%s my_id=%s topic=%s",
+                    info.device_id,
+                    my_id,
+                    cmd.topic,
+                )
                 continue
 
             if info.action == "update":
                 # payload.kind == image/voice 등은 로직에서 처리
                 # info.tail 쓰면 "subtype" 같은 확장도 가능
                 # await handle_update(state, cmd.payload, tail=info.tail)
+                logger.info(
+                    "[commands] received update device=%s tail=%s payload=%s",
+                    info.device_id,
+                    info.tail,
+                    cmd.payload,
+                )
                 continue
 
             if info.action == "alarm":
                 # payload.kind == medication/schedule 등
                 # await handle_alarm(state, cmd.payload, tail=info.tail)
+                logger.info(
+                    "[commands] received alarm device=%s tail=%s payload=%s",
+                    info.device_id,
+                    info.tail,
+                    cmd.payload,
+                )
                 continue
         except asyncio.CancelledError:
             raise

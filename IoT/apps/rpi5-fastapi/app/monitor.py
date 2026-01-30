@@ -137,6 +137,33 @@ def handle_pir_motion(state: MonitorState, ev: Event) -> None:
     if not state.vision_active:
         start_task(state, "pir_no_motion", pir_absence_timer(state, dev, base_ts=ts))
 
+async def response_timer(state: MonitorState, device_id: str, base_ts: float) -> None:
+    try:
+        await asyncio.sleep(20)
+        ts = time.time()
+
+        if not state.mqtt:
+            return
+
+        try:
+            state.mqtt.publish_response({
+                "serial_number": state.device_store.get_device_id(),
+                "event": "response",
+                "stt_content": "괜찮다 괜찮아",
+                "detected_at": ts,
+                "token": state.device_store.get_token(),
+            })
+            logger.info("[RESPONSE] published device=%s at=%s", device_id, ts)
+        except Exception:
+            logger.exception("[RESPONSE] mqtt publish failed")
+            return
+
+    except asyncio.CancelledError:
+        logger.debug("[RESPONSE] cancelled device=%s base_ts=%s", device_id, base_ts)
+        raise
+    except Exception:
+        logger.exception("[RESPONSE] unexpected error")
+
 def handle_vision(state: MonitorState, ev: Event) -> None:
     ts = ev.detected_at
     state.last_vision_ts = ts
@@ -173,18 +200,8 @@ def handle_vision(state: MonitorState, ev: Event) -> None:
         """
         logger.info("[fall_detected] stage IDLE -> TTS")
         logger.info("[fall_detected] stage TTS -> STT")
-        if state.mqtt:
-            try:
-                state.mqtt.publish_response({
-                    "serial_number": state.device_store.get_device_id(),
-                    "event": "response",
-                    "stt_content": "괜찮다 괜찮아",
-                    "detected_at": ts,
-                    "token": state.device_store.get_token()
-                })
-            except Exception:
-                logger.exception("[RESPONSE] mqtt publish failed")
-        return
+        start_task(state, "response", response_timer(state, dev, base_ts=ts))
+
 
 # ---------------- Wi-Fi refresh ----------------
 
