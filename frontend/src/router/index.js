@@ -149,12 +149,12 @@ const routes = [
     component: () => import('../views/CalendarCreate.vue'),
   },
   {
-    path: '/gallery',
-
+    path: '/families/:familyId/gallery',
+    name: 'GalleryPage',
     component: () => import('../views/GalleryPage.vue'),
   },
   {
-    path: '/gallery/album/:id',
+    path: '/families/:familyId/gallery/album/:id',
     name: 'AlbumPage',
     component: () => import('../views/AlbumPage.vue')
   },

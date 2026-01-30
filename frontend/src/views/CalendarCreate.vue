@@ -69,8 +69,10 @@
         <div class="px-6 pb-12 pt-4">
           <header class="flex justify-between items-center mb-8">
             <h2 class="text-2xl font-bold text-slate-900">{{ pageTitle }}</h2>
-            <button @click="$router.back()" class="text-slate-400 hover:text-slate-600">
-              <span class="material-symbols-outlined">close</span>
+            <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors">
+              <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
           </header>
           <form class="space-y-8" @submit.prevent="submitForm">

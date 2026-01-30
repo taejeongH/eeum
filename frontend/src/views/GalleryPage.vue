@@ -5,7 +5,9 @@
     <header class="sticky top-0 z-30 bg-background-light/80 backdrop-blur-md px-4 pt-4 pb-4 transition-colors duration-200 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <button @click="$router.push({ name: 'HomePage' })" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <span class="material-symbols-outlined text-[#1c140d]">arrow_back</span>
+          <svg class="w-6 h-6 text-[#1c140d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
         </button>
         <h1 class="text-xl font-bold tracking-tight">가족 갤러리</h1>
       </div>
@@ -127,6 +129,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import { useFamilyStore } from '@/stores/family';
+import { useModalStore } from '@/stores/modal';
 import { getPhotos, uploadFile } from '@/services/albumService';
 
 // Swiper Imports
@@ -139,6 +142,7 @@ const modules = [EffectCreative];
 
 const router = useRouter();
 const familyStore = useFamilyStore();
+const modalStore = useModalStore();
 const photos = ref([]);
 const fileInput = ref(null);
 const dateInput = ref(null);
@@ -312,9 +316,9 @@ const handleFileUpload = async (event) => {
         await uploadFile(familyStore.selectedFamily.id, file);
         // Refresh list
         await fetchAlbumPhotos();
-        alert('사진이 업로드되었습니다.');
+        await modalStore.openAlert('사진이 업로드되었습니다.');
     } catch (error) {
-        alert('사진 업로드에 실패했습니다.');
+        await modalStore.openAlert('사진 업로드에 실패했습니다.');
         console.error(error);
     } finally {
         isUploading.value = false;
