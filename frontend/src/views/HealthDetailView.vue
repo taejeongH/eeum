@@ -40,10 +40,60 @@
 
        <div class="w-full bg-white rounded-2xl p-4 shadow-sm">
            <p class="text-sm text-gray-500 leading-relaxed">
-               * 삼성 헬스 앱에서 측정된 최신 심박수 데이터를 가져옵니다.<br>
-               * 데이터가 보이지 않는다면 삼성 헬스 앱에서 권한을 확인해주세요.
+               * 삼성 헬스 앱에서 측정된 최신 심박수 데이터를 가져옵니다.
+               <br>
+               (데이터가 안 보이면 삼성 헬스 권한을 확인해주세요)
            </p>
        </div>
+
+      <!-- Add Steps Card -->
+      <div class="w-full bg-white rounded-2xl shadow-md p-6 flex flex-col items-center space-y-4">
+        <div class="flex items-center space-x-2 text-[#4CAF50]">
+           <span class="material-symbols-outlined text-4xl">directions_walk</span>
+           <span class="text-lg font-semibold">오늘 걸음 수</span>
+        </div>
+        
+        <div class="text-center">
+            <p v-if="stepsData !== null" class="text-5xl font-bold text-[#1c140d]">
+                {{ stepsData }} <span class="text-xl text-gray-500 font-normal">걸음</span>
+            </p>
+            <p v-else class="text-gray-400 text-lg">
+                {{ stepsStatus }}
+            </p>
+        </div>
+        <button 
+            @click="fetchSteps" 
+            class="mt-2 text-sm text-[#4CAF50] underline focus:outline-none"
+        >
+            새로고침
+        </button>
+      </div>
+
+      <!-- Add Sleep Card -->
+      <div class="w-full bg-white rounded-2xl shadow-md p-6 flex flex-col items-center space-y-4">
+        <div class="flex items-center space-x-2 text-[#673AB7]">
+           <span class="material-symbols-outlined text-4xl">bedtime</span>
+           <span class="text-lg font-semibold">어젯밤 수면</span>
+        </div>
+        
+        <div class="text-center">
+            <div v-if="sleepData !== null">
+                <p class="text-5xl font-bold text-[#1c140d]">
+                    {{ Math.floor(sleepData / 60) }}<span class="text-xl text-gray-500 font-normal">시간</span>
+                    {{ sleepData % 60 }}<span class="text-xl text-gray-500 font-normal">분</span>
+                </p>
+            </div>
+            <p v-else class="text-gray-400 text-lg">
+                {{ sleepStatus }}
+            </p>
+        </div>
+        <button 
+            @click="fetchSleep" 
+            class="mt-2 text-sm text-[#673AB7] underline focus:outline-none"
+        >
+             새로고침
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -52,31 +102,97 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 const heartRate = ref(null);
+const stepsData = ref(null);
+const sleepData = ref(null);
+
 const statusMessage = ref('데이터를 불러오는 중...');
+const stepsStatus = ref('준비 중');
+const sleepStatus = ref('준비 중');
+
 const isLoading = ref(false);
 const lastUpdated = ref('');
+
+const fetchAllData = () => {
+    fetchHeartRate();
+    fetchSteps();
+    fetchSleep();
+};
 
 const fetchHeartRate = () => {
     if (window.AndroidBridge && window.AndroidBridge.fetchHeartRate) {
         isLoading.value = true;
-        statusMessage.value = '삼성 헬스 데이터 요청 중...';
-        // Android Native Method Call
+        statusMessage.value = '요청 중...';
         window.AndroidBridge.fetchHeartRate();
     } else {
-        console.warn("AndroidBridge not found");
-        statusMessage.value = '앱 환경이 아닙니다.';
-        
-        // Test Mock Data for Browser
-        setTimeout(() => {
-            console.log("Mocking data for browser");
-            window.onReceiveHealthData(JSON.stringify({
-                heart_rate: 75,
-                unit: 'bpm',
-                start_time: new Date().toISOString() // Mock time
-            }));
-        }, 1000);
+        mockHeartRate();
     }
 };
+
+const fetchSteps = () => {
+    if (window.AndroidBridge && window.AndroidBridge.fetchSteps) {
+        stepsStatus.value = '요청 중...';
+        window.AndroidBridge.fetchSteps();
+    } else {
+        mockSteps();
+    }
+};
+
+const fetchSleep = () => {
+    if (window.AndroidBridge && window.AndroidBridge.fetchSleep) {
+        sleepStatus.value = '요청 중...';
+        window.AndroidBridge.fetchSleep();
+    } else {
+         mockSleep();
+    }
+};
+
+// Mocks
+const mockHeartRate = () => {
+    console.warn("Bridge not found, mocking HeartRate");
+    setTimeout(() => {
+        window.onReceiveHealthData(JSON.stringify({ heart_rate: 88 }));
+    }, 1000);
+};
+const mockSteps = () => {
+    setTimeout(() => {
+        window.onReceiveSteps(JSON.stringify({ steps: 5432 }));
+    }, 1200);
+};
+const mockSleep = () => {
+    setTimeout(() => {
+        window.onReceiveSleep(JSON.stringify({ sleep_minutes: 450 })); // 7h 30m
+    }, 1400);
+};
+
+// Callbacks
+window.onReceiveSteps = (dataString) => {
+    console.log("Steps Data:", dataString);
+    if (!dataString || dataString === "null") {
+        stepsStatus.value = '기록 없음';
+        return;
+    }
+    try {
+        const data = JSON.parse(dataString);
+        if (data.steps !== undefined) {
+            stepsData.value = data.steps;
+        }
+    } catch (e) { console.error(e); stepsStatus.value = '에러'; }
+};
+
+window.onReceiveSleep = (dataString) => {
+    console.log("Sleep Data:", dataString);
+    if (!dataString || dataString === "null") {
+        sleepStatus.value = '기록 없음';
+        return;
+    }
+    try {
+        const data = JSON.parse(dataString);
+        if (data.sleep_minutes !== undefined) {
+            sleepData.value = data.sleep_minutes;
+        }
+    } catch (e) { console.error(e); sleepStatus.value = '에러'; }
+};
+
 
 // Global callback for Android to call
 window.onReceiveHealthData = (dataString) => {
@@ -126,12 +242,14 @@ window.onReceiveHealthData = (dataString) => {
 
 onMounted(() => {
     // Auto-fetch on mount
-    fetchHeartRate();
+    fetchAllData();
 });
 
 onUnmounted(() => {
     // Cleanup global callback to prevent memory leaks or unwanted calls
     delete window.onReceiveHealthData;
+    delete window.onReceiveSteps;
+    delete window.onReceiveSleep;
 });
 </script>
 
