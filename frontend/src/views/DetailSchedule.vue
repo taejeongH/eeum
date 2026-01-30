@@ -68,7 +68,7 @@
       <button @click="confirmDelete" class="flex-1 py-4 bg-slate-200 text-slate-700 font-bold rounded-2xl active:scale-[0.98] transition-all">
         삭제
       </button>
-      <button @click="router.push({ path: '/calendar/create', query: { id: scheduleId } })" class="flex-[2] py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
+      <button @click="router.push({ name: 'CalendarCreate', params: { familyId: route.params.familyId }, query: { id: scheduleId } })" class="flex-[2] py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
         수정하기
       </button>
     </div>
@@ -108,9 +108,10 @@ const showDeleteModal = ref(false);
 const scheduleId = route.query.id; 
 
 const fetchSchedule = async () => {
-    if (!familyStore.selectedFamily?.id || !scheduleId) return;
+    const familyId = route.params.familyId || familyStore.selectedFamily?.id;
+    if (!familyId || !scheduleId) return;
     try {
-        schedule.value = await scheduleService.getSchedule(familyStore.selectedFamily.id, scheduleId);
+        schedule.value = await scheduleService.getSchedule(familyId, scheduleId);
     } catch (error) {
         console.error("Failed to load schedule", error);
     }
@@ -165,9 +166,10 @@ const timeRange = computed(() => {
 });
 
 const handleDelete = async (deleteAll = false) => {
-    if (!familyStore.selectedFamily?.id) return;
+    const familyId = route.params.familyId || familyStore.selectedFamily?.id;
+    if (!familyId) return;
     try {
-        await scheduleService.deleteSchedule(familyStore.selectedFamily.id, scheduleId, deleteAll);
+        await scheduleService.deleteSchedule(familyId, scheduleId, deleteAll);
         router.back();
     } catch (error) {
         console.error("Delete failed", error);

@@ -101,17 +101,19 @@
 import { ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useFamilyStore } from '@/stores/family';
 import ConfirmModal from '@/components/common/ConfirmModal.vue';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const familyStore = useFamilyStore();
 const activeTab = ref('home');
 const showMenu = ref(false);
 const showLogoutModal = ref(false);
 
 const updateActiveTab = () => {
-    if (route.path.startsWith('/calendar')) {
+    if (route.path.startsWith('/families') && route.path.includes('/calendar')) {
         activeTab.value = 'calendar';
     } else if (route.path === '/home') {
         activeTab.value = 'home';
@@ -134,30 +136,25 @@ const setActive = (tab) => {
   activeTab.value = tab;
   console.log(`Navigating to ${tab}...`);
   if (tab === 'calendar') {
-      router.push('/calendar');
+      const familyId = familyStore.selectedFamily?.id;
+      if (familyId) {
+          router.push({ name: 'CalendarPage', params: { familyId: familyId } });
+      } else {
+          alert("가족 정보가 없습니다.");
+      }
   } else if (tab === 'home') {
       router.push('/home');
   } else if (tab === 'message') {
       // Navigate to family messages
       // Check if we're already on a message page, if so don't navigate
       if (!route.path.startsWith('/families') || !route.path.includes('/messages')) {
-        // Get familyId from multiple sources
-        let familyId = userStore.profile?.familyId || userStore.profile?.family_group_id;
-        
-        // Try localStorage as fallback
-        if (!familyId) {
-          familyId = localStorage.getItem('familyId') || localStorage.getItem('currentFamilyId');
-        }
-        
-        // Try sessionStorage as another fallback
-        if (!familyId) {
-          familyId = sessionStorage.getItem('familyId') || sessionStorage.getItem('currentFamilyId');
-        }
+        // Get familyId from store
+        const familyId = familyStore.selectedFamily?.id;
         
         if (familyId) {
           router.push(`/families/${familyId}/messages`);
         } else {
-          console.error('No familyId found in user profile or storage');
+          console.error('No familyId found in store');
           alert('가족 정보를 찾을 수 없습니다.');
         }
       }
@@ -178,8 +175,7 @@ const navigateTo = (type) => {
   if (type === 'voice') {
     router.push('/voice-register');
   } else if (type === 'medication') {
-    let familyId = userStore.profile?.familyId || userStore.profile?.family_group_id;
-    if (!familyId) familyId = localStorage.getItem('familyId');
+    const familyId = familyStore.selectedFamily?.id;
     
     if (familyId) {
       router.push(`/families/${familyId}/medications`);

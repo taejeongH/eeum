@@ -32,9 +32,11 @@
 import { ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useFamilyStore } from '@/stores/family';
 
 const router = useRouter();
 const userStore = useUserStore();
+const familyStore = useFamilyStore();
 
 // Icons as mock components for simplicity in this snippet, 
 // normally would import or use inline SVG efficiently
@@ -64,23 +66,13 @@ let longPressTimer = null;
 
 const handleCardClick = (item) => {
   if (item.route === 'medication') {
-    // Get familyId from multiple sources
-    let familyId = userStore.profile?.familyId || userStore.profile?.family_group_id;
-    
-    // Try localStorage as fallback
-    if (!familyId) {
-      familyId = localStorage.getItem('familyId') || localStorage.getItem('currentFamilyId');
-    }
-    
-    // Try sessionStorage as another fallback
-    if (!familyId) {
-      familyId = sessionStorage.getItem('familyId') || sessionStorage.getItem('currentFamilyId');
-    }
+    // Get familyId from store
+    const familyId = familyStore.selectedFamily?.id;
     
     if (familyId) {
       router.push(`/families/${familyId}/medications`);
     } else {
-      console.error('No familyId found in user profile or storage');
+      console.error('No familyId found in store');
       alert('가족 정보를 찾을 수 없습니다.');
     }
   } else if (item.route) {

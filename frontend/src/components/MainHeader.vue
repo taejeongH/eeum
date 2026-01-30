@@ -61,7 +61,7 @@
         <div class="flex items-end gap-3 flex-grow min-w-0 pr-2">
           
           <!-- 고정된 피부양자/플레이스홀더 -->
-          <div class="flex-shrink-0 text-center min-w-[72px]">
+          <div class="flex-shrink-0 text-center min-w-[72px] ml-1">
               <!-- 플레이스홀더 (피부양자 추가) -->
               <router-link 
                 v-if="dependentOrPlaceholder?.isPlaceholder && selectedGroup" 

@@ -64,7 +64,7 @@
               style="background-color: #8b9a8f;"
             />
           </div>
-          <h2 class="text-lg font-bold text-gray-800 mb-1">{{ patientName || '우리 엄마' }}</h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-1">{{ patientName || '먼저 피부양자를 등록해주세요' }}</h2>
           <p class="text-sm text-gray-500">따뜻한 마음을 전해주세요!</p>
         </div>
       </div>
@@ -377,14 +377,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { messageService } from '@/services/messageService'
 import { familyService } from '@/services/familyService'
+import { useFamilyStore } from '@/stores/family'
 import BottomNav from '@/components/layout/BottomNav.vue'
 
 const router = useRouter()
 const route = useRoute()
+const familyStore = useFamilyStore()
 
 const messages = ref([])
 const loading = ref(false)
@@ -586,29 +588,63 @@ const nextPage = () => {
 }
 
 // 초기화
-onMounted(() => {
-  familyId.value = route.params.familyId
-  if (familyId.value) {
-    fetchMessages()
+const fetchFamilyDetails = async () => {
+    if (!familyId.value) return;
     
-    // Fetch Family Details to find Patient
-    familyService.getFamilyDetails(familyId.value)
-      .then(res => {
-         const data = res.data;
-         deviceName.value = data.deviceName || 'IoT 스피커';
-         groupName.value = data.groupName || '우리 가족';
+    try {
+        const res = await familyService.getFamilyDetails(familyId.value);
+        const data = res.data;
+        deviceName.value = data.deviceName || 'IoT 스피커';
+        groupName.value = data.groupName || '우리 가족';
          
-         if (data.members) {
+        if (data.members) {
             const patient = data.members.find(m => m.dependent);
             if (patient) {
                 patientName.value = patient.relationship || patient.name;
                 patientImage.value = getFullImageUrl(patient.profileImage, patientName.value);
             }
-         }
-      })
-      .catch(err => {
+        }
+    } catch (err) {
          console.error('Failed to fetch family details', err);
-      });
+    }
+};
+
+// React to route changes
+watch(() => route.params.familyId, (newId) => {
+    if (newId && newId !== familyId.value) {
+        familyId.value = newId;
+        fetchMessages();
+        fetchFamilyDetails();
+    }
+});
+
+// React to store selection changes (Header dropdown)
+watch(() => familyStore.selectedFamily, (newFamily) => {
+    if (newFamily && newFamily.id) {
+        // If the store changes but we are still on the old route, redirect
+        if (String(newFamily.id) !== String(route.params.familyId)) {
+             router.replace({ name: 'FamilyMessages', params: { familyId: newFamily.id } });
+        }
+    }
+});
+
+
+// 초기화
+onMounted(async () => {
+  // 1. Prefer route param if present
+  if (route.params.familyId) {
+      familyId.value = route.params.familyId;
+  } 
+  // 2. Fallback to store if no param (though route usually has it)
+  else if (familyStore.selectedFamily?.id) {
+      familyId.value = familyStore.selectedFamily.id;
+      // Update URL to match
+      router.replace({ name: 'FamilyMessages', params: { familyId: familyId.value } });
+  }
+
+  if (familyId.value) {
+    await fetchMessages();
+    await fetchFamilyDetails();
   }
 })
 </script>

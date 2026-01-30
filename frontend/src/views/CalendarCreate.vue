@@ -259,7 +259,9 @@ const selectCategory = (type) => {
 
 const submitForm = async () => {
     console.log("submitForm called");
-    if (!familyStore.selectedFamily?.id) {
+    const targetFamilyId = route.params.familyId || familyStore.selectedFamily?.id;
+
+    if (!targetFamilyId) {
         console.error("No family selected");
         alert("가족 정보가 없습니다. 다시 시도해주세요.");
         return;
@@ -281,10 +283,10 @@ const submitForm = async () => {
         console.log("Payload:", payload);
         
         if (isEditMode.value) {
-             await scheduleService.updateSchedule(familyStore.selectedFamily.id, route.query.id, payload);
+             await scheduleService.updateSchedule(targetFamilyId, route.query.id, payload);
              console.log("Schedule updated successfully");
         } else {
-             await scheduleService.createSchedule(familyStore.selectedFamily.id, payload);
+             await scheduleService.createSchedule(targetFamilyId, payload);
              console.log("Schedule created successfully");
         }
 

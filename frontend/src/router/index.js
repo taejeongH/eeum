@@ -143,17 +143,17 @@ const routes = [
     component: EmergencyAlert,
   },
   {
-    path: '/calendar',
+    path: '/families/:familyId/calendar',
     name: 'CalendarPage',
     component: () => import('../views/CalendarPage.vue'),
   },
   {
-    path: '/calendar/create',
+    path: '/families/:familyId/calendar/create',
     name: 'CalendarCreate',
     component: () => import('../views/CalendarCreate.vue'),
   },
   {
-    path: '/calendar/detail',
+    path: '/families/:familyId/calendar/detail',
     name: 'DetailSchedule',
     component: () => import('../views/DetailSchedule.vue'),
   },
