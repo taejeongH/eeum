@@ -70,7 +70,10 @@ public class FallEventService {
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
         }
 
-        FallEvent event = eventBuilder.build();
+        FallEvent event = eventBuilder
+                .videoStatus(
+                        Integer.valueOf(1).equals(level) ? FallEvent.VideoStatus.PENDING : FallEvent.VideoStatus.NONE)
+                .build();
         fallEventRepository.save(event);
 
         // 4. 응답 구성
@@ -100,7 +103,6 @@ public class FallEventService {
                 .statusType(FallEvent.StatusType.UNDER_REVIEW)
                 .videoStatus(FallEvent.VideoStatus.PENDING)
                 .build();
-
         fallEventRepository.save(event);
 
         String url = s3Service.generatePresignedUrl(fileName, "video/mp4");
