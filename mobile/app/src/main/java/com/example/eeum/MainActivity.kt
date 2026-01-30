@@ -180,6 +180,34 @@ class HealthJsBridge(
         }
         // ====== Samsung Health SDK End ======
 
+        @JavascriptInterface
+        fun fetchSteps() {
+            activity.lifecycleScope.launch {
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                   return@launch
+                }
+                val data = healthManager.getTodaySteps()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveSteps('$arg')", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun fetchSleep() {
+            activity.lifecycleScope.launch {
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                   return@launch
+                }
+                val data = healthManager.getSleepData()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveSleep('$arg')", null)
+                }
+            }
+        }
+
     @JavascriptInterface
     fun getFcmToken(): String {
         return tokenProvider()
@@ -319,10 +347,10 @@ fun WebViewScreen(
                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 }
                 // 로컬 개발 환경용 (npm run build 후 생성된 assets 로드)
-                loadUrl("file:///android_asset/index.html")
+                // loadUrl("file:///android_asset/index.html")
 
                 // 배포 서버용
-                // loadUrl("https://i14a105.p.ssafy.io")
+                loadUrl("https://i14a105.p.ssafy.io")
             }
         }
     )
