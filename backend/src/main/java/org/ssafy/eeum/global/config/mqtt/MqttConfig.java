@@ -93,7 +93,8 @@ public class MqttConfig {
                 "eeum/response",
                 "eeum/event",
                 "eeum/update",
-                "eeum/status");
+                "eeum/status",
+                "eeum/responsenull");
 
         adapter.setCompletionTimeout(5000);
         adapter.setQos(1);
