@@ -31,6 +31,7 @@ public class AuthService {
 
     private static final String AUTH_CODE_PREFIX = "AuthCode:";
     private static final String AUTH_VERIFIED_PREFIX = "AuthVerified:";
+    private static final String DEFAULT_PROFILE_IMAGE = "profile/taejeon_default_image.png";
 
     @Transactional
     public void sendCode(String email) {
@@ -68,6 +69,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
+                .profileImage(DEFAULT_PROFILE_IMAGE)
                 .isEmailVerified(true) // 이미 인증됨
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -78,7 +80,7 @@ public class AuthService {
     }
 
     private String generateRandomCode() {
-        return String.valueOf((int)(Math.random() * 900000) + 100000);
+        return String.valueOf((int) (Math.random() * 900000) + 100000);
     }
 
     private static final String RT_PREFIX = "RT:";
@@ -91,10 +93,15 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException(ErrorCode.LOGIN_FAILED);
         }
-        
+
         // 기존 isEmailVerified 체크는 유지하거나, 회원가입 시 true로 들어가므로 생략 가능하나 안전을 위해 유지
         if (!user.isEmailVerified()) {
             throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
+
+        // 기본 프로필 이미지가 없는 경우 설정
+        if (user.getProfileImage() == null || user.getProfileImage().isEmpty()) {
+            user.updateProfileImage(DEFAULT_PROFILE_IMAGE);
         }
 
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), "ROLE_USER");

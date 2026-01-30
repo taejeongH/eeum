@@ -130,6 +130,11 @@ const formatTimes = (times) => {
 const complete = async () => {
   try {
     await setupStore.saveData(familyId)
+    
+    // Refresh families to update group name/members
+    const familyStore = useFamilyStore();
+    await familyStore.fetchFamilies();
+    
     await modalStore.openAlert('그룹 설정이 저장되었습니다.')
     
     // Clear temporary store

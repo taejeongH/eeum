@@ -2,7 +2,6 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import MyProfileView from '../views/MyProfileView.vue';
 import HomePage from '../views/HomePage.vue';
 import VoiceRegistration from '../views/VoiceRegistration.vue';
-import EmergencyAlert from '../views/EmergencyAlert.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue';
@@ -136,11 +135,6 @@ const routes = [
     component: VoiceRegistration,
   },
   {
-    path: '/emergency',
-    name: 'EmergencyAlert',
-    component: EmergencyAlert,
-  },
-  {
     path: '/families/:familyId/calendar',
     name: 'CalendarPage',
     component: () => import('../views/CalendarPage.vue'),
@@ -151,12 +145,12 @@ const routes = [
     component: () => import('../views/CalendarCreate.vue'),
   },
   {
-    path: '/gallery',
-
+    path: '/families/:familyId/gallery',
+    name: 'GalleryPage',
     component: () => import('../views/GalleryPage.vue'),
   },
   {
-    path: '/gallery/album/:id',
+    path: '/families/:familyId/gallery/album/:id',
     name: 'AlbumPage',
     component: () => import('../views/AlbumPage.vue')
   },
@@ -169,6 +163,10 @@ const routes = [
     path: '/health-detail',
     name: 'HealthDetail',
     component: HealthDetailView,
+  },
+  { path: '/emergency',
+    name: 'Emergency',
+    redirect: '/home',
   },
 ];
 

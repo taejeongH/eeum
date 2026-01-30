@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Tuple
 import asyncio
 import time
 
@@ -25,7 +25,7 @@ class MonitorState:
         # ---- MQTT ----
         self.cmd_queue: asyncio.Queue[Command] = asyncio.Queue(maxsize=64)
         self.mqtt = None
-        self.mqtt_inbound: asyncio.Queue[tuple[str, dict]] = asyncio.Queue(maxsize=256)
+        self.mqtt_inbound: asyncio.Queue[Optional[Tuple[str, Dict[str, Any]]]] = asyncio.Queue(maxsize=256)
         # ---- 최근 이벤트/디바이스 상태 ----
         self.last_event_by_device: dict[str, dict] = {}
         self.device_store = None

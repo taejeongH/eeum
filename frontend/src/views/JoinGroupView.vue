@@ -95,6 +95,8 @@ import { useRoute, useRouter } from 'vue-router';
 import api, { joinFamilyWithCode } from '@/services/api';
 import { useUserStore } from '@/stores/user';
 import { useModalStore } from '@/stores/modal';
+import { useFamilyStore } from '@/stores/family';
+import { useGroupSetupStore } from '@/stores/groupSetup';
 
 const route = useRoute();
 const router = useRouter();
@@ -142,7 +144,21 @@ const fetchInvitePreview = async () => {
 const joinGroup = async () => {
   joining.value = true;
   try {
-    await joinFamilyWithCode(inviteCode);
+    const response = await joinFamilyWithCode(inviteCode);
+    
+    // Refresh families and select the new one
+    const familyStore = useFamilyStore();
+    const setupStore = useGroupSetupStore();
+    
+    await familyStore.fetchFamilies();
+    
+    // Select the newly joined family if possible
+    if (response && response.data) {
+        familyStore.selectFamily(response.data);
+    }
+    
+    setupStore.reset();
+    
     await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
     router.replace('/home');
   } catch (e) {

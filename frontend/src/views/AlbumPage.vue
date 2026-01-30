@@ -8,8 +8,10 @@
     <!-- Top AppBar -->
     <div class="flex items-center bg-background-light p-4 pb-2 justify-between sticky top-0 z-10">
       <div class="flex items-center gap-2">
-        <button @click="$router.back()" class="flex items-center justify-center p-2 rounded-full hover:bg-primary/10 transition-colors">
-          <span class="material-symbols-outlined text-[#1c140d]">close</span>
+        <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-primary/10 transition-colors">
+          <svg class="w-6 h-6 text-[#1c140d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
         </button>
         <div class="flex flex-col">
           <h2 class="text-[#1c140d] text-xl font-bold leading-tight tracking-[-0.015em]">가족 앨범</h2>
@@ -89,11 +91,13 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
+import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto } from '@/services/albumService';
 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
+const modalStore = useModalStore();
 const allPhotos = ref([]); // Store all fetched photos
 const photos = ref([]); // Store filtered photos
 const dateInput = ref(null);
@@ -207,13 +211,14 @@ const handlePhotoClick = (photo) => {
 const deleteSelectedPhotos = async () => {
     if (selectedPhotos.value.length === 0) return;
     
-    if (!confirm(`${selectedPhotos.value.length}장의 사진을 삭제하시겠습니까?`)) return;
+    const isConfirmed = await modalStore.openConfirm(`${selectedPhotos.value.length}장의 사진을 삭제하시겠습니까?`);
+    if (!isConfirmed) return;
 
     try {
         // Delete all selected photos in parallel
         await Promise.all(selectedPhotos.value.map(id => deletePhoto(id)));
         
-        alert("사진이 삭제되었습니다.");
+        await modalStore.openAlert("사진이 삭제되었습니다.");
         
         // Refresh list
         await fetchPhotos();
@@ -222,7 +227,7 @@ const deleteSelectedPhotos = async () => {
         toggleSelectionMode();
     } catch (error) {
         console.error("Delete failed:", error);
-        alert("사진 삭제에 실패했습니다.");
+        await modalStore.openAlert("사진 삭제에 실패했습니다.");
     }
 };
 

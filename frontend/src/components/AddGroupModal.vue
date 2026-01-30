@@ -242,6 +242,9 @@ const submitCreate = () => {
 const close = () => {
   step.value = 0
   selected.value = null
+  inviteCode.value = ''
+  groupName.value = ''
+  relation.value = ''
   emit('close')
 }
 
