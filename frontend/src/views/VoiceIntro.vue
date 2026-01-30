@@ -90,7 +90,6 @@ const startRecording = () => {
 
 const stopRecording = () => {
     isRecording.value = false;
-    // alert("녹음이 완료되었습니다!");
     // Navigate to actual registration steps
     router.push('/voice-register');
 };

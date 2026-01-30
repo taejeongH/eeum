@@ -13,11 +13,13 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFamilyStore } from '@/stores/family'
+import { useModalStore } from '@/stores/modal'
 import GroupSetupHeader from './GroupSetupHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
 const familyStore = useFamilyStore()
+const modalStore = useModalStore()
 
 onMounted(async () => {
   const familyId = route.params.familyId
@@ -32,13 +34,13 @@ onMounted(async () => {
   const targetFamily = familyStore.families.find(f => String(f.id) === String(familyId))
 
   if (!targetFamily) {
-      alert('존재하지 않는 그룹입니다.')
+      await modalStore.openAlert('존재하지 않는 그룹입니다.')
       router.replace('/home')
       return;
   }
 
   if (!targetFamily.owner) {
-      alert('그룹 설정은 대표자만 가능합니다.')
+      await modalStore.openAlert('그룹 설정은 대표자만 가능합니다.')
       router.replace('/home')
   }
 })

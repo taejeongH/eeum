@@ -11,7 +11,7 @@
     <div
       v-if="show"
       ref="sheet"
-      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y"
+      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y min-h-[300px] max-h-[90vh] overflow-y-auto"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -88,6 +88,9 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { useModalStore } from '@/stores/modal';
+
+const modalStore = useModalStore();
 
 const props = defineProps({
   show: {
@@ -106,7 +109,7 @@ const inviteCode = ref('');
 const loading = ref(false);
 const error = ref(null);
 
-const BASE_URL = import.meta.env.VITE_APP_BASE_URL || 'http://localhost:5173';
+const BASE_URL = import.meta.env.VITE_APP_BASE_URL || 'https://i14a105.p.ssafy.io';
 
 const getInviteLink = computed(() => {
     if (!inviteCode.value || inviteCode.value === 'N/A') return '';
@@ -169,14 +172,14 @@ const fetchInviteCode = async () => {
 
 const regenerateCode = async () => {
   if (!props.familyId) return;
-  if (!confirm('초대 코드를 재발급하시겠습니까? 기존 코드는 사용할 수 없게 됩니다.')) return;
+  if (!await modalStore.openConfirm('초대 코드를 재발급하시겠습니까? 기존 코드는 사용할 수 없게 됩니다.')) return;
   
   loading.value = true;
   error.value = null;
   try {
     const response = await api.put(`/families/${props.familyId}/invite`);
     inviteCode.value = response.data;
-    alert('새로운 초대 코드가 발급되었습니다.');
+    await modalStore.openAlert('새로운 초대 코드가 발급되었습니다.');
   } catch (err) {
     console.error('Failed to regenerate invite code:', err);
     if (err.response && err.response.status === 403) {
@@ -191,14 +194,14 @@ const regenerateCode = async () => {
 
 const copyToClipboard = () => {
   if (!getInviteLink.value) {
-    alert('복사할 링크가 없습니다.');
+    modalStore.openAlert('복사할 링크가 없습니다.');
     return;
   }
   navigator.clipboard.writeText(getInviteLink.value).then(() => {
-    alert('초대 링크가 클립보드에 복사되었습니다.');
+    modalStore.openAlert('초대 링크가 클립보드에 복사되었습니다.');
   }).catch(err => {
     console.error('Failed to copy text: ', err);
-    alert('복사에 실패했습니다.');
+    modalStore.openAlert('복사에 실패했습니다.');
   });
 };
 

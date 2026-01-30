@@ -16,6 +16,7 @@ import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.event.IotDeviceEvent;
 import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 import org.springframework.context.event.EventListener;
+import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
@@ -36,6 +37,7 @@ public class MqttService {
     private final SensorEventService sensorEventService;
     private final DeviceStatusService deviceStatusService;
     private final FallEventService fallEventService;
+    private final IotDeviceRepository iotDeviceRepository;
     private final JwtProvider jwtProvider;
 
     public void publish(String topic, String payload) {
@@ -84,6 +86,8 @@ public class MqttService {
                 handleUpdate(payload);
             } else if ("eeum/status".equals(topic)) {
                 handleStatus(payload);
+            } else if ("eeum/responsenull".equals(topic)) {
+                handleResponseNull(payload);
             }
         } catch (Exception e) {
             log.error("Error handling MQTT message for topic {}: {}", topic, e.getMessage());
@@ -121,12 +125,36 @@ public class MqttService {
             String token = getTokenFromNode(node);
             Integer groupId = validateTokenAndGetGroupId(token);
 
+            processResponse(node, groupId, payload);
+        } catch (Exception e) {
+            log.warn("Failed to handle response: {}", e.getMessage());
+        }
+    }
+
+    private void handleResponseNull(String payload) {
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            String sttContent = node.path("stt_content").asText();
+            int familyId = node.path("family_id").asInt(9); // Default to 9 for testing
+
+            log.info("Handling ResponseNull (LLM Test Mode) - stt_content: {}, familyId: {}", sttContent, familyId);
+            fallEventService.testSentimentAnalysis(familyId, sttContent);
+        } catch (Exception e) {
+            log.warn("Failed to handle responseNull: {}", e.getMessage());
+        }
+    }
+
+    private void processResponse(JsonNode node, Integer groupId, String payload) {
+        try {
             String msgId = node.path("msg_id").asText();
             String serialNumber = node.path("serial_number").asText();
             String sttContent = node.path("stt_content").asText();
             double detectedAtTimestamp = node.path("detected_at").asDouble();
 
             LocalDateTime detectedAt = convertTimestamp(detectedAtTimestamp);
+
+            log.info("Processing Voice Response Core: msg_id={}, serial_number={}, stt_content={}, groupId={}",
+                    msgId, serialNumber, sttContent, groupId);
 
             // STT 내용이 비어있으면 즉시 비상 처리
             if (sttContent == null || sttContent.trim().isEmpty()) {
@@ -136,18 +164,23 @@ public class MqttService {
                 return;
             }
 
-            // 기존 로직: 이벤트 ID로 센서 이벤트 조회 후 FallEvent 업데이트
-            // Note: 기존 코드에서는 "id" 필드를 사용했으나, 새 명세에는 없음
-            // 필요시 별도 필드로 전달되어야 함
-            String deviceEventId = node.path("id").asText(); // 하위 호환성 유지
-            if (!deviceEventId.isEmpty()) {
-                sensorEventService.linkVoiceResponseToEvent(serialNumber, deviceEventId, sttContent);
+            // 기기에서 'id' 또는 'msg_id' 중 하나를 식별자로 보낼 수 있으므로 둘 다 확인
+            String deviceEventId = node.path("id").asText();
+            if (deviceEventId.isEmpty()) {
+                deviceEventId = msgId;
             }
 
-            log.info("Handled Voice Response: MsgId={}, Family={}, SN={}, DetectedAt={}, Content={}",
-                    msgId, groupId, serialNumber, detectedAt, sttContent);
+            if (deviceEventId != null && !deviceEventId.isEmpty()) {
+                log.info("Linking voice response to event: serial={}, deviceEventId={}", serialNumber, deviceEventId);
+                sensorEventService.linkVoiceResponseToEvent(serialNumber, deviceEventId, sttContent);
+            } else {
+                log.warn("Missing event identifier (id or msg_id) in MQTT response");
+            }
+
+            log.info("Successfully Processed Voice Response Core: MsgId={}, Family={}, SN={}, DetectedAt={}",
+                    msgId, groupId, serialNumber, detectedAt);
         } catch (Exception e) {
-            log.warn("Failed to handle response: {}", e.getMessage());
+            log.warn("Core response processing failed: {}", e.getMessage());
         }
     }
 

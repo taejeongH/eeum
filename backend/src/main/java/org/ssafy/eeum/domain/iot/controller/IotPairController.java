@@ -27,11 +27,7 @@ public class IotPairController {
                         @AuthenticationPrincipal CustomUserDetails userDetails,
                         @PathVariable Integer familyId) {
 
-                String code = iotDeviceService.generatePairingCode(familyId);
-                IotPairingCodeResponseDTO response = IotPairingCodeResponseDTO.builder()
-                                .pairingCode(code)
-                                .expiresIn(180) // 3분
-                                .build();
+                IotPairingCodeResponseDTO response = iotDeviceService.generatePairingCode(familyId);
 
                 return RestApiResponse.success(HttpStatus.OK, "페어링 코드 발급 성공", response);
         }

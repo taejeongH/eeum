@@ -23,6 +23,7 @@ public class IotDeviceSyncController {
 
     private final IotDeviceService iotDeviceService;
     private final AlbumService albumService;
+    private final org.ssafy.eeum.domain.message.service.MessageService messageService;
 
     @SwaggerApiSpec(summary = "IoT 초기화 데이터 조회", description = "기기 부팅 시 소속된 가족 그룹의 모든 기기 목록 및 정보를 조회합니다.", successMessage = "초기화 데이터 조회 성공")
     @GetMapping("/init")
@@ -48,6 +49,15 @@ public class IotDeviceSyncController {
         // 기기 인증 정보에서 그룹 ID 추출
         Integer familyId = deviceDetails.getGroupId();
         IotAlbumSyncResponseDTO response = albumService.syncForIot(familyId);
+        return RestApiResponse.success(response);
+    }
+
+    @SwaggerApiSpec(summary = "[IoT] 목소리 메시지 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 목소리 메시지 변경 내역을 조회합니다.", successMessage = "목소리 동기화 데이터 조회 성공")
+    @GetMapping("/sync/voice")
+    public RestApiResponse<IotAlbumSyncResponseDTO> syncVoiceForIot(
+            @AuthenticationPrincipal DeviceDetails deviceDetails) {
+        Integer familyId = deviceDetails.getGroupId();
+        IotAlbumSyncResponseDTO response = messageService.syncForIot(familyId);
         return RestApiResponse.success(response);
     }
 }

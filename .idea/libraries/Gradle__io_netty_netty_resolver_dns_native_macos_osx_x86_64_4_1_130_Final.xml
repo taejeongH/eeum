@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver-dns-native-macos/4.1.130.Final/4a96fdac6100f814f840d1d7a99036d078265ef9/netty-resolver-dns-native-macos-4.1.130.Final-osx-x86_64.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.netty/netty-resolver-dns-native-macos/4.1.130.Final/f2d9e7d39fa56a024a14a900e7058210fe1dd1ca/netty-resolver-dns-native-macos-4.1.130.Final-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

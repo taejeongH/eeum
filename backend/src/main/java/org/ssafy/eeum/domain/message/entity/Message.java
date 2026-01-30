@@ -28,9 +28,20 @@ public class Message {
     @JoinColumn(name = "sender_user_id", nullable = false)
     private User sender;
 
-    @Lob
-    @Column(nullable = false)
+    // 배포 DB가 TEXT 타입이므로 @Lob 대신 columnDefinition 사용이 더 안전함
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
+
+    @Column(name = "voice_url", columnDefinition = "TEXT")
+    private String voiceUrl;
+
+    @Builder.Default
+    @Column(name = "is_synced", nullable = false)
+    private Boolean isSynced = false;
+
+    @Builder.Default
+    @Column(name = "is_read")
+    private Boolean isRead = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -39,18 +50,24 @@ public class Message {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column(name = "is_read", columnDefinition = "TINYINT")
-    private Boolean isRead;
-
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
+    /**
+     * 로직 메서드
+     */
     public void markRead() {
         this.isRead = true;
         this.readAt = LocalDateTime.now();
     }
 
+    // 논리 삭제
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
+    }
+
+    public void updateVoiceUrl(String voiceUrl) {
+        this.voiceUrl = voiceUrl;
+        this.isSynced = false;
     }
 }

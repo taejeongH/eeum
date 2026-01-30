@@ -142,6 +142,9 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import MedicationAddModal from './group-setup/MedicationAddModal.vue';
+import { useModalStore } from '@/stores/modal';
+
+const modalStore = useModalStore();
 
 const route = useRoute();
 const router = useRouter();
@@ -159,7 +162,7 @@ const fetchDetail = async () => {
     medication.value = response.data;
   } catch (error) {
     console.error('Failed to fetch medication detail:', error);
-    alert('상세 정보를 불러오는데 실패했습니다.');
+    await modalStore.openAlert('상세 정보를 불러오는데 실패했습니다.');
     router.replace({ name: 'MedicationList', params: { familyId } });
   } finally {
     isLoading.value = false;
@@ -188,25 +191,25 @@ const handleUpdateMedication = async (medData) => {
         };
 
         await api.put(`/families/${familyId}/medications/${medicationId}`, payload);
-        alert('수정되었습니다.');
+        await modalStore.openAlert('수정되었습니다.');
         closeModal();
         fetchDetail(); // Refresh data
     } catch (error) {
         console.error('Failed to update medication:', error);
-        alert('수정에 실패했습니다.');
+        await modalStore.openAlert('수정에 실패했습니다.');
     }
 };
 
 const handleDelete = async () => {
-    if (!confirm('정말로 삭제하시겠습니까?')) return;
+    if (!await modalStore.openConfirm('정말로 삭제하시겠습니까?')) return;
     
     try {
         await api.delete(`/families/${familyId}/medications/${medicationId}`);
-        alert('삭제되었습니다.');
+        await modalStore.openAlert('삭제되었습니다.');
         router.replace({ name: 'MedicationList', params: { familyId } });
     } catch (error) {
         console.error('Failed to delete medication:', error);
-        alert('삭제에 실패했습니다.');
+        await modalStore.openAlert('삭제에 실패했습니다.');
     }
 };
 

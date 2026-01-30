@@ -123,7 +123,7 @@
         </div>
       </div>
       <div class="fixed bottom-32 right-6 z-30">
-        <button @click="$router.push('/calendar/create')" class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform">
+        <button @click="$router.push({ name: 'CalendarCreate', params: { familyId: familyId } })" class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform">
           <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0, 'wght' 600">add</span>
         </button>
       </div>
@@ -134,13 +134,15 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router'; // Added useRoute
 import BottomNav from '@/components/layout/BottomNav.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family'; 
 
 const router = useRouter();
+const route = useRoute(); // Instance
 const familyStore = useFamilyStore();
+const familyId = ref(route.params.familyId); // Reactive familyId
 
 const currentDate = ref(new Date());
 const events = ref([]);
@@ -149,11 +151,14 @@ const year = computed(() => currentDate.value.getFullYear());
 const month = computed(() => currentDate.value.getMonth() + 1);
 
 const fetchCalendarEvents = async () => {
-    if (!familyStore.selectedFamily?.id) return;
+    // Priority: route param -> store -> null
+    const targetFamilyId = familyId.value;
+
+    if (!targetFamilyId) return;
     
-    console.log("Fetching calendar events...");
+    console.log("Fetching calendar events for family:", targetFamilyId);
     try {
-        const data = await scheduleService.getMonthlySchedules(familyStore.selectedFamily.id, year.value, month.value);
+        const data = await scheduleService.getMonthlySchedules(targetFamilyId, year.value, month.value);
         events.value = data;
     } catch (error) {
         console.error("Failed to fetch events", error);
@@ -161,7 +166,7 @@ const fetchCalendarEvents = async () => {
 };
 
 const goToDetail = (scheduleId) => {
-    router.push({ name: 'DetailSchedule', query: { id: scheduleId } });
+    router.push({ name: 'DetailSchedule', params: { familyId: familyId.value }, query: { id: scheduleId } });
 };
 
 // Calendar Logic
@@ -311,10 +316,44 @@ const isToday = (day) => {
 };
 
 onMounted(async () => {
-    if (!familyStore.selectedFamily) {
-        await familyStore.fetchFamilies();
+    // 1. Prefer route param if available
+    if (route.params.familyId) {
+        familyId.value = route.params.familyId;
     }
-    fetchCalendarEvents();
+    // 2. Fallback: If no route param but store has selection (e.g. direct nav bug?) -> Correct URL
+    else if (familyStore.selectedFamily?.id) {
+         familyId.value = familyStore.selectedFamily.id;
+         router.replace({ name: 'CalendarPage', params: { familyId: familyId.value } });
+    }
+    // 3. Fallback: Fetch if nothing
+    else {
+        await familyStore.fetchFamilies();
+        if (familyStore.selectedFamily?.id) {
+            familyId.value = familyStore.selectedFamily.id;
+            router.replace({ name: 'CalendarPage', params: { familyId: familyId.value } });
+        }
+    }
+
+    if (familyId.value) {
+        fetchCalendarEvents();
+    }
+});
+
+// React to route changes
+watch(() => route.params.familyId, (newId) => {
+    if (newId && newId !== familyId.value) {
+        familyId.value = newId;
+        fetchCalendarEvents();
+    }
+});
+
+// React to store changes (Header dropdown)
+watch(() => familyStore.selectedFamily, (newFamily) => {
+    if (newFamily && newFamily.id) {
+        if (String(newFamily.id) !== String(route.params.familyId)) {
+            router.replace({ name: 'CalendarPage', params: { familyId: newFamily.id } });
+        }
+    }
 });
 
 watch([year, month], () => {

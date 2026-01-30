@@ -130,8 +130,10 @@
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
+import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
+const modalStore = useModalStore();
 
 const form = reactive({
   email: '',
@@ -159,7 +161,7 @@ const sendCode = async () => {
   try {
     await apiClient.post('/auth/email/code', { email: form.email }, { withCredentials: false });
     isCodeSent.value = true;
-    alert('인증 코드가 전송되었습니다. 이메일을 확인해주세요.');
+    await modalStore.openAlert('인증 코드가 전송되었습니다. 이메일을 확인해주세요.');
   } catch (e) {
     errorMessage.value = e.response?.data?.message || '인증 코드 전송에 실패했습니다.';
   } finally {
@@ -223,7 +225,7 @@ const handleSignup = async () => {
       name: form.name
     }, { withCredentials: false });
     
-    alert('회원가입이 완료되었습니다. 로그인해주세요.');
+    await modalStore.openAlert('회원가입이 완료되었습니다. 로그인해주세요.');
     router.push('/login');
   } catch (e) {
     errorMessage.value = e.response?.data?.message || '회원가입에 실패했습니다.';

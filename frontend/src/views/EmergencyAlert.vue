@@ -97,6 +97,9 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useModalStore } from '@/stores/modal';
+
+const modalStore = useModalStore();
 
 const elapsedSeconds = ref(242); // Start at 04:02 as per design
 
@@ -118,8 +121,8 @@ onUnmounted(() => {
   clearInterval(timerInterval);
 });
 
-const callEmergency = () => {
-  alert("119에 신고를 시작합니다...");
+const callEmergency = async () => {
+  await modalStore.openAlert("119에 신고를 시작합니다...");
 };
 </script>
 

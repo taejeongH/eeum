@@ -16,14 +16,20 @@ import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
 import MedicationListView from '../views/MedicationListView.vue';
 import MedicationDetailView from '../views/MedicationDetailView.vue';
 import MessageListView from '../views/MessageList.vue';
-import WriteMessageView from '../views/Writemessage.vue';
+
+import OnboardingView from '../views/Onboarding.vue';
 
 import { useUserStore } from '@/stores/user';
 
 const routes = [
   {
     path: '/',
-    redirect: '/login', // 처음 접속 시 로그인 페이지로 보냄
+    redirect: '/onboarding', // 처음 접속 시 온보딩 페이지로 보냄
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: OnboardingView
   },
   {
     path: '/login',
@@ -70,11 +76,7 @@ const routes = [
     name: 'FamilyMessages',
     component: MessageListView,
   },
-  {
-    path: '/families/:familyId/message/new',
-    name: 'FamilyMessageNew',
-    component: WriteMessageView,
-  },
+
   {
     path: '/groups/:familyId/edit',
     component: GroupSetupLayout,
@@ -137,12 +139,12 @@ const routes = [
     component: EmergencyAlert,
   },
   {
-    path: '/calendar',
+    path: '/families/:familyId/calendar',
     name: 'CalendarPage',
     component: () => import('../views/CalendarPage.vue'),
   },
   {
-    path: '/calendar/create',
+    path: '/families/:familyId/calendar/create',
     name: 'CalendarCreate',
     component: () => import('../views/CalendarCreate.vue'),
   },
@@ -157,7 +159,7 @@ const routes = [
     component: () => import('../views/AlbumPage.vue')
   },
   {
-    path: '/calendar/detail',
+    path: '/families/:familyId/calendar/detail',
     name: 'DetailSchedule',
     component: () => import('../views/DetailSchedule.vue'),
   },

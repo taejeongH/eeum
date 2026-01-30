@@ -94,10 +94,12 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api, { joinFamilyWithCode } from '@/services/api';
 import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const modalStore = useModalStore();
 
 const loading = ref(true);
 const error = ref(null);
@@ -141,7 +143,7 @@ const joinGroup = async () => {
   joining.value = true;
   try {
     await joinFamilyWithCode(inviteCode);
-    alert('그룹에 성공적으로 참여했습니다!');
+    await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
     router.replace('/home');
   } catch (e) {
     error.value = '그룹 참여에 실패했습니다.';

@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.projectreactor.netty/reactor-netty-core/1.2.13/d8a772537cf6b2e433e1e6d68c5196420a0382c6/reactor-netty-core-1.2.13.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.projectreactor.netty/reactor-netty-core/1.2.13/af7146efa86788a4bf0ed3939fd712dd492b787a/reactor-netty-core-1.2.13-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -61,7 +61,7 @@
         <div class="flex items-end gap-3 flex-grow min-w-0 pr-2">
           
           <!-- 고정된 피부양자/플레이스홀더 -->
-          <div class="flex-shrink-0 text-center min-w-[72px]">
+          <div class="flex-shrink-0 text-center min-w-[72px] ml-1">
               <!-- 플레이스홀더 (피부양자 추가) -->
               <router-link 
                 v-if="dependentOrPlaceholder?.isPlaceholder && selectedGroup" 
@@ -173,6 +173,7 @@ import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
+import { useModalStore } from '@/stores/modal';
 import { storeToRefs } from 'pinia';
 import api, { joinFamilyWithCode } from '@/services/api';
 import GroupSelector from './GroupSelector.vue';
@@ -185,6 +186,7 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 const familyStore = useFamilyStore();
+const modalStore = useModalStore();
 const { selectedFamily: selectedGroup } = storeToRefs(familyStore); // Alias for compatibility with existing template code
 
 // Emit modal state changes to parent (HomePage)
@@ -224,9 +226,9 @@ const closeAddGroupModal = () => {
   isAddGroupModalOpen.value = false;
 };
 
-const openInviteModal = () => {
+const openInviteModal = async () => {
   if (!selectedGroup.value || !selectedGroup.value.id) {
-    alert('그룹을 먼저 선택해주세요.');
+    await modalStore.openAlert('그룹을 먼저 선택해주세요.');
     return;
   }
   isInviteModalOpen.value = true;
@@ -286,15 +288,15 @@ const goToGroupEdit = () => {
 
 const leaveGroup = async () => {
   if (!selectedGroup.value) return;
-  if (confirm(`'${selectedGroup.value.name}' 그룹을 정말로 탈퇴하시겠습니까? 대표자일 경우 그룹이 삭제됩니다.`)) {
+  if (await modalStore.openConfirm(`'${selectedGroup.value.name}' 그룹을 정말로 탈퇴하시겠습니까? 대표자일 경우 그룹이 삭제됩니다.`)) {
     try {
       await api.delete(`/families/${selectedGroup.value.id}/leave`);
-      alert('그룹에서 성공적으로 탈퇴/삭제되었습니다.');
+      await modalStore.openAlert('그룹에서 성공적으로 탈퇴/삭제되었습니다.');
       // Refreshing might reset store state if not persisted, but usually app reloads
       window.location.reload(); 
     } catch (error) {
       console.error('Failed to leave group:', error);
-      alert('그룹 탈퇴/삭제에 실패했습니다.');
+      await modalStore.openAlert('그룹 탈퇴/삭제에 실패했습니다.');
     }
   }
   isSettingsOpen.value = false;
@@ -311,10 +313,10 @@ const handleCreateGroup = async (groupData) => {
     await familyStore.fetchFamilies();
     familyStore.selectFamily(response.data);
     closeAddGroupModal();
-    alert('새로운 그룹이 생성되었습니다.');
+    await modalStore.openAlert('새로운 그룹이 생성되었습니다.');
   } catch (error) {
     console.error('Failed to create group:', error);
-    alert('그룹 생성에 실패했습니다.');
+    await modalStore.openAlert('그룹 생성에 실패했습니다.');
   }
 };
 
@@ -325,14 +327,14 @@ const joinGroup = async (inviteCode) => {
      // Fetch via store
     await familyStore.fetchFamilies();
     familyStore.selectFamily(response.data);
-    alert('그룹에 성공적으로 참여했습니다!');
+    await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
   } catch (error) {
     console.error('Failed to join group:', error);
     let errorMessage = '그룹 참여 중 오류가 발생했습니다.';
     if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
     }
-    alert(errorMessage);
+    await modalStore.openAlert(errorMessage);
   }
 };
 

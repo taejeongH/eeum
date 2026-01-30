@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class UserController {
 
     private final UserService userService;
+    private final org.ssafy.eeum.domain.family.service.FamilyService familyService;
 
     @Operation(summary = "유저 프로필 정보 수정", description = "유저의 프로필 정보를 수정합니다. 프로필 이미지도 변경 가능합니다.")
     @PutMapping(value = "/profile")
@@ -43,6 +44,37 @@ public class UserController {
         String userId = userDetails.getUsername();
         ProfileResponseDto profileResponse = userService.getProfile(userId);
         return ResponseEntity.ok(profileResponse);
+    }
+
+    @Operation(summary = "FCM 토큰 업데이트", description = "유저의 FCM 토큰을 업데이트합니다.")
+    @PutMapping("/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @org.springframework.web.bind.annotation.RequestBody org.ssafy.eeum.domain.users.dto.FcmTokenRequestDto requestDto) {
+        String userId = userDetails.getUsername();
+        userService.updateFcmToken(userId, requestDto.getFcmToken());
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "FCM 알림 테스트", description = "현재 로그인한 유저의 앱으로 테스트 알림을 발송합니다.")
+    @org.springframework.web.bind.annotation.PostMapping("/fcm-test")
+    public ResponseEntity<String> sendTestNotification(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @org.springframework.web.bind.annotation.RequestBody(required = false) org.ssafy.eeum.domain.users.dto.FcmMessageRequestDto requestDto) {
+        
+        String userId;
+        if (requestDto != null && requestDto.getTargetUserId() != null && !requestDto.getTargetUserId().isEmpty()) {
+            userId = requestDto.getTargetUserId();
+        } else {
+            userId = userDetails.getUsername();
+        }
+        
+        String title = requestDto != null ? requestDto.getTitle() : null;
+        String body = requestDto != null ? requestDto.getBody() : null;
+        String type = requestDto != null ? requestDto.getType() : null;
+
+        String result = userService.sendTestMessage(userId, title, body, type);
+        return ResponseEntity.ok(result);
     }
 }
 

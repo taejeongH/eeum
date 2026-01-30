@@ -41,3 +41,4 @@ application-secret.yml
 
 # JWT Private Key
 *.pem
+**/serviceAccountKey.json

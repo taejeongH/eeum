@@ -127,17 +127,12 @@
 
       <!-- Address Modal -->
       <Teleport to="body">
-        <div v-if="showAddressModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <!-- Backdrop -->
-          <div 
-            class="absolute inset-0 bg-black/60 backdrop-blur-sm" 
-            @click="showAddressModal = false" 
-            @touchmove.prevent
-          ></div>
-
+        <div v-if="showAddressModal" class="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-sm" @click="showAddressModal = false">
+          
+          <div class="flex min-h-full items-center justify-center p-4">
           <!-- Modal Panel -->
           <div 
-            class="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] pointer-events-auto" 
+            class="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col min-h-[500px] pointer-events-auto" 
             role="dialog" 
             aria-modal="true"
             @click.stop
@@ -159,6 +154,7 @@
               <!-- Daum Postcode will be embedded here -->
             </div>
           </div>
+          </div>
         </div>
       </Teleport>
 
@@ -173,11 +169,13 @@ import { useUserStore } from '../stores/user';
 import { useFamilyStore } from '../stores/family';
 import { updateUserProfile } from '../services/api';
 import { useRouter, useRoute } from 'vue-router';
+import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 const familyStore = useFamilyStore(); // Initialize familyStore
+const modalStore = useModalStore();
 const { profile: userProfile } = storeToRefs(userStore);
 
 const profile = ref({ name: '', phone: '', gender: 'M', address: '' });
@@ -276,7 +274,7 @@ watch(showAddressModal, (isShown) => {
       const container = document.getElementById('postcode-layer');
       
       if (!window.daum || !window.daum.Postcode) {
-          alert('주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
+          modalStore.openAlert('주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
           showAddressModal.value = false;
           return;
       }

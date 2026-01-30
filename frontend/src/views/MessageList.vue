@@ -1,32 +1,76 @@
 <template>
   <div class="min-h-screen" style="background-color: var(--bg-page);">
-    <header class="sticky top-0 z-10 shadow-sm" style="background-color: var(--color-primary);">
-      <div class="max-w-2xl mx-auto px-4 py-6 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
-            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-            </svg>
+    <header class="bg-white border-b border-gray-200">
+      <div class="max-w-2xl mx-auto px-4 py-3">
+        <!-- Top Row -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <button 
+              @click="goBack"
+              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg font-bold text-gray-800">{{ groupName || '우리 가족' }}</h1>
+            </div>
           </div>
-          <div>
-            <h1 class="eeum-title text-2xl text-white">가족 메시지</h1>
-            <p class="text-white/80 text-sm">따뜻한 마음을 나누세요</p>
+          
+          <div class="flex items-center gap-2">
+            <button 
+              @click="openSearch"
+              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </button>
           </div>
         </div>
 
-        <button
-          @click="goToNewMessage"
-          class="group relative p-3 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all duration-300 hover:scale-110"
-        >
-          <div class="absolute inset-0 bg-white rounded-xl opacity-0 group-hover:opacity-20 transition-opacity"></div>
-          <svg class="relative w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-          </svg>
-        </button>
+        <!-- Search Bar (Expanded) -->
+        <div v-if="isSearchOpen" class="mb-4">
+          <div class="relative">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="보낸 사람, 내용 검색"
+              class="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-full text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#e76f51]"
+            />
+            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <button 
+              @click="closeSearch"
+              class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Patient Profile Section -->
+        <div class="flex flex-col items-center py-4">
+          <div class="relative mb-3">
+            <img 
+              :src="patientImage || getFullImageUrl(null, 'Family')"
+              :alt="patientName || 'Family'"
+              class="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
+              style="background-color: #8b9a8f;"
+            />
+          </div>
+          <h2 class="text-lg font-bold text-gray-800 mb-1">{{ patientName || '먼저 피부양자를 등록해주세요' }}</h2>
+          <p class="text-sm text-gray-500">따뜻한 마음을 전해주세요!</p>
+        </div>
       </div>
     </header>
 
-    <main class="max-w-2xl mx-auto px-4 py-6">
+    <main class="max-w-2xl mx-auto px-4 py-6 pb-20">
       <div v-if="loading" class="flex justify-center items-center py-20">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2" style="border-color: var(--color-primary);"></div>
       </div>
@@ -37,118 +81,274 @@
             <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
           </svg>
         </div>
-        <h3 class="eeum-title text-xl mb-2" style="color: var(--text-title);">No messages sent yet</h3>
-        <p class="eeum-sub mb-6">Share your thoughts with your family</p>
-        <button
-          @click="goToNewMessage"
-          class="eeum-btn-primary hover:scale-105 transition-transform"
-        >
-          Send Your First Message
-        </button>
+        <h3 class="eeum-title text-xl mb-2" style="color: var(--text-title);">아직 메세지가 없습니다</h3>
+        <p class="eeum-sub mb-6">가족에게 따뜻한 메시지를 보내보세요!</p>
+
       </div>
 
-      <div v-else class="space-y-4">
+      <div v-else class="space-y-3">
         <div
-          v-for="message in messages"
+          v-for="message in filteredMessages"
           :key="message.id"
-          class="group relative shadow-md hover:shadow-xl transition-all duration-300 p-6 border"
-          style="
-            background: linear-gradient(135deg, var(--bg-page) 0%, var(--color-primary-soft) 100%);
-            border-color: var(--border-default);
-            border-radius: var(--radius-xl);
-          "
+          @click="openMessageDetail(message)"
+          class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
         >
-          <div class="flex items-start justify-between mb-5">
-            <div class="flex items-center gap-4">
-              <div class="relative">
-                <div 
-                  class="absolute inset-0 rounded-full blur-md opacity-30 group-hover:opacity-50 transition-opacity"
-                  style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);"
-                ></div>
-                <img 
-                  :src="getFullImageUrl(message.senderProfileImage, message.senderName)"
-                  :alt="message.senderName || 'User'"
-                  class="relative w-14 h-14 rounded-full object-cover border-3 border-white shadow-lg"
-                />
+          <div class="flex items-start gap-3 mb-3">
+            <img 
+              :src="getFullImageUrl(message.senderProfileImage, message.senderName)"
+              :alt="message.senderName || 'User'"
+              class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-semibold text-gray-800 text-sm">{{ message.senderRelationship || message.senderName }}</span>
               </div>
-              
-              <div class="flex-1">
-                <div class="flex items-center gap-3 mb-2">
-                  <span class="font-bold text-xl" style="color: var(--text-title);">{{ message.senderRelationship || message.senderName }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-sm" style="color: var(--text-sub);">
-                  <svg class="w-4 h-4" style="color: var(--color-primary);" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
-                  </svg>
-                  <span>{{ formatTime(message.createdAt) }}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex flex-col items-end gap-2">
-              <span
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all shadow-md"
-                :class="message.isRead 
-                  ? 'text-white' 
-                  : 'text-white animate-pulse'"
-                :style="message.isRead 
-                  ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%);'
-                  : 'background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);'"
-              >
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                </svg>
-                {{ message.isRead ? '읽음' : '안읽음' }}
-              </span>
+              <p class="text-sm text-gray-600 line-clamp-2 leading-relaxed">{{ message.content }}</p>
             </div>
           </div>
-
-          <div class="relative">
-            <div 
-              class="absolute inset-0 rounded-2xl blur-sm"
-              style="background: linear-gradient(135deg, var(--color-primary-soft) 0%, rgba(255,255,255,0.5) 100%);"
-            ></div>
-            <div 
-              class="relative p-5 border shadow-inner"
-              style="
-                background-color: rgba(255,255,255,0.9);
-                border-color: var(--border-default);
-                border-radius: var(--radius-lg);
-              "
-            >
-              <p class="text-base font-medium leading-relaxed whitespace-pre-wrap break-words" style="color: var(--text-body);" :class="{ 'line-clamp-3': !message.expanded }">
-                {{ message.content }}
-              </p>
-              <button 
-                v-if="message.content.length > 80"
-                @click="message.expanded = !message.expanded"
-                class="text-sm font-medium mt-2 transition-colors"
-                style="color: var(--color-primary);"
-              >
-                {{ message.expanded ? '접기' : '더보기...' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between mt-4 pt-4" style="border-color: var(--border-default);">
-            <div class="flex items-center gap-4">
-              <span class="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full" style="color: var(--text-sub); background-color: var(--color-primary-soft);">
-                <svg class="w-4 h-4" style="color: var(--color-primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                </svg>
-                메시지
-              </span>
-              <span v-if="message.enableTTS" class="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full" style="color: var(--color-primary); background-color: var(--color-primary-soft);">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                </svg>
-                TTS 활성화
-              </span>
-            </div>
+          <div class="flex items-center justify-between text-xs text-gray-400">
+            <span>{{ formatTime(message.createdAt) }}</span>
           </div>
         </div>
       </div>
+
+
+      <!-- Message Detail Modal -->
+      <transition name="fade">
+        <div 
+          v-if="selectedMessage"
+          class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4"
+          @click.self="closeMessageDetail"
+        >
+          <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <!-- Detail Header -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+              <div class="flex items-center gap-3">
+                <img 
+                  :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
+                  :alt="selectedMessage.senderName || 'User'"
+                  class="w-12 h-12 rounded-full object-cover"
+                />
+                <div>
+                  <h3 class="font-bold text-gray-800">{{ selectedMessage.senderRelationship || selectedMessage.senderName }}</h3>
+                  <p class="text-xs text-gray-500">{{ formatFullDate(selectedMessage.createdAt) }}</p>
+                </div>
+              </div>
+              <button 
+                @click="closeMessageDetail"
+                class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Detail Content -->
+            <div class="p-6">
+              <p class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{{ selectedMessage.content }}</p>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+
+      <!-- Floating Action Button (FAB) -->
+      <button 
+        @click="openMessageModal"
+        class="fixed right-4 bottom-28 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 z-40"
+        style="background: linear-gradient(135deg, var(--color-primary) 0%, #ff8a65 100%);"
+      >
+         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+         </svg>
+      </button>
+
+      <!-- Message Composer Modal: Scrollable Bottom Sheet with Sticky Header -->
+      <transition name="fade">
+        <div 
+          v-if="showMessageModal"
+          class="fixed inset-0 bg-black/50 z-[60]"
+          @click="closeMessageModal"
+        ></div>
+      </transition>
+
+      <transition name="slide-up">
+        <div 
+          v-if="showMessageModal"
+          ref="messageSheet"
+          class="fixed inset-x-0 bottom-0 z-[70] bg-white rounded-t-3xl shadow-2xl min-h-[470px] max-h-[90vh] overflow-y-auto touch-pan-y pb-20"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove"
+          @touchend="onTouchEnd"
+        >
+          <!-- Drag Handle -->
+          <div class="sticky top-0 bg-white z-20 w-full flex justify-center pt-6 pb-2" @click="closeMessageModal">
+             <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <!-- Modal Header (Sticky below handle) -->
+          <div class="sticky top-6 bg-white z-10 flex items-center px-4 pb-4 border-b border-gray-100 relative">
+            <h2 class="text-lg font-bold text-gray-800 w-full text-center">메시지 작성</h2>
+            <button 
+              @click="closeMessageModal"
+              class="absolute right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Modal Content -->
+          <div class="p-4 pb-10">
+            <!-- Recipient Info -->
+            <div class="bg-orange-50 rounded-xl p-3 mb-4 flex items-center gap-3">
+              <img 
+                :src="patientImage || getFullImageUrl(null, 'Family')"
+                :alt="patientName || 'Family'"
+                class="w-10 h-10 rounded-full object-cover border-2 border-orange-200"
+              />
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-700">To: {{ patientName || '우리 가족' }}</p>
+                <p class="text-xs text-gray-500">{{ deviceName || 'IoT 스피커' }}</p>
+              </div>
+            </div>
+
+            <!-- Message Input -->
+            <div class="mb-4">
+              <div class="relative">
+                <textarea
+                  v-model="newMessage.content"
+                  @input="updateCharCount"
+                  placeholder="따뜻한 메시지를 적어보세요!"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
+                  rows="4"
+                  maxlength="100"
+                ></textarea>
+                <span class="absolute bottom-3 right-3 text-xs text-gray-400 font-medium">
+                  {{ charCount }}/100
+                </span>
+              </div>
+            </div>
+
+            <!-- TTS Settings -->
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-4">
+              <div class="flex items-center gap-2 text-sm text-gray-600">
+                <svg class="w-4 h-4 text-[#e76f51]" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+                <span class="font-medium">TTS 음성 읽기</span>
+              </div>
+              <button
+                @click="showTTSSettings = true"
+                class="text-xs px-3 py-1 rounded-lg bg-orange-50 text-[#e76f51] font-medium hover:bg-orange-100 transition-colors"
+              >
+                설정
+              </button>
+            </div>
+
+            <!-- Send Button -->
+            <button
+              @click="sendMessage"
+              :disabled="!canSend || sending"
+              class="w-full eeum-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+            >
+              <svg v-if="!sending" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+              <svg v-else class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
+            </button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- TTS Settings Modal -->
+      <transition name="fade">
+        <div 
+          v-if="showTTSSettings"
+          class="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4"
+          @click.self="showTTSSettings = false"
+        >
+          <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-bold text-gray-800">TTS 설정</h3>
+              <button 
+                @click="showTTSSettings = false"
+                class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Voice Selection -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">음성</label>
+              <div class="relative">
+                <button
+                  @click="showVoiceDropdown = !showVoiceDropdown"
+                  class="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#e76f51] text-left flex items-center justify-between"
+                >
+                  <span>{{ getVoiceLabel(ttsSettings.voice) }}</span>
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div v-if="showVoiceDropdown" class="eeum-dropdown">
+                  <div
+                    v-for="option in voiceOptions"
+                    :key="option.value"
+                    @click="selectVoice(option.value)"
+                    class="eeum-dropdown-item"
+                    :class="{ 'bg-orange-50': ttsSettings.voice === option.value }"
+                  >
+                    {{ option.label }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Speed Control -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">속도: {{ ttsSettings.speed }}x</label>
+              <input 
+                v-model="ttsSettings.speed"
+                type="range" 
+                min="0.5" 
+                max="2" 
+                step="0.1"
+                class="w-full accent-[#e76f51]"
+              >
+            </div>
+
+            <!-- Volume Control -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-gray-700 mb-2">음량: {{ ttsSettings.volume }}%</label>
+              <input 
+                v-model="ttsSettings.volume"
+                type="range" 
+                min="0" 
+                max="100" 
+                step="5"
+                class="w-full accent-[#e76f51]"
+              >
+            </div>
+
+            <button
+              @click="showTTSSettings = false"
+              class="w-full py-3 bg-[#e76f51] text-white font-bold rounded-xl hover:bg-[#d65d42] transition-colors"
+            >
+              적용하기
+            </button>
+          </div>
+        </div>
+      </transition>
 
       <div v-if="totalPages > 1" class="mt-8 flex justify-center">
         <div class="flex gap-2">
@@ -174,16 +374,25 @@
         </div>
       </div>
     </main>
+
+    <!-- Bottom Navigation -->
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { messageService } from '@/services/messageService'
+import { familyService } from '@/services/familyService'
+import { useFamilyStore } from '@/stores/family'
+import BottomNav from '@/components/layout/BottomNav.vue'
+import { useModalStore } from '@/stores/modal'
 
 const router = useRouter()
 const route = useRoute()
+const modalStore = useModalStore()
+const familyStore = useFamilyStore()
 
 const messages = ref([])
 const loading = ref(false)
@@ -191,8 +400,39 @@ const currentPage = ref(0)
 const totalPages = ref(0)
 const familyId = ref(null)
 
+const patientName = ref('')
+const patientImage = ref(null)
+const deviceName = ref('')
+
+const isSearchOpen = ref(false)
+const searchQuery = ref('')
+
+const showMessageModal = ref(false)
+const newMessage = ref({
+  content: '',
+  enableTTS: true
+})
+const charCount = ref(0)
+const sending = ref(false)
+const selectedMessage = ref(null)
+const groupName = ref('')
+const showTTSSettings = ref(false)
+const ttsSettings = ref({
+  voice: 'female1',
+  speed: 1.0,
+  volume: 80
+})
+const showVoiceDropdown = ref(false)
+const voiceOptions = [
+  { value: 'female1', label: '구수~한 손자 목소리' },
+  { value: 'female2', label: '우리 큰아들 목소리' },
+  { value: 'male1', label: '며느래기 목소리' },
+  { value: 'male2', label: '우리 아들 목소리' }
+]
+
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/'
 
+// 이미지 URL 생성 함수 추가
 // 이미지 URL 생성 함수 추가
 const getFullImageUrl = (path, name) => {
   if (!path) {
@@ -202,13 +442,117 @@ const getFullImageUrl = (path, name) => {
   return path.startsWith('http') ? path : `${S3_BASE_URL}${path}`
 }
 
+/* Swipe Logic */
+const messageSheet = ref(null)
+let startY = 0
+let currentY = 0
+
+const onTouchStart = (e) => {
+  // Only allow swipe if scrollTop is 0 (at the top)
+  if (messageSheet.value && messageSheet.value.scrollTop > 0) return
+  startY = e.touches[0].clientY
+}
+
+const onTouchMove = (e) => {
+  if (startY === 0) return // Started not at top
+  currentY = e.touches[0].clientY
+  const diff = currentY - startY
+  if (diff > 0 && messageSheet.value) {
+     // visual feedback
+     messageSheet.value.style.transform = `translateY(${diff}px)`
+  }
+}
+
+const onTouchEnd = () => {
+  if (startY === 0) return
+  const diff = currentY - startY
+  if (diff > 100) {
+    closeMessageModal()
+  } else if (messageSheet.value) {
+    messageSheet.value.style.transform = ''
+  }
+  startY = 0
+  currentY = 0
+}
+
 // Computed
 const hasMessages = computed(() => messages.value.length > 0)
 
+const filteredMessages = computed(() => {
+  if (!searchQuery.value) return messages.value
+  
+  const query = searchQuery.value.toLowerCase()
+  return messages.value.filter(msg => {
+    const content = msg.content?.toLowerCase() || ''
+    const sender = (msg.senderRelationship || msg.senderName)?.toLowerCase() || ''
+    return content.includes(query) || sender.includes(query)
+  })
+})
+
 // Methods
-const goToNewMessage = () => {
-  router.push(`/families/${familyId.value}/message/new`)
+const openSearch = () => {
+  isSearchOpen.value = true
 }
+
+const closeSearch = () => {
+  isSearchOpen.value = false
+  searchQuery.value = ''
+}
+
+const openMessageModal = () => {
+  showMessageModal.value = true
+  newMessage.value = { content: '', enableTTS: true }
+  charCount.value = 0
+  // Reset transform if reused
+  if (messageSheet.value) messageSheet.value.style.transform = ''
+}
+
+const closeMessageModal = () => {
+  showMessageModal.value = false
+  newMessage.value = { content: '', enableTTS: true }
+  charCount.value = 0
+  if (messageSheet.value) messageSheet.value.style.transform = ''
+}
+
+const updateCharCount = () => {
+  charCount.value = newMessage.value.content.length
+}
+
+const canSend = computed(() => {
+  return newMessage.value.content.trim().length > 0 && charCount.value <= 100
+})
+
+const sendMessage = async () => {
+  if (!canSend.value) return
+  sending.value = true
+  
+  try {
+    await messageService.sendGroupMessage(familyId.value, newMessage.value.content)
+    closeMessageModal()
+    // Refresh messages
+    await fetchMessages()
+  } catch (error) {
+    console.error('메시지 전송 실패:', error)
+    console.error('Error response:', error.response?.data)
+    console.error('Error status:', error.response?.status)
+    await modalStore.openAlert(`메시지 전송에 실패했습니다.\n${error.response?.data?.message || error.message}`)
+  } finally {
+    sending.value = false
+  }
+}
+
+const openMessageDetail = (message) => {
+  selectedMessage.value = message
+}
+
+const closeMessageDetail = () => {
+  selectedMessage.value = null
+}
+const goBack = () => {
+  router.back()
+}
+
+
 
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
@@ -220,16 +564,35 @@ const formatTime = (timestamp) => {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return '방금 전'
+  if (diffMins < 60) return `${diffMins}분 전`
+  if (diffHours < 24) return `${diffHours}시간 전`
+  if (diffDays < 7) return `${diffDays}일 전`
   
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-  })
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`
+}
+
+const formatFullDate = (timestamp) => {
+  if (!timestamp) return ''
+  
+  const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  
+  return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`
+}
+
+const getVoiceLabel = (value) => {
+  const option = voiceOptions.find(opt => opt.value === value)
+  return option ? option.label : '음성 선택'
+}
+
+const selectVoice = (value) => {
+  ttsSettings.value.voice = value
+  showVoiceDropdown.value = false
 }
 
 const fetchMessages = async () => {
@@ -266,10 +629,63 @@ const nextPage = () => {
 }
 
 // 초기화
-onMounted(() => {
-  familyId.value = route.params.familyId
+const fetchFamilyDetails = async () => {
+    if (!familyId.value) return;
+    
+    try {
+        const res = await familyService.getFamilyDetails(familyId.value);
+        const data = res.data;
+        deviceName.value = data.deviceName || 'IoT 스피커';
+        groupName.value = data.groupName || '우리 가족';
+         
+        if (data.members) {
+            const patient = data.members.find(m => m.dependent);
+            if (patient) {
+                patientName.value = patient.relationship || patient.name;
+                patientImage.value = getFullImageUrl(patient.profileImage, patientName.value);
+            }
+        }
+    } catch (err) {
+         console.error('Failed to fetch family details', err);
+    }
+};
+
+// React to route changes
+watch(() => route.params.familyId, (newId) => {
+    if (newId && newId !== familyId.value) {
+        familyId.value = newId;
+        fetchMessages();
+        fetchFamilyDetails();
+    }
+});
+
+// React to store selection changes (Header dropdown)
+watch(() => familyStore.selectedFamily, (newFamily) => {
+    if (newFamily && newFamily.id) {
+        // If the store changes but we are still on the old route, redirect
+        if (String(newFamily.id) !== String(route.params.familyId)) {
+             router.replace({ name: 'FamilyMessages', params: { familyId: newFamily.id } });
+        }
+    }
+});
+
+
+// 초기화
+onMounted(async () => {
+  // 1. Prefer route param if present
+  if (route.params.familyId) {
+      familyId.value = route.params.familyId;
+  } 
+  // 2. Fallback to store if no param (though route usually has it)
+  else if (familyStore.selectedFamily?.id) {
+      familyId.value = familyStore.selectedFamily.id;
+      // Update URL to match
+      router.replace({ name: 'FamilyMessages', params: { familyId: familyId.value } });
+  }
+
   if (familyId.value) {
-    fetchMessages()
+    await fetchMessages();
+    await fetchFamilyDetails();
   }
 })
 </script>
@@ -285,9 +701,31 @@ onMounted(() => {
   animation: spin 1s linear infinite;
 }
 
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease-out;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
+
 .line-clamp-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

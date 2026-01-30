@@ -68,7 +68,7 @@
       <button @click="confirmDelete" class="flex-1 py-4 bg-slate-200 text-slate-700 font-bold rounded-2xl active:scale-[0.98] transition-all">
         삭제
       </button>
-      <button @click="router.push({ path: '/calendar/create', query: { id: scheduleId } })" class="flex-[2] py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
+      <button @click="router.push({ name: 'CalendarCreate', params: { familyId: route.params.familyId }, query: { id: scheduleId } })" class="flex-[2] py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
         수정하기
       </button>
     </div>
@@ -97,10 +97,12 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family';
+import { useModalStore } from '@/stores/modal';
 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
+const modalStore = useModalStore();
 
 const schedule = ref(null);
 const showDeleteModal = ref(false);
@@ -108,9 +110,10 @@ const showDeleteModal = ref(false);
 const scheduleId = route.query.id; 
 
 const fetchSchedule = async () => {
-    if (!familyStore.selectedFamily?.id || !scheduleId) return;
+    const familyId = route.params.familyId || familyStore.selectedFamily?.id;
+    if (!familyId || !scheduleId) return;
     try {
-        schedule.value = await scheduleService.getSchedule(familyStore.selectedFamily.id, scheduleId);
+        schedule.value = await scheduleService.getSchedule(familyId, scheduleId);
     } catch (error) {
         console.error("Failed to load schedule", error);
     }
@@ -165,21 +168,22 @@ const timeRange = computed(() => {
 });
 
 const handleDelete = async (deleteAll = false) => {
-    if (!familyStore.selectedFamily?.id) return;
+    const familyId = route.params.familyId || familyStore.selectedFamily?.id;
+    if (!familyId) return;
     try {
-        await scheduleService.deleteSchedule(familyStore.selectedFamily.id, scheduleId, deleteAll);
+        await scheduleService.deleteSchedule(familyId, scheduleId, deleteAll);
         router.back();
     } catch (error) {
         console.error("Delete failed", error);
-        alert("삭제 실패");
+        await modalStore.openAlert("삭제 실패");
     }
 };
 
-const confirmDelete = () => {
+const confirmDelete = async () => {
     if (schedule.value?.repeatType === 'YEARLY' || schedule.value?.repeatType === 'MONTHLY' || schedule.value?.repeatType === 'WEEKLY') {
         showDeleteModal.value = true;
     } else {
-        if(confirm('정말 삭제하시겠습니까?')) {
+        if(await modalStore.openConfirm('정말 삭제하시겠습니까?')) {
             handleDelete(false);
         }
     }

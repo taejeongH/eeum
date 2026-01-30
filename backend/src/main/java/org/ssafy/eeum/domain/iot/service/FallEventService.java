@@ -8,6 +8,7 @@ import org.ssafy.eeum.domain.iot.entity.FallEvent;
 import org.ssafy.eeum.domain.iot.repository.FallEventRepository;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 import org.ssafy.eeum.global.infra.gms.GmsService;
+import org.ssafy.eeum.domain.notification.service.FallDetectionService;
 
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
@@ -35,12 +36,19 @@ public class FallEventService {
     private final IotDeviceRepository iotDeviceRepository;
     private final S3Service s3Service;
     private final GmsService gmsService;
+    private final FallDetectionService fallDetectionService;
 
     @Transactional
-    public Map<String, String> handleFallDetection(String serialNumber, FallDetectionRequestDTO request) {
+    public Map<String, String> handleFallDetection(String serialNumber, FallDetectionRequestDTO request,
+            Integer groupId) {
         // 1. 기기 조회를 통해 가족 그룹 식별
         IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "등록되지 않은 기기입니다."));
+
+        // 2. 보안 검증: 기기가 속한 그룹과 토큰의 그룹이 일치하는지 확인
+        if (!device.getFamily().getId().equals(groupId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS, "해당 기기에 대한 접근 권한이 없습니다.");
+        }
 
         Family family = device.getFamily();
         Integer level = request.getData().getLevel();
@@ -132,9 +140,27 @@ public class FallEventService {
         if (isEmergency) {
             event.updateToEmergency(sttContent);
             log.warn("낙상 위급 상황 판단 (LLM): Group={}, Text={}", familyId, sttContent);
+
+            // 보호자에게 단계적 알림 발송
+            fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + sttContent);
         } else {
             event.updateToSafe(sttContent);
             log.info("낙상 안전 확인 (LLM): Group={}, Text={}", familyId, sttContent);
+        }
+    }
+
+    /**
+     * LLM 테스트용 (DB 이벤트 없이 감성 분석만 수행)
+     */
+    public void testSentimentAnalysis(Integer familyId, String sttContent) {
+        log.info("LLM Test Start - Content: {}, FamilyId: {}", sttContent, familyId);
+        boolean isEmergency = gmsService.analyzeSentiment(sttContent);
+        log.info("LLM Test Results - Is Emergency: {}", isEmergency);
+
+        if (isEmergency) {
+            // 테스트 모드에서도 알림 발송 로직 확인 가능하도록 추가
+            log.info("Triggering Test Notification for Family: {}", familyId);
+            fallDetectionService.handleFallDetection(familyId, "[테스트] 낙상 위험 감지: " + sttContent);
         }
     }
 
@@ -150,6 +176,9 @@ public class FallEventService {
 
         event.updateToEmergency("응답 없음 (STT 실패)");
         log.warn("낙상 비상 처리 (빈 STT 응답): Group={}, EventId={}", familyId, event.getId());
+
+        // 보호자에게 알림 발송
+        fallDetectionService.handleFallDetection(familyId, "낙상 감지 후 응답이 없어 비상 상황으로 전환되었습니다.");
     }
 
     /**
@@ -168,6 +197,10 @@ public class FallEventService {
             event.updateToEmergency("응답 없음 (타임아웃)");
             log.warn("낙상 이벤트 타임아웃 - 자동 위급 처리: EventId={}, GroupId={}",
                     event.getId(), event.getFamily().getId());
+
+            // 보호자에게 알림 발송
+            fallDetectionService.handleFallDetection(event.getFamily().getId(),
+                    "낙상 확인 요청에 1분간 응답이 없어 비상 상황으로 전환되었습니다.");
         }
     }
 }

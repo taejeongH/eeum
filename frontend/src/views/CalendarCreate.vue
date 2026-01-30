@@ -56,10 +56,13 @@
     
     <BottomNav />
 
-    <!-- Modal Overlay -->
-    <div class="fixed inset-0 z-[60] flex items-end">
-      <div class="absolute inset-0 modal-overlay" @click="$router.back()"></div>
-      <div class="relative w-full modal-content bg-white max-h-[92vh] overflow-y-auto shadow-2xl animate-slide-up">
+    <!-- Modal Overlay: Wrapper Scroll Pattern for Safety -->
+    <div class="fixed inset-0 z-[60] overflow-y-auto" v-if="true">
+      <div class="flex min-h-full items-end justify-center"> <!-- items-end positions it at bottom like a sheet -->
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="$router.back()"></div> <!-- Backdrop fixed behind card -->
+        
+        <!-- Card: Natural height, safe from viewport shrinking -->
+        <div class="relative w-full bg-white shadow-2xl animate-slide-up rounded-t-[2.5rem] z-10 overflow-hidden">
         <div class="flex justify-center pt-4 pb-2">
           <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
         </div>
@@ -150,6 +153,7 @@
         <div class="h-8"></div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -159,10 +163,12 @@ import { useRouter, useRoute } from 'vue-router';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family';
+import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
 const route = useRoute();
 const familyStore = useFamilyStore();
+const modalStore = useModalStore();
 
 const isEditMode = computed(() => !!route.query.id);
 const pageTitle = computed(() => isEditMode.value ? '일정 수정' : '일정 추가');
@@ -230,7 +236,7 @@ onMounted(async () => {
             }
         } catch (error) {
             console.error("Failed to load schedule for edit", error);
-            alert("일정 정보를 불러오는데 실패했습니다.");
+            await modalStore.openAlert("일정 정보를 불러오는데 실패했습니다.");
             router.back();
         }
     }
@@ -259,9 +265,11 @@ const selectCategory = (type) => {
 
 const submitForm = async () => {
     console.log("submitForm called");
-    if (!familyStore.selectedFamily?.id) {
+    const targetFamilyId = route.params.familyId || familyStore.selectedFamily?.id;
+
+    if (!targetFamilyId) {
         console.error("No family selected");
-        alert("가족 정보가 없습니다. 다시 시도해주세요.");
+        await modalStore.openAlert("가족 정보가 없습니다. 다시 시도해주세요.");
         return;
     }
 
@@ -281,17 +289,17 @@ const submitForm = async () => {
         console.log("Payload:", payload);
         
         if (isEditMode.value) {
-             await scheduleService.updateSchedule(familyStore.selectedFamily.id, route.query.id, payload);
+             await scheduleService.updateSchedule(targetFamilyId, route.query.id, payload);
              console.log("Schedule updated successfully");
         } else {
-             await scheduleService.createSchedule(familyStore.selectedFamily.id, payload);
+             await scheduleService.createSchedule(targetFamilyId, payload);
              console.log("Schedule created successfully");
         }
 
         router.back();
     } catch (error) {
         console.error("Failed to save schedule", error);
-        alert('일정 저장에 실패했습니다.');
+        await modalStore.openAlert('일정 저장에 실패했습니다.');
     }
 };
 </script>

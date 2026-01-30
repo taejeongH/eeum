@@ -86,12 +86,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useGroupSetupStore } from '@/stores/groupSetup'
+import { useModalStore } from '@/stores/modal'
 import { storeToRefs } from 'pinia'
 import MedicationAddModal from './MedicationAddModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 const setupStore = useGroupSetupStore()
+const modalStore = useModalStore()
 const familyId = route.params.familyId
 
 const { medications } = storeToRefs(setupStore)
@@ -128,14 +130,14 @@ const formatTimes = (times) => {
 const complete = async () => {
   try {
     await setupStore.saveData(familyId)
-    alert('그룹 설정이 저장되었습니다.')
+    await modalStore.openAlert('그룹 설정이 저장되었습니다.')
     
     // Clear temporary store
     setupStore.reset()
     router.push('/home')
     
   } catch (error) {
-    alert('저장에 실패했습니다. 메인으로 이동합니다.')
+    await modalStore.openAlert('저장에 실패했습니다. 메인으로 이동합니다.')
     setupStore.reset()
     router.push('/home')
   }

@@ -169,11 +169,13 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 import api from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const modalStore = useModalStore();
 
 const member = ref(null);
 const loading = ref(false);
@@ -220,29 +222,29 @@ const goToEditProfile = () => {
 };
 
 const leaveGroup = async () => {
-  if (confirm('정말로 그룹을 탈퇴하시겠습니까?')) {
+  if (await modalStore.openConfirm('정말로 그룹을 탈퇴하시겠습니까?')) {
     const { familyId } = route.params;
     try {
       await api.delete(`/families/${familyId}/members/me`); 
-      alert('그룹에서 탈퇴했습니다.');
+      await modalStore.openAlert('그룹에서 탈퇴했습니다.');
       router.push('/home');
     } catch (err) {
       console.error('Failed to leave group:', err);
-      alert('그룹 탈퇴에 실패했습니다.');
+      await modalStore.openAlert('그룹 탈퇴에 실패했습니다.');
     }
   }
 };
 
 const kickMember = async () => {
-  if (confirm(`정말로 '${member.value.name}'님을 그룹에서 강퇴하시겠습니까?`)) {
+  if (await modalStore.openConfirm(`정말로 '${member.value.name}'님을 그룹에서 강퇴하시겠습니까?`)) {
     const { familyId, userId } = route.params;
     try {
       await api.delete(`/families/${familyId}/members/${userId}`);
-      alert('멤버를 성공적으로 강퇴했습니다.');
+      await modalStore.openAlert('멤버를 성공적으로 강퇴했습니다.');
       router.go(-1);
     } catch (err) {
       console.error('Failed to kick member:', err);
-      alert('멤버 강퇴에 실패했습니다.');
+      await modalStore.openAlert('멤버 강퇴에 실패했습니다.');
     }
   }
 };

@@ -11,7 +11,7 @@
     <div
       v-if="show"
       ref="sheet"
-      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y"
+      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y min-h-[300px] max-h-[90vh] overflow-y-auto"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -174,6 +174,9 @@
 import { ref, computed } from 'vue'
 import IconCircle from './IconCircle.vue'
 import RadioDot from './RadioDot.vue'
+import { useModalStore } from '@/stores/modal'
+
+const modalStore = useModalStore()
 
 defineProps({ show: Boolean })
 const emit = defineEmits(['close', 'join-group', 'create-group-request'])
@@ -223,7 +226,7 @@ const submitJoin = () => {
   }
 
   if (!code) {
-      alert('초대 코드를 입력해주세요.');
+      modalStore.openAlert('초대 코드를 입력해주세요.');
       return;
   }
 

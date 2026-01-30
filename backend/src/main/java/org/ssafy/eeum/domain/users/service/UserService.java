@@ -10,7 +10,8 @@ import org.ssafy.eeum.domain.users.dto.ProfileRequestDto;
 import org.ssafy.eeum.domain.users.dto.ProfileResponseDto;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 
-import java.util.NoSuchElementException;
+import org.ssafy.eeum.global.error.exception.CustomException;
+import org.ssafy.eeum.global.error.model.ErrorCode;
 
 @Service
 @RequiredArgsConstructor
@@ -18,11 +19,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final S3Service s3Service;
+    private final org.ssafy.eeum.global.infra.fcm.FcmService fcmService;
 
     @Transactional
     public ProfileResponseDto updateProfile(String id, ProfileRequestDto profileRequest, MultipartFile file) {
         User user = userRepository.findById(Integer.parseInt(id))
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String imageKey = user.getProfileImage();
 
@@ -53,7 +55,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public ProfileResponseDto getProfile(String id) {
         User user = userRepository.findById(Integer.parseInt(id))
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String imageKey = user.getProfileImage();
         String presignedUrl = s3Service.getPresignedUrl(imageKey);
@@ -61,5 +63,29 @@ public class UserService {
         ProfileResponseDto responseDto = ProfileResponseDto.of(user);
         responseDto.setProfileImage(presignedUrl);
         return responseDto;
+    }
+
+    @Transactional
+    public void updateFcmToken(String id, String fcmToken) {
+        User user = userRepository.findById(Integer.parseInt(id))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        user.updateFcmToken(fcmToken);
+    }
+
+    public String sendTestMessage(String userId, String title, String body, String type) {
+        User user = userRepository.findById(Integer.parseInt(userId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        
+        String token = user.getFcmToken();
+        if (token == null || token.isEmpty()) {
+            return "FCM Token not found for user";
+        }
+
+        String finalTitle = title != null && !title.isEmpty() ? title : "테스트 알림 🔔";
+        String finalBody = body != null && !body.isEmpty() ? body : "이 메시지가 보이면 FCM이 정상 동작하는 것입니다!";
+        String finalType = type != null && !type.trim().isEmpty() ? type.trim() : "NORMAL";
+
+        fcmService.sendMessageTo(token, finalTitle, finalBody, finalType, null);
+        return "Message sent to " + user.getName();
     }
 }

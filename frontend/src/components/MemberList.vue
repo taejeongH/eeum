@@ -32,6 +32,9 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import api from '@/services/api';
+import { useModalStore } from '@/stores/modal';
+
+const modalStore = useModalStore();
 
 const props = defineProps({
   familyId: {
@@ -68,7 +71,7 @@ const fetchMembers = async (id) => {
 
 const showAllMembers = () => {
   // TODO: 여기에 모든 멤버를 보여주는 로직 (예: 모달 열기 또는 다른 페이지로 이동) 구현
-  alert('더보기 버튼 클릭 - 모든 멤버 보기 기능 구현 예정');
+  modalStore.openAlert('더보기 버튼 클릭 - 모든 멤버 보기 기능 구현 예정');
 };
 
 
