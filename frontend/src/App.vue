@@ -213,22 +213,34 @@ onMounted(async () => {
   window.onNativeNotification = (notificationId) => {
       
       if (notificationId) {
+          console.log('onNativeNotification called with ID:', notificationId);
+          
+          // 1. Emergency modal 먼저 열기 (유저 인증 실패해도 모달은 표시)
+          emergencyStore.open({
+              groupName: '우리 가족',
+              dependentName: '피부양자',
+              type: 'FALL',
+              location: null
+          });
+          
+          // 2. 홈으로 이동
+          router.push('/home');
+          
+          // 3. 백그라운드에서 알림 읽음 처리
           (async () => {
              try {
-                 // 1. 토큰 확인 & 복구
+                 // 토큰 확인 & 복구
                  let token = localStorage.getItem('accessToken');
                  if (!token) {
                      if (window.AndroidBridge && window.AndroidBridge.getAccessToken) {
                          token = window.AndroidBridge.getAccessToken();
                          if (token && token !== "null" && token.length > 0) {
                              localStorage.setItem('accessToken', token);
-                         } else {
-
                          }
                      }
                  }
 
-                 // 2. 유저 정보 확인 & 로드
+                 // 유저 정보 확인 & 로드
                  if (!userStore.profile) {
                      await userStore.fetchUser();
                  }
@@ -238,16 +250,18 @@ onMounted(async () => {
                  if (currentUserId) {
                      const { default: api } = await import('@/services/api');
                      
+                     // 알림 읽음 처리
                      await api.post('/notifications/read', {
                          notificationId: Number(notificationId),
                          userId: currentUserId
                      });
                      
+                     console.log('Notification marked as read:', notificationId);
                  } else {
-
+                     console.warn('User not authenticated, skipping notification read');
                  }
              } catch(e) {
-
+                 console.error('Error in onNativeNotification:', e);
              }
           })();
       }
