@@ -52,7 +52,7 @@ def _set_present(state: MonitorState, ev: Event) -> None:
     
     if not state.occupancy_present:
         state.occupancy_since_ts = ts
-    logger.info("[OCCUPANCY] absent -> present at=%s", ts)
+        logger.info("[OCCUPANCY] absent -> present at=%s", ts)
     state.occupancy_present = True
     state.occupancy_dev = dev
     state.occupancy_kind = kind
