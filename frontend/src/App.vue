@@ -1,11 +1,64 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from './stores/user'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
+
+// 5. [NEW] Android FCM Token 연동 (Retry Logic 추가)
+const syncFcmToken = async (retryCount = 0) => {
+    // 로그인이 안되어 있으면 동기화 건너뜀 (인증 후 watcher가 다시 트리거함)
+    if (!userStore.isAuthenticated) {
+        console.log("FCM: Not authenticated, skipping sync.");
+        return;
+    }
+
+    if (retryCount > 10) { // 최대 10번 (10초) 시도
+        console.log("FCM: Max retry reached.");
+        return;
+    }
+
+    if (window.AndroidBridge && window.AndroidBridge.getFcmToken) {
+        try {
+            const fcmToken = window.AndroidBridge.getFcmToken();
+            if (fcmToken && fcmToken.length > 0) {
+                console.log("FCM: Token found:", fcmToken.substring(0, 10) + "...");
+                const { updateFcmToken } = await import('@/services/api');
+                const response = await updateFcmToken(fcmToken);
+                console.log("✅ FCM Token Synced Successfully:", response.status);
+                return; // 성공 시 종료
+            } else {
+                console.log("FCM: Token is empty or null from bridge.");
+            }
+        } catch (e) {
+            console.error("FCM: Sync failed. Status:", e.response?.status);
+            console.error("FCM: Error data:", JSON.stringify(e.response?.data || e.message || e));
+        }
+    }
+    
+    // 토큰이 없거나 브릿지가 안 잡히면 1초 뒤 재시도
+    setTimeout(() => syncFcmToken(retryCount + 1), 1000);
+};
+
+// [NEW] 로그인 성공 시 FCM 토큰 동기화 트리거
+watch(() => userStore.isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    console.log("FCM: User authenticated, triggering sync...");
+    syncFcmToken();
+  }
+});
+
+// [NEW] Native에서 직접 토큰을 밀어넣어줄 때 호출되는 함수
+window.onFcmTokenReceived = (fcmToken) => {
+  if (fcmToken && userStore.isAuthenticated) {
+    console.log("FCM: Received from native, syncing...");
+    import('@/services/api').then(({ updateFcmToken }) => {
+      updateFcmToken(fcmToken);
+    });
+  }
+};
 
 onMounted(async () => {
   // 1. URL에서 accessToken 추출 (Hash 모드 대응)
@@ -81,30 +134,6 @@ onMounted(async () => {
 
   // 세션 복구 시도 시작
   restoreSession();
-
-  // 5. [NEW] Android FCM Token 연동 (Retry Logic 추가)
-  const syncFcmToken = async (retryCount = 0) => {
-      if (retryCount > 10) { // 최대 10번 (10초) 시도
-
-         return;
-      }
-
-      if (window.AndroidBridge && window.AndroidBridge.getFcmToken) {
-          try {
-              const fcmToken = window.AndroidBridge.getFcmToken();
-              if (fcmToken && fcmToken.length > 0) {
-                  const { updateFcmToken } = await import('@/services/api');
-                  await updateFcmToken(fcmToken);
-                  return; // 성공 시 종료
-              }
-          } catch (e) {
-
-          }
-      }
-      
-      // 토큰이 없으면 1초 뒤 재시도
-      setTimeout(() => syncFcmToken(retryCount + 1), 1000);
-  };
 
   // 6. [NEW] 알림 클릭 처리 (Android Bridge)
   const checkNotificationFromNative = async (retryCount = 0) => {
