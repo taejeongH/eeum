@@ -102,4 +102,17 @@ public class NotificationService {
     public boolean isAnyRead(Long notificationId) {
         return notificationDeliveryRepository.existsByNotificationIdAndIsReadTrue(notificationId);
     }
+
+    public org.ssafy.eeum.domain.notification.controller.NotificationController.NotificationInfoDto getNotificationInfo(Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        
+        return org.ssafy.eeum.domain.notification.controller.NotificationController.NotificationInfoDto.builder()
+                .id(notification.getId())
+                .familyId(notification.getFamily().getId())
+                .type(notification.getType())
+                .title(notification.getTitle())
+                .message(notification.getMessage())
+                .build();
+    }
 }

@@ -168,25 +168,14 @@ onMounted(async () => {
       try {
         const notificationId = window.AndroidBridge.consumeNotificationId();
         if (notificationId) {
-           // API 호출을 위해 axios/api 인스턴스 가져오기
-           if (!userStore.profile) {
-               try {
-                   await userStore.fetchUser();
-               } catch (e) {
-
-               }
+           console.log("✅ Consumed Notification ID from Native:", notificationId);
+           
+           // onNativeNotification 호출하여 통합 처리
+           if (window.onNativeNotification) {
+               window.onNativeNotification(notificationId);
            }
-           const currentUserId = userStore.profile?.id;
+        } else {
 
-           if (currentUserId) {
-              const { default: api } = await import('@/services/api'); 
-              await api.post('/notifications/read', {
-                 notificationId: Number(notificationId),
-                 userId: currentUserId
-              });
-           } else {
-
-           }
         }
       } catch (e) {
 
@@ -215,18 +204,7 @@ onMounted(async () => {
       if (notificationId) {
           console.log('onNativeNotification called with ID:', notificationId);
           
-          // 1. Emergency modal 먼저 열기 (유저 인증 실패해도 모달은 표시)
-          emergencyStore.open({
-              groupName: '우리 가족',
-              dependentName: '피부양자',
-              type: 'FALL',
-              location: null
-          });
-          
-          // 2. 홈으로 이동
-          router.push('/home');
-          
-          // 3. 백그라운드에서 알림 읽음 처리
+          // 백그라운드에서 알림 정보 가져오기 및 처리
           (async () => {
              try {
                  // 토큰 확인 & 복구
@@ -250,6 +228,39 @@ onMounted(async () => {
                  if (currentUserId) {
                      const { default: api } = await import('@/services/api');
                      
+                     // 알림 정보 가져오기
+                     const notificationResponse = await api.get(`/notifications/${notificationId}`);
+                     const notificationInfo = notificationResponse.data;
+                     
+                     console.log('Notification info:', notificationInfo);
+                     
+                     // 해당 familyId의 그룹 선택
+                     if (notificationInfo.familyId) {
+                         const { useFamilyStore } = await import('@/stores/family');
+                         const familyStore = useFamilyStore();
+                         
+                         // 패밀리 목록 가져오기
+                         await familyStore.fetchFamilies();
+                         
+                         // 해당 familyId의 그룹 찾아서 선택
+                         const targetFamily = familyStore.families.find(f => f.id === notificationInfo.familyId);
+                         if (targetFamily) {
+                             familyStore.selectFamily(targetFamily);
+                             console.log('Selected family:', targetFamily.name);
+                         }
+                     }
+                     
+                     // Emergency modal 열기
+                     emergencyStore.open({
+                         groupName: '우리 가족',
+                         dependentName: '피부양자',
+                         type: 'FALL',
+                         location: null
+                     });
+                     
+                     // 홈으로 이동
+                     router.push('/home');
+                     
                      // 알림 읽음 처리
                      await api.post('/notifications/read', {
                          notificationId: Number(notificationId),
@@ -259,9 +270,27 @@ onMounted(async () => {
                      console.log('Notification marked as read:', notificationId);
                  } else {
                      console.warn('User not authenticated, skipping notification read');
+                     
+                     // 인증 실패해도 모달은 열기
+                     emergencyStore.open({
+                         groupName: '우리 가족',
+                         dependentName: '피부양자',
+                         type: 'FALL',
+                         location: null
+                     });
+                     router.push('/home');
                  }
              } catch(e) {
                  console.error('Error in onNativeNotification:', e);
+                 
+                 // 에러 발생해도 모달은 열기
+                 emergencyStore.open({
+                     groupName: '우리 가족',
+                     dependentName: '피부양자',
+                     type: 'FALL',
+                     location: null
+                 });
+                 router.push('/home');
              }
           })();
       }

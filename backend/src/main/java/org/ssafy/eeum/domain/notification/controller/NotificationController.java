@@ -50,6 +50,25 @@ public class NotificationController {
         return ResponseEntity.ok("알림이 읽음 처리되었습니다.");
     }
 
+    @Operation(summary = "알림 정보 조회", description = "알림 ID로 알림 정보를 조회합니다.")
+    @org.springframework.web.bind.annotation.GetMapping("/{notificationId}")
+    public ResponseEntity<NotificationInfoDto> getNotificationInfo(@org.springframework.web.bind.annotation.PathVariable Long notificationId) {
+        log.info("Fetching notification info for ID: {}", notificationId);
+        NotificationInfoDto info = notificationService.getNotificationInfo(notificationId);
+        return ResponseEntity.ok(info);
+    }
+
+    // DTO for notification info response
+    @lombok.Data
+    @lombok.Builder
+    public static class NotificationInfoDto {
+        private Long id;
+        private Integer familyId;
+        private String type;
+        private String title;
+        private String message;
+    }
+
     @Operation(summary = "낙상 감지 테스트", description = "낙상 이벤트를 발생시켜 우선순위에 따른 순차 발송을 테스트합니다.")
     @PostMapping("/fall-test/{familyId}")
     public ResponseEntity<String> triggerFallDetection(@org.springframework.web.bind.annotation.PathVariable Integer familyId) {
