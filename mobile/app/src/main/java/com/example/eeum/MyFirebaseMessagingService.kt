@@ -42,12 +42,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val title = data["title"] ?: "알림"
         val body = data["body"] ?: "새로운 소식이 있습니다."
         val type = data["type"] ?: "NORMAL"
+        val route = data["route"]
 
-        Log.d(TAG, "Handling data message - Title: $title, Body: $body, Type: $type")
+        Log.d(TAG, "Handling data message - Title: $title, Body: $body, Type: $type, Route: $route")
         
         val notificationId = data["notificationId"]
         
-        sendNotification(title, body, type, notificationId)
+        sendNotification(title, body, type, notificationId, route)
     }
 
     private fun sendRegistrationToServer(token: String) {
@@ -55,12 +56,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Send token to server: $token")
     }
 
-    private fun sendNotification(title: String, body: String, type: String, notificationId: String? = null) {
+    private fun sendNotification(title: String, body: String, type: String, notificationId: String? = null, route: String? = null) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         
         if (notificationId != null) {
             intent.putExtra("notificationId", notificationId)
+        }
+        if (route != null) {
+            intent.putExtra("route", route)
         }
         
         val pendingIntent = PendingIntent.getActivity(
