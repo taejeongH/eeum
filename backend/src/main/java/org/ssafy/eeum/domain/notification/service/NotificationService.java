@@ -7,6 +7,8 @@ import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
+import org.ssafy.eeum.domain.notification.controller.NotificationController;
+import org.ssafy.eeum.domain.notification.dto.NotificationHistoryResponseDto;
 import org.ssafy.eeum.domain.notification.entity.Notification;
 import org.ssafy.eeum.domain.notification.entity.NotificationDelivery;
 import org.ssafy.eeum.domain.notification.repository.NotificationDeliveryRepository;
@@ -16,6 +18,8 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.fcm.FcmService;
 
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -107,31 +111,19 @@ public class NotificationService {
         return notificationDeliveryRepository.existsByNotificationIdAndIsReadTrue(notificationId);
     }
 
-    public java.util.List<org.ssafy.eeum.domain.notification.controller.NotificationController.NotificationHistoryDto> getNotificationHistory(Integer familyId, Integer userId) {
+    public List<NotificationHistoryResponseDto> getNotificationHistory(Integer familyId, Integer userId) {
         LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
         java.util.List<Notification> notifications = notificationRepository.findByFamilyIdAndCreatedAtAfterOrderByCreatedAtDesc(familyId, oneWeekAgo);
         
-        Set<String> seenContent = new HashSet<>();
         return notifications.stream()
-                .filter(notification -> {
-                    String contentKey = notification.getType() + "_" + notification.getTitle() + "_" + notification.getMessage();
-                    return seenContent.add(contentKey); // Add returns true if the set did not already contain the element
-                })
                 .map(notification -> {
-                    // Check if this user has read this notification
-                    boolean isRead = notificationDeliveryRepository.findByUserAndNotification(
-                            org.ssafy.eeum.domain.auth.entity.User.builder().id(userId).build(),
-                            notification
-                    ).map(org.ssafy.eeum.domain.notification.entity.NotificationDelivery::isRead)
-                     .orElse(false);
                     
-                    return org.ssafy.eeum.domain.notification.controller.NotificationController.NotificationHistoryDto.builder()
+                    return NotificationHistoryResponseDto.builder()
                             .id(notification.getId())
                             .title(notification.getTitle())
                             .message(notification.getMessage())
                             .type(notification.getType())
                             .createdAt(notification.getCreatedAt())
-                            .isRead(isRead)
                             .build();
                 })
                 .collect(java.util.stream.Collectors.toList());

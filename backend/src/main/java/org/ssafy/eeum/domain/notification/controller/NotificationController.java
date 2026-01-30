@@ -8,12 +8,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.ssafy.eeum.domain.notification.dto.NotificationHistoryResponseDto;
 import org.ssafy.eeum.domain.notification.dto.NotificationTestRequestDto;
 import org.ssafy.eeum.domain.notification.service.NotificationService;
 
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 @Tag(name = "notifications", description = "알림 관리")
 @RestController
@@ -70,12 +73,12 @@ public class NotificationController {
 
     @Operation(summary = "그룹 알림 이력 조회", description = "특정 그룹의 모든 알림을 조회합니다. 읽음/안읽음 상태 포함.")
     @org.springframework.web.bind.annotation.GetMapping("/families/{familyId}/history")
-    public ResponseEntity<java.util.List<NotificationHistoryDto>> getNotificationHistory(
+    public ResponseEntity<List<NotificationHistoryResponseDto>> getNotificationHistory(
             @org.springframework.web.bind.annotation.PathVariable Integer familyId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         Integer userId = userDetails.getId();
         log.info("Fetching notification history for familyId: {}, userId: {}", familyId, userId);
-        java.util.List<NotificationHistoryDto> history = notificationService.getNotificationHistory(familyId, userId);
+        java.util.List<NotificationHistoryResponseDto> history = notificationService.getNotificationHistory(familyId, userId);
         return ResponseEntity.ok(history);
     }
 
@@ -85,14 +88,5 @@ public class NotificationController {
         private String type; // "OUTING" or "RETURN"
     }
 
-    @lombok.Data
-    @lombok.Builder
-    public static class NotificationHistoryDto {
-        private Long id;
-        private String title;
-        private String message;
-        private String type;
-        private java.time.LocalDateTime createdAt;
-        private boolean isRead;
-    }
+
 }
