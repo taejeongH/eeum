@@ -128,6 +128,9 @@ public class MqttService {
 
             LocalDateTime detectedAt = convertTimestamp(detectedAtTimestamp);
 
+            log.info("Processing Voice Response: msg_id={}, serial_number={}, stt_content={}",
+                    msgId, serialNumber, sttContent);
+
             // STT 내용이 비어있으면 즉시 비상 처리
             if (sttContent == null || sttContent.trim().isEmpty()) {
                 fallEventService.handleEmptyVoiceResponse(groupId);
@@ -137,15 +140,21 @@ public class MqttService {
             }
 
             // 기존 로직: 이벤트 ID로 센서 이벤트 조회 후 FallEvent 업데이트
-            // Note: 기존 코드에서는 "id" 필드를 사용했으나, 새 명세에는 없음
-            // 필요시 별도 필드로 전달되어야 함
-            String deviceEventId = node.path("id").asText(); // 하위 호환성 유지
-            if (!deviceEventId.isEmpty()) {
-                sensorEventService.linkVoiceResponseToEvent(serialNumber, deviceEventId, sttContent);
+            // 기기에서 'id' 또는 'msg_id' 중 하나를 식별자로 보낼 수 있으므로 둘 다 확인
+            String deviceEventId = node.path("id").asText();
+            if (deviceEventId.isEmpty()) {
+                deviceEventId = msgId; // id가 없으면 msg_id를 식별자로 사용
             }
 
-            log.info("Handled Voice Response: MsgId={}, Family={}, SN={}, DetectedAt={}, Content={}",
-                    msgId, groupId, serialNumber, detectedAt, sttContent);
+            if (deviceEventId != null && !deviceEventId.isEmpty()) {
+                log.info("Linking voice response to event: serial={}, deviceEventId={}", serialNumber, deviceEventId);
+                sensorEventService.linkVoiceResponseToEvent(serialNumber, deviceEventId, sttContent);
+            } else {
+                log.warn("Missing event identifier (id or msg_id) in MQTT response");
+            }
+
+            log.info("Successfully Handled Voice Response: MsgId={}, Family={}, SN={}, DetectedAt={}",
+                    msgId, groupId, serialNumber, detectedAt);
         } catch (Exception e) {
             log.warn("Failed to handle response: {}", e.getMessage());
         }

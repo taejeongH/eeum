@@ -15,10 +15,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
     properties:
       hibernate:
-        format_sql: true
 
 jwt:
   private-key-path: certs/private_key_pkcs8.pem
