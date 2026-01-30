@@ -1,7 +1,7 @@
 import asyncio
 import subprocess
 import time
-from queue import Queue
+import logging
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -16,6 +16,8 @@ from .wifi_manager import (
         async_delete_profile,
         )
 from .mqtt_client import MqttClient
+
+logger = logging.getLogger(__name__)
 
 class EventIn(BaseModel):
     kind: str
@@ -504,6 +506,7 @@ initialLoad();
     
     @app.get("/wifi/scan")
     async def wifi_scan():
+        logger.info("[API] wifi scan requested")
         return {
             "iface": STA_IFACE,
             "active_ssid": state.wifi_active,
@@ -531,6 +534,7 @@ initialLoad();
     @app.post("/wifi/connect")
     async def wifi_connect(body: WifiConnectIn):
         ssid = body.ssid.strip()
+        logger.info("[API] wifi connect requested ssid=%s", ssid if ssid is not None else "<NULL>")
         if not ssid:
             return {
                 "ok": False,
@@ -551,18 +555,22 @@ initialLoad();
         try:
             res = await async_provision_connect_wlan0(ssid, body.password)
             if not res.ok:
+                logger.warning("[API] wifi connect failed ssid=%s msg=%s", ssid, res.message)
                 return {
                     "ok": False,
                     "code": "wifi_connect_failed",
                     "message": res.message,
                     "new_profile": res.new_profile
                 }
+            logger.info("[API] wifi connect ok ssid=%s", ssid)
             return {
                 "ok": True,
                 "iface": STA_IFACE,
                 "ssid": ssid,
                 "message": res.message
             }
+        except asyncio.CancelledError:
+          raise
         except subprocess.CalledProcessError as e:
             msg = (e.stderr or e.output or "").strip() or f"nmcli failed (exit={e.returncode})"
             return {
@@ -571,6 +579,7 @@ initialLoad();
                 "message": msg
             }
         except Exception as e:
+            logger.exception("[API] wifi connect unexpected error")
             return {
                 "ok": False,
                 "code": "wifi_connect_error",
