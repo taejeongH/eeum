@@ -46,8 +46,12 @@ public class IotFallController {
             @AuthenticationPrincipal DeviceDetails deviceDetails,
             @RequestBody FallDetectionRequestDTO request) {
 
-        String serialNumber = deviceDetails.getSerialNumber();
-        Map<String, String> response = fallEventService.handleFallDetection(serialNumber, request);
+        // 기기용 토큰에는 시리얼 번호가 아닌 "GROUP:X"가 subject로 들어있으므로,
+        // 페이로드의 device_id를 시리얼 번호로 사용합니다.
+        String serialNumber = request.getDeviceId();
+        Integer groupId = deviceDetails.getGroupId();
+
+        Map<String, String> response = fallEventService.handleFallDetection(serialNumber, request, groupId);
 
         return RestApiResponse.success(HttpStatus.OK, "낙상 감지 데이터 처리 완료", response);
     }

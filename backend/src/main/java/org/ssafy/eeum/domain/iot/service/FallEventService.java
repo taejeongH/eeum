@@ -39,10 +39,16 @@ public class FallEventService {
     private final FallDetectionService fallDetectionService;
 
     @Transactional
-    public Map<String, String> handleFallDetection(String serialNumber, FallDetectionRequestDTO request) {
+    public Map<String, String> handleFallDetection(String serialNumber, FallDetectionRequestDTO request,
+            Integer groupId) {
         // 1. 기기 조회를 통해 가족 그룹 식별
         IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "등록되지 않은 기기입니다."));
+
+        // 2. 보안 검증: 기기가 속한 그룹과 토큰의 그룹이 일치하는지 확인
+        if (!device.getFamily().getId().equals(groupId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS, "해당 기기에 대한 접근 권한이 없습니다.");
+        }
 
         Family family = device.getFamily();
         Integer level = request.getData().getLevel();
