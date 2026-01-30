@@ -48,7 +48,11 @@ public class FallEvent extends BaseEntity {
     }
 
     public enum VideoStatus {
-        PENDING, SUCCESS, NONE
+        NONE, PENDING, SUCCESS
+    }
+
+    public void updateVideoStatus(VideoStatus videoStatus) {
+        this.videoStatus = videoStatus;
     }
 
     public void updateToEmergency(String sttContent) {

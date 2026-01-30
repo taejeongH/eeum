@@ -9,8 +9,9 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useUserStore } from '@/stores/user';
 import { logout } from '@/services/api';
+import { useFamilyStore } from '@/stores/family';
+import { useGroupSetupStore } from '@/stores/groupSetup';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -25,7 +26,15 @@ onMounted(async () => {
     // 2. 클라이언트 상태 초기화
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('accessToken');
+    
+    // 2. 클라이언트 상태 초기화
     userStore.clearUser();
+    
+    const familyStore = useFamilyStore();
+    const setupStore = useGroupSetupStore();
+    
+    familyStore.clearFamily();
+    setupStore.reset();
     
     // 3. 로그인 페이지로 이동
     router.replace('/login');

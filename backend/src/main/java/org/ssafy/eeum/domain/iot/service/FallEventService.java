@@ -53,11 +53,11 @@ public class FallEventService {
         Family family = device.getFamily();
         Integer level = request.getData().getLevel();
 
-        // 2. 낙상 이벤트 생성 및 저장
         FallEvent.FallEventBuilder eventBuilder = FallEvent.builder()
                 .family(family)
                 .severity(level)
-                .statusType(FallEvent.StatusType.UNDER_REVIEW);
+                .statusType(FallEvent.StatusType.UNDER_REVIEW)
+                .videoStatus(FallEvent.VideoStatus.NONE);
 
         String fileName = null;
         String presignedUrl = null;
@@ -66,6 +66,7 @@ public class FallEventService {
         if (Integer.valueOf(1).equals(level)) {
             fileName = "fall/" + family.getId() + "/" + UUID.randomUUID() + ".mp4";
             eventBuilder.videoPath(fileName);
+            eventBuilder.videoStatus(FallEvent.VideoStatus.PENDING);
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
         }
 
@@ -128,7 +129,7 @@ public class FallEventService {
                         ErrorCode.ENTITY_NOT_FOUND));
 
         event.updateVideoStatus(FallEvent.VideoStatus.SUCCESS);
-        log.info("Fall Event Video Upload Complete: {}", videoPath);
+        log.info("Fall Event Video Upload Complete and Status Updated: {}", videoPath);
     }
 
     @Transactional

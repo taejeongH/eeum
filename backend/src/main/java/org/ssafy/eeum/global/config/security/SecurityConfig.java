@@ -88,6 +88,8 @@ public class SecurityConfig {
                 CorsConfiguration config = new CorsConfiguration();
                 config.setAllowedOriginPatterns(List.of(
                                 "http://localhost:*",
+                                "http://127.0.0.1:*",
+                                "http://10.0.2.2:*",
                                 "https://i14a105.p.ssafy.io:*",
                                 "https://i14a105.p.ssafy.io"));
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));

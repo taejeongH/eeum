@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FcmService {
 
-    public void sendMessageTo(String token, String title, String body, String type, Long notificationId) {
+    public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route) {
         if (token == null || token.isEmpty()) {
             return;
         }
@@ -29,6 +29,10 @@ public class FcmService {
                 messageBuilder.putData("notificationId", String.valueOf(notificationId));
             }
 
+            if (route != null) {
+                messageBuilder.putData("route", route);
+            }
+
             Message message = messageBuilder.build();
 
             String response = FirebaseMessaging.getInstance().send(message);
@@ -38,7 +42,7 @@ public class FcmService {
         }
     }
 
-    public void sendMulticast(List<String> tokens, String title, String body, String type) {
+    public void sendMulticast(List<String> tokens, String title, String body, String type, Long notificationId, String route) {
         if (tokens == null || tokens.isEmpty()) {
             return;
         }
@@ -53,14 +57,21 @@ public class FcmService {
         }
 
         try {
-            MulticastMessage message = MulticastMessage.builder()
+            com.google.firebase.messaging.MulticastMessage.Builder builder = MulticastMessage.builder()
                     .addAllTokens(validTokens)
-                    .putAllData(java.util.Map.of(
-                            "title", title,
-                            "body", body,
-                            "type", type != null ? type : "DEFAULT"
-                    ))
-                    .build();
+                    .putData("title", title)
+                    .putData("body", body)
+                    .putData("type", type != null ? type : "DEFAULT");
+
+            if (notificationId != null) {
+                builder.putData("notificationId", String.valueOf(notificationId));
+            }
+
+            if (route != null) {
+                builder.putData("route", route);
+            }
+
+            MulticastMessage message = builder.build();
 
             BatchResponse response = FirebaseMessaging.getInstance().sendMulticast(message);
             log.info("Successfully sent multicast message. Success count: " + response.getSuccessCount());

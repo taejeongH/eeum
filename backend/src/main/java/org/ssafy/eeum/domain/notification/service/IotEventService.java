@@ -31,21 +31,31 @@ public class IotEventService {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
+        String groupName = family.getGroupName();
+        
+        // Find PATIENT from supporters
+        String dependentName = supporterRepository.findAllByFamily(family).stream()
+                .filter(s -> s.getRole() == Supporter.Role.PATIENT)
+                .findFirst()
+                .map(s -> s.getUser().getName())
+                .orElse("피부양자");
+        
         String message;
         String title;
 
         if ("OUTING".equalsIgnoreCase(type)) {
-            title = "외출 알림";
-            message = "어르신이 외출하셨습니다.";
+            title = groupName + " - " + dependentName;
+            message = dependentName + "님이 외출하셨습니다.";
         } else if ("RETURN".equalsIgnoreCase(type)) {
-            title = "귀가 알림";
-            message = "어르신이 귀가하셨습니다.";
+            title = groupName + " - " + dependentName;
+            message = dependentName + "님이 귀가하셨습니다.";
         } else {
-            title = "활동 알림";
+            title = groupName + " - " + dependentName;
             message = "활동이 감지되었습니다.";
         }
 
-        log.info("Handling IoT Event: FamilyID={}, Type={}", familyId, type);
+        log.info("Handling IoT Event: FamilyID={}, Type={}, Group={}, Dependent={}", 
+                familyId, type, groupName, dependentName);
 
         // 모든 보호자(CAREGIVER) 조회
         List<Supporter> caregivers = supporterRepository.findAllByFamily(family).stream()
@@ -63,7 +73,7 @@ public class IotEventService {
         // 그리고 sendNotification은 NotificationDelivery를 만듦.
         // 여기서는 "같은 사건"에 대해 모든 보호자에게 알리는 것이므로 Notification은 하나여야 함.
         
-        Long notificationId = notificationService.createNotification(familyId, title, message, "NORMAL");
+        Long notificationId = notificationService.createNotification(familyId, title, message, "ACTIVITY");
 
         // 2. 모든 보호자에게 전송
         for (Supporter caregiver : caregivers) {
