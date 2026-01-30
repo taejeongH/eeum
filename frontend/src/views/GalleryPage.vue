@@ -12,9 +12,13 @@
         <h1 class="text-xl font-bold tracking-tight">가족 갤러리</h1>
       </div>
       <div class="flex items-center gap-1">
-        <button @click="openDatePicker" class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
-          <span class="material-symbols-outlined">calendar_today</span>
-        </button>
+        <EeumDatePicker v-model="selectedDateProxy">
+          <template #trigger>
+            <button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
+              <span class="material-symbols-outlined">calendar_today</span>
+            </button>
+          </template>
+        </EeumDatePicker>
         <button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
           <span class="material-symbols-outlined">tune</span>
         </button>
@@ -118,7 +122,6 @@
       <span v-else class="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
     </button>
     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload" />
-    <input type="date" ref="dateInput" class="hidden" @change="handleDateSelect" />
     
     <BottomNav />
   </div>
@@ -131,6 +134,7 @@ import BottomNav from '@/components/layout/BottomNav.vue';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { getPhotos, uploadFile } from '@/services/albumService';
+import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -145,8 +149,20 @@ const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 const photos = ref([]);
 const fileInput = ref(null);
-const dateInput = ref(null);
 const isUploading = ref(false);
+
+const selectedDateProxy = computed({
+    get: () => '',
+    set: (date) => {
+        if (date) {
+            router.push({ 
+                name: 'AlbumPage', 
+                params: { id: 'all' },
+                query: { date } 
+            });
+        }
+    }
+});
 
 const recentPhotos = computed(() => {
     if (!photos.value || photos.value.length === 0) return [];
@@ -283,28 +299,6 @@ const navigateToAlbum = (album) => {
 
 const triggerFileInput = () => {
     fileInput.value.click();
-};
-
-const openDatePicker = () => {
-    if (dateInput.value) {
-        if (typeof dateInput.value.showPicker === 'function') {
-            dateInput.value.showPicker();
-        } else {
-            dateInput.value.click();
-        }
-    }
-};
-
-const handleDateSelect = (event) => {
-    const date = event.target.value;
-    if (date) {
-        router.push({ 
-            name: 'AlbumPage', 
-            params: { id: 'all' },
-            query: { date } 
-        });
-    }
-    event.target.value = ''; 
 };
 
 const handleFileUpload = async (event) => {
