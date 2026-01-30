@@ -157,6 +157,11 @@ const routes = [
     name: 'DetailSchedule',
     component: () => import('../views/DetailSchedule.vue'),
   },
+  {
+    path: '/emergency',
+    name: 'Emergency',
+    redirect: '/home',
+  },
 ];
 
 const router = createRouter({
