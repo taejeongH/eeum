@@ -32,6 +32,11 @@ public class FallEvent extends BaseEntity {
     @Column(name = "status_type", nullable = false)
     private StatusType statusType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "video_status", nullable = false)
+    @Builder.Default
+    private VideoStatus videoStatus = VideoStatus.NONE;
+
     @Column(name = "stt_content", columnDefinition = "TEXT")
     private String sttContent;
 
@@ -40,6 +45,14 @@ public class FallEvent extends BaseEntity {
 
     public enum StatusType {
         UNDER_REVIEW, EMERGENCY, SAFE, RESOLVED
+    }
+
+    public enum VideoStatus {
+        NONE, PENDING, SUCCESS
+    }
+
+    public void updateVideoStatus(VideoStatus videoStatus) {
+        this.videoStatus = videoStatus;
     }
 
     public void updateToEmergency(String sttContent) {
