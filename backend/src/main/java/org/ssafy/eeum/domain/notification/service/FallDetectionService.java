@@ -35,7 +35,8 @@ public class FallDetectionService {
 
         List<CaregiverInfo> caregivers = supporterRepository.findAllByFamily(family).stream()
                 .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
-                .sorted(Comparator.comparingInt(s -> s.getEmergencyPriority() != null ? s.getEmergencyPriority() : 999))
+                .filter(s -> s.getEmergencyPriority() != null && s.getEmergencyPriority() >= 1 && s.getEmergencyPriority() <= 3)
+                .sorted(Comparator.comparingInt(s -> s.getEmergencyPriority()))
                 .map(s -> new CaregiverInfo(s.getUser().getId(), s.getUser().getName())) // Extract needed data eagerly
                 .collect(Collectors.toList());
 
