@@ -127,17 +127,12 @@
 
       <!-- Address Modal -->
       <Teleport to="body">
-        <div v-if="showAddressModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <!-- Backdrop -->
-          <div 
-            class="absolute inset-0 bg-black/60 backdrop-blur-sm" 
-            @click="showAddressModal = false" 
-            @touchmove.prevent
-          ></div>
-
+        <div v-if="showAddressModal" class="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-sm" @click="showAddressModal = false">
+          
+          <div class="flex min-h-full items-center justify-center p-4">
           <!-- Modal Panel -->
           <div 
-            class="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] pointer-events-auto" 
+            class="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col min-h-[500px] pointer-events-auto" 
             role="dialog" 
             aria-modal="true"
             @click.stop
@@ -158,6 +153,7 @@
             <div id="postcode-layer" ref="addressApiWrapper" class="w-full bg-white overflow-y-auto h-[500px]">
               <!-- Daum Postcode will be embedded here -->
             </div>
+          </div>
           </div>
         </div>
       </Teleport>

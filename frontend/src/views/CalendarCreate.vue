@@ -56,10 +56,13 @@
     
     <BottomNav />
 
-    <!-- Modal Overlay -->
-    <div class="fixed inset-0 z-[60] flex items-end">
-      <div class="absolute inset-0 modal-overlay" @click="$router.back()"></div>
-      <div class="relative w-full modal-content bg-white max-h-[92vh] overflow-y-auto shadow-2xl animate-slide-up">
+    <!-- Modal Overlay: Wrapper Scroll Pattern for Safety -->
+    <div class="fixed inset-0 z-[60] overflow-y-auto" v-if="true">
+      <div class="flex min-h-full items-end justify-center"> <!-- items-end positions it at bottom like a sheet -->
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="$router.back()"></div> <!-- Backdrop fixed behind card -->
+        
+        <!-- Card: Natural height, safe from viewport shrinking -->
+        <div class="relative w-full bg-white shadow-2xl animate-slide-up rounded-t-[2.5rem] z-10 overflow-hidden">
         <div class="flex justify-center pt-4 pb-2">
           <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
         </div>
@@ -149,6 +152,7 @@
         </div>
         <div class="h-8"></div>
       </div>
+    </div>
     </div>
   </div>
 </template>

@@ -11,7 +11,7 @@
     <div
       v-if="show"
       ref="sheet"
-      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y"
+      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y min-h-[300px] max-h-[90vh] overflow-y-auto"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
