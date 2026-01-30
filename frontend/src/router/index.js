@@ -2,7 +2,6 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import MyProfileView from '../views/MyProfileView.vue';
 import HomePage from '../views/HomePage.vue';
 import VoiceRegistration from '../views/VoiceRegistration.vue';
-import EmergencyAlert from '../views/EmergencyAlert.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue';
@@ -134,11 +133,6 @@ const routes = [
     component: VoiceRegistration,
   },
   {
-    path: '/emergency',
-    name: 'EmergencyAlert',
-    component: EmergencyAlert,
-  },
-  {
     path: '/families/:familyId/calendar',
     name: 'CalendarPage',
     component: () => import('../views/CalendarPage.vue'),
@@ -162,16 +156,6 @@ const routes = [
     path: '/families/:familyId/calendar/detail',
     name: 'DetailSchedule',
     component: () => import('../views/DetailSchedule.vue'),
-  },
-  {
-    path: '/ememergency',
-    name: 'EmemergencyTest',
-    component: EmergencyAlert,
-  },
-  {
-    path: '/families/:familyId/emergency',
-    name: 'EmergencyDetail',
-    component: EmergencyAlert,
   },
 ];
 
