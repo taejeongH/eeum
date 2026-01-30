@@ -66,8 +66,4 @@ public class FallEvent extends BaseEntity {
         this.sttContent = sttContent;
         this.resolvedAt = LocalDateTime.now();
     }
-
-    public void updateVideoStatus(VideoStatus status) {
-        this.videoStatus = status;
-    }
 }
