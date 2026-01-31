@@ -47,6 +47,11 @@ const routes = [
     component: () => import('../views/SignupView.vue')
   },
   {
+    path: '/find-account',
+    name: 'FindAccount',
+    component: () => import('../views/FindAccountPage.vue')
+  },
+  {
     path: '/logout',
     name: 'logout',
     component: () => import('../views/LogoutView.vue')
