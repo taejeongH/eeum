@@ -219,8 +219,8 @@
             <div class="mb-4">
               <div class="relative">
                 <textarea
-                  v-model="newMessage.content"
-                  @input="updateCharCount"
+                  :value="newMessage.content"
+                  @input="handleInput"
                   placeholder="따뜻한 메시지를 적어보세요!"
                   class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
                   rows="4"
@@ -512,6 +512,11 @@ const closeMessageModal = () => {
   newMessage.value = { content: '', enableTTS: true }
   charCount.value = 0
   if (messageSheet.value) messageSheet.value.style.transform = ''
+}
+
+const handleInput = (e) => {
+  newMessage.value.content = e.target.value
+  updateCharCount()
 }
 
 const updateCharCount = () => {
