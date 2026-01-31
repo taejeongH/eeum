@@ -31,6 +31,8 @@ public class AuthService {
 
     private static final String AUTH_CODE_PREFIX = "AuthCode:";
     private static final String AUTH_VERIFIED_PREFIX = "AuthVerified:";
+    private static final String PW_RESET_CODE_PREFIX = "PWResetCode:";
+    private static final String PW_RESET_VERIFIED_PREFIX = "PWResetVerified:";
     private static final String DEFAULT_PROFILE_IMAGE = "profile/taejeon_default_image.png";
 
     @Transactional
@@ -81,6 +83,71 @@ public class AuthService {
 
     private String generateRandomCode() {
         return String.valueOf((int) (Math.random() * 900000) + 100000);
+    }
+
+    @Transactional(readOnly = true)
+    public String findEmail(String name, String phone) {
+        // 이름과 휴대폰 번호로 사용자 찾기
+        java.util.List<User> users = userRepository.findByNameAndPhone(name, phone);
+        if (users.isEmpty()) {
+            throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
+        }
+        
+        // 첫 번째 사용자의 이메일 반환 (마스킹 처리)
+        // 예: test@example.com -> te**@example.com
+        String email = users.get(0).getEmail();
+        return maskEmail(email);
+    }
+
+    @Transactional
+    public void sendPasswordResetCode(String email) {
+        // 가입된 이메일인지 확인
+        if (userRepository.findByEmail(email).isEmpty()) {
+            throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
+        }
+
+        String code = generateRandomCode();
+        redisTemplate.opsForValue().set(PW_RESET_CODE_PREFIX + email, code, 3, TimeUnit.MINUTES);
+        emailService.sendVerificationCode(email, code); // 기존 이메일 발송 메서드 재사용
+    }
+
+    @Transactional
+    public void verifyPasswordResetCode(String email, String code) {
+        String storedCode = redisTemplate.opsForValue().get(PW_RESET_CODE_PREFIX + email);
+        if (storedCode == null || !storedCode.equals(code)) {
+            throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
+        }
+        redisTemplate.delete(PW_RESET_CODE_PREFIX + email);
+        redisTemplate.opsForValue().set(PW_RESET_VERIFIED_PREFIX + email, "true", 30, TimeUnit.MINUTES);
+    }
+
+    @Transactional
+    public void resetPassword(String email, String newPassword) {
+        // 인증 여부 확인
+        String isVerified = redisTemplate.opsForValue().get(PW_RESET_VERIFIED_PREFIX + email);
+        if (isVerified == null || !"true".equals(isVerified)) {
+            throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED); // 재사용. 의미상 맞음
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+        user.updatePassword(passwordEncoder.encode(newPassword)); // User 엔티티에 메서드 추가 필요
+        redisTemplate.delete(PW_RESET_VERIFIED_PREFIX + email);
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        int atIndex = email.indexOf("@");
+        if (atIndex <= 2) return email; // 너무 짧으면 그대로
+
+        String id = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+        
+        if(id.length() > 2) {
+            return id.substring(0, 2) + "**" + domain;
+        }
+        return id + "**" + domain;
     }
 
     private static final String RT_PREFIX = "RT:";
