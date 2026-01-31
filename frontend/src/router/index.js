@@ -163,6 +163,11 @@ const routes = [
     name: 'DetailSchedule',
     component: () => import('../views/DetailSchedule.vue'),
   },
+  {
+    path: '/families/:familyId/health-report',
+    name: 'HealthReport',
+    component: () => import('../views/HealthReportView.vue'),
+  },
 ];
 
 const router = createRouter({
