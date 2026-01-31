@@ -89,7 +89,7 @@
             <span class="ml-2 eeum-sub">로그인 유지</span>
           </label>
           <button type="button" class="text-sm font-medium" style="color: var(--color-primary);" @click="handleForgotPassword">
-            비밀번호 찾기
+            계정/비밀번호 찾기
           </button>
         </div>
 
@@ -204,7 +204,7 @@ const handleLogin = async () => {
 }
 
 const handleForgotPassword = () => {
-  errorMessage.value = '비밀번호 찾기 기능은 현재 UI만 제공됩니다.'
+  router.push('/find-account')
 }
 
 const handleSignup = () => {

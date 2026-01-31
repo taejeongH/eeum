@@ -60,5 +60,27 @@ export const logout = () => {
   return apiClient.post('/auth/logout');
 };
 
+// Account Recovery APIs
+export const findEmail = (data) => {
+  // data: { name, phone }
+  return apiClient.post('/auth/find/email', data);
+};
+
+export const sendPasswordResetCode = (email) => {
+  return apiClient.post('/auth/password/code', { email });
+};
+
+export const verifyPasswordResetCode = (email, code) => {
+  return apiClient.post('/auth/password/verify', { email, code });
+};
+
+export const resetPassword = (email, newPassword) => {
+  return apiClient.post('/auth/password/reset', { email, newPassword });
+};
+
+export const login = (credentials) => {
+  return apiClient.post('/auth/login', credentials);
+};
+
 export default apiClient;
 
