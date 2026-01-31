@@ -28,9 +28,6 @@ public class HealthMetric extends BaseEntity {
 
     private Integer steps;
 
-    @Column(name = "floors_climbed")
-    private Integer floorsClimbed;
-
     @Column(name = "resting_heart_rate")
     private Integer restingHeartRate;
 
@@ -64,8 +61,11 @@ public class HealthMetric extends BaseEntity {
     @Column(name = "diastolic_pressure")
     private Integer diastolicPressure;
 
-    @Column(name = "body_temperature")
-    private Double bodyTemperature;
+    @Column(name = "active_calories")
+    private Integer activeCalories;
+
+    @Column(name = "active_minutes")
+    private Integer activeMinutes;
 
     // 심박수가 위험인지 판단하는 기준
     public boolean isHeartRateWarning() {

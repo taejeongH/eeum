@@ -33,9 +33,30 @@ public class HealthController {
         @GetMapping("/report")
         public RestApiResponse<HealthReportResponseDTO> getDailyReport(
                         @RequestParam Integer groupId,
-                        @RequestParam LocalDate date) {
+                        @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date) {
 
                 HealthReportResponseDTO response = healthReportService.getDailyReport(groupId, date);
+                return RestApiResponse.success(response);
+        }
+
+        @SwaggerApiSpec(summary = "건강 리포트 직접 분석 요청", description = "GMS를 호출하여 건강 데이터를 다시 분석하고 리포트를 생성합니다.", successMessage = "리포트 분석 및 생성 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND })
+        @PostMapping("/analyze")
+        public RestApiResponse<HealthReportResponseDTO> analyzeReport(
+                        @RequestParam Integer groupId,
+                        @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date) {
+
+                HealthReportResponseDTO response = healthReportService.reanalyzeDailyReport(groupId, date);
+                return RestApiResponse.success(response);
+        }
+
+        @SwaggerApiSpec(summary = "최신 건강 지표 조회", description = "가족 그룹 내 피부양자의 가장 최신 건강 데이터를 조회합니다.", successMessage = "최신 건강 지표 조회 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND })
+        @GetMapping("/latest")
+        public RestApiResponse<org.ssafy.eeum.domain.health.entity.HealthMetric> getLatestMetrics(
+                        @RequestParam Integer groupId) {
+                org.ssafy.eeum.domain.health.entity.HealthMetric response = healthService
+                                .getPatientLatestMetrics(groupId);
                 return RestApiResponse.success(response);
         }
 
@@ -43,6 +64,7 @@ public class HealthController {
                         ErrorCode.ENTITY_NOT_FOUND, ErrorCode.INVALID_INPUT_VALUE, ErrorCode.INTERNAL_SERVER_ERROR })
         @PostMapping("/data")
         public RestApiResponse<String> uploadMetrics(
+                        @org.springframework.security.core.annotation.AuthenticationPrincipal org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails,
                         @RequestParam Integer groupId,
                         @Valid @RequestBody List<HealthMetricRequestDTO> requests) {
 
