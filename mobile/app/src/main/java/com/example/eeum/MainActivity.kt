@@ -343,10 +343,10 @@ fun WebViewScreen(
                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 }
                 // 로컬 개발 환경용
-                // loadUrl("http://10.0.2.2:5173")
+                 loadUrl("http://10.0.2.2:5173")
 
                 // 배포 서버용
-                loadUrl("https://i14a105.p.ssafy.io")
+                //loadUrl("https://i14a105.p.ssafy.io")
             }
         }
     )
