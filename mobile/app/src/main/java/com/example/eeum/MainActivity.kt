@@ -41,7 +41,9 @@ import com.google.firebase.messaging.FirebaseMessaging
 // ====== MainActivity ======
 class MainActivity : ComponentActivity() {
 
+    // ====== Samsung Health SDK Start ======
     private lateinit var healthManager: SamsungHealthManager // 브릿지 주입
+    // ====== Samsung Health SDK End ======
     // FCM 토큰 저장 변수
     private var fcmToken: String = ""
     // 알림 ID 저장 변수
@@ -114,7 +116,9 @@ class MainActivity : ComponentActivity() {
         }
 
         Log.d("SHD_DEBUG", "앱이 시작되었습니다!")
+        // ====== Samsung Health SDK Start ======
         healthManager = SamsungHealthManager(this) // 매니저 초기화
+        // ====== Samsung Health SDK End ======
 
         //webvie 디버깅 활성화
         WebView.setWebContentsDebuggingEnabled(true)
@@ -180,16 +184,53 @@ class HealthJsBridge(
     // SharedPreferences 초기화
     private val prefs = activity.getSharedPreferences("auth_prefs", android.content.Context.MODE_PRIVATE)
 
-    @JavascriptInterface
-    fun fetchHeartRate() {
-        activity.lifecycleScope.launch {
-            val data = healthManager.getLatestHeartRate()
-            val arg = data ?: "null"
-            webView.post {
-                webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+        // ====== Samsung Health SDK Start ======
+        @JavascriptInterface
+        fun fetchHeartRate() {
+            activity.lifecycleScope.launch {
+                // 1. 권한 체크 먼저 수행
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                    Log.d("SHD_DEBUG", "권한 미획득 상태. 권한 요청 다이얼로그가 떴을 것입니다.")
+                    return@launch
+                }
+
+                // 2. 권한이 있다면 데이터 조회
+                val data = healthManager.getLatestHeartRate()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+                }
             }
         }
-    }
+        // ====== Samsung Health SDK End ======
+
+        @JavascriptInterface
+        fun fetchSteps() {
+            activity.lifecycleScope.launch {
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                   return@launch
+                }
+                val data = healthManager.getTodaySteps()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveSteps('$arg')", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun fetchSleep() {
+            activity.lifecycleScope.launch {
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                   return@launch
+                }
+                val data = healthManager.getSleepData()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveSleep('$arg')", null)
+                }
+            }
+        }
 
     @JavascriptInterface
     fun getFcmToken(): String {
@@ -342,11 +383,12 @@ fun WebViewScreen(
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 }
+
                 // 로컬 개발 환경용
-                 loadUrl("http://10.0.2.2:5173")
+                //loadUrl("http://10.0.2.2:5173")
 
                 // 배포 서버용
-                //loadUrl("https://i14a105.p.ssafy.io")
+                loadUrl("https://i14a105.p.ssafy.io")
             }
         }
     )
