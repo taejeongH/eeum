@@ -5,8 +5,10 @@ import api from '@/services/api';
 export const useFamilyStore = defineStore('family', () => {
   const families = ref([]);
   const selectedFamily = ref(null);
+  const isLoading = ref(false);
 
   async function fetchFamilies() {
+    isLoading.value = true;
     try {
       const response = await api.get('/families');
       families.value = response.data;
@@ -40,6 +42,8 @@ export const useFamilyStore = defineStore('family', () => {
     } catch (error) {
       console.error('Failed to fetch families:', error);
       families.value = [];
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -52,6 +56,15 @@ export const useFamilyStore = defineStore('family', () => {
     }
   }
 
+  function selectFamilyById(familyId) {
+    if (!familyId) return;
+    const family = families.value.find(f => String(f.id) === String(familyId));
+    if (family) {
+      selectFamily(family);
+      console.log('familyStore: Switched to family:', familyId);
+    }
+  }
+
   function clearFamily() {
     selectedFamily.value = null;
     families.value = [];
@@ -61,8 +74,10 @@ export const useFamilyStore = defineStore('family', () => {
   return {
     families,
     selectedFamily,
+    isLoading,
     fetchFamilies,
     selectFamily,
+    selectFamilyById,
     clearFamily
   };
 });

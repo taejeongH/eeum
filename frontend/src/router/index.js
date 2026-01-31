@@ -79,6 +79,11 @@ const routes = [
     name: 'FamilyMessages',
     component: MessageListView,
   },
+  {
+    path: '/families/:familyId/notifications',
+    name: 'NotificationList',
+    component: () => import('../views/NotificationListView.vue'),
+  },
 
   {
     path: '/groups/:familyId/edit',

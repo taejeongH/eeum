@@ -47,8 +47,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Handling data message - Title: $title, Body: $body, Type: $type, Route: $route")
         
         val notificationId = data["notificationId"]
+        val familyId = data["familyId"]
         
-        sendNotification(title, body, type, notificationId, route)
+        // 포그라운드 상태에서 수신 시 즉시 WebView에 전달
+        if (notificationId != null) {
+            MainActivity.emitNotification(notificationId, type, familyId)
+        }
+        
+        sendNotification(title, body, type, notificationId, route, familyId)
     }
 
     private fun sendRegistrationToServer(token: String) {
@@ -56,15 +62,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Send token to server: $token")
     }
 
-    private fun sendNotification(title: String, body: String, type: String, notificationId: String? = null, route: String? = null) {
+    private fun sendNotification(title: String, body: String, type: String, notificationId: String? = null, route: String? = null, familyId: String? = null) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         
         if (notificationId != null) {
             intent.putExtra("notificationId", notificationId)
         }
+        intent.putExtra("type", type)
         if (route != null) {
             intent.putExtra("route", route)
+        }
+        if (familyId != null) {
+            intent.putExtra("familyId", familyId)
         }
         
         val pendingIntent = PendingIntent.getActivity(

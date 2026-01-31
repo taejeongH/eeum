@@ -3,11 +3,16 @@ import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from './stores/user'
 import { useEmergencyStore } from './stores/emergency'
+import { useFamilyStore } from './stores/family'
+import { useNotificationStore } from './stores/notification'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
 import GlobalEmergencyModal from '@/components/common/GlobalEmergencyModal.vue'
+import GlobalNotificationModal from '@/components/common/GlobalNotificationModal.vue'
 
 const userStore = useUserStore()
 const emergencyStore = useEmergencyStore()
+const familyStore = useFamilyStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 
 // 5. [NEW] Android FCM Token 연동 (Retry Logic 추가)
@@ -45,11 +50,12 @@ const syncFcmToken = async (retryCount = 0) => {
     setTimeout(() => syncFcmToken(retryCount + 1), 1000);
 };
 
-// [NEW] 로그인 성공 시 FCM 토큰 동기화 트리거
-watch(() => userStore.isAuthenticated, (isAuth) => {
+// [NEW] 로그인 성공 시 FCM 토큰 동기화 및 멤버 정보 트리거
+watch(() => userStore.isAuthenticated, async (isAuth) => {
   if (isAuth) {
-    console.log("FCM: User authenticated, triggering sync...");
+    console.log("FCM: User authenticated, triggering sync and data fetch...");
     syncFcmToken();
+    await familyStore.fetchFamilies();
   }
 });
 
@@ -70,8 +76,6 @@ window.onFcmTokenReceived = (fcmToken) => {
       if (route.includes('/emergency')) {
         console.log("FCM: Emergency detected, opening modal...");
         emergencyStore.open();
-        // 홈으로 이동하여 모달이 홈 위에서 보이게 함
-        router.push('/home');
         return;
       }
       
@@ -120,6 +124,9 @@ onMounted(async () => {
           try {
               await userStore.fetchUser();
               console.log("✅ 유저 정보 로드 완료");
+              await familyStore.fetchFamilies();
+              console.log("✅ 가족 정보 로드 완료");
+              
               // 유효한 토큰이면 홈으로 이동 (로그인 페이지에 갇히지 않도록)
               if (router.currentRoute.value.path === '/login' || router.currentRoute.value.path === '/') {
                   router.replace('/home');
@@ -143,6 +150,7 @@ onMounted(async () => {
                   
                   // 유저 정보 로드 시도
                   await userStore.fetchUser();
+                  await familyStore.fetchFamilies();
                   
                   // 🎉 복구 성공 시 홈으로 이동
                   router.replace('/home');
@@ -166,13 +174,14 @@ onMounted(async () => {
   const checkNotificationFromNative = async (retryCount = 0) => {
     if (window.AndroidBridge && window.AndroidBridge.consumeNotificationId) {
       try {
-        const notificationId = window.AndroidBridge.consumeNotificationId();
-        if (notificationId) {
-           console.log("✅ Consumed Notification ID from Native:", notificationId);
+        const data = window.AndroidBridge.consumeNotificationId();
+        if (data) {
+           console.log("✅ Consumed Notification Data from Native:", data);
+           const [id, type, familyId] = data.split('|');
            
            // onNativeNotification 호출하여 통합 처리
            if (window.onNativeNotification) {
-               window.onNativeNotification(notificationId);
+               window.onNativeNotification(id, type, familyId);
            }
         } else {
 
@@ -199,100 +208,77 @@ onMounted(async () => {
   };
 
   // 8. [NEW] Native -> Notification Push 방식 지원
-  window.onNativeNotification = (notificationId) => {
+  window.onNativeNotification = async (notificationId, type, familyId) => {
+      if (!notificationId) return;
+
+      console.log('FCM: Received ID:', notificationId, 'Type:', type, 'FamilyId:', familyId);
       
-      if (notificationId) {
-          console.log('onNativeNotification called with ID:', notificationId);
+      try {
+          // 1. 필수 데이터 선행 로드 (가족 정보가 없으면 로딩 대기)
+          if (familyStore.families.length === 0) {
+              console.log('FCM: Families not loaded, fetching first...');
+              await familyStore.fetchFamilies();
+          }
+
+          // 2. 알림에 해당하는 가족으로 자동 전환
+          if (familyId && familyStore.selectFamilyById) {
+              familyStore.selectFamilyById(familyId);
+          }
           
-          // 백그라운드에서 알림 정보 가져오기 및 처리
-          (async () => {
-             try {
-                 // 토큰 확인 & 복구
-                 let token = localStorage.getItem('accessToken');
-                 if (!token) {
-                     if (window.AndroidBridge && window.AndroidBridge.getAccessToken) {
-                         token = window.AndroidBridge.getAccessToken();
-                         if (token && token !== "null" && token.length > 0) {
-                             localStorage.setItem('accessToken', token);
-                         }
-                     }
-                 }
+          const currentFamilyId = familyStore.selectedFamily?.id;
 
-                 // 유저 정보 확인 & 로드
-                 if (!userStore.profile) {
-                     await userStore.fetchUser();
-                 }
-                 
-                 const currentUserId = userStore.profile?.id;
+          // 3. 유형별 UI 동작 분기 (그룹 전환 후 수행)
+          if (type === 'EMERGENCY' || type === 'FALL') {
+              console.log('FCM: Emergency detected, opening modal...');
+              emergencyStore.open({
+                  groupName: familyStore.selectedFamily?.groupName || '우리 가족',
+                  dependentName: '피부양자',
+                  type: 'FALL',
+                  location: null
+              });
+          } else if (['ACTIVITY', 'OUTING', 'RETURN'].includes(type)) {
+              console.log('FCM: Activity detected, opening notification modal...');
+              
+              // [User Request] 활동/외출 알림 시 현재 화면 위에 모달 표시
+              notificationStore.openModal({
+                  type: type,
+                  groupName: familyStore.selectedFamily?.groupName || '우리 가족',
+                  dependentName: '피부양자', // 실제 데이터가 있다면 개선 가능
+                  message: type === 'OUTING' ? '외출이 감지되었습니다.' : (type === 'RETURN' ? '귀가가 확인되었습니다.' : '활동이 감지되었습니다.')
+              });
+          }
+          
+          // 4. 백그라운드 데이터 처리 (읽음 처리 및 목록 새로고침)
+          let token = localStorage.getItem('accessToken');
+          if (!token && window.AndroidBridge?.getAccessToken) {
+              token = window.AndroidBridge.getAccessToken();
+              if (token && token !== "null") localStorage.setItem('accessToken', token);
+          }
 
-                 if (currentUserId) {
-                     const { default: api } = await import('@/services/api');
-                     
-                     // 알림 정보 가져오기
-                     const notificationResponse = await api.get(`/notifications/${notificationId}`);
-                     const notificationInfo = notificationResponse.data;
-                     
-                     console.log('Notification info:', notificationInfo);
-                     
-                     // 해당 familyId의 그룹 선택
-                     if (notificationInfo.familyId) {
-                         const { useFamilyStore } = await import('@/stores/family');
-                         const familyStore = useFamilyStore();
-                         
-                         // 패밀리 목록 가져오기
-                         await familyStore.fetchFamilies();
-                         
-                         // 해당 familyId의 그룹 찾아서 선택
-                         const targetFamily = familyStore.families.find(f => f.id === notificationInfo.familyId);
-                         if (targetFamily) {
-                             familyStore.selectFamily(targetFamily);
-                             console.log('Selected family:', targetFamily.name);
-                         }
-                     }
-                     
-                     // Emergency modal 열기
-                     emergencyStore.open({
-                         groupName: '우리 가족',
-                         dependentName: '피부양자',
-                         type: 'FALL',
-                         location: null
-                     });
-                     
-                     // 홈으로 이동
-                     router.push('/home');
-                     
-                     // 알림 읽음 처리
-                     await api.post('/notifications/read', {
-                         notificationId: Number(notificationId),
-                         userId: currentUserId
-                     });
-                     
-                     console.log('Notification marked as read:', notificationId);
-                 } else {
-                     console.warn('User not authenticated, skipping notification read');
-                     
-                     // 인증 실패해도 모달은 열기
-                     emergencyStore.open({
-                         groupName: '우리 가족',
-                         dependentName: '피부양자',
-                         type: 'FALL',
-                         location: null
-                     });
-                     router.push('/home');
-                 }
-             } catch(e) {
-                 console.error('Error in onNativeNotification:', e);
-                 
-                 // 에러 발생해도 모달은 열기
-                 emergencyStore.open({
-                     groupName: '우리 가족',
-                     dependentName: '피부양자',
-                     type: 'FALL',
-                     location: null
-                 });
-                 router.push('/home');
-             }
-          })();
+          if (!userStore.profile) await userStore.fetchUser();
+          const currentUserId = userStore.profile?.id;
+
+          if (currentUserId) {
+              const { default: api } = await import('@/services/api');
+              
+              // 알림 읽음 처리
+              try {
+                  await api.post('/notifications/read', {
+                      notificationId: Number(notificationId),
+                      userId: currentUserId
+                  });
+              } catch (e) {
+                  console.warn('FCM: Mark as read failed', e.message);
+              }
+              
+              // 실시간 목록 업데이트 (최신 데이터 보장)
+              if (currentFamilyId) {
+                  await notificationStore.fetchHistory(currentFamilyId, notificationId);
+                  console.log('FCM: History refreshed for family:', currentFamilyId);
+              }
+          }
+      } catch (e) {
+          console.error('FCM: Error in onNativeNotification processing:', e);
       }
   };
 
@@ -307,6 +293,7 @@ onMounted(async () => {
     <router-view />
     <GlobalConfirmModal />
     <GlobalEmergencyModal />
+    <GlobalNotificationModal />
   </div>
 </template>
 

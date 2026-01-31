@@ -76,6 +76,10 @@ public class NotificationController {
     public ResponseEntity<List<NotificationHistoryResponseDto>> getNotificationHistory(
             @org.springframework.web.bind.annotation.PathVariable Integer familyId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            log.warn("Unauthorized access attempt to notification history for familyId: {}", familyId);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
+        }
         Integer userId = userDetails.getId();
         log.info("Fetching notification history for familyId: {}, userId: {}", familyId, userId);
         java.util.List<NotificationHistoryResponseDto> history = notificationService.getNotificationHistory(familyId, userId);

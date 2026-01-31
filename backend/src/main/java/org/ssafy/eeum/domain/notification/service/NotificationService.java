@@ -40,7 +40,7 @@ public class NotificationService {
     @Transactional
     public Long createNotification(Integer familyId, String title, String message, String type) {
         Family family = familyRepository.findById(familyId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
         Notification notification = Notification.builder()
                 .family(family)
@@ -56,7 +56,7 @@ public class NotificationService {
     @Transactional
     public void sendNotification(Long notificationId, Integer targetUserId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
 
         User user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -84,7 +84,7 @@ public class NotificationService {
             
             log.info("FCM Debug: Calculated Route: '{}'", route);
             
-            fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route);
+            fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route, familyId);
             delivery.updateSentAt();
         }
     }
@@ -93,13 +93,13 @@ public class NotificationService {
     public void markAsRead(Long notificationId, Integer userId) {
         log.info("Processing markAsRead: NotificationID={}, UserID={}", notificationId, userId);
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)); // TODO: Add Notification Not Found error
+                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         NotificationDelivery delivery = notificationDeliveryRepository.findByUserAndNotification(user, notification)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)); // TODO: Delivery Not Found
+                .orElseThrow(() -> new CustomException(ErrorCode.DELIVERY_NOT_FOUND));
         
         log.info("Found Delivery: ID={}, Current IsRead={}", delivery.getId(), delivery.isRead());
 
