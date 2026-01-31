@@ -1,10 +1,13 @@
 import asyncio
 import subprocess
 import time
+import logging
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from .sh import async_sh
 from .config import STA_IFACE
+
+logger = logging.getLogger(__name__)
 
 # -------- dataclass --------
 @dataclass
@@ -164,6 +167,7 @@ async def async_scan_wifi_wlan0() -> List[Dict[str, object]]:
     정책: rescan -> list 번들 실행
     연타/중복 호출 방지를 위해 짧은 TTL 캐시를 적용
     """
+    logger.debug("[wifi] scan start iface=%s", STA_IFACE)
     global _last_scan_ts, _last_scan_result
 
     now = time.monotonic()
@@ -190,7 +194,7 @@ async def async_scan_wifi_wlan0() -> List[Dict[str, object]]:
     )
 
     aps = _parse_wifi_list_text(r.stdout or "")
-
+    logger.debug("[wifi] scan done count=%d", len(aps))
     _last_scan_result = aps
     _last_scan_ts = time.monotonic()
     return aps
@@ -257,6 +261,7 @@ async def async_provision_connect_wlan0(ssid: str, password: str) -> ProvisionRe
       - up 시도
     """
     try:
+        logger.info("[wifi] provision start ssid=%s", ssid)
         await async_ensure_profile_named_as_ssid(ssid)
         await async_set_profile_password(ssid, password)
 
@@ -269,7 +274,7 @@ async def async_provision_connect_wlan0(ssid: str, password: str) -> ProvisionRe
                 pass
 
             return ProvisionResult(ok=False, message=_nmcli_err_to_message(e), new_profile=ssid)
-
+        logger.info("[wifi] provision ok ssid=%s", ssid)
         return ProvisionResult(ok=True, message="connected", new_profile=ssid)
 
     except Exception as e:

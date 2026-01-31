@@ -33,9 +33,25 @@ public class FallDetectionService {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
+        String groupName = family.getGroupName();
+        
+        // Find PATIENT from supporters
+        String dependentName = supporterRepository.findAllByFamily(family).stream()
+                .filter(s -> s.getRole() == Supporter.Role.PATIENT)
+                .findFirst()
+                .map(s -> s.getUser().getName())
+                .orElse("피부양자");
+                
+        String title = groupName + " - " + dependentName;
+        String body = dependentName + "님에게 낙상이 감지되었습니다!";
+        
+        log.info("Handling Fall Detection: FamilyID={}, Group={}, Dependent={}", 
+                familyId, groupName, dependentName);
+
         List<CaregiverInfo> caregivers = supporterRepository.findAllByFamily(family).stream()
                 .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
-                .sorted(Comparator.comparingInt(s -> s.getEmergencyPriority() != null ? s.getEmergencyPriority() : 999))
+                .filter(s -> s.getEmergencyPriority() != null && s.getEmergencyPriority() >= 1 && s.getEmergencyPriority() <= 3)
+                .sorted(Comparator.comparingInt(s -> s.getEmergencyPriority()))
                 .map(s -> new CaregiverInfo(s.getUser().getId(), s.getUser().getName())) // Extract needed data eagerly
                 .collect(Collectors.toList());
 
@@ -45,7 +61,7 @@ public class FallDetectionService {
         }
 
         // 1. 알림 기록 생성 (한 번만)
-        Long notificationId = notificationService.createNotification(familyId, "낙상 감지!", message, "EMERGENCY");
+        Long notificationId = notificationService.createNotification(familyId, title, body, "EMERGENCY");
 
         // 2. 단계적 알림 프로세스 시작
         notifyCaregiver(caregivers, 0, notificationId);

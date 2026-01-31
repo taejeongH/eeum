@@ -3,6 +3,7 @@ import json
 import ssl
 import time
 import uuid
+import logging
 from queue import Queue
 from typing import Callable,Optional,Dict,Any,List,Tuple
 import paho.mqtt.client as mqtt
@@ -14,6 +15,8 @@ from .config import (
     CLIENT_ID,
     SUB_TOPICS
 )
+
+logger = logging.getLogger(__name__)
 
 class TTLCache:
     def __init__(self, ttl_seconds: int = 120, max_size: int = 5000):
@@ -61,7 +64,7 @@ class MqttClient:
 
     def __init__(
             self,
-            inbound_queue: "Queue[Tuple[str, Dict[str, Any]]]",
+            inbound_queue: "asyncio.Queue[Tuple[str, Dict[str, Any]]]",
             loop: asyncio.AbstractEventLoop,
             broker:str = SERVER_HOST,
             port:int = SERVER_PORT,
@@ -169,8 +172,12 @@ class MqttClient:
         """현재 token 기준으로 online 상태 발행 (재연결/토큰 갱신 시 호출)"""
         if self.token is None:
             return
-        payload = self._make_online_payload()
-        self.publish_json(self.status_topic, payload, qos=1, retain=retain)
+        try:
+            payload = self._make_online_payload()
+            self.publish_json(self.status_topic, payload, qos=1, retain=retain)
+        except Exception:
+            # 콜백 안정성 우선
+            logger.exception("[mqtt] publish_online failed")
 
     def publish_event(self, payload: dict) -> str:
         payload.setdefault("detected_at", time.time())
@@ -213,10 +220,9 @@ class MqttClient:
     # ---------- callbacks ----------
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         self._connected = (reason_code == 0)
-        print("[mqtt] connected:", reason_code)
+        logger.info("[mqtt] connected rc=%s", reason_code)
 
         if not self._active:
-            print("[mqtt] not active -> disconnect")
             client.disconnect()
             return
 
@@ -225,13 +231,13 @@ class MqttClient:
 
             for t in self.subscribe_topics:
                 client.subscribe(t, qos=1)
-                print("[mqtt] subscribed:", t)
+                logger.debug("[mqtt] subscribed: %s", t)
         else:
-            print("[mqtt] connect failed:", reason_code)
+            logger.info("[mqtt] connect failed rc: %s", reason_code)
 
     def _on_disconnect(self, client, userdata, reason_code, properties=None, *args):
         self._connected = False
-        print("[mqtt] disconnected:", reason_code)
+        logger.info("[mqtt] disconnected rc=%s", reason_code)
 
     def _on_message(self, client, userdata, msg):
         if not self.loop.is_running():
@@ -239,18 +245,18 @@ class MqttClient:
         try:
             payload = json.loads(msg.payload.decode("utf-8"))
         except Exception as e:
-            print("[mqtt] bad json:", e, "topic:", msg.topic)
+            logger.warning("[mqtt] bad json topic=%s", msg.topic, exc_info=True)
             return
 
         # QoS1 중복 대비 (옵션)
         if self.dedupe is not None:
             msg_id = payload.get("msg_id")
             if msg_id and self.dedupe.seen(msg_id):
-                print("[mqtt] duplicate drop:", msg_id, "topic:", msg.topic)
+                logger.debug("[mqtt] duplicate drop msg_id=%s topic=%s", msg_id, msg.topic)
                 return
  
         item = (msg.topic, payload)
         try:
             self.loop.call_soon_threadsafe(self.inbound_queue.put_nowait, item)
         except Exception as e:
-            print("[mqtt] enqueue failed:", e)
+            logger.warning("[mqtt] enqueue failed", exc_info=True)

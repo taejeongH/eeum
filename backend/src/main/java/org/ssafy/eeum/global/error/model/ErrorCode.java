@@ -42,7 +42,11 @@ public enum ErrorCode {
     IOT_DEVICE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT002", "기기에 할당된 그룹 정보를 찾을 수 없습니다."),
     IOT_INVALID_PAIRING_CODE(HttpStatus.NOT_FOUND, "IOT003", "유효하지 않거나 만료된 페어링 코드입니다."),
     IOT_UNREGISTERED_SERIAL_NUMBER(HttpStatus.NOT_FOUND, "IOT004", "등록되지 않은 기기 시리얼 번호입니다."),
-    IOT_MASTER_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT005", "마스터 기기 정보가 등록 목록에 없거나 찾을 수 없습니다.");
+    IOT_MASTER_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT005", "마스터 기기 정보가 등록 목록에 없거나 찾을 수 없습니다."),
+
+    // 알림 관련 에러 코드
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI001", "알림 정보를 찾을 수 없습니다."),
+    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI002", "알림 수신 정보를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

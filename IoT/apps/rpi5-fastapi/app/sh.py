@@ -1,7 +1,10 @@
 import asyncio
 import subprocess
+import logging
 from dataclasses import dataclass
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class CmdResult:
@@ -16,7 +19,7 @@ async def async_sh(
         debug: bool=False
 ) -> CmdResult:
     if debug:
-        print(">", " ".join(cmd))
+        logger.debug("> %s", " ".join(cmd))
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
@@ -35,6 +38,7 @@ async def async_sh(
         await proc.wait()
         raise
     except asyncio.TimeoutError:
+        logger.warning("[sh] timeout cmd=%s", cmd, exc_info=True)
         try:
             proc.kill()
         except ProcessLookupError:

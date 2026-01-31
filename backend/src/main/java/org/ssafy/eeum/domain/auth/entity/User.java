@@ -94,9 +94,14 @@ public class User {
         if (email != null && !email.isEmpty()) {
             this.email = email;
         }
-        if ((this.profileImage == null || this.profileImage.isEmpty()) && profileImage != null && !profileImage.isEmpty()) {
+        if (profileImage != null && !profileImage.isEmpty()) {
             this.profileImage = profileImage;
         }
+    }
+
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address,

@@ -1,6 +1,8 @@
 import asyncio
 import uvicorn
-from app.config import AP_IFACE, HOST, PORT, DEVICE_PATH, DEFAULT_DEVICE
+import os
+import logging
+from app.config import AP_IFACE, HOST, PORT, DEVICE_PATH, DEFAULT_DEVICE, STA_IFACE
 from app.ap_manager import async_ap_up, async_get_ipv4_addr
 from app.state import MonitorState
 from app.api import create_app
@@ -15,7 +17,17 @@ from app.json_store import JsonStateStore
 from app.device_store import DeviceStore
 from app.mqtt_client import MqttClient
 
+def setup_logging():
+    level = os.getenv("LOG_LEVEL", "INFO").upper()
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+
+logger = logging.getLogger(__name__)
+
 async def async_main():
+    logger.info("[BOOT] start host=%s port=%s ap=%s sta=%s", HOST, PORT, AP_IFACE, STA_IFACE)
     last_err = None
     for i in range(3):
         try:
@@ -24,15 +36,15 @@ async def async_main():
             break
         except Exception as e:
             last_err = e
-            print(f"[AP] ap_up failed (try {i+1}/3): {e}")
+            logger.warning("[AP] ap_up failed (try %d/3): %s", i+1, e)
             await asyncio.sleep(1.0)
     
     if last_err is not None:
-        print(f"[AP] ap_up ultimately failed: {last_err}")
+        logger.error("[AP] ap_up ultimately failed: %s", last_err)
     
     await asyncio.sleep(1.0)
     ap_ip = await async_get_ipv4_addr(AP_IFACE)
-    print(f"[AP] iface={AP_IFACE}, ip={ap_ip}")
+    logger.info("[AP] iface=%s, ip=%s", AP_IFACE, ap_ip)
     
     state = MonitorState()
     raw_store = JsonStateStore(DEVICE_PATH, default=DEFAULT_DEVICE)
@@ -44,6 +56,7 @@ async def async_main():
     
     token = state.device_store.get_token()
     if token:
+        logger.info("[MQTT] enabled")
         state.mqtt = MqttClient(
             inbound_queue=state.mqtt_inbound,
             loop=state.loop,
@@ -52,6 +65,7 @@ async def async_main():
         )
         state.mqtt.activate()
     else:
+        logger.info("[MQTT] disabled (no token)")
         state.mqtt = None
     consumer_task = asyncio.create_task(consume_events(state))
     mqtt_in_task = asyncio.create_task(consume_mqtt_inbound(state))
@@ -62,8 +76,10 @@ async def async_main():
     wifi_active_task = asyncio.create_task(wifi_active_loop(state, interval_sec=1.0))
     wifi_scan_task = asyncio.create_task(wifi_scan_loop(state, interval_sec=3.0, ui_recent_sec=10.0))
     try:
+        logger.info("[HTTP] server starting")
         await server.serve()
     finally:
+        logger.info("[SHUTDOWN] begin")
         state.shutting_down = True
         if state.mqtt:
             state.mqtt.deactivate()
@@ -81,12 +97,17 @@ async def async_main():
             t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         state.tasks.clear()
+        logger.info("[SHUTDOWN] done")
 
 def main():
+    setup_logging()
     try:
         asyncio.run(async_main())
     except KeyboardInterrupt:
         pass
+    except Exception:
+        logger.exception("[FATAL] unexpected error")
+        raise
 
 if __name__ == "__main__":
     main()

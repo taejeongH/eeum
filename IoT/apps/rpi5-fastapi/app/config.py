@@ -6,9 +6,9 @@ STA_IFACE = "wlan0"
 VISION_IP = "10.10.0.2"
 SERVER_HOST = "i14a105.p.ssafy.io"
 SERVER_PORT = 8888
+CLIENT_ID = "EEUM-R105"
 USERNAME = "eeum_device"
 PASSWORD = "OJhsnNN1+YuREJ53zcdehVavQu1jsxG+"
-CLIENT_ID = "EEUM_R105"
 PUB_TOPIC = {
     "no_motion": "eeum/event",
     "absence": "eeum/event",
@@ -18,7 +18,7 @@ PUB_TOPIC = {
     "online": "eeum/status",
     "offline": "eeum/status"
 }
-SUB_TOPICS = ["eeum/device/EEUM_R105/update", "eeum/device/EEUM_R105/alarm"]
+SUB_TOPICS = ["eeum/device/EEUM-R105/update", "eeum/device/EEUM-R105/alarm"]
 
 DEFAULT_DEVICE = {
     "devices": {
@@ -33,10 +33,11 @@ DEFAULT_DEVICE = {
                 "last_seen_ts": None
             }}
     },
+    "USERNAME": None,
+    "PASSWORD": None,
     "token": None,
     "device_id": "EEUM-R105",
     "type": "main",
-    "group_id": None,
     "updated_at": None
 }
 DEVICE_PATH = "./device.json"

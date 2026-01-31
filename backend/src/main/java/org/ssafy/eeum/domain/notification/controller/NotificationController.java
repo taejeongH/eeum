@@ -8,10 +8,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.ssafy.eeum.domain.notification.dto.NotificationHistoryResponseDto;
 import org.ssafy.eeum.domain.notification.dto.NotificationTestRequestDto;
 import org.ssafy.eeum.domain.notification.service.NotificationService;
 
+import org.ssafy.eeum.global.auth.model.CustomUserDetails;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 @Tag(name = "notifications", description = "알림 관리")
 @RestController
@@ -66,9 +71,26 @@ public class NotificationController {
         return ResponseEntity.ok("IoT 이벤트가 발생했습니다 (" + requestDto.getType() + "). 서버 로그와 알림을 확인하세요.");
     }
 
+    @Operation(summary = "그룹 알림 이력 조회", description = "특정 그룹의 모든 알림을 조회합니다. 읽음/안읽음 상태 포함.")
+    @org.springframework.web.bind.annotation.GetMapping("/families/{familyId}/history")
+    public ResponseEntity<List<NotificationHistoryResponseDto>> getNotificationHistory(
+            @org.springframework.web.bind.annotation.PathVariable Integer familyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            log.warn("Unauthorized access attempt to notification history for familyId: {}", familyId);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
+        }
+        Integer userId = userDetails.getId();
+        log.info("Fetching notification history for familyId: {}, userId: {}", familyId, userId);
+        java.util.List<NotificationHistoryResponseDto> history = notificationService.getNotificationHistory(familyId, userId);
+        return ResponseEntity.ok(history);
+    }
+
     // DTO 내부 클래스 (간편함을 위해)
     @lombok.Data
     public static class IotTestRequestDto {
         private String type; // "OUTING" or "RETURN"
     }
+
+
 }

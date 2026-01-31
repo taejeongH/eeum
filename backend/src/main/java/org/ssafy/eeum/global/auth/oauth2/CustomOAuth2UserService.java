@@ -74,15 +74,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // 기존 사용자
             user = socialAccount.getUser();
 
-            // 기존 사용자는 프로필 이미지를 절대 업데이트하지 않음 (사용자 설정 우선)
-            // 따라서 S3 업로드 로직을 제거하고 null을 전달하여 updateFromKakao가 무시하게 함
-            String profileImage = null;
-            log.info("Existing User Found. ID: {}. Preserving existing profile image.", user.getId());
+            // 프로필 이미지가 없거나 외부 URL인 경우 S3 업로드 시도 (마이그레이션 로직)
+            String currentProfileImage = user.getProfileImage();
+            if ((currentProfileImage == null || currentProfileImage.startsWith("http")) && kakaoProfileUrl != null) {
+                log.info("Migrating profile image to S3 for existing user ID: {}", user.getId());
+                String newS3Key = s3Service.uploadImageFromUrl(kakaoProfileUrl, "profile");
+                if (newS3Key != null) {
+                    currentProfileImage = newS3Key;
+                }
+            }
 
-            // 정보 업데이트 (User.java 내부 로직에 의해 null이 아닌 필드는 유지됨)
-            user.updateFromKakao(nickname, email, profileImage);
+            // 정보 업데이트 (S3 키 또는 null이 전달됨)
+            user.updateFromKakao(nickname, email, currentProfileImage);
             userRepository.save(user);
-            log.info("Existing user updated (metadata only): {}", user.getId());
+            log.info("Existing user updated and migrated: {}", user.getId());
         } else {
             // 신규 사용자
             log.info("New User Detected. Processing Kakao profile...");

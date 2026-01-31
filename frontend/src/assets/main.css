@@ -13,6 +13,13 @@
   --color-primary-light: #ec856b;
   --color-primary-soft: #fde8e3;
 
+  /* Emergency Color */
+  --color-emergency: #dc2626;
+  --color-emergency-dark: #b91c1c;
+  --color-emergency-light: #ef4444;
+  --color-emergency-soft: #fee2e2;
+  --color-emergency-bg: #fef2f2;
+
   /* Text */
   --text-title: #111827;
   /* gray-900 */

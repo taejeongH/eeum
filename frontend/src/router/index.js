@@ -2,7 +2,6 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import MyProfileView from '../views/MyProfileView.vue';
 import HomePage from '../views/HomePage.vue';
 import VoiceRegistration from '../views/VoiceRegistration.vue';
-import EmergencyAlert from '../views/EmergencyAlert.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue';
@@ -13,8 +12,10 @@ import GroupSetupStep1 from '../views/group-setup/Step1GroupName.vue';
 import GroupSetupStep2 from '../views/group-setup/Step2HealthInfo.vue';
 import GroupSetupStep3 from '../views/group-setup/Step3EmergencyContact.vue';
 import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
+
 import MedicationListView from '../views/MedicationListView.vue';
 import MedicationDetailView from '../views/MedicationDetailView.vue';
+import HealthDetailView from '../views/HealthDetailView.vue';
 import MessageListView from '../views/MessageList.vue';
 
 import OnboardingView from '../views/Onboarding.vue';
@@ -24,7 +25,11 @@ import { useUserStore } from '@/stores/user';
 const routes = [
   {
     path: '/',
-    redirect: '/onboarding', // 처음 접속 시 온보딩 페이지로 보냄
+    redirect: () => {
+      // 토큰이 있으면 홈으로, 없으면 온보딩으로
+      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      return token ? '/home' : '/onboarding';
+    }
   },
   {
     path: '/onboarding',
@@ -75,6 +80,11 @@ const routes = [
     path: '/families/:familyId/messages',
     name: 'FamilyMessages',
     component: MessageListView,
+  },
+  {
+    path: '/families/:familyId/notifications',
+    name: 'NotificationList',
+    component: () => import('../views/NotificationListView.vue'),
   },
 
   {
@@ -134,11 +144,6 @@ const routes = [
     component: VoiceRegistration,
   },
   {
-    path: '/emergency',
-    name: 'EmergencyAlert',
-    component: EmergencyAlert,
-  },
-  {
     path: '/families/:familyId/calendar',
     name: 'CalendarPage',
     component: () => import('../views/CalendarPage.vue'),
@@ -167,6 +172,14 @@ const routes = [
     path: '/families/:familyId/health-report',
     name: 'HealthReport',
     component: () => import('../views/HealthReportView.vue'),
+    path: '/health-detail',
+    name: 'HealthDetail',
+    component: HealthDetailView,
+  },
+  {
+    path: '/emergency',
+    name: 'Emergency',
+    redirect: '/home',
   },
 ];
 

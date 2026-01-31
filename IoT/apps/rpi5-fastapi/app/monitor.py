@@ -1,5 +1,6 @@
 import asyncio
 import time
+import logging
 from .state import MonitorState, Event
 from .wifi_manager import (
     async_get_active_on_wlan0,
@@ -7,6 +8,7 @@ from .wifi_manager import (
     async_list_wifi_profiles_wlan0,
 )
 
+logger = logging.getLogger(__name__)
 DEBUG_DIV = 30
 PIR_ABSENCE_SEC = 2 * 60 * 60 / DEBUG_DIV        # 2h
 VISION_EXIT_ABSENCE_SEC = 60 * 60 / DEBUG_DIV    # 1h
@@ -50,6 +52,7 @@ def _set_present(state: MonitorState, ev: Event) -> None:
     
     if not state.occupancy_present:
         state.occupancy_since_ts = ts
+        logger.info("[OCCUPANCY] absent -> present at=%s", ts)
     state.occupancy_present = True
     state.occupancy_dev = dev
     state.occupancy_kind = kind
@@ -75,15 +78,18 @@ def _set_absent(state: MonitorState, device_id: str, detected_at: float, reason:
     state.occupancy_dev = device_id
     
     # MQTT Publish Event
-    print(f"[OCCUPANCY] absent reason={reason} at {evaluated_at}")
+    logger.info("[OCCUPANCY] present -> absent reason=%s at=%s", reason, evaluated_at)
     if state.mqtt:
-        state.mqtt.publish_event({
-            "kind": kind,
-            "serial_number": device_id,
-            "event": "absence" if kind == "vision" else "no_motion",
-            "started_at": detected_at,
-            "detected_at": evaluated_at
-        })
+        try:
+            state.mqtt.publish_event({
+                "kind": kind,
+                "serial_number": device_id,
+                "event": "absence" if kind == "vision" else "no_motion",
+                "started_at": detected_at,
+                "detected_at": evaluated_at
+            })
+        except Exception:
+            logger.exception("[OCCUPANCY] mqtt publish failed")
 
 async def pir_absence_timer(state: MonitorState, device_id: str, base_ts: float) -> None:
     try:
@@ -101,7 +107,8 @@ async def pir_absence_timer(state: MonitorState, device_id: str, base_ts: float)
     except asyncio.CancelledError:
         raise
     except Exception:
-        pass
+        logger.exception("[pir_absence_timer] unexpected error")
+
     
 async def vision_exit_absence_timer(state: MonitorState, device_id: str, base_ts: float) -> None:
     try:
@@ -119,7 +126,7 @@ async def vision_exit_absence_timer(state: MonitorState, device_id: str, base_ts
     except asyncio.CancelledError:
         raise
     except Exception:
-        pass
+        logger.exception("[vision_exit_absence_timer] unexpected error")
 
 def handle_pir_motion(state: MonitorState, ev: Event) -> None:
     ts = ev.detected_at
@@ -129,6 +136,33 @@ def handle_pir_motion(state: MonitorState, ev: Event) -> None:
 
     if not state.vision_active:
         start_task(state, "pir_no_motion", pir_absence_timer(state, dev, base_ts=ts))
+
+async def response_timer(state: MonitorState, device_id: str, base_ts: float) -> None:
+    try:
+        await asyncio.sleep(20)
+        ts = time.time()
+
+        if not state.mqtt:
+            return
+
+        try:
+            state.mqtt.publish_response({
+                "serial_number": state.device_store.get_device_id(),
+                "event": "response",
+                "stt_content": "괜찮다 괜찮아",
+                "detected_at": ts,
+                "token": state.device_store.get_token(),
+            })
+            logger.info("[RESPONSE] published device=%s at=%s", device_id, ts)
+        except Exception:
+            logger.exception("[RESPONSE] mqtt publish failed")
+            return
+
+    except asyncio.CancelledError:
+        logger.debug("[RESPONSE] cancelled device=%s base_ts=%s", device_id, base_ts)
+        raise
+    except Exception:
+        logger.exception("[RESPONSE] unexpected error")
 
 def handle_vision(state: MonitorState, ev: Event) -> None:
     ts = ev.detected_at
@@ -152,7 +186,7 @@ def handle_vision(state: MonitorState, ev: Event) -> None:
         start_task(state, "vision_exit_absence", vision_exit_absence_timer(state, dev, base_ts=ts))
         return
 
-    if v_ev == "fall":
+    if v_ev == "fall_detected":
         state.fall_active = True
         state.fall_stage = "ASK_TTS"
         state.fall_started_ts = ts
@@ -160,19 +194,14 @@ def handle_vision(state: MonitorState, ev: Event) -> None:
         state.fall_device = ev.device_id
         state.fall_level = int(data.get("level") or 1)
         _set_present(state, ev)
-        print(f"[FALL] triggered level={state.fall_level} from {ev.device_id} at {ts}")
+        logger.info("[FALL] triggered level=%s device=%s at=%s", state.fall_level, ev.device_id, ts)
         """
         tts -> stt 로직 추가 이후 MQTT 로직 (테스트는 임의로)
         """
-        if state.mqtt:
-            state.mqtt.publish_response({
-                "serial_number": state.device_store.get_device_id(),
-                "event": "response",
-                "stt_content": "아이고야",
-                "detected_at": ts,
-                "token": state.device_store.get_token()
-            })
-        return
+        logger.info("[fall_detected] stage IDLE -> TTS")
+        logger.info("[fall_detected] stage TTS -> STT")
+        start_task(state, "response", response_timer(state, dev, base_ts=ts))
+
 
 # ---------------- Wi-Fi refresh ----------------
 
@@ -183,6 +212,7 @@ async def refresh_wifi_active(state: MonitorState) -> None:
     except asyncio.CancelledError:
         raise
     except Exception:
+        logger.exception("[refresh_wifi_active] unexpected error")
         pass
 
 async def refresh_wifi_cache(state: MonitorState) -> None:
@@ -199,19 +229,22 @@ async def refresh_wifi_cache(state: MonitorState) -> None:
         except asyncio.CancelledError:
             raise
         except Exception:
-            pass
+            logger.exception("[refresh_wifi_cache] unexpected error")
 
 async def wifi_active_loop(state: MonitorState, interval_sec: float = 1.0) -> None:
     try:
+        logger.info("[wifi_active_loop] started interval=%s", interval_sec)
         while True:
             if getattr(state, "shutting_down", False):
                 return
             await refresh_wifi_active(state)
             await asyncio.sleep(interval_sec)
     except asyncio.CancelledError:
+        logger.info("[wifi_active_loop] cancelled")
         raise
     except Exception:
-        pass
+        logger.exception("[wifi_active_loop] unexpected error")
+        raise
 
 async def wifi_scan_loop(
     state: MonitorState,
@@ -222,6 +255,7 @@ async def wifi_scan_loop(
     UI가 wifi 설정 화면을 보고 있을 때만 scan/profiles 갱신
     """
     try:
+        logger.info("[wifi_scan_loop] started interval=%s", interval_sec)
         while True:
             if getattr(state, "shutting_down", False):
                 return
@@ -230,6 +264,9 @@ async def wifi_scan_loop(
                 await refresh_wifi_cache(state)
             await asyncio.sleep(interval_sec)
     except asyncio.CancelledError:
+        logger.info("[wifi_scan_loop] cancelled")
         raise
     except Exception:
-        pass
+        logger.exception("[wifi_scan_loop] unexpected error")
+        await asyncio.sleep(1.0)
+        return

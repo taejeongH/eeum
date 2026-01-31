@@ -29,8 +29,10 @@ import com.example.eeum.ui.theme.EeumTheme
 // State Delegation Imports
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+// [NEW] 뒤로가기 처리를 위한 import
+import androidx.activity.compose.BackHandler
 
-//Firebase 사용을 위해 필요한 import들
+// Firebase 사용을 위해 필요한 import들
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -39,14 +41,20 @@ import com.google.firebase.messaging.FirebaseMessaging
 // ====== MainActivity ======
 class MainActivity : ComponentActivity() {
 
+    // ====== Samsung Health SDK Start ======
     private lateinit var healthManager: SamsungHealthManager // 브릿지 주입
+    // ====== Samsung Health SDK End ======
     // FCM 토큰 저장 변수
     private var fcmToken: String = ""
     // 알림 ID 저장 변수
     @Volatile
     private var pendingNotificationId: String? = null
+    @Volatile
+    private var pendingNotificationType: String? = null
+    @Volatile
+    private var pendingFamilyId: String? = null
     
-    // 알림 이벤트를 WebView로 전달하기 위한 Flow
+    // 알림 이벤트를 WebView로 전달하기 위한 Flow (ID와 Type을 조합해서 전달)
     val notificationEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
 
     // 파일 업로드 콜백
@@ -60,43 +68,57 @@ class MainActivity : ComponentActivity() {
         filePathCallback = null
     }
 
+    companion object {
+        private var instance: MainActivity? = null
+        
+        fun emitNotification(notificationId: String, type: String? = "NORMAL", familyId: String? = "") {
+            instance?.let { activity ->
+                activity.lifecycleScope.launch {
+                    activity.notificationEvent.emit("$notificationId|$type|$familyId")
+                }
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         val notiId = intent.getStringExtra("notificationId")
+        val type = intent.getStringExtra("type") ?: "NORMAL"
+        val familyId = intent.getStringExtra("familyId") ?: ""
         if (notiId != null) {
             pendingNotificationId = notiId
-            Log.d("FCM", "onNewIntent: Received Notification ID: $notiId")
-            // android.widget.Toast.makeText(this, "NewIntent ID: $notiId", android.widget.Toast.LENGTH_LONG).show()
-            
-            // WebView로 이벤트 전달
-            lifecycleScope.launch {
-                notificationEvent.emit(notiId)
-            }
+            pendingNotificationType = type
+            pendingFamilyId = familyId
+            Log.d("FCM", "onNewIntent: Received Notification ID: $notiId, Type: $type, FamilyId: $familyId")
+            emitNotification(notiId, type, familyId)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
 
         pendingNotificationId = intent.getStringExtra("notificationId")
-        Log.d("FCM", "onCreate: Pending Notification ID: $pendingNotificationId")
+        pendingNotificationType = intent.getStringExtra("type") ?: "NORMAL"
+        pendingFamilyId = intent.getStringExtra("familyId") ?: ""
+
+        Log.d("FCM", "onCreate: Pending Notification ID: $pendingNotificationId, Type: $pendingNotificationType")
         if (pendingNotificationId != null) {
-            // android.widget.Toast.makeText(this, "Create ID: $pendingNotificationId", android.widget.Toast.LENGTH_LONG).show()
-            // onCreate 시점에는 WebView가 아직 없을 수 있으므로, WebViewScreen 내부에서 초기값 확인 로직(bridge)과 함께 동작하거나
-            // 약간의 딜레이 후 emit 시도 (Flow는 구독자가 없으면 유실될 수 있음 -> replay=1로 변경 고려하거나 bridge polling 병행)
-            // 여기서는 JS Bridge Polling이 초기값은 처리하므로, 여기서는 emit 생략 가능하지만 안전하게 emit 시도
              lifecycleScope.launch {
                  // 약간의 지연을 주어 WebView 로딩 시간을 범
                  kotlinx.coroutines.delay(1000)
                  if (pendingNotificationId != null) {
-                     notificationEvent.emit(pendingNotificationId!!)
+                     // 새 형식(ID|TYPE|FAMILY_ID)에 맞춰 emit
+                     notificationEvent.emit("${pendingNotificationId!!}|${pendingNotificationType ?: "NORMAL"}|${pendingFamilyId ?: ""}")
                  }
             }
         }
 
         Log.d("SHD_DEBUG", "앱이 시작되었습니다!")
+        // ====== Samsung Health SDK Start ======
         healthManager = SamsungHealthManager(this) // 매니저 초기화
+        // ====== Samsung Health SDK End ======
 
         //webvie 디버깅 활성화
         WebView.setWebContentsDebuggingEnabled(true)
@@ -124,8 +146,14 @@ class MainActivity : ComponentActivity() {
                     tokenProvider = { fcmToken }, // 토큰 제공 람다 전달
                     notificationIdProvider = { 
                         val id = pendingNotificationId
+                        val type = pendingNotificationType ?: "NORMAL"
+                        val familyId = pendingFamilyId ?: ""
+                        
                         pendingNotificationId = null // Consume it
-                        id
+                        pendingNotificationType = null
+                        pendingFamilyId = null
+                        
+                        if (id != null) "$id|$type|$familyId" else null
                     },
                     notificationEvent = notificationEvent, // Flow 전달
                     onShowFileChooser = { callback ->
@@ -156,16 +184,53 @@ class HealthJsBridge(
     // SharedPreferences 초기화
     private val prefs = activity.getSharedPreferences("auth_prefs", android.content.Context.MODE_PRIVATE)
 
-    @JavascriptInterface
-    fun fetchHeartRate() {
-        activity.lifecycleScope.launch {
-            val data = healthManager.getLatestHeartRate()
-            val arg = data ?: "null"
-            webView.post {
-                webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+        // ====== Samsung Health SDK Start ======
+        @JavascriptInterface
+        fun fetchHeartRate() {
+            activity.lifecycleScope.launch {
+                // 1. 권한 체크 먼저 수행
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                    Log.d("SHD_DEBUG", "권한 미획득 상태. 권한 요청 다이얼로그가 떴을 것입니다.")
+                    return@launch
+                }
+
+                // 2. 권한이 있다면 데이터 조회
+                val data = healthManager.getLatestHeartRate()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+                }
             }
         }
-    }
+        // ====== Samsung Health SDK End ======
+
+        @JavascriptInterface
+        fun fetchSteps() {
+            activity.lifecycleScope.launch {
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                   return@launch
+                }
+                val data = healthManager.getTodaySteps()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveSteps('$arg')", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun fetchSleep() {
+            activity.lifecycleScope.launch {
+                if (!healthManager.checkAndRequestPermissions(activity)) {
+                   return@launch
+                }
+                val data = healthManager.getSleepData()
+                val arg = data ?: "null"
+                webView.post {
+                    webView.evaluateJavascript("window.onReceiveSleep('$arg')", null)
+                }
+            }
+        }
 
     @JavascriptInterface
     fun getFcmToken(): String {
@@ -212,11 +277,24 @@ fun WebViewScreen(
     // WebView 변수 참조를 위해 remember 사용
     var webViewRef by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<WebView?>(null) }
     
+    // [NEW] 하드웨어 뒤로가기 버튼 처리
+    BackHandler(enabled = true) {
+        if (webViewRef?.canGoBack() == true) {
+            webViewRef?.goBack()
+        } else {
+            activity.finish()
+        }
+    }
+    
     // Flow 수집 및 JS 호출
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        notificationEvent.collect { notiId ->
-            Log.d("WebViewScreen", "Pushing Notification ID to JS: $notiId")
-            webViewRef?.evaluateJavascript("javascript:if(window.onNativeNotification){window.onNativeNotification('$notiId')}", null)
+        notificationEvent.collect { eventData ->
+            val parts = eventData.split("|")
+            val notiId = parts.getOrNull(0) ?: ""
+            val type = parts.getOrNull(1) ?: "NORMAL"
+            val familyId = parts.getOrNull(2) ?: ""
+            Log.d("WebViewScreen", "Pushing Notification to JS - ID: $notiId, Type: $type, FamilyId: $familyId")
+            webViewRef?.evaluateJavascript("javascript:if(window.onNativeNotification){window.onNativeNotification('$notiId', '$type', '$familyId')}", null)
         }
     }
 
@@ -305,8 +383,13 @@ fun WebViewScreen(
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 }
+
                 // 로컬 개발 환경용
+<<<<<<< HEAD
                  loadUrl("http://10.0.2.2:5173")
+=======
+                //loadUrl("http://10.0.2.2:5173")
+>>>>>>> develop
 
                 // 배포 서버용
 //                loadUrl("https://i14a105.p.ssafy.io")

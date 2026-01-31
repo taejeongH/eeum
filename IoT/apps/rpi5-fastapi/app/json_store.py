@@ -1,8 +1,11 @@
 import json
 import os
 import time
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 def load_json(path: str | Path, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     path = Path(path)

@@ -164,18 +164,8 @@ public class MqttService {
                 return;
             }
 
-            // 기기에서 'id' 또는 'msg_id' 중 하나를 식별자로 보낼 수 있으므로 둘 다 확인
-            String deviceEventId = node.path("id").asText();
-            if (deviceEventId.isEmpty()) {
-                deviceEventId = msgId;
-            }
-
-            if (deviceEventId != null && !deviceEventId.isEmpty()) {
-                log.info("Linking voice response to event: serial={}, deviceEventId={}", serialNumber, deviceEventId);
-                sensorEventService.linkVoiceResponseToEvent(serialNumber, deviceEventId, sttContent);
-            } else {
-                log.warn("Missing event identifier (id or msg_id) in MQTT response");
-            }
+            // 직접 FallEventService 호출 (가족 그룹 내 최신 낙상 이벤트 처리)
+            fallEventService.handleVoiceResponse(groupId, sttContent);
 
             log.info("Successfully Processed Voice Response Core: MsgId={}, Family={}, SN={}, DetectedAt={}",
                     msgId, groupId, serialNumber, detectedAt);

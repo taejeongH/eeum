@@ -1,6 +1,9 @@
 # device_store.py
 import asyncio
+import logging
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 class DeviceStore:
     """
@@ -33,9 +36,11 @@ class DeviceStore:
     def get_online(self, device_id: str) -> Optional[bool]:
         kind = self.get_kind(device_id)
         if not kind:
+            logger.warning("[DeviceStore] unknown kind of sensor=%s", kind)
             return None
         dev = self.doc().get("devices", {}).get(kind, {}).get(device_id)
         if not dev:
+            logger.warning("[DeviceStore] unknown device_id=%s", device_id)
             return None
         return bool(dev.get("online"))
     
@@ -57,6 +62,7 @@ class DeviceStore:
         kind = self.get_kind(device_id)
         dev = self.doc().get("devices", {}).get(kind, {}).get(device_id)
         if dev is None:
+            logger.warning("[DeviceStore] unknown device_id=%s", device_id)
             return None
         
         dev["last_seen_ts"] = ts
@@ -68,7 +74,7 @@ class DeviceStore:
         kind = self.get_kind(device_id)
         dev = self.doc().get("devices", {}).get(kind, {}).get(device_id)
         if dev == None:
-            print(f"[DeviceStore] unknown device_id={device_id}")
+            logger.warning("[DeviceStore] unknown device_id=%s", device_id)
             return None
         if dev.get("online") is False:
             return False
