@@ -79,19 +79,17 @@
                 <label class="block text-sm font-semibold text-[var(--text-body)] mb-1.5">복용 기간 <span class="text-red-500">*</span></label>
                 <div class="flex items-center gap-3">
                   <div class="flex-1">
-                    <input 
-                      v-model="form.startDate" 
-                      type="date" 
-                      class="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[var(--color-primary)]"
-                    />
+                    <label class="text-xs text-gray-400 mb-1 block">시작일</label>
+                    <EeumDatePicker v-model="form.startDate" placeholder="시작일 선택" />
                   </div>
                   <span class="text-gray-400">~</span>
                   <div class="flex-1 relative">
-                    <input 
+                    <label class="text-xs text-gray-400 mb-1 block">종료일</label>
+                    <EeumDatePicker 
                       v-model="form.endDate" 
-                      type="date" 
+                      placeholder="종료일 선택" 
                       :disabled="form.isLifetime"
-                      class="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[var(--color-primary)] disabled:bg-gray-100 disabled:text-gray-400"
+                      :class="{ 'opacity-50 pointer-events-none': form.isLifetime }"
                     />
                   </div>
                 </div>
@@ -126,11 +124,8 @@
                       <input 
                         v-model="form.notificationTimes[index]" 
                         type="time" 
-                        class="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[var(--color-primary)] transition"
+                        class="eeum-input"
                       />
-                      <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                      </div>
                     </div>
                     <button 
                       v-if="form.notificationTimes.length > 1"
@@ -173,6 +168,7 @@
 <script setup>
 import { reactive, watch } from 'vue';
 import { useModalStore } from '@/stores/modal';
+import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 
 const modalStore = useModalStore();
 

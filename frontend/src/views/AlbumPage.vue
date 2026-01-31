@@ -19,10 +19,13 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <button @click="openDatePicker" class="flex items-center gap-1 text-primary text-base font-bold leading-normal tracking-[0.015em]">
-          <span class="material-symbols-outlined text-lg">calendar_today</span>
-        </button>
-        <input type="date" ref="dateInput" class="hidden" @change="handleDateChangeLocal" />
+        <EeumDatePicker v-model="filterDateLocal">
+          <template #trigger>
+            <button class="flex items-center gap-1 text-primary text-base font-bold leading-normal tracking-[0.015em]">
+              <span class="material-symbols-outlined text-lg">calendar_today</span>
+            </button>
+          </template>
+        </EeumDatePicker>
         <button 
             @click="toggleSelectionMode"
             class="text-primary text-base font-bold leading-normal tracking-[0.015em] shrink-0"
@@ -93,6 +96,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto } from '@/services/albumService';
+import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -100,8 +104,19 @@ const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 const allPhotos = ref([]); // Store all fetched photos
 const photos = ref([]); // Store filtered photos
-const dateInput = ref(null);
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
+
+const filterDateLocal = computed({
+    get: () => route.query.date || '',
+    set: (val) => {
+        router.replace({ 
+            query: { 
+                ...route.query, 
+                date: val 
+            } 
+        });
+    }
+});
 
 // Update title based on query
 const albumTitle = computed(() => {
@@ -156,27 +171,6 @@ const filterPhotos = () => {
     }
 
     photos.value = filtered;
-};
-
-const openDatePicker = () => {
-    if (dateInput.value) {
-        if (typeof dateInput.value.showPicker === 'function') {
-            dateInput.value.showPicker();
-        } else {
-            dateInput.value.click();
-        }
-    }
-};
-
-const handleDateChangeLocal = (event) => {
-    const date = event.target.value;
-    router.replace({ 
-        query: { 
-            ...route.query, 
-            date 
-        } 
-    });
-    // The watch on route.query.uploader needs to be expanded or a new watch added
 };
 
 // Selection State

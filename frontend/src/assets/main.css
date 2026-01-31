@@ -85,6 +85,26 @@
     box-shadow: 0 0 0 2px var(--color-primary-soft);
   }
 
+  /* Date/Time Input Improvements */
+  input[type="date"].eeum-input,
+  input[type="time"].eeum-input {
+    min-height: 52px;
+    background-color: #fff;
+    cursor: pointer;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
   .eeum-btn-primary {
     @apply w-full h-14 font-semibold text-white transition;
     border-radius: var(--radius-xl);

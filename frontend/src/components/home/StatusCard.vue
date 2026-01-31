@@ -24,14 +24,22 @@
           <span class="w-2 h-2 rounded-full bg-green-400 mr-2 shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
           Last checked: 10 mins ago
         </div>
-        <button @click="$router.push({ name: 'HealthDetail' })" class="bg-[#d65a3d] hover:bg-[#c34e32] active:bg-[#b0422a] text-white text-xs font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
+        <button @click="goToReport" class="bg-[#d65a3d] hover:bg-[#c34e32] active:bg-[#b0422a] text-white text-xs font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
           상세 보기
         </button>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router';
+import { useFamilyStore } from '@/stores/family';
+
+const router = useRouter();
+const familyStore = useFamilyStore();
+
+const goToReport = () => {
+    router.push('/health-detail');
+};
 </script>

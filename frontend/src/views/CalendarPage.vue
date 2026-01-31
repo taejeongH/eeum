@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#fcfcfc] text-slate-800 min-h-screen flex flex-col pb-20">
-    <header class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-12 pb-4 transiton-all duration-300">
+    <header class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-6 pb-4 transiton-all duration-300">
       <div class="flex items-center mb-2" :class="isSearchOpen ? 'justify-end' : 'justify-between'">
         <button v-if="!isSearchOpen" @click="$router.push('/home')" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
           <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

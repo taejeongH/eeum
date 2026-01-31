@@ -5,7 +5,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
-      <span class="text-xs font-semibold">Message</span>
+      <span class="text-xs font-semibold">메시지</span>
     </button>
     
     <!-- Gallery -->
@@ -13,7 +13,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
-      <span class="text-xs font-semibold">Gallery</span>
+      <span class="text-xs font-semibold">갤러리</span>
     </button>
 
     <!-- Center Home Button (Floating Effect) -->
@@ -27,7 +27,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       </button>
-      <span class="text-xs font-bold mt-10" :class="activeTab === 'home' ? 'text-[#e76f51]' : 'text-[#8d6e63]'">Home</span>
+      <span class="text-xs font-bold mt-10" :class="activeTab === 'home' ? 'text-[#e76f51]' : 'text-[#8d6e63]'">홈</span>
     </div>
 
     <!-- Calendar -->
@@ -35,7 +35,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
-      <span class="text-xs font-semibold">Calendar</span>
+      <span class="text-xs font-semibold">일정</span>
     </button>
     
     <!-- Menu Dropdown -->
@@ -49,9 +49,19 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
-            <span class="text-[10px] font-bold uppercase tracking-wider">Meds</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">복약</span>
           </button>
           
+          <div class="w-10 h-[1px] bg-orange-50 rounded-full"></div>
+          
+          <button 
+            @click="navigateTo('health')" 
+            class="flex flex-col items-center justify-center gap-1.5 transition-colors text-[#8d6e63] hover:text-[#e76f51] w-full"
+          >
+            <span class="material-symbols-outlined text-3xl">monitor_heart</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">건강</span>
+          </button>
+
           <div class="w-10 h-[1px] bg-orange-50 rounded-full"></div>
           
           <button 
@@ -61,7 +71,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
-            <span class="text-[10px] font-bold uppercase tracking-wider">Voice</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">목소리</span>
           </button>
           
           <div class="w-10 h-[1px] bg-orange-50 rounded-full"></div>
@@ -73,7 +83,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            <span class="text-[10px] font-bold uppercase tracking-wider">Logout</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">로그아웃</span>
           </button>
         </div>
       </transition>
@@ -82,7 +92,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
         </svg>
-        <span class="text-xs font-semibold">Menu</span>
+        <span class="text-xs font-semibold">메뉴</span>
       </button>
     </div>
 
@@ -125,6 +135,12 @@ const updateActiveTab = () => {
         activeTab.value = 'message';
     } else if (route.path.startsWith('/families') && route.path.includes('/medications')) {
         activeTab.value = 'menu';
+    } else if (route.path === '/health-detail') {
+        activeTab.value = 'health';
+    } else if (route.path === '/health-detail') {
+        activeTab.value = 'health';
+    } else if (route.path === '/health-detail') {
+        activeTab.value = 'health';
     } else if (route.path === '/voice-register') {
         activeTab.value = 'menu';
     } else {
@@ -171,6 +187,8 @@ const setActive = (tab) => {
       } else {
           modalStore.openAlert("가족 정보를 찾을 수 없습니다.");
       }
+  } else if (tab === 'health') {
+      router.push('/health-detail');
   } else if (tab !== 'home') {
      // Mock navigation feedback
   }
@@ -194,6 +212,8 @@ const navigateTo = (type) => {
     } else {
       modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
     }
+  } else if (type === 'health') {
+    router.push('/health-detail');
   }
 };
 

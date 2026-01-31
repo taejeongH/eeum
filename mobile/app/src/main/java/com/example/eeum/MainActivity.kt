@@ -188,17 +188,25 @@ class HealthJsBridge(
         @JavascriptInterface
         fun fetchHeartRate() {
             activity.lifecycleScope.launch {
-                // 1. 권한 체크 먼저 수행
-                if (!healthManager.checkAndRequestPermissions(activity)) {
-                    Log.d("SHD_DEBUG", "권한 미획득 상태. 권한 요청 다이얼로그가 떴을 것입니다.")
-                    return@launch
-                }
-
-                // 2. 권한이 있다면 데이터 조회
-                val data = healthManager.getLatestHeartRate()
-                val arg = data ?: "null"
-                webView.post {
-                    webView.evaluateJavascript("window.onReceiveHealthData('$arg')", null)
+                try {
+                    if (!healthManager.hasAllPermissions()) {
+                        healthManager.requestPermissions(activity)
+                        webView.post {
+                            webView.evaluateJavascript("javascript:onReceiveHealthData(null)", null)
+                        }
+                        return@launch
+                    }
+                    val data = healthManager.getAllHealthMetrics()
+                    android.util.Log.d("SHD_DEBUG", "fetchHeartRate 데이터 전달: $data")
+                    webView.post {
+                        val escapedData = data?.replace("\\", "\\\\")?.replace("'", "\\'")
+                        webView.evaluateJavascript("javascript:onReceiveHealthData('$escapedData')", null)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SHD_DEBUG", "fetchHeartRate 에러: ${e.message}", e)
+                    webView.post {
+                        webView.evaluateJavascript("javascript:onReceiveHealthData(null)", null)
+                    }
                 }
             }
         }
@@ -207,13 +215,24 @@ class HealthJsBridge(
         @JavascriptInterface
         fun fetchSteps() {
             activity.lifecycleScope.launch {
-                if (!healthManager.checkAndRequestPermissions(activity)) {
-                   return@launch
-                }
-                val data = healthManager.getTodaySteps()
-                val arg = data ?: "null"
-                webView.post {
-                    webView.evaluateJavascript("window.onReceiveSteps('$arg')", null)
+                try {
+                    if (!healthManager.hasAllPermissions()) {
+                        healthManager.requestPermissions(activity)
+                        webView.post {
+                            webView.evaluateJavascript("javascript:onReceiveSteps(null)", null)
+                        }
+                        return@launch
+                    }
+                    val data = healthManager.getAllHealthMetrics()
+                    webView.post {
+                        val escapedData = data?.replace("\\", "\\\\")?.replace("'", "\\'")
+                        webView.evaluateJavascript("javascript:onReceiveSteps('$escapedData')", null)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SHD_DEBUG", "fetchSteps 에러: ${e.message}", e)
+                    webView.post {
+                        webView.evaluateJavascript("javascript:onReceiveSteps(null)", null)
+                    }
                 }
             }
         }
@@ -221,13 +240,64 @@ class HealthJsBridge(
         @JavascriptInterface
         fun fetchSleep() {
             activity.lifecycleScope.launch {
-                if (!healthManager.checkAndRequestPermissions(activity)) {
-                   return@launch
+                try {
+                    if (!healthManager.hasAllPermissions()) {
+                        healthManager.requestPermissions(activity)
+                        webView.post {
+                            webView.evaluateJavascript("javascript:onReceiveSleep(null)", null)
+                        }
+                        return@launch
+                    }
+                    val data = healthManager.getAllHealthMetrics()
+                    webView.post {
+                        val escapedData = data?.replace("\\", "\\\\")?.replace("'", "\\'")
+                        webView.evaluateJavascript("javascript:onReceiveSleep('$escapedData')", null)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SHD_DEBUG", "fetchSleep 에러: ${e.message}", e)
+                    webView.post {
+                        webView.evaluateJavascript("javascript:onReceiveSleep(null)", null)
+                    }
                 }
-                val data = healthManager.getSleepData()
-                val arg = data ?: "null"
-                webView.post {
-                    webView.evaluateJavascript("window.onReceiveSleep('$arg')", null)
+            }
+        }
+
+        @JavascriptInterface
+        fun fetchAllHealthMetrics() {
+            android.util.Log.d("SHD_DEBUG", "fetchAllHealthMetrics 호출됨")
+            activity.lifecycleScope.launch {
+                try {
+                    // 1. 권한 확인
+                    if (!healthManager.hasAllPermissions()) {
+                        android.util.Log.d("SHD_DEBUG", "권한 없음 - 권한 요청 시작")
+                        healthManager.requestPermissions(activity)
+                        
+                        // 권한 요청 후 사용자에게 다시 시도하도록 안내
+                        webView.post {
+                            webView.evaluateJavascript(
+                                "javascript:if(window.onReceiveAllHealthData){window.onReceiveAllHealthData(null)}",
+                                null
+                            )
+                        }
+                        return@launch
+                    }
+                    
+                    // 2. 권한이 있으면 데이터 가져오기
+                    android.util.Log.d("SHD_DEBUG", "권한 확인됨 - 데이터 조회 시작")
+                    val data = healthManager.getAllHealthMetrics()
+                    android.util.Log.d("SHD_DEBUG", "조회된 데이터: $data")
+                    
+                    webView.post {
+                        // JSON 문자열을 작은따옴표로 감싸서 전달 (이스케이프 처리)
+                        val escapedData = data?.replace("\\", "\\\\")?.replace("'", "\\'")
+                        android.util.Log.d("SHD_DEBUG", "JavaScript로 전달: '$escapedData'")
+                        webView.evaluateJavascript("javascript:onReceiveAllHealthData('$escapedData')", null)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SHD_DEBUG", "fetchAllHealthMetrics 에러: ${e.message}", e)
+                    webView.post {
+                        webView.evaluateJavascript("javascript:onReceiveAllHealthData(null)", null)
+                    }
                 }
             }
         }
@@ -385,7 +455,7 @@ fun WebViewScreen(
                 }
 
                 // 로컬 개발 환경용
-                //loadUrl("http://10.0.2.2:5173")
+//                 loadUrl("http://192.168.35.76:5173")
 
                 // 배포 서버용
                 loadUrl("https://i14a105.p.ssafy.io")

@@ -100,19 +100,19 @@
 
             <div class="grid grid-cols-1 gap-4">
               <div class="bg-white p-4 rounded-2xl ios-shadow space-y-4">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-600 font-medium">시작</span>
-                  <div class="flex gap-2">
-                    <input v-model="formData.startAtDate" type="date" class="bg-slate-100 px-3 py-1.5 rounded-lg text-sm font-semibold border-none" />
-                    <input v-model="formData.startAtTime" type="time" class="bg-slate-100 px-3 py-1.5 rounded-lg text-sm font-semibold border-none" />
+                <div class="flex items-center gap-3">
+                  <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">시작</span>
+                  <div class="flex gap-2 items-center flex-1">
+                    <EeumDatePicker v-model="formData.startAtDate" class="flex-[1.4] min-w-[130px]" />
+                    <input v-model="formData.startAtTime" type="time" class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]" />
                   </div>
                 </div>
-                <div class="h-px bg-slate-100"></div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-600 font-medium">종료</span>
-                  <div class="flex gap-2">
-                    <input v-model="formData.endAtDate" type="date" class="bg-slate-100 px-3 py-1.5 rounded-lg text-sm font-semibold border-none" />
-                    <input v-model="formData.endAtTime" type="time" class="bg-slate-100 px-3 py-1.5 rounded-lg text-sm font-semibold border-none" />
+                <div class="h-px bg-slate-100 ms-11"></div>
+                <div class="flex items-center gap-3">
+                  <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">종료</span>
+                  <div class="flex gap-2 items-center flex-1">
+                    <EeumDatePicker v-model="formData.endAtDate" class="flex-[1.4] min-w-[130px]" />
+                    <input v-model="formData.endAtTime" type="time" class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]" />
                   </div>
                 </div>
               </div>
@@ -126,7 +126,7 @@
                </label>
                <div v-if="isRepeatingYearly" class="ml-1 mt-2">
                   <label class="text-xs text-slate-500 block mb-1">반복 종료일</label>
-                  <input v-model="formData.recurrenceEndAt" type="date" class="bg-white border-none rounded-xl p-3 text-sm ios-shadow w-full">
+                  <EeumDatePicker v-model="formData.recurrenceEndAt" placeholder="종료일 선택" />
                </div>
             </div>
 
@@ -166,6 +166,7 @@ import BottomNav from '@/components/layout/BottomNav.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
+import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 
 const router = useRouter();
 const route = useRoute();

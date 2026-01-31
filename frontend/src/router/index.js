@@ -173,7 +173,8 @@ const routes = [
     name: 'HealthDetail',
     component: HealthDetailView,
   },
-  { path: '/emergency',
+  {
+    path: '/emergency',
     name: 'Emergency',
     redirect: '/home',
   },

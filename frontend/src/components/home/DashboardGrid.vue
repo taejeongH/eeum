@@ -60,7 +60,7 @@ const items = ref([
     route: 'medication' 
   },
   { id: 2, title: 'Activity', desc: '1,200 Steps', bgClass: 'bg-[#e3f2fd]', iconClass: 'text-[#1e88e5]', textClass: 'text-[#e76f51] font-semibold', icon: ActivityIcon },
-  { id: 3, title: 'Vitals', desc: 'Normal', bgClass: 'bg-[#e0f2f1]', iconClass: '', textClass: 'text-gray-800 font-medium', icon: VitalsIcon },
+  { id: 3, title: '건강 체크', desc: '최신 생체 지표 분석', bgClass: 'bg-[#e0f2f1]', iconClass: 'text-[#009688]', textClass: 'text-gray-800 font-medium', icon: VitalsIcon, route: '/health-detail' },
   { id: 4, title: 'Family', desc: '3 members active', bgClass: 'bg-[#f3e5f5]', iconClass: 'text-[#8e24aa]', textClass: 'text-[#e76f51] font-semibold', icon: FamilyIcon },
 ]);
 
@@ -68,16 +68,14 @@ const draggedIndex = ref(null);
 let longPressTimer = null;
 
 const handleCardClick = (item) => {
-  if (item.route === 'medication') {
-    // Get familyId from store
-    const familyId = familyStore.selectedFamily?.id;
-    
-    if (familyId) {
-      router.push(`/families/${familyId}/medications`);
-    } else {
-      console.error('No familyId found in user profile or storage');
+  const familyId = familyStore.selectedFamily?.id;
+  if (!familyId) {
       modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
-    }
+      return;
+  }
+
+  if (item.route === 'medication') {
+    router.push(`/families/${familyId}/medications`);
   } else if (item.route) {
     router.push(item.route);
   }
