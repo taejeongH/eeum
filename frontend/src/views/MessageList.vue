@@ -55,7 +55,7 @@
         </div>
 
         <!-- Patient Profile Section -->
-        <div class="flex flex-col items-center py-4">
+        <div v-if="!familyLoading" class="flex flex-col items-center py-4">
           <div class="relative mb-3">
             <img 
               :src="patientImage || getFullImageUrl(null, 'Family')"
@@ -394,6 +394,7 @@ const familyStore = useFamilyStore()
 
 const messages = ref([])
 const loading = ref(false)
+const familyLoading = ref(true)
 const currentPage = ref(0)
 const totalPages = ref(0)
 const familyId = ref(null)
@@ -636,6 +637,7 @@ const nextPage = () => {
 // 초기화
 const fetchFamilyDetails = async () => {
     if (!familyId.value) return;
+    familyLoading.value = true;
     
     try {
         const res = await familyService.getFamilyDetails(familyId.value);
@@ -652,6 +654,8 @@ const fetchFamilyDetails = async () => {
         }
     } catch (err) {
          console.error('Failed to fetch family details', err);
+    } finally {
+        familyLoading.value = false;
     }
 };
 
