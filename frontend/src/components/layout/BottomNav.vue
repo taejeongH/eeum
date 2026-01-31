@@ -58,7 +58,7 @@
             @click="navigateTo('health')" 
             class="flex flex-col items-center justify-center gap-1.5 transition-colors text-[#8d6e63] hover:text-[#e76f51] w-full"
           >
-            <span class="material-symbols-outlined text-3xl">clinical_notes</span>
+            <span class="material-symbols-outlined text-3xl">monitor_heart</span>
             <span class="text-[10px] font-bold uppercase tracking-wider">건강</span>
           </button>
 
@@ -135,8 +135,12 @@ const updateActiveTab = () => {
         activeTab.value = 'message';
     } else if (route.path.startsWith('/families') && route.path.includes('/medications')) {
         activeTab.value = 'menu';
-    } else if (route.path.startsWith('/families') && route.path.includes('/health-report')) {
-        activeTab.value = 'menu';
+    } else if (route.path === '/health-detail') {
+        activeTab.value = 'health';
+    } else if (route.path === '/health-detail') {
+        activeTab.value = 'health';
+    } else if (route.path === '/health-detail') {
+        activeTab.value = 'health';
     } else if (route.path === '/voice-register') {
         activeTab.value = 'menu';
     } else {
@@ -183,6 +187,8 @@ const setActive = (tab) => {
       } else {
           modalStore.openAlert("가족 정보를 찾을 수 없습니다.");
       }
+  } else if (tab === 'health') {
+      router.push('/health-detail');
   } else if (tab !== 'home') {
      // Mock navigation feedback
   }
@@ -207,12 +213,7 @@ const navigateTo = (type) => {
       modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
     }
   } else if (type === 'health') {
-    const familyId = familyStore.selectedFamily?.id;
-    if (familyId) {
-      router.push(`/families/${familyId}/health-report`);
-    } else {
-      modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
-    }
+    router.push('/health-detail');
   }
 };
 

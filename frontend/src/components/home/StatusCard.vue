@@ -40,9 +40,6 @@ const router = useRouter();
 const familyStore = useFamilyStore();
 
 const goToReport = () => {
-    const familyId = familyStore.selectedFamily?.id;
-    if (familyId) {
-        router.push(`/families/${familyId}/health-report`);
-    }
+    router.push('/health-detail');
 };
 </script>

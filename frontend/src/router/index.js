@@ -169,9 +169,6 @@ const routes = [
     component: () => import('../views/DetailSchedule.vue'),
   },
   {
-    path: '/families/:familyId/health-report',
-    name: 'HealthReport',
-    component: () => import('../views/HealthReportView.vue'),
     path: '/health-detail',
     name: 'HealthDetail',
     component: HealthDetailView,
