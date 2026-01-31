@@ -142,4 +142,9 @@ public class User {
         }
         return Arrays.asList(this.chronicDiseases.split(","));
     }
+
+    public void updatePassword(String password) {
+        this.password = password;
+        this.updatedAt = LocalDateTime.now();
+    }
 }
