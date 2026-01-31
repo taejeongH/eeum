@@ -24,33 +24,14 @@
           <span class="w-2 h-2 rounded-full bg-green-400 mr-2 shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
           Last checked: 10 mins ago
         </div>
-        <button @click="showModal = true" class="bg-[#d65a3d] hover:bg-[#c34e32] active:bg-[#b0422a] text-white text-xs font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
+        <button @click="$router.push({ name: 'HealthDetail' })" class="bg-[#d65a3d] hover:bg-[#c34e32] active:bg-[#b0422a] text-white text-xs font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
           상세 보기
         </button>
       </div>
     </div>
 
-    <!-- Mock Modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showModal = false">
-      <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-[fadeIn_0.2s_ease-out]">
-        <h3 class="text-xl font-bold mb-4">Health Details</h3>
-        <div class="space-y-3 mb-6">
-           <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
-             <span>Heart Rate</span>
-             <span class="font-bold">75 bpm</span>
-           </div>
-           <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
-             <span>Blood Pressure</span>
-             <span class="font-bold">120/80</span>
-           </div>
-        </div>
-        <button @click="showModal = false" class="w-full bg-[#e76f51] text-white font-bold py-3 rounded-xl">Close</button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-const showModal = ref(false);
 </script>
