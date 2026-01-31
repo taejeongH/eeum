@@ -15,7 +15,7 @@
             </button>
             
             <div class="flex items-center gap-2">
-              <h1 class="text-lg font-bold text-gray-800">{{ groupName || '우리 가족' }}</h1>
+              <h1 v-if="!familyLoading" class="text-lg font-bold text-gray-800">{{ groupName || '우리 가족' }}</h1>
             </div>
           </div>
           
