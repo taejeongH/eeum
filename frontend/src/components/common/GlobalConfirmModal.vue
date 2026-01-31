@@ -2,7 +2,7 @@
   <transition name="fade">
     <div
       v-if="store.isVisible"
-      class="fixed inset-0 bg-black/50 z-[100] backdrop-blur-sm flex items-center justify-center p-6"
+      class="fixed inset-0 bg-black/50 z-[10000] backdrop-blur-sm flex items-center justify-center p-6"
       @click.self="handleBackdropClick"
     >
       <transition name="pop">

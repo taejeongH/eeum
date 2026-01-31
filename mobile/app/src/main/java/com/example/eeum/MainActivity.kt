@@ -71,10 +71,10 @@ class MainActivity : ComponentActivity() {
     companion object {
         private var instance: MainActivity? = null
         
-        fun emitNotification(notificationId: String, type: String? = "NORMAL", familyId: String? = "") {
+        fun emitNotification(notificationId: String, type: String? = "NORMAL", familyId: String? = "", title: String? = "", message: String? = "", groupName: String? = "") {
             instance?.let { activity ->
                 activity.lifecycleScope.launch {
-                    activity.notificationEvent.emit("$notificationId|$type|$familyId")
+                    activity.notificationEvent.emit("$notificationId|$type|$familyId|$title|$message|$groupName")
                 }
             }
         }
@@ -86,12 +86,16 @@ class MainActivity : ComponentActivity() {
         val notiId = intent.getStringExtra("notificationId")
         val type = intent.getStringExtra("type") ?: "NORMAL"
         val familyId = intent.getStringExtra("familyId") ?: ""
+        val title = intent.getStringExtra("title") ?: ""
+        val message = intent.getStringExtra("body") ?: intent.getStringExtra("message") ?: "" // Check both keys just in case
+        val groupName = intent.getStringExtra("groupName") ?: ""
+
         if (notiId != null) {
             pendingNotificationId = notiId
             pendingNotificationType = type
             pendingFamilyId = familyId
-            Log.d("FCM", "onNewIntent: Received Notification ID: $notiId, Type: $type, FamilyId: $familyId")
-            emitNotification(notiId, type, familyId)
+            Log.d("FCM", "onNewIntent: Received Notification ID: $notiId, Type: $type, Message: $message, Group: $groupName")
+            emitNotification(notiId, type, familyId, title, message, groupName)
         }
     }
 
@@ -102,15 +106,18 @@ class MainActivity : ComponentActivity() {
         pendingNotificationId = intent.getStringExtra("notificationId")
         pendingNotificationType = intent.getStringExtra("type") ?: "NORMAL"
         pendingFamilyId = intent.getStringExtra("familyId") ?: ""
+        val pendingTitle = intent.getStringExtra("title") ?: ""
+        val pendingMessage = intent.getStringExtra("body") ?: intent.getStringExtra("message") ?: ""
+        val pendingGroupName = intent.getStringExtra("groupName") ?: ""
 
-        Log.d("FCM", "onCreate: Pending Notification ID: $pendingNotificationId, Type: $pendingNotificationType")
+        Log.d("FCM", "onCreate: Pending Notification ID: $pendingNotificationId, Type: $pendingNotificationType, Group: $pendingGroupName")
         if (pendingNotificationId != null) {
              lifecycleScope.launch {
                  // 약간의 지연을 주어 WebView 로딩 시간을 범
                  kotlinx.coroutines.delay(1000)
                  if (pendingNotificationId != null) {
-                     // 새 형식(ID|TYPE|FAMILY_ID)에 맞춰 emit
-                     notificationEvent.emit("${pendingNotificationId!!}|${pendingNotificationType ?: "NORMAL"}|${pendingFamilyId ?: ""}")
+                     // 새 형식(ID|TYPE|FAMILY_ID|TITLE|MESSAGE|GROUPNAME)에 맞춰 emit
+                     notificationEvent.emit("${pendingNotificationId!!}|${pendingNotificationType ?: "NORMAL"}|${pendingFamilyId ?: ""}|$pendingTitle|$pendingMessage|$pendingGroupName")
                  }
             }
         }
@@ -148,12 +155,17 @@ class MainActivity : ComponentActivity() {
                         val id = pendingNotificationId
                         val type = pendingNotificationType ?: "NORMAL"
                         val familyId = pendingFamilyId ?: ""
+                        // Extract stored title/message
+                        val title = instance?.intent?.getStringExtra("title") ?: ""
+                        val message = instance?.intent?.getStringExtra("body") ?: instance?.intent?.getStringExtra("message") ?: ""
+                        val groupName = instance?.intent?.getStringExtra("groupName") ?: ""
                         
                         pendingNotificationId = null // Consume it
                         pendingNotificationType = null
                         pendingFamilyId = null
                         
-                        if (id != null) "$id|$type|$familyId" else null
+                        // [FIX] Return all 6 parts
+                        if (id != null) "$id|$type|$familyId|$title|$message|$groupName" else null
                     },
                     notificationEvent = notificationEvent, // Flow 전달
                     onShowFileChooser = { callback ->
@@ -208,7 +220,7 @@ class HealthJsBridge(
         fun fetchSteps() {
             activity.lifecycleScope.launch {
                 if (!healthManager.checkAndRequestPermissions(activity)) {
-                   return@launch
+                    return@launch
                 }
                 val data = healthManager.getTodaySteps()
                 val arg = data ?: "null"
@@ -222,7 +234,7 @@ class HealthJsBridge(
         fun fetchSleep() {
             activity.lifecycleScope.launch {
                 if (!healthManager.checkAndRequestPermissions(activity)) {
-                   return@launch
+                    return@launch
                 }
                 val data = healthManager.getSleepData()
                 val arg = data ?: "null"
@@ -260,11 +272,7 @@ class HealthJsBridge(
     }
 }
 
-
 // ====== WebViewScreen ======
-// 충돌났던 두 시그니처를 하나로 합침:
-// 1) WebViewScreen(activity: ComponentActivity, healthManager: SamsungHealthManager)
-// 2) WebViewScreen(onShowFileChooser: (ValueCallback<Array<Uri>>) -> Unit)
 @Composable
 fun WebViewScreen(
     activity: ComponentActivity,
@@ -293,8 +301,13 @@ fun WebViewScreen(
             val notiId = parts.getOrNull(0) ?: ""
             val type = parts.getOrNull(1) ?: "NORMAL"
             val familyId = parts.getOrNull(2) ?: ""
-            Log.d("WebViewScreen", "Pushing Notification to JS - ID: $notiId, Type: $type, FamilyId: $familyId")
-            webViewRef?.evaluateJavascript("javascript:if(window.onNativeNotification){window.onNativeNotification('$notiId', '$type', '$familyId')}", null)
+            val title = parts.getOrNull(3) ?: ""
+            val message = parts.getOrNull(4) ?: ""
+            val groupName = parts.getOrNull(5) ?: ""
+            
+            Log.d("WebViewScreen", "Pushing Notification to JS - ID: $notiId, Type: $type, Message: $message, Group: $groupName")
+            // Pass all 6 arguments to JS
+            webViewRef?.evaluateJavascript("javascript:if(window.onNativeNotification){window.onNativeNotification('$notiId', '$type', '$familyId', '$title', '$message', '$groupName')}", null)
         }
     }
 

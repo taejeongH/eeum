@@ -177,17 +177,22 @@ onMounted(async () => {
         const data = window.AndroidBridge.consumeNotificationId();
         if (data) {
            console.log("✅ Consumed Notification Data from Native:", data);
-           const [id, type, familyId] = data.split('|');
+           const parts = data.split('|');
+           const id = parts[0];
+           const type = parts[1];
+           const familyId = parts[2];
+           // Extract title/message/groupName from parts
+           const title = parts[3] || "";
+           const message = parts[4] || "";
+           const groupName = parts[5] || "";
            
            // onNativeNotification 호출하여 통합 처리
            if (window.onNativeNotification) {
-               window.onNativeNotification(id, type, familyId);
+               window.onNativeNotification(id, type, familyId, title, message, groupName);
            }
-        } else {
-
         }
       } catch (e) {
-
+         // ignore
       }
     } else {
        // 브릿지가 아직 로드되지 않았을 수 있으므로 잠시 후 재시도
@@ -208,10 +213,10 @@ onMounted(async () => {
   };
 
   // 8. [NEW] Native -> Notification Push 방식 지원
-  window.onNativeNotification = async (notificationId, type, familyId) => {
+  window.onNativeNotification = async (notificationId, type, familyId, title, message, groupName) => {
       if (!notificationId) return;
 
-      console.log('FCM: Received ID:', notificationId, 'Type:', type, 'FamilyId:', familyId);
+      console.log('FCM: Received ID:', notificationId, 'Type:', type, 'FamilyId:', familyId, 'Message:', message, 'Group:', groupName);
       
       try {
           // 1. 필수 데이터 선행 로드 (가족 정보가 없으면 로딩 대기)
@@ -229,12 +234,36 @@ onMounted(async () => {
 
           // 3. 유형별 UI 동작 분기 (그룹 전환 후 수행)
           if (type === 'EMERGENCY' || type === 'FALL') {
-              console.log('FCM: Emergency detected, opening modal...');
+              console.log('FCM: Emergency detected, opening modal with message:', message);
+              
+              // Robust Search Logic (Fallback)
+              let currentFamily = familyStore.selectedFamily;
+              let dependent = null;
+
+              if (familyId && familyStore.families.length > 0) {
+                   const targetedFamily = familyStore.families.find(f => String(f.id) === String(familyId));
+                   if (targetedFamily) currentFamily = targetedFamily;
+              }
+
+              if (!currentFamily || !currentFamily.members) {
+                  const candidateFamily = familyStore.families.find(f => f.members && f.members.some(m => m.dependent || m.role === 'DEPENDENT' || m.relationship === '피부양자'));
+                  if (candidateFamily) currentFamily = candidateFamily;
+                  if (!currentFamily && familyStore.families.length > 0) currentFamily = familyStore.families[0];
+              }
+
+              if (currentFamily) {
+                  if (familyStore.selectedFamily?.id !== currentFamily.id) familyStore.selectFamily(currentFamily);
+                  if (currentFamily.members) dependent = currentFamily.members.find(m => m.dependent === true || m.role === 'DEPENDENT' || m.relationship === '피부양자');
+              }
+
               emergencyStore.open({
-                  groupName: familyStore.selectedFamily?.groupName || '우리 가족',
-                  dependentName: '피부양자',
+                  groupName: groupName || currentFamily?.groupName || '가족 그룹',
+                  // Use message directly if available (e.g. "Grandma fell"), otherwise computed name
+                  dependentName: message ? message : (dependent ? (dependent.relationship || dependent.name) : '대상자 정보 없음'), 
                   type: 'FALL',
-                  location: null
+                  location: null,
+                  timestamp: Date.now(),
+                  messageContent: message || title // Pass fully just in case
               });
           } else if (['ACTIVITY', 'OUTING', 'RETURN'].includes(type)) {
               console.log('FCM: Activity detected, opening notification modal...');
@@ -242,7 +271,7 @@ onMounted(async () => {
               // [User Request] 활동/외출 알림 시 현재 화면 위에 모달 표시
               notificationStore.openModal({
                   type: type,
-                  groupName: familyStore.selectedFamily?.groupName || '우리 가족',
+                  groupName: groupName || familyStore.selectedFamily?.groupName || '우리 가족',
                   dependentName: '피부양자', // 실제 데이터가 있다면 개선 가능
                   message: type === 'OUTING' ? '외출이 감지되었습니다.' : (type === 'RETURN' ? '귀가가 확인되었습니다.' : '활동이 감지되었습니다.')
               });

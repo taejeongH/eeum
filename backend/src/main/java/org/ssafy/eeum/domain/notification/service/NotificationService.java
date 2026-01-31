@@ -69,24 +69,25 @@ public class NotificationService {
 
         notificationDeliveryRepository.save(delivery);
 
-        String token = user.getFcmToken();
-        if (token != null && !token.isEmpty()) {
-            String route = null;
-            Integer familyId = notification.getFamily().getId();
-            
-            log.info("FCM Debug: Notification Type from DB: '{}'", notification.getType());
-            
-            if ("EMERGENCY".equalsIgnoreCase(notification.getType())) {
-                route = "/families/" + familyId + "/emergency";
-            } else if ("ACTIVITY".equalsIgnoreCase(notification.getType())) {
-                route = "/families/" + familyId + "/activity";
+            String token = user.getFcmToken();
+            if (token != null && !token.isEmpty()) {
+                String route = null;
+                Integer familyId = notification.getFamily().getId();
+                String groupName = notification.getFamily().getGroupName();
+                
+                log.info("FCM Debug: Notification Type from DB: '{}'", notification.getType());
+                
+                if ("EMERGENCY".equalsIgnoreCase(notification.getType())) {
+                    route = "/families/" + familyId + "/emergency";
+                } else if ("ACTIVITY".equalsIgnoreCase(notification.getType())) {
+                    route = "/families/" + familyId + "/activity";
+                }
+                
+                log.info("FCM Debug: Calculated Route: '{}'", route);
+                
+                fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route, familyId, groupName);
+                delivery.updateSentAt();
             }
-            
-            log.info("FCM Debug: Calculated Route: '{}'", route);
-            
-            fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route, familyId);
-            delivery.updateSentAt();
-        }
     }
 
     @Transactional
