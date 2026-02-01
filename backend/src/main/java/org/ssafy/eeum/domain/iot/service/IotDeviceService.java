@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.ssafy.eeum.domain.family.repository.SupporterRepository;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceInfoResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDevicePairRequestDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceRequestDTO;
@@ -13,6 +14,9 @@ import org.ssafy.eeum.domain.iot.dto.IotSimpleDeviceInfoResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceUpdateRequestDTO;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
+import org.ssafy.eeum.global.auth.jwt.JwtProperties;
+import org.ssafy.eeum.global.auth.jwt.JwtProvider;
+import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
@@ -35,10 +39,10 @@ public class IotDeviceService {
 
         private final IotDeviceRepository iotDeviceRepository;
         private final FamilyRepository familyRepository;
-        private final org.ssafy.eeum.domain.family.repository.SupporterRepository supporterRepository;
+        private final SupporterRepository supporterRepository;
         private final RedisTemplate<String, Object> redisTemplate;
-        private final org.ssafy.eeum.global.auth.jwt.JwtProvider jwtProvider;
-        private final org.ssafy.eeum.global.auth.jwt.JwtProperties jwtProperties;
+        private final JwtProvider jwtProvider;
+        private final JwtProperties jwtProperties;
         private final ApplicationEventPublisher eventPublisher;
 
         private static final String PAIRING_PREFIX = "PAIR:";
@@ -71,8 +75,8 @@ public class IotDeviceService {
         }
 
         @Transactional
-        public void updateDevice(org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails, Integer deviceId,
-                        IotDeviceUpdateRequestDTO updateDto) {
+        public void updateDevice(CustomUserDetails userDetails, Integer deviceId,
+                                 IotDeviceUpdateRequestDTO updateDto) {
                 IotDevice device = iotDeviceRepository.findById(deviceId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
@@ -91,7 +95,7 @@ public class IotDeviceService {
         }
 
         @Transactional
-        public void deleteDevice(org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails, Integer deviceId) {
+        public void deleteDevice(CustomUserDetails userDetails, Integer deviceId) {
                 IotDevice device = iotDeviceRepository.findById(deviceId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 

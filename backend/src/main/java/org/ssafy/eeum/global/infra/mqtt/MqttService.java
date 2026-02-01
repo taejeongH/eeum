@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.integration.annotation.ServiceActivator;
-import org.ssafy.eeum.domain.iot.entity.IotDevice;
+
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
@@ -18,10 +18,11 @@ import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.event.IotDeviceEvent;
 import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 import org.springframework.context.event.EventListener;
-import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
+
 import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -39,8 +40,9 @@ public class MqttService {
     private final SensorEventService sensorEventService;
     private final DeviceStatusService deviceStatusService;
     private final FallEventService fallEventService;
-    private final IotDeviceRepository iotDeviceRepository;
+
     private final JwtProvider jwtProvider;
+    private final FamilyRepository familyRepository;
 
     public void publish(String topic, String payload) {
         try {
@@ -319,10 +321,8 @@ public class MqttService {
             String kind = node.path("kind").asText();
             int logId = node.path("log_id").asInt(0); // Default 0 if missing
 
-            IotDevice device = iotDeviceRepository.findBySerialNumber(deviceDetails.getSerialNumber())
-                    .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
-
-            Family family = device.getFamily();
+            Family family = familyRepository.findById(deviceDetails.getGroupId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
             if ("image".equals(kind)) {
                 if (logId > family.getLastMediaLogId()) {
