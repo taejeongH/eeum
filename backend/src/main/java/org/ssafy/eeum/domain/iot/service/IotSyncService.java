@@ -2,11 +2,14 @@ package org.ssafy.eeum.domain.iot.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.ssafy.eeum.domain.album.entity.MediaAsset;
+import org.ssafy.eeum.domain.album.entity.MediaLog;
 import org.ssafy.eeum.domain.album.repository.AlbumRepository;
 import org.ssafy.eeum.domain.album.repository.MediaLogRepository;
 
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.iot.dto.IotSyncDto;
 import org.ssafy.eeum.domain.iot.entity.ActionType;
@@ -14,11 +17,13 @@ import org.ssafy.eeum.domain.iot.entity.IotDevice;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 import org.ssafy.eeum.domain.message.entity.Message;
 import org.ssafy.eeum.domain.message.repository.MessageRepository;
+import org.ssafy.eeum.domain.voice.entity.VoiceLog;
 import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.ssafy.eeum.global.infra.redis.RedisService;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import java.util.HashMap;
@@ -38,11 +43,11 @@ public class IotSyncService {
     private final AlbumRepository albumRepository;
     private final MessageRepository messageRepository;
     private final S3Service s3Service;
-    private final org.ssafy.eeum.global.infra.redis.RedisService redisService;
+    private final RedisService redisService;
     private final FamilyRepository familyRepository;
 
     public IotSyncDto getSyncData(Integer familyId, String kind) {
-        org.ssafy.eeum.domain.family.entity.Family family = familyRepository.findById(familyId)
+        Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
         Integer lastLogId = "image".equals(kind) ? family.getLastMediaLogId() : family.getLastVoiceLogId();
@@ -51,7 +56,7 @@ public class IotSyncService {
         Map<Integer, Integer> addedMap = new HashMap<>();
 
         if ("image".equals(kind)) {
-            List<org.ssafy.eeum.domain.album.entity.MediaLog> logs = mediaLogRepository
+            List<MediaLog> logs = mediaLogRepository
                     .findByGroupIdAndIdGreaterThan(familyId, lastLogId);
             if (logs.isEmpty())
                 return IotSyncDto.builder().added(List.of()).deleted(List.of())
@@ -90,7 +95,7 @@ public class IotSyncService {
                     .build();
 
         } else if ("voice".equals(kind)) {
-            List<org.ssafy.eeum.domain.voice.entity.VoiceLog> logs = voiceLogRepository
+            List<VoiceLog> logs = voiceLogRepository
                     .findByGroupIdAndIdGreaterThan(familyId, lastLogId);
             if (logs.isEmpty())
                 return IotSyncDto.builder().added(List.of()).deleted(List.of())
@@ -99,7 +104,7 @@ public class IotSyncService {
             int maxLogId = lastLogId;
             for (var log : logs) {
                 maxLogId = Math.max(maxLogId, log.getId());
-                if (log.getActionType() == org.ssafy.eeum.domain.iot.entity.ActionType.DELETE) {
+                if (log.getActionType() == ActionType.DELETE) {
                     addedMap.remove(log.getVoiceId());
                     deletedIds.add(log.getVoiceId());
                 } else {
@@ -195,7 +200,7 @@ public class IotSyncService {
      * 이 스케줄러는 단순히 "확인"하는 트리거 역할입니다.
      * 실제 전송 조건은 (마지막 전송으로부터 1시간 경과) 여부입니다.
      */
-    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 10 * 60 * 1000) // 10분 주기 체크
+    @Scheduled(fixedRate = 10 * 60 * 1000) // 10분 주기 체크
     public void checkPeriodicUpdates() {
         String activeFamilyKey = "sync:active_families";
         java.util.Set<Object> families = redisService.getSetMembers(activeFamilyKey);
