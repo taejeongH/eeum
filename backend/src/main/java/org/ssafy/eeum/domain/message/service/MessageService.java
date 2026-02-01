@@ -25,10 +25,10 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MessageService {
 
-        private final org.ssafy.eeum.domain.message.repository.MessageRepository messageRepository;
-        private final org.ssafy.eeum.domain.family.repository.FamilyRepository familyRepository;
-        private final org.ssafy.eeum.domain.auth.repository.UserRepository userRepository;
-        private final org.ssafy.eeum.domain.family.repository.SupporterRepository supporterRepository;
+        private final MessageRepository messageRepository;
+        private final FamilyRepository familyRepository;
+        private final UserRepository userRepository;
+        private final SupporterRepository supporterRepository;
         private final org.ssafy.eeum.domain.voice.service.VoiceService voiceService;
         private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService; // Handled
         private final org.ssafy.eeum.global.infra.s3.S3Service s3Service;
@@ -75,7 +75,7 @@ public class MessageService {
                 try {
                         // Log 저장 (ADD)
                         saveLog(groupId, saved.getId(), org.ssafy.eeum.domain.iot.entity.ActionType.ADD);
-                        iotSyncService.notifyUpdate(groupId, "voice", 1);
+                        iotSyncService.notifyUpdate(groupId, "voice");
                 } catch (Exception e) {
                         log.error("IoT Sync Notification failed: {}", e.getMessage());
                 }
@@ -167,7 +167,7 @@ public class MessageService {
                 saveLog(groupId, messageId, org.ssafy.eeum.domain.iot.entity.ActionType.DELETE);
 
                 // IoT 동기화 알림
-                iotSyncService.notifyUpdate(groupId, "voice", 1);
+                iotSyncService.notifyUpdate(groupId, "voice");
         }
 
         @Transactional

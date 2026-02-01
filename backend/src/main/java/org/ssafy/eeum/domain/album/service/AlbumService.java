@@ -61,7 +61,7 @@ public class AlbumService {
         albumRepository.save(asset);
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(familyId, "image", 1);
+        iotSyncService.notifyUpdate(familyId, "image");
     }
 
     // 2. 가족별 사진 목록 조회
@@ -83,7 +83,7 @@ public class AlbumService {
         saveLog(asset.getFamily().getId(), asset.getId(), ActionType.UPDATE);
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(asset.getFamily().getId(), "image", 1);
+        iotSyncService.notifyUpdate(asset.getFamily().getId(), "image");
     }
 
     // 4. 사진 삭제 (Soft Delete)
@@ -96,7 +96,7 @@ public class AlbumService {
         albumRepository.delete(asset); // SQLDelete에 의해 isSynced=false 처리됨
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(familyId, "image", 1);
+        iotSyncService.notifyUpdate(familyId, "image");
     }
 
     /**
