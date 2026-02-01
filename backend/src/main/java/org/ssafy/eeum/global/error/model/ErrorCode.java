@@ -47,7 +47,12 @@ public enum ErrorCode {
 
     // 알림 관련 에러 코드
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI001", "알림 정보를 찾을 수 없습니다."),
-    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI002", "알림 수신 정보를 찾을 수 없습니다.");
+    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI002", "알림 수신 정보를 찾을 수 없습니다."),
+
+    // 목소리 관련 에러 코드
+    VOICE_SAMPLE_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE001", "목소리 샘플이 없습니다."),
+    VOICE_MODEL_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE002", "학습된 목소리 모델이 없습니다."),
+    INVALID_AUDIO_DURATION(HttpStatus.BAD_REQUEST, "VOICE003", "녹음 길이는 3초 이상 10초 이하여야 합니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

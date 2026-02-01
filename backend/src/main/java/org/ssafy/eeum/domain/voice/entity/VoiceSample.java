@@ -21,8 +21,11 @@ public class VoiceSample extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "script_id", nullable = false)
+    @JoinColumn(name = "script_id", nullable = true)
     private VoiceScript voiceScript;
+
+    @Column(name = "transcript", columnDefinition = "TEXT")
+    private String transcript;
 
     @Column(name = "sample_path", nullable = false, length = 255)
     private String samplePath;

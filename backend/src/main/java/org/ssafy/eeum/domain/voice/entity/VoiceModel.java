@@ -20,8 +20,11 @@ public class VoiceModel extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "model_path", nullable = false)
-    private String modelPath;
+    @Column(name = "gpt_path", nullable = false)
+    private String gptPath;
+
+    @Column(name = "sovits_path")
+    private String sovitsPath;
 
     @Enumerated(EnumType.STRING)
     private ModelStatus status;
