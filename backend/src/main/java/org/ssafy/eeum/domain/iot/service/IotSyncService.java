@@ -46,11 +46,16 @@ public class IotSyncService {
     private final RedisService redisService;
     private final FamilyRepository familyRepository;
 
-    public IotSyncDto getSyncData(Integer familyId, String kind) {
+    public IotSyncDto getSyncData(Integer familyId, String kind, Integer clientLastLogId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-        Integer lastLogId = "image".equals(kind) ? family.getLastMediaLogId() : family.getLastVoiceLogId();
+        Integer lastLogId;
+        if (clientLastLogId != null && clientLastLogId > 0) {
+            lastLogId = clientLastLogId;
+        } else {
+            lastLogId = "image".equals(kind) ? family.getLastMediaLogId() : family.getLastVoiceLogId();
+        }
 
         List<Integer> deletedIds = new java.util.ArrayList<>();
         Map<Integer, Integer> addedMap = new HashMap<>();
