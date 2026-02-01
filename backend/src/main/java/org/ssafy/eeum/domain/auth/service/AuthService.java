@@ -190,4 +190,37 @@ public class AuthService {
             redisTemplate.delete(RT_PREFIX + email);
         }
     }
+
+    @Transactional
+    public TokenDto reissue(String refreshToken) {
+        // 1. Refresh Token 검증
+        if (!jwtProvider.validateToken(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN); // ErrorCode 확인 필요
+        }
+
+        // 2. Access Token에서 User email 가져오기 (만료되었어도 claim은 파싱 가능 혹은 Refresh Token에서 가져오기)
+        // Refresh Token도 JWT이므로 바로 파싱 가능
+        org.springframework.security.core.Authentication authentication = jwtProvider.getAuthentication(refreshToken);
+        org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails = (org.ssafy.eeum.global.auth.model.CustomUserDetails) authentication.getPrincipal();
+        String email = userDetails.getEmail();
+
+        // 3. Redis에서 Refresh Token 저장 확인
+        String storedRefreshToken = redisTemplate.opsForValue().get(RT_PREFIX + email);
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        // 4. 새로운 토큰 생성
+        String newAccessToken = jwtProvider.createAccessToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
+        String newRefreshToken = jwtProvider.createRefreshToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
+
+        // 5. Refresh Token Rotation (Redis 업데이트)
+        redisTemplate.opsForValue().set(RT_PREFIX + email, newRefreshToken, 7, TimeUnit.DAYS);
+
+        return TokenDto.builder()
+                .grantType("Bearer")
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
+    }
 }

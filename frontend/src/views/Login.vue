@@ -172,15 +172,19 @@ const handleLogin = async () => {
       withCredentials: false
     })
 
-    const { accessToken } = response.data
+    const { accessToken, refreshToken } = response.data
     
     // 로그인 유지 체크 여부에 따라 스토리지 분기
     if (loginForm.rememberMe) {
       localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
       sessionStorage.removeItem('accessToken')
+      sessionStorage.removeItem('refreshToken')
     } else {
       sessionStorage.setItem('accessToken', accessToken)
+      sessionStorage.setItem('refreshToken', refreshToken)
       localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
     }
     
     // axios 헤더에 토큰 설정
