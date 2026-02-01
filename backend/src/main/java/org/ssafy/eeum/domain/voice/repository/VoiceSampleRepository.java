@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface VoiceSampleRepository extends JpaRepository<VoiceSample, Integer> {
     List<VoiceSample> findAllByUserId(Integer userId);
+
+    List<VoiceSample> findAllByUserIdOrderByCreatedAtDesc(Integer userId);
 }

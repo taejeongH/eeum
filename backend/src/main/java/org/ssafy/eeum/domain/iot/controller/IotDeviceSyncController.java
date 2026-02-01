@@ -4,11 +4,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.ssafy.eeum.domain.album.dto.AlbumDTOs.IotAlbumSyncResponseDTO;
-import org.ssafy.eeum.domain.album.service.AlbumService;
+import org.ssafy.eeum.domain.iot.dto.IotSyncDto;
+import org.ssafy.eeum.domain.iot.service.IotSyncService;
+import org.ssafy.eeum.domain.iot.service.IotDeviceService;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceSyncResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotSimpleDeviceInfoResponseDTO;
-import org.ssafy.eeum.domain.iot.service.IotDeviceService;
 import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.global.common.response.RestApiResponse;
 import org.ssafy.eeum.global.config.swagger.SwaggerApiSpec;
@@ -22,8 +22,7 @@ import java.util.List;
 public class IotDeviceSyncController {
 
     private final IotDeviceService iotDeviceService;
-    private final AlbumService albumService;
-    private final org.ssafy.eeum.domain.message.service.MessageService messageService;
+    private final IotSyncService iotSyncService;
 
     @SwaggerApiSpec(summary = "IoT 초기화 데이터 조회", description = "기기 부팅 시 소속된 가족 그룹의 모든 기기 목록 및 정보를 조회합니다.", successMessage = "초기화 데이터 조회 성공")
     @GetMapping("/init")
@@ -44,20 +43,20 @@ public class IotDeviceSyncController {
 
     @SwaggerApiSpec(summary = "[IoT] 앨범 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 사진 변경 내역(추가/삭제)을 조회합니다.", successMessage = "앨범 동기화 데이터 조회 성공")
     @GetMapping("/sync/album")
-    public RestApiResponse<IotAlbumSyncResponseDTO> syncAlbumForIot(
+    public RestApiResponse<IotSyncDto> syncAlbumForIot(
             @AuthenticationPrincipal DeviceDetails deviceDetails) {
-        // 기기 인증 정보에서 그룹 ID 추출
-        Integer familyId = deviceDetails.getGroupId();
-        IotAlbumSyncResponseDTO response = albumService.syncForIot(familyId);
+        // 기기 인증 정보에서 시리얼 넘버 추출
+        String serialNumber = deviceDetails.getSerialNumber(); // username is serialNumber
+        IotSyncDto response = iotSyncService.getSyncData(serialNumber, "image");
         return RestApiResponse.success(response);
     }
 
     @SwaggerApiSpec(summary = "[IoT] 목소리 메시지 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 목소리 메시지 변경 내역을 조회합니다.", successMessage = "목소리 동기화 데이터 조회 성공")
     @GetMapping("/sync/voice")
-    public RestApiResponse<IotAlbumSyncResponseDTO> syncVoiceForIot(
+    public RestApiResponse<IotSyncDto> syncVoiceForIot(
             @AuthenticationPrincipal DeviceDetails deviceDetails) {
-        Integer familyId = deviceDetails.getGroupId();
-        IotAlbumSyncResponseDTO response = messageService.syncForIot(familyId);
+        String serialNumber = deviceDetails.getSerialNumber();
+        IotSyncDto response = iotSyncService.getSyncData(serialNumber, "voice");
         return RestApiResponse.success(response);
     }
 }

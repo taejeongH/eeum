@@ -25,13 +25,14 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MessageService {
 
-        private final MessageRepository messageRepository;
-        private final FamilyRepository familyRepository;
-        private final UserRepository userRepository;
-        private final SupporterRepository supporterRepository;
+        private final org.ssafy.eeum.domain.message.repository.MessageRepository messageRepository;
+        private final org.ssafy.eeum.domain.family.repository.FamilyRepository familyRepository;
+        private final org.ssafy.eeum.domain.auth.repository.UserRepository userRepository;
+        private final org.ssafy.eeum.domain.family.repository.SupporterRepository supporterRepository;
         private final org.ssafy.eeum.domain.voice.service.VoiceService voiceService;
-        private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService;
+        private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService; // Handled
         private final org.ssafy.eeum.global.infra.s3.S3Service s3Service;
+        private final org.ssafy.eeum.domain.voice.repository.VoiceLogRepository voiceLogRepository;
 
         @Transactional
         public MessageResponseDto send(Integer groupId, Integer senderUserId, MessageRequestDto requestDto) {
@@ -72,6 +73,8 @@ public class MessageService {
 
                 // 5. IoT 동기화 알림 (목소리가 없더라도 텍스트 업데이트 알림은 보냄)
                 try {
+                        // Log 저장 (ADD)
+                        saveLog(groupId, saved.getId(), org.ssafy.eeum.domain.iot.entity.ActionType.ADD);
                         iotSyncService.notifyUpdate(groupId, "voice", 1);
                 } catch (Exception e) {
                         log.error("IoT Sync Notification failed: {}", e.getMessage());
@@ -79,7 +82,7 @@ public class MessageService {
 
                 // Auth check already retrieved the supporter (sender's supporter)
                 Supporter senderSupporter = supporterRepository.findByUserAndFamily(sender, group)
-                        .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+                                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
                 return toDto(saved, senderSupporter);
         }
@@ -96,18 +99,17 @@ public class MessageService {
 
                 List<Message> messages = messageRepository.findAllByGroupAndDeletedAtIsNullOrderByCreatedAtAsc(group);
                 List<Supporter> supporters = supporterRepository.findAllByFamily(group);
-                
+
                 // Map: UserId -> Supporter
                 java.util.Map<Integer, Supporter> supporterMap = supporters.stream()
-                        .collect(java.util.stream.Collectors.toMap(
-                                s -> s.getUser().getId(),
-                                s -> s,
-                                (existing, replacement) -> existing
-                        ));
+                                .collect(java.util.stream.Collectors.toMap(
+                                                s -> s.getUser().getId(),
+                                                s -> s,
+                                                (existing, replacement) -> existing));
 
                 return messages.stream()
-                        .map(msg -> toDto(msg, supporterMap.get(msg.getSender().getId())))
-                        .toList();
+                                .map(msg -> toDto(msg, supporterMap.get(msg.getSender().getId())))
+                                .toList();
         }
 
         @Transactional
@@ -129,10 +131,10 @@ public class MessageService {
                 }
 
                 message.markRead();
-                
+
                 Supporter senderSupporter = supporterRepository
-                        .findByUserAndFamily(message.getSender(), group)
-                        .orElse(null);
+                                .findByUserAndFamily(message.getSender(), group)
+                                .orElse(null);
 
                 return toDto(message, senderSupporter);
         }
@@ -160,6 +162,12 @@ public class MessageService {
                 }
 
                 message.softDelete();
+
+                // Log 저장 (DELETE)
+                saveLog(groupId, messageId, org.ssafy.eeum.domain.iot.entity.ActionType.DELETE);
+
+                // IoT 동기화 알림
+                iotSyncService.notifyUpdate(groupId, "voice", 1);
         }
 
         @Transactional
@@ -221,5 +229,15 @@ public class MessageService {
                                                 ? s3Service.getPresignedUrl(message.getVoiceUrl())
                                                 : null)
                                 .build();
+        }
+
+        private void saveLog(Integer familyId, Integer voiceId,
+                        org.ssafy.eeum.domain.iot.entity.ActionType actionType) {
+                org.ssafy.eeum.domain.voice.entity.VoiceLog log = org.ssafy.eeum.domain.voice.entity.VoiceLog.builder()
+                                .groupId(familyId)
+                                .voiceId(voiceId)
+                                .actionType(actionType)
+                                .build();
+                voiceLogRepository.save(log);
         }
 }

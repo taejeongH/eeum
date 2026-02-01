@@ -41,6 +41,12 @@ public class Family {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Column(name = "last_media_log_id", nullable = false)
+    private Integer lastMediaLogId = 0;
+
+    @Column(name = "last_voice_log_id", nullable = false)
+    private Integer lastVoiceLogId = 0;
+
     @Builder
     public Family(String groupName, String inviteCode, User user) {
         this.groupName = groupName;
@@ -54,5 +60,13 @@ public class Family {
 
     public void updateInviteCode(String newInviteCode) {
         this.inviteCode = newInviteCode;
+    }
+
+    public void updateLastMediaLogId(Integer logId) {
+        this.lastMediaLogId = logId;
+    }
+
+    public void updateLastVoiceLogId(Integer logId) {
+        this.lastVoiceLogId = logId;
     }
 }
