@@ -44,17 +44,19 @@ public class IotDeviceSyncController {
         @SwaggerApiSpec(summary = "[IoT] 앨범 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 사진 변경 내역(추가/삭제)을 조회합니다.", successMessage = "앨범 동기화 데이터 조회 성공")
         @GetMapping("/sync/album")
         public RestApiResponse<IotSyncDto> syncAlbumForIot(
-                        @AuthenticationPrincipal DeviceDetails deviceDetails) {
+                        @AuthenticationPrincipal DeviceDetails deviceDetails,
+                        @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
                 // 기기 인증 정보에서 Group ID 추출 (토큰 subject가 GROUP:ID 형식이므로 serialNumber는 실제 시리얼이 아님)
-                IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "image");
+                IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "image", lastLogId);
                 return RestApiResponse.success(response);
         }
 
         @SwaggerApiSpec(summary = "[IoT] 목소리 메시지 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 목소리 메시지 변경 내역을 조회합니다.", successMessage = "목소리 동기화 데이터 조회 성공")
         @GetMapping("/sync/voice")
         public RestApiResponse<IotSyncDto> syncVoiceForIot(
-                        @AuthenticationPrincipal DeviceDetails deviceDetails) {
-                IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "voice");
+                        @AuthenticationPrincipal DeviceDetails deviceDetails,
+                        @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
+                IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "voice", lastLogId);
                 return RestApiResponse.success(response);
         }
 }
