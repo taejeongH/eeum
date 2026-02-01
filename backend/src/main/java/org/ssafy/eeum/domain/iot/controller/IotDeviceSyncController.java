@@ -44,19 +44,21 @@ public class IotDeviceSyncController {
     @SwaggerApiSpec(summary = "[IoT] 앨범 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 사진 변경 내역(추가/삭제)을 조회합니다.", successMessage = "앨범 동기화 데이터 조회 성공")
     @GetMapping("/sync/album")
     public RestApiResponse<IotSyncDto> syncAlbumForIot(
-            @AuthenticationPrincipal DeviceDetails deviceDetails) {
+            @AuthenticationPrincipal DeviceDetails deviceDetails,
+            @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
         // 기기 인증 정보에서 시리얼 넘버 추출
-        String serialNumber = deviceDetails.getSerialNumber(); // username is serialNumber
-        IotSyncDto response = iotSyncService.getSyncData(serialNumber, "image");
+        String serialNumber = deviceDetails.getSerialNumber();
+        IotSyncDto response = iotSyncService.getSyncData(serialNumber, "image", lastLogId);
         return RestApiResponse.success(response);
     }
 
     @SwaggerApiSpec(summary = "[IoT] 목소리 메시지 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 목소리 메시지 변경 내역을 조회합니다.", successMessage = "목소리 동기화 데이터 조회 성공")
     @GetMapping("/sync/voice")
     public RestApiResponse<IotSyncDto> syncVoiceForIot(
-            @AuthenticationPrincipal DeviceDetails deviceDetails) {
+            @AuthenticationPrincipal DeviceDetails deviceDetails,
+            @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
         String serialNumber = deviceDetails.getSerialNumber();
-        IotSyncDto response = iotSyncService.getSyncData(serialNumber, "voice");
+        IotSyncDto response = iotSyncService.getSyncData(serialNumber, "voice", lastLogId);
         return RestApiResponse.success(response);
     }
 }

@@ -221,6 +221,6 @@ public class VoiceService {
         String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl,
                 request.getText());
         mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
-        iotSyncService.notifyUpdate(request.getGroupId(), "voice", 1);
+        iotSyncService.notifyUpdate(request.getGroupId(), "voice");
     }
 }
