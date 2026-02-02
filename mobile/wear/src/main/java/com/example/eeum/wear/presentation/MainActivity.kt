@@ -1,6 +1,7 @@
 package com.example.eeum.wear.presentation
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -36,19 +37,22 @@ class MainActivity : ComponentActivity() {
     private var statusText by mutableStateOf("Initializing...")
 
     private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.entries.all { it.value }
+        if (allGranted) {
             registerHeartRateSensor()
         } else {
             statusText = "Permission Denied"
-            Log.e(TAG, "Body Sensor permission denied")
+            Log.e(TAG, "Permissions denied: ${permissions.filter { !it.value }.keys}")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        handleIntent(intent) // Check intent on Create
+
         // Health Services Client 초기화
         measureClient = HealthServices.getClient(this).measureClient
 
@@ -60,14 +64,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissionAndStart() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BODY_SENSORS
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
+        val permissions = mutableListOf(Manifest.permission.BODY_SENSORS)
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            permissions.add(Manifest.permission.BODY_SENSORS_BACKGROUND)
+        }
+        
+        val missingPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isEmpty()) {
             registerHeartRateSensor()
         } else {
-            permissionLauncher.launch(Manifest.permission.BODY_SENSORS)
+            permissionLauncher.launch(missingPermissions.toTypedArray())
         }
     }
 
@@ -148,6 +159,61 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "WearActivity"
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val action = intent.getStringExtra("action")
+        
+        if (action == "start_service") {
+            Log.d(TAG, "Starting HeartRateService via Activity")
+            statusText = "Measuring..."
+            
+            // 1. Force Screen ON and Show over Lock Screen
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+                
+                // Request Keyguard Dismissal (Important for pattern/PIN locks)
+                val keyguardManager = getSystemService(android.app.KeyguardManager::class.java)
+                keyguardManager?.requestDismissKeyguard(this, null)
+            } else {
+                @Suppress("DEPRECATION")
+                window.addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                )
+            }
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            
+            // 2. Start Service
+            val serviceIntent = Intent(this, HeartRateService::class.java)
+            startForegroundService(serviceIntent)
+            
+            // 3. Set 1 Hour Timeout
+            lifecycleScope.launch {
+                kotlinx.coroutines.delay(60 * 60 * 1000L) // 1 Hour
+                Log.d(TAG, "1 Hour passed, releasing screen lock")
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                statusText = "Timeout: Screen releasing"
+            }
+        } else if (action == "stop_service") {
+            Log.d(TAG, "Stopping HeartRateService via Activity")
+            statusText = "Stopped"
+            
+            // 1. Release Screen Lock (Returns to normal timeout)
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            
+            // 2. Stop Service
+            val serviceIntent = Intent(this, HeartRateService::class.java)
+            stopService(serviceIntent)
+        }
     }
 
     // Coroutine Scope Helper (lifecycleScope는 Activity 멤버이므로 직접 호출 가능하지만,
