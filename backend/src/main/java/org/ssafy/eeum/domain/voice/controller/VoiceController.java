@@ -90,6 +90,14 @@ public class VoiceController {
                 return RestApiResponse.success("대표 음성 샘플이 성공적으로 설정되었습니다.");
         }
 
+        @SwaggerApiSpec(summary = "대표 음성 샘플 조회", description = "현재 설정된 대표 음성 샘플을 조회합니다.", successMessage = "대표 샘플 조회 성공", errors = {
+                        ErrorCode.VOICE_MODEL_NOT_FOUND, ErrorCode.VOICE_SAMPLE_NOT_FOUND })
+        @GetMapping("/representative")
+        public RestApiResponse<VoiceSampleResponseDTO> getRepresentativeSample(
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                return RestApiResponse.success(voiceService.getRepresentativeSample(userDetails.getId()));
+        }
+
         @SwaggerApiSpec(summary = "음성 샘플 별명 수정", description = "이미 등록된 음성 샘플의 별명을 수정합니다.", successMessage = "별명 수정 성공")
         @PatchMapping("/samples/{sampleId}/nickname")
         public RestApiResponse<Void> updateSampleNickname(
