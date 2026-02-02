@@ -11,6 +11,9 @@ import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.iot.service.IotSyncService;
+import org.ssafy.eeum.domain.iot.entity.ActionType;
+import org.ssafy.eeum.domain.album.entity.MediaLog;
+import org.ssafy.eeum.domain.album.repository.MediaLogRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.s3.S3Service;
@@ -29,6 +32,7 @@ public class AlbumService {
     private final FamilyRepository familyRepository;
     private final S3Service s3Service;
     private final IotSyncService iotSyncService;
+    private final MediaLogRepository mediaLogRepository;
 
     // 0. 업로드용 Presigned URL 생성
     public PresignedUrlResponseDTO generateUploadUrl(String fileName, String contentType) {
@@ -57,7 +61,7 @@ public class AlbumService {
         albumRepository.save(asset);
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(familyId, "image", 1);
+        iotSyncService.notifyUpdate(familyId, "image");
     }
 
     // 2. 가족별 사진 목록 조회
@@ -75,8 +79,11 @@ public class AlbumService {
 
         asset.update(request.getTakenAt(), request.getDescription());
 
+        // Log 저장 (UPDATE)
+        saveLog(asset.getFamily().getId(), asset.getId(), ActionType.UPDATE);
+
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(asset.getFamily().getId(), "image", 1);
+        iotSyncService.notifyUpdate(asset.getFamily().getId(), "image");
     }
 
     // 4. 사진 삭제 (Soft Delete)
@@ -89,7 +96,7 @@ public class AlbumService {
         albumRepository.delete(asset); // SQLDelete에 의해 isSynced=false 처리됨
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(familyId, "image", 1);
+        iotSyncService.notifyUpdate(familyId, "image");
     }
 
     /**
@@ -140,5 +147,14 @@ public class AlbumService {
                 .uploaderName(asset.getUploader().getName())
                 .createdAt(asset.getCreatedAt().toString())
                 .build();
+    }
+
+    private void saveLog(Integer familyId, Integer mediaId, ActionType actionType) {
+        MediaLog log = MediaLog.builder()
+                .groupId(familyId)
+                .mediaId(mediaId)
+                .actionType(actionType)
+                .build();
+        mediaLogRepository.save(log);
     }
 }

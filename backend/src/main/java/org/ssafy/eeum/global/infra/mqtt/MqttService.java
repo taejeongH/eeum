@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.integration.annotation.ServiceActivator;
+
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -16,10 +18,11 @@ import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.event.IotDeviceEvent;
 import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 import org.springframework.context.event.EventListener;
-import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
+
 import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -37,8 +40,9 @@ public class MqttService {
     private final SensorEventService sensorEventService;
     private final DeviceStatusService deviceStatusService;
     private final FallEventService fallEventService;
-    private final IotDeviceRepository iotDeviceRepository;
+
     private final JwtProvider jwtProvider;
+    private final FamilyRepository familyRepository;
 
     public void publish(String topic, String payload) {
         try {
@@ -307,21 +311,31 @@ public class MqttService {
         }
     }
 
-    private void handleUpdate(String payload) {
+    @org.springframework.transaction.annotation.Transactional
+    protected void handleUpdate(String payload) {
         try {
             JsonNode node = objectMapper.readTree(payload);
             String token = getTokenFromNode(node);
-            Integer groupId = validateTokenAndGetGroupId(token);
+            DeviceDetails deviceDetails = validateTokenAndGetDeviceDetails(token);
 
-            String msgId = node.path("msg_id").asText();
             String kind = node.path("kind").asText();
-            int updateCnt = node.path("update_cnt").asInt();
-            double updatedAtTimestamp = node.path("updated_at").asDouble();
+            int logId = node.path("log_id").asInt(0); // Default 0 if missing
 
-            LocalDateTime updatedAt = convertTimestamp(updatedAtTimestamp);
+            Family family = familyRepository.findById(deviceDetails.getGroupId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-            log.info("Handled Update Acknowledgement from IoT: MsgId={}, Family={}, Kind={}, Count={}, UpdatedAt={}",
-                    msgId, groupId, kind, updateCnt, updatedAt);
+            if ("image".equals(kind)) {
+                if (logId > family.getLastMediaLogId()) {
+                    family.updateLastMediaLogId(logId);
+                }
+            } else if ("voice".equals(kind)) {
+                if (logId > family.getLastVoiceLogId()) {
+                    family.updateLastVoiceLogId(logId);
+                }
+            }
+
+            log.info("Handled Update Acknowledgement from IoT: Serial={}, Kind={}, LogId={}",
+                    deviceDetails.getSerialNumber(), kind, logId);
         } catch (Exception e) {
             log.warn("Failed to handle IoT update acknowledgement: {}", e.getMessage());
         }
@@ -356,17 +370,20 @@ public class MqttService {
     }
 
     private Integer validateTokenAndGetGroupId(String token) {
+        return validateTokenAndGetDeviceDetails(token).getGroupId();
+    }
+
+    private DeviceDetails validateTokenAndGetDeviceDetails(String token) {
         if (token == null)
             throw new IllegalArgumentException("Token is null");
         String jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
         if (!jwtProvider.validateToken(jwt)) {
-            throw new CustomException(
-                    ErrorCode.INVALID_TOKEN);
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
         Authentication auth = jwtProvider.getAuthentication(jwt);
         Object principal = auth.getPrincipal();
         if (principal instanceof DeviceDetails) {
-            return ((DeviceDetails) principal).getGroupId();
+            return (DeviceDetails) principal;
         }
         throw new IllegalArgumentException("Invalid token type for IoT");
     }

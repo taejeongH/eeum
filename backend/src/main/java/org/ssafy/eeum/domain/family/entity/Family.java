@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.family.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -22,10 +23,12 @@ public class Family {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "family", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Supporter> supporters = new ArrayList<>();
 
@@ -43,6 +46,12 @@ public class Family {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Column(name = "last_media_log_id", nullable = false)
+    private Integer lastMediaLogId = 0;
+
+    @Column(name = "last_voice_log_id", nullable = false)
+    private Integer lastVoiceLogId = 0;
 
     @Builder
     public Family(String groupName, String inviteCode, User user, String streamingUrl) {
@@ -62,5 +71,13 @@ public class Family {
 
     public void updateStreamingUrl(String streamingUrl) {
         this.streamingUrl = streamingUrl;
+
+    public void updateLastMediaLogId(Integer logId) {
+        this.lastMediaLogId = logId;
+    }
+
+    public void updateLastVoiceLogId(Integer logId) {
+        this.lastVoiceLogId = logId;
+
     }
 }

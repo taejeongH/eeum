@@ -30,7 +30,8 @@ public class RedisService {
 
     public <T> List<T> getList(String key, Class<T> clazz) {
         String value = (String) redisTemplate.opsForValue().get(key);
-        if (value == null) return null;
+        if (value == null)
+            return null;
 
         try {
             return objectMapper.readValue(value,
@@ -55,5 +56,21 @@ public class RedisService {
 
     public boolean hasKey(String key) {
         return redisTemplate.hasKey(key);
+    }
+
+    public Long increment(String key) {
+        return redisTemplate.opsForValue().increment(key);
+    }
+
+    public void addToSet(String key, String value) {
+        redisTemplate.opsForSet().add(key, value);
+    }
+
+    public java.util.Set<Object> getSetMembers(String key) {
+        return redisTemplate.opsForSet().members(key);
+    }
+
+    public void removeFromSet(String key, String value) {
+        redisTemplate.opsForSet().remove(key, value);
     }
 }

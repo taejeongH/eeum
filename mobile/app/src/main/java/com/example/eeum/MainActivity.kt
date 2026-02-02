@@ -134,6 +134,38 @@ class MainActivity : ComponentActivity() {
             Log.d("FCM", "✅ FCM TOKEN SUCCESS: $it")
         }
 
+        // ==========================================
+        // [PoC] Wearable PING Test (임시)
+        // ==========================================
+        // 앱 실행 시 자동으로 3초 뒤에 PING 전송 시도 (테스트용)
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(3000) 
+            Log.d("Wearable", "Trying to find connected nodes...")
+            try {
+                // IO 스레드에서 실행
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(this@MainActivity)
+                    val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
+                    if (nodes.isNotEmpty()) {
+                        val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(this@MainActivity)
+                        nodes.forEach { node ->
+                            Log.d("Wearable", "Sending /emergency/start to node: ${node.displayName} (${node.id})")
+                            // 비동기 전송은 await 없이 리스너만 달아도 되지만, 여기선 Tasks.await를 쓰진 않았으므로 그대로 둠.
+                            // 다만 sendMessage 자체는 비동기 Task를 반환하므로 바로 리스너 부착 가능.
+                            messageClient.sendMessage(node.id, "/emergency/start", null)
+                                .addOnSuccessListener { Log.d("Wearable", "Message sent successfully") }
+                                .addOnFailureListener { Log.e("Wearable", "Message failed", it) }
+                        }
+                    } else {
+                        Log.d("Wearable", "No connected nodes found.")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Wearable", "Error sending message", e)
+            }
+        }
+        // ==========================================
+
         setContent {
             EeumTheme {
                 WebViewScreen(
@@ -243,6 +275,37 @@ class HealthJsBridge(
     @JavascriptInterface
     fun clearNotifications() {
         MainActivity.clearNotifications(activity)
+    }
+
+    @JavascriptInterface
+    fun startHeartRateMonitoring() {
+        Log.d("BRIDGE", "startHeartRateMonitoring called")
+        activity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            sendMessageToWatch("/emergency/start")
+        }
+    }
+
+    @JavascriptInterface
+    fun stopHeartRateMonitoring() {
+        Log.d("BRIDGE", "stopHeartRateMonitoring called")
+        activity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            sendMessageToWatch("/emergency/stop")
+        }
+    }
+
+    private suspend fun sendMessageToWatch(path: String) {
+        try {
+            val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(activity)
+            val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
+            val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(activity)
+            
+            nodes.forEach { node ->
+                com.google.android.gms.tasks.Tasks.await(messageClient.sendMessage(node.id, path, null))
+                Log.d("BRIDGE", "Sent $path to ${node.displayName}")
+            }
+        } catch (e: Exception) {
+            Log.e("BRIDGE", "Failed to send message", e)
+        }
     }
 }
 

@@ -183,6 +183,11 @@ const routes = [
     name: 'Emergency',
     redirect: '/home',
   },
+  {
+    path: '/realtime-heart-rate',
+    name: 'RealTimeHeartRate',
+    component: () => import('../views/HeartRateView.vue'),
+  },
 ];
 
 const router = createRouter({

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@iconify/vue": "^5.0.0",
     "axios": "^1.13.2",
     "pinia": "^3.0.4",
     "swiper": "^12.1.0",

@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.family.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -18,11 +19,13 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 @IdClass(SupporterId.class)
 public class Supporter {
+    @JsonIgnore
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
+    @JsonIgnore
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
@@ -65,4 +68,3 @@ public class Supporter {
         this.relationship = relationship;
     }
 }
-
