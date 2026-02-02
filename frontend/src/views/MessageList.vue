@@ -1,24 +1,11 @@
 <template>
   <div class="min-h-screen" style="background-color: var(--bg-page);">
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    
     <header class="bg-white border-b border-gray-200">
       <div class="max-w-2xl mx-auto px-4 py-3">
         <!-- Top Row -->
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <button 
-              @click="goBack"
-              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            
-            <div class="flex items-center gap-2">
-              <h1 v-if="!familyLoading" class="text-lg font-bold text-gray-800">{{ groupName || '우리 가족' }}</h1>
-            </div>
-          </div>
-          
+        <div class="flex items-center justify-end mb-4">
           <div class="flex items-center gap-2">
             <button 
               @click="openSearch"
@@ -371,7 +358,7 @@
     </main>
 
     <!-- Bottom Navigation -->
-    <BottomNav />
+    <BottomNav v-if="!isModalOpen" />
   </div>
 </template>
 
@@ -383,11 +370,17 @@ import { familyService } from '@/services/familyService'
 import { useFamilyStore } from '@/stores/family'
 import BottomNav from '@/components/layout/BottomNav.vue'
 import { useModalStore } from '@/stores/modal'
+import MainHeader from '@/components/MainHeader.vue'
 
 const router = useRouter()
 const route = useRoute()
 const modalStore = useModalStore()
 const familyStore = useFamilyStore()
+
+const isModalOpen = ref(false)
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen
+}
 
 const messages = ref([])
 const loading = ref(false)

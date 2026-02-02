@@ -54,6 +54,7 @@
  
      <!-- Collapsible Wrapper -->
      <div 
+       v-if="showProfiles"
        class="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
        :class="isCollapsed ? 'max-h-0 opacity-0' : 'max-h-48 opacity-100'"
      >
@@ -141,7 +142,7 @@
     </div>
 
     <!-- Toggle Button Container (Integrated with Header) -->
-    <div class="flex justify-center -mb-6 relative z-20">
+    <div v-if="showProfiles" class="flex justify-center -mb-6 relative z-20">
       <!-- Collapse Toggle Button -->
       <div class="flex px-4 py-1 justify-center">
         <button 
@@ -185,6 +186,12 @@ import SettingsDropdown from './SettingsDropdown.vue';
 import AddGroupModal from './AddGroupModal.vue';
 import InviteCodeModal from './InviteCodeModal.vue'; 
 
+const props = defineProps({
+  showProfiles: {
+    type: Boolean,
+    default: true
+  }
+});
 
 const router = useRouter();
 

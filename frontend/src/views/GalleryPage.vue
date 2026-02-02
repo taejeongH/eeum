@@ -2,14 +2,12 @@
   <div class="bg-background-light min-h-screen text-[#1c140d] pb-24 relative">
     
     <!-- Refined Header -->
-    <header class="sticky top-0 z-30 bg-background-light/80 backdrop-blur-md px-4 pt-4 pb-4 transition-colors duration-200 flex items-center justify-between">
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    
+    <!-- Sub Header for Page Controls -->
+    <div class="sticky top-0 z-20 bg-background-light/80 backdrop-blur-md px-4 pt-4 pb-4 transition-colors duration-200 flex items-center justify-between border-b border-gray-100/50">
       <div class="flex items-center gap-3">
-        <button @click="$router.push({ name: 'HomePage' })" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <svg class="w-6 h-6 text-[#1c140d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 class="text-xl font-bold tracking-tight">가족 갤러리</h1>
+        <h1 class="text-xl font-bold tracking-tight pl-2">가족 갤러리</h1>
       </div>
       <div class="flex items-center gap-1">
         <EeumDatePicker v-model="selectedDateProxy">
@@ -23,7 +21,7 @@
           <span class="material-symbols-outlined">tune</span>
         </button>
       </div>
-    </header>
+    </div>
 
     <main class="space-y-6">
       <!-- Recently Added (Swiper) -->
@@ -123,13 +121,14 @@
     </button>
     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload" />
     
-    <BottomNav />
+    <BottomNav v-if="!isModalOpen" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
@@ -150,6 +149,11 @@ const modalStore = useModalStore();
 const photos = ref([]);
 const fileInput = ref(null);
 const isUploading = ref(false);
+const isModalOpen = ref(false);
+
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen;
+};
 
 const selectedDateProxy = computed({
     get: () => '',
