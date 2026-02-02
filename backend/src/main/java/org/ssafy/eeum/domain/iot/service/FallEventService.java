@@ -81,6 +81,7 @@ public class FallEventService {
         if (presignedUrl != null) {
             response.put("presignedUrl", presignedUrl);
             response.put("videoPath", fileName);
+            response.put("eventId", String.valueOf(event.getId()));
         }
 
         log.info("Fall Detected: Device={}, Level={}, VideoUploadExpected={}",
@@ -110,6 +111,7 @@ public class FallEventService {
         java.util.Map<String, String> response = new java.util.HashMap<>();
         response.put("presignedUrl", url);
         response.put("videoPath", fileName);
+        response.put("eventId", String.valueOf(event.getId()));
 
         return response;
     }
@@ -147,7 +149,7 @@ public class FallEventService {
             log.warn("낙상 위급 상황 판단 (LLM): Group={}, Text={}", familyId, sttContent);
 
             // 보호자에게 단계적 알림 발송
-            fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + sttContent);
+            fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + sttContent, event.getId());
         } else {
             event.updateToSafe(sttContent);
             log.info("낙상 안전 확인 (LLM): Group={}, Text={}", familyId, sttContent);
@@ -165,7 +167,7 @@ public class FallEventService {
         if (isEmergency) {
             // 테스트 모드에서도 알림 발송 로직 확인 가능하도록 추가
             log.info("Triggering Test Notification for Family: {}", familyId);
-            fallDetectionService.handleFallDetection(familyId, "[테스트] 낙상 위험 감지: " + sttContent);
+            fallDetectionService.handleFallDetection(familyId, "[테스트] 낙상 위험 감지: " + sttContent, null);
         }
     }
 
@@ -183,7 +185,7 @@ public class FallEventService {
         log.warn("낙상 비상 처리 (빈 STT 응답): Group={}, EventId={}", familyId, event.getId());
 
         // 보호자에게 알림 발송
-        fallDetectionService.handleFallDetection(familyId, "낙상 감지 후 응답이 없어 비상 상황으로 전환되었습니다.");
+        fallDetectionService.handleFallDetection(familyId, "낙상 감지 후 응답이 없어 비상 상황으로 전환되었습니다.", event.getId());
     }
 
     /**
@@ -205,7 +207,23 @@ public class FallEventService {
 
             // 보호자에게 알림 발송
             fallDetectionService.handleFallDetection(event.getFamily().getId(),
-                    "낙상 확인 요청에 1분간 응답이 없어 비상 상황으로 전환되었습니다.");
+                    "낙상 확인 요청에 1분간 응답이 없어 비상 상황으로 전환되었습니다.", event.getId());
         }
+    }
+
+    public java.util.Map<String, String> getVideoUrl(Integer eventId) {
+        FallEvent event = fallEventRepository.findById(eventId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "낙상 이벤트를 찾을 수 없습니다."));
+
+        if (event.getVideoStatus() != FallEvent.VideoStatus.SUCCESS) {
+            throw new CustomException(ErrorCode.VIDEO_NOT_READY);
+        }
+
+        String presignedUrl = s3Service.getPresignedUrl(event.getVideoPath());
+        
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("videoUrl", presignedUrl);
+        
+        return response;
     }
 }

@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FcmService {
 
-    public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route, Integer familyId, String groupName) {
+    public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route, Integer familyId, String groupName, Integer eventId) {
         if (token == null || token.isEmpty()) {
             return;
         }
@@ -39,6 +39,10 @@ public class FcmService {
 
             if (route != null) {
                 messageBuilder.putData("route", route);
+            }
+
+            if (eventId != null) {
+                messageBuilder.putData("eventId", String.valueOf(eventId));
             }
 
             Message message = messageBuilder.build();
