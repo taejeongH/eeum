@@ -1,16 +1,10 @@
 <template>
   <div class="bg-[#fcfcfc] min-h-screen pb-20">
-    <!-- Premium Header -->
-    <header class="bg-white/90 backdrop-blur-md sticky top-0 z-[100] border-b border-gray-100 shadow-sm transition-all duration-300">
-      <div class="px-6 pt-6 pb-4 flex items-center">
-        <button @click="router.back()" class="p-2 -ml-2 rounded-full hover:bg-gray-100 active:scale-90 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 class="text-2xl font-black text-gray-900 ml-2 tracking-tight">기기 관리</h1>
-      </div>
-    </header>
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    
+    <div class="bg-white/90 backdrop-blur-md sticky top-0 z-[90] border-b border-gray-100 shadow-sm px-6 py-4 flex items-center justify-between transition-all duration-300">
+       <h1 class="text-xl font-bold text-gray-900 tracking-tight">기기 관리</h1>
+    </div>
 
     <main class="px-5 py-6 space-y-8">
       <!-- QR Code Section -->
@@ -213,6 +207,14 @@
 </template>
 
 <script setup>
+// 창민 추가
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } from '@/services/api';
+import QRCode from 'qrcode';
+import MainHeader from '@/components/MainHeader.vue';
+import { useFamilyStore } from '@/stores/family';
+// 창민 추가
 import QRCode from 'qrcode';
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -223,6 +225,14 @@ import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
+// 창민추가
+const familyId = ref(parseInt(route.params.familyId));
+const isModalOpen = ref(false);
+
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen;
+};
+// 창민추가
 const { selectedFamily } = storeToRefs(familyStore);
 const familyId = parseInt(route.params.familyId);
 
@@ -311,7 +321,7 @@ const expiryText = computed(() => {
 const generateQR = async () => {
   isGenerating.value = true;
   try {
-    const response = await generatePairingCode(familyId);
+    const response = await generatePairingCode(familyId.value);
     qrCode.value = response.data;
     remainingTime.value = qrCode.value.expiresIn;
     
@@ -365,7 +375,7 @@ const clearExpiryTimer = () => {
 const loadDevices = async () => {
   isLoadingDevices.value = true;
   try {
-    const response = await getIotDevices(familyId);
+    const response = await getIotDevices(familyId.value);
     devices.value = response.data || [];
   } catch (error) {
     console.error('Failed to load devices:', error);
@@ -392,7 +402,7 @@ const saveDevice = async () => {
   if (!editForm.value.deviceName.trim()) return;
   isSaving.value = true;
   try {
-    await updateIotDevice(familyId, editingDevice.value.id, editForm.value);
+    await updateIotDevice(familyId.value, editingDevice.value.id, editForm.value);
     await loadDevices();
     closeEditModal();
   } catch (error) {
@@ -415,7 +425,7 @@ const closeDeleteModal = () => {
 const deleteDevice = async () => {
   isDeleting.value = true;
   try {
-    await deleteIotDevice(familyId, deviceToDelete.value.id);
+    await deleteIotDevice(familyId.value, deviceToDelete.value.id);
     await loadDevices();
     closeDeleteModal();
   } catch (error) {
@@ -430,6 +440,9 @@ const handleModalClose = () => {
   if (showDeleteModal.value) closeDeleteModal();
 };
 
+// 창민수정
+// Helper Methods
+// 창민수정
 // Body scroll lock
 watch([showEditModal, showDeleteModal], ([edit, del]) => {
   if (edit || del) {
@@ -442,6 +455,23 @@ watch([showEditModal, showDeleteModal], ([edit, del]) => {
 const getLocationName = (type) => {
   return locations.find(l => l.value === type)?.label || type;
 };
+
+// React to route changes
+watch(() => route.params.familyId, (newId) => {
+    if (newId && newId !== String(familyId.value)) {
+        familyId.value = parseInt(newId);
+        loadDevices();
+    }
+});
+
+// React to store changes (Header dropdown)
+watch(() => familyStore.selectedFamily, (newFamily) => {
+    if (newFamily && newFamily.id) {
+        if (String(newFamily.id) !== String(route.params.familyId)) {
+             router.replace({ name: 'DeviceManagement', params: { familyId: newFamily.id } });
+        }
+    }
+});
 
 // Lifecycle
 onMounted(() => {

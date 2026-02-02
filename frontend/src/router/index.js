@@ -177,6 +177,11 @@ const routes = [
     component: () => import('../views/AlbumPage.vue')
   },
   {
+    path: '/families/:familyId/gallery/photos/:photoId',
+    name: 'PhotoDetail',
+    component: () => import('../views/PhotoDetailPage.vue')
+  },
+  {
     path: '/families/:familyId/calendar/detail',
     name: 'DetailSchedule',
     component: () => import('../views/DetailSchedule.vue'),
