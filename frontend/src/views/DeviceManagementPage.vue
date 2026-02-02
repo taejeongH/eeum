@@ -14,9 +14,9 @@
 
     <main class="px-5 py-6 space-y-8">
       <!-- QR Code Section -->
-      <section class="space-y-4">
+      <section v-if="isRepresentative" class="space-y-4">
         <div class="flex items-center gap-2 mb-2">
-          <div class="w-1.5 h-6 bg-gray-900 rounded-full"></div>
+          <div class="w-1.5 h-6 bg-[var(--color-primary)] rounded-full"></div>
           <h2 class="text-lg font-black text-gray-900">새 기기 등록</h2>
         </div>
 
@@ -33,7 +33,7 @@
             <button 
               @click="generateQR" 
               :disabled="isGenerating" 
-              class="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-gray-300"
+              class="eeum-btn-primary flex items-center justify-center gap-2"
             >
               <div v-if="isGenerating" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               <span>{{ isGenerating ? 'QR 코드 생성 중...' : 'QR 코드 생성하기' }}</span>
@@ -72,14 +72,14 @@
       <section class="space-y-4">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
-            <div class="w-1.5 h-6 bg-gray-900 rounded-full"></div>
+            <div class="w-1.5 h-6 bg-[var(--color-primary)] rounded-full"></div>
             <h2 class="text-lg font-black text-gray-900">등록된 기기</h2>
           </div>
           <span class="text-xs font-bold text-gray-400">{{ devices.length }}개</span>
         </div>
 
         <div v-if="isLoadingDevices" class="flex flex-col items-center justify-center py-10">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]"></div>
           <p class="mt-4 text-gray-400 text-xs font-bold uppercase tracking-widest">데이터를 불러오고 있습니다</p>
         </div>
 
@@ -96,7 +96,7 @@
         <div v-else class="space-y-4">
           <div v-for="device in devices" :key="device.id" class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 group transition-all relative overflow-hidden">
             <!-- Icon -->
-            <div class="w-14 h-14 rounded-2xl shrink-0 flex items-center justify-center bg-gray-50 transition-colors" :class="device.isActive ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-300'">
+            <div class="w-14 h-14 rounded-2xl shrink-0 flex items-center justify-center transition-colors" :class="device.isActive ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-light)]' : 'bg-gray-50 text-gray-300'">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
               </svg>
@@ -104,9 +104,6 @@
 
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-0.5">
-                <span class="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider" :class="device.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
-                  {{ device.isActive ? '온라인' : '오프라인' }}
-                </span>
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ getLocationName(device.locationType) }}</span>
               </div>
               <h3 class="text-lg font-bold text-gray-900 truncate tracking-tight">{{ device.deviceName }}</h3>
@@ -114,8 +111,8 @@
             </div>
 
             <!-- Simple Actions -->
-            <div class="flex flex-col gap-2">
-              <button @click="editDevice(device)" class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-all">
+            <div v-if="isRepresentative" class="flex flex-col gap-2">
+              <button @click="editDevice(device)" class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-[var(--color-primary)] transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
@@ -133,14 +130,22 @@
 
     <!-- Generic Modal Wrapper (Matches project style) -->
     <transition name="modal">
-      <div v-if="showEditModal || showDeleteModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6" @click.self="handleModalClose">
+      <div v-if="showEditModal || showDeleteModal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"></div>
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="handleModalClose"></div>
         
         <!-- Modal Content -->
-        <div class="relative w-full sm:max-w-md bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl transition-all animate-slide-up sm:animate-scale-up">
+        <div 
+          class="relative w-full sm:max-w-md bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl transition-all animate-slide-up sm:animate-scale-up"
+          :style="modalStyle"
+        >
           <!-- Handle for Mobile -->
-          <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+          <div 
+            class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden cursor-grab active:cursor-grabbing"
+            @touchstart="onTouchStart"
+            @touchmove="onTouchMove"
+            @touchend="onTouchEnd"
+          ></div>
 
           <div v-if="showEditModal">
             <h3 class="text-2xl font-black text-gray-900 mb-2 tracking-tight">기기 정보 수정</h3>
@@ -152,7 +157,7 @@
                 <input 
                   v-model="editForm.deviceName" 
                   type="text" 
-                  class="w-full h-14 px-5 rounded-2xl bg-gray-50 border border-gray-100 font-bold focus:bg-white focus:ring-2 focus:ring-gray-900 transition-all outline-none text-gray-900" 
+                  class="w-full h-14 px-5 rounded-2xl bg-gray-50 border border-gray-100 font-bold focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)] transition-all outline-none text-gray-900" 
                   placeholder="예: 거실 카메라" 
                 />
               </div>
@@ -164,8 +169,8 @@
                     v-for="loc in locations" 
                     :key="loc.value"
                     @click="editForm.locationType = loc.value"
-                    class="h-12 rounded-xl text-xs font-bold transition-all border"
-                    :class="editForm.locationType === loc.value ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-white'"
+                    class="h-12 rounded-[var(--radius-xl)] text-xs font-bold transition-all border"
+                    :class="editForm.locationType === loc.value ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-white'"
                   >
                     {{ loc.label }}
                   </button>
@@ -174,8 +179,8 @@
             </div>
 
             <div class="flex gap-3">
-              <button @click="closeEditModal" class="flex-1 h-16 rounded-2xl bg-gray-50 text-gray-400 font-bold hover:bg-gray-100 transition-all active:scale-95">취소</button>
-              <button @click="saveDevice" :disabled="isSaving" class="flex-2 h-16 rounded-2xl bg-gray-900 text-white font-bold shadow-lg shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button @click="closeEditModal" class="flex-1 h-14 rounded-[var(--radius-xl)] bg-gray-50 text-gray-400 font-bold hover:bg-gray-100 transition-all active:scale-95">취소</button>
+              <button @click="saveDevice" :disabled="isSaving" class="flex-1 eeum-btn-primary flex items-center justify-center gap-2">
                 <div v-if="isSaving" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 저장하기
               </button>
@@ -194,8 +199,8 @@
             </p>
 
             <div class="flex gap-3">
-              <button @click="closeDeleteModal" class="flex-1 h-16 rounded-2xl bg-gray-50 text-gray-400 font-bold transition-all active:scale-95">취소</button>
-              <button @click="deleteDevice" :disabled="isDeleting" class="flex-2 h-16 rounded-2xl bg-red-500 text-white font-bold shadow-lg shadow-red-100 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button @click="closeDeleteModal" class="flex-1 h-14 rounded-[var(--radius-xl)] bg-gray-50 text-gray-400 font-bold transition-all active:scale-95">취소</button>
+              <button @click="deleteDevice" :disabled="isDeleting" class="flex-1 h-14 rounded-[var(--radius-xl)] bg-red-500 text-white font-bold active:scale-95 transition-all flex items-center justify-center gap-2">
                 <div v-if="isDeleting" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 삭제하기
               </button>
@@ -208,13 +213,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } from '@/services/api';
 import QRCode from 'qrcode';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useFamilyStore } from '@/stores/family';
+import { storeToRefs } from 'pinia';
+import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();
+const familyStore = useFamilyStore();
+const { selectedFamily } = storeToRefs(familyStore);
 const familyId = parseInt(route.params.familyId);
 
 const locations = [
@@ -251,6 +260,45 @@ const showDeleteModal = ref(false);
 const deviceToDelete = ref(null);
 const isDeleting = ref(false);
 
+// Drag to close state
+const touchStartY = ref(0);
+const modalTranslateY = ref(0);
+const isDragging = ref(false);
+
+const modalStyle = computed(() => {
+  if (!isDragging.value) return {};
+  return {
+    transform: `translateY(${modalTranslateY.value}px)`,
+    transition: 'none'
+  };
+});
+
+const onTouchStart = (e) => {
+  touchStartY.value = e.touches[0].clientY;
+  isDragging.value = true;
+};
+
+const onTouchMove = (e) => {
+  const currentY = e.touches[0].clientY;
+  const deltaY = currentY - touchStartY.value;
+  if (deltaY > 0) {
+    modalTranslateY.value = deltaY;
+  }
+};
+
+const onTouchEnd = () => {
+  isDragging.value = false;
+  if (modalTranslateY.value > 100) {
+    handleModalClose();
+  }
+  modalTranslateY.value = 0;
+};
+
+// Role check
+const isRepresentative = computed(() => {
+  return selectedFamily.value?.owner === true;
+});
+
 // Computed
 const expiryText = computed(() => {
   if (remainingTime.value <= 0) return 'QR 코드가 만료되었습니다';
@@ -275,7 +323,7 @@ const generateQR = async () => {
         width: 224, // 56 * 4 (Tailwind w-56 is 14rem = 224px)
         margin: 2,
         color: {
-          dark: '#111827', // gray-900
+          dark: '#111827', // Gray-900 (Black)
           light: '#ffffff'
         },
         errorCorrectionLevel: 'H'
@@ -381,6 +429,15 @@ const handleModalClose = () => {
   if (showEditModal.value) closeEditModal();
   if (showDeleteModal.value) closeDeleteModal();
 };
+
+// Body scroll lock
+watch([showEditModal, showDeleteModal], ([edit, del]) => {
+  if (edit || del) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+});
 
 const getLocationName = (type) => {
   return locations.find(l => l.value === type)?.label || type;
