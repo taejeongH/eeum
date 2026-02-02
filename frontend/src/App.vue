@@ -158,6 +158,15 @@ onMounted(async () => {
               }
           } catch (e) {
              console.error("❌ Native Token Restore Failed", e);
+             // [FIX] 복구 실패 시 잘못된 토큰이 로컬에 남지 않도록 삭제
+             localStorage.removeItem('accessToken');
+             localStorage.removeItem('refreshToken');
+             if (window.AndroidBridge) {
+                 if (window.AndroidBridge.logout) window.AndroidBridge.logout();
+                 if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear
+             }
+             router.replace('/onboarding');
+             return; // Stop further retries
           }
       }
 
@@ -257,6 +266,8 @@ onMounted(async () => {
               }
 
               emergencyStore.open({
+                  eventId: notificationId,
+                  familyId: familyId,
                   groupName: groupName || currentFamily?.groupName || '가족 그룹',
                   // Use message directly if available (e.g. "Grandma fell"), otherwise computed name
                   dependentName: message ? message : (dependent ? (dependent.relationship || dependent.name) : '대상자 정보 없음'), 

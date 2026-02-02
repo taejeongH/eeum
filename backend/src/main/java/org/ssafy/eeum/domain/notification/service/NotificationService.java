@@ -38,7 +38,7 @@ public class NotificationService {
     private final FcmService fcmService;
 
     @Transactional
-    public Long createNotification(Integer familyId, String title, String message, String type) {
+    public Long createNotification(Integer familyId, String title, String message, String type, Integer relatedId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
@@ -47,6 +47,7 @@ public class NotificationService {
                 .title(title)
                 .message(message)
                 .type(type)
+                .relatedId(relatedId)
                 .build();
 
         notificationRepository.save(notification);
@@ -85,7 +86,7 @@ public class NotificationService {
                 
                 log.info("FCM Debug: Calculated Route: '{}'", route);
                 
-                fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route, familyId, groupName);
+                fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route, familyId, groupName, notification.getRelatedId());
                 delivery.updateSentAt();
             }
     }

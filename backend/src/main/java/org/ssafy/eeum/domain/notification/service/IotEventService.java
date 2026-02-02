@@ -73,7 +73,7 @@ public class IotEventService {
         // 그리고 sendNotification은 NotificationDelivery를 만듦.
         // 여기서는 "같은 사건"에 대해 모든 보호자에게 알리는 것이므로 Notification은 하나여야 함.
         
-        Long notificationId = notificationService.createNotification(familyId, title, message, "ACTIVITY");
+        Long notificationId = notificationService.createNotification(familyId, title, message, "ACTIVITY", null);
 
         // 2. 모든 보호자에게 전송
         for (Supporter caregiver : caregivers) {
