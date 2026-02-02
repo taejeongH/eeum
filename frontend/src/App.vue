@@ -165,7 +165,7 @@ onMounted(async () => {
                  if (window.AndroidBridge.logout) window.AndroidBridge.logout();
                  if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear
              }
-             router.replace('/onboarding');
+             router.replace('/login');
              return; // Stop further retries
           }
       }

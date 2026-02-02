@@ -26,9 +26,11 @@ const routes = [
   {
     path: '/',
     redirect: () => {
-      // 토큰이 있으면 홈으로, 없으면 온보딩으로
       const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-      return token ? '/home' : '/onboarding';
+      if (token) return '/home';
+
+      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+      return hasSeenOnboarding ? '/login' : '/onboarding';
     }
   },
   {
