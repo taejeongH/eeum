@@ -51,12 +51,60 @@ class HeartRateService : LifecycleService() {
             return START_NOT_STICKY
         }
 
-        startForeground(NOTIFICATION_ID, createNotification())
+        try {
+            val notification = createNotification()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                androidx.core.app.ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+                    } else {
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST
+                    }
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            vibrateStart()
+            
+            // Send initial ping to confirm connection
+            sendHeartRateToPhone(0.0) 
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground", e)
+            vibrateError()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        
         wakeLock?.acquire(10 * 60 * 1000L /*10 minutes*/)
 
         registerHeartRateSensor()
 
         return START_STICKY
+    }
+
+    private fun vibrateStart() {
+        val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+        // 3 short pulses
+        val timing = longArrayOf(0, 100, 100, 100, 100, 100)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+             vibrator.vibrate(android.os.VibrationEffect.createWaveform(timing, -1))
+        } else {
+             vibrator.vibrate(timing, -1)
+        }
+    }
+
+    private fun vibrateError() {
+         val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+         // Long error buzz
+         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+             vibrator.vibrate(android.os.VibrationEffect.createOneShot(1000, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+         } else {
+             vibrator.vibrate(1000)
+         }
     }
 
     private fun registerHeartRateSensor() {
@@ -66,7 +114,7 @@ class HeartRateService : LifecycleService() {
             return
         }
 
-        lifecycleScope.launchWhenStarted {
+        lifecycleScope.launch {
             try {
                 Log.d(TAG, "Registering HR callback...")
                 val capabilities = measureClient.getCapabilitiesAsync().await()
@@ -107,12 +155,17 @@ class HeartRateService : LifecycleService() {
                 val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(this@HeartRateService)
                 val nodes = nodeClient.connectedNodes.await()
                 
+                if (nodes.isEmpty()) {
+                    Log.w(TAG, "No connected nodes found to send data!")
+                    return@launch
+                }
+
                 val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(this@HeartRateService)
                 val payload = hr.toString().toByteArray()
 
                 for (node in nodes) {
                     messageClient.sendMessage(node.id, "/heart-rate", payload).await()
-                    Log.d(TAG, "Sent HR $hr to ${node.displayName}")
+                    Log.d(TAG, "Sent HR $hr to ${node.displayName} (${node.id})")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed send HR", e)
