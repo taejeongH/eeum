@@ -35,6 +35,13 @@ public class VoiceService {
     private final S3Service s3Service;
     private final VoiceAiClient voiceAiClient;
 
+    private static final List<String> TEST_QUOTES = List.of(
+            "너나 잘하세요.",
+            "계획이 다 있었구나.",
+            "니가 가라, 하와이.",
+            "묻고 더블로 가!",
+            "어이가 없네.");
+
     // 1. 대본 목록 조회
     public List<VoiceScript> getScripts() {
         return scriptRepository.findAll();
@@ -95,11 +102,83 @@ public class VoiceService {
     public VoiceModelStatusResponseDTO getVoiceModelStatus(Integer userId) {
         List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         List<VoiceSampleResponseDTO> sampleDtos = samples.stream()
-                .map(VoiceSampleResponseDTO::from)
+                .map(sample -> {
+                    String testUrl = null;
+                    if (sample.getTestAudioPath() != null) {
+                        testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
+                    }
+                    return VoiceSampleResponseDTO.from(sample, testUrl);
+                })
                 .toList();
 
         VoiceModel model = modelRepository.findByUserId(userId).orElse(null);
         return VoiceModelStatusResponseDTO.of(samples.size(), model, sampleDtos);
+    }
+
+    // 3-2. 테스트용 음성 샘플 목록 조회
+    public List<VoiceSampleResponseDTO> getTestAudios(Integer userId) {
+        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        return samples.stream()
+                .map(sample -> {
+                    String testUrl = null;
+                    if (sample.getTestAudioPath() != null) {
+                        testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
+                    }
+                    return VoiceSampleResponseDTO.from(sample, testUrl);
+                })
+                .toList();
+    }
+
+    // 3-2.1 테스트용 음성 일괄 생성 (랜덤 명대사 활용)
+    @Transactional
+    public void generateTestAudios(Integer userId) {
+        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        if (samples.isEmpty()) {
+            throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
+        }
+
+        // 사용자의 학습된 모델이 있는지 확인
+        VoiceModel model = modelRepository.findByUserId(userId).orElse(null);
+        String gptKey = (model != null && model.getStatus() == VoiceModel.ModelStatus.COMPLETED) ? model.getGptPath()
+                : null;
+        String sovitsKey = (model != null && model.getStatus() == VoiceModel.ModelStatus.COMPLETED)
+                ? model.getSovitsPath()
+                : null;
+
+        String randomQuote = TEST_QUOTES.get((int) (Math.random() * TEST_QUOTES.size()));
+
+        for (VoiceSample sample : samples) {
+            try {
+                String refText = sample.getVoiceScript() != null
+                        ? sample.getVoiceScript().getContent()
+                        : sample.getTranscript();
+
+                PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
+                        .userId(String.valueOf(userId))
+                        .gptKey(gptKey)
+                        .sovitsKey(sovitsKey)
+                        .refWavKey(sample.getSamplePath())
+                        .refText(refText)
+                        .text(randomQuote)
+                        .build();
+
+                String audioUrl = voiceAiClient.generateTts(requestDto);
+                if (audioUrl != null) {
+                    // S3 URL에서 key만 추출하여 저장
+                    String testAudioKey = extractS3Key(audioUrl);
+                    sample.updateTestAudioPath(testAudioKey);
+                }
+            } catch (Exception e) {
+                log.error("샘플 {}의 테스트 음성 생성 실패: {}", sample.getId(), e.getMessage());
+            }
+        }
+    }
+
+    private String extractS3Key(String url) {
+        if (url == null || !url.contains(".com/")) {
+            return url;
+        }
+        return url.substring(url.indexOf(".com/") + 5);
     }
 
     // 3-2. 대표 샘플 설정
