@@ -2,10 +2,13 @@ package org.ssafy.eeum.domain.voice.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.ssafy.eeum.domain.message.service.MessageService;
 import org.ssafy.eeum.domain.voice.dto.TtsRequestDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceModelStatusResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleRequestDTO;
 import org.ssafy.eeum.domain.voice.entity.VoiceScript;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
@@ -22,6 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VoiceController {
         private final VoiceService voiceService;
+        private final MessageService messageService;
 
         @SwaggerApiSpec(summary = "학습용 대본 목록 조회", description = "사용자의 목소리 복제 학습을 위해 제공되는 3~10초 분량의 대본 5개를 조회합니다.", successMessage = "대본 목록 조회 성공")
         @GetMapping("/scripts")
@@ -64,7 +68,34 @@ public class VoiceController {
         public RestApiResponse<Void> generateTts(
                         @AuthenticationPrincipal CustomUserDetails userDetails,
                         @Valid @RequestBody TtsRequestDTO request) {
-                voiceService.generateTts(userDetails.getId(), request);
-                return RestApiResponse.success("TTS 생성 및 전송이 완료되었습니다.");
+                messageService.generateTts(userDetails.getId(), request.getGroupId(), request.getText());
+                return RestApiResponse.success("TTS 생성 및 전송 요청이 접수되었습니다. 백그라운드에서 처리됩니다.");
+        }
+
+        @SwaggerApiSpec(summary = "음성 모델 학습 상태 조회", description = "자신의 음성 모델 학습 상태와 수집된 샘플 개수, 전체 샘플 목록을 조회합니다.", successMessage = "상태 조회 성공")
+        @GetMapping("/status")
+        public RestApiResponse<VoiceModelStatusResponseDTO> getStatus(
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                VoiceModelStatusResponseDTO response = voiceService.getVoiceModelStatus(userDetails.getId());
+                return RestApiResponse.success(response);
+        }
+
+        @SwaggerApiSpec(summary = "대표 음성 샘플 설정", description = "TTS 생성 시 사용할 대표 음성 샘플(Reference)을 지정합니다.", successMessage = "대표 샘플 설정 성공")
+        @PostMapping("/representative")
+        public RestApiResponse<Void> setRepresentativeSample(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestParam Integer sampleId) {
+                voiceService.setRepresentativeSample(userDetails.getId(), sampleId);
+                return RestApiResponse.success("대표 음성 샘플이 성공적으로 설정되었습니다.");
+        }
+
+        @SwaggerApiSpec(summary = "음성 샘플 별명 수정", description = "이미 등록된 음성 샘플의 별명을 수정합니다.", successMessage = "별명 수정 성공")
+        @PatchMapping("/samples/{sampleId}/nickname")
+        public RestApiResponse<Void> updateSampleNickname(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @PathVariable Integer sampleId,
+                        @RequestParam @NotBlank String nickname) {
+                voiceService.updateSampleNickname(userDetails.getId(), sampleId, nickname);
+                return RestApiResponse.success("음성 샘플의 별명이 성공적으로 수정되었습니다.");
         }
 }

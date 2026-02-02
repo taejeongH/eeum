@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.voice.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -17,4 +18,8 @@ public class VoiceSampleRequestDTO {
 
     @io.swagger.v3.oas.annotations.media.Schema(description = "녹음 내용 텍스트 (프리토킹인 경우 필수)", example = "오늘 날씨가 참 좋네요", nullable = true)
     private String transcript; // STT로 변환된 텍스트 (사용자 정의 녹음 시 사용)
+
+    @NotBlank(message = "음성 샘플 별명은 필수입니다.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "음성 샘플 별명 (예: 구수한 목소리)", example = "구수한 목소리", nullable = false)
+    private String nickname;
 }
