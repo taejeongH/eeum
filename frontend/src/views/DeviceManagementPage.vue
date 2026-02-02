@@ -208,12 +208,7 @@
 
 <script setup>
 // 창민 추가
-import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } from '@/services/api';
-import QRCode from 'qrcode';
 import MainHeader from '@/components/MainHeader.vue';
-import { useFamilyStore } from '@/stores/family';
 // 창민 추가
 import QRCode from 'qrcode';
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
@@ -226,9 +221,7 @@ const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
 // 창민추가
-const familyId = ref(parseInt(route.params.familyId));
 const isModalOpen = ref(false);
-
 const handleModalStateChange = (isOpen) => {
   isModalOpen.value = isOpen;
 };
@@ -440,9 +433,7 @@ const handleModalClose = () => {
   if (showDeleteModal.value) closeDeleteModal();
 };
 
-// 창민수정
-// Helper Methods
-// 창민수정
+
 // Body scroll lock
 watch([showEditModal, showDeleteModal], ([edit, del]) => {
   if (edit || del) {
