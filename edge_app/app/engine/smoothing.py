@@ -4,7 +4,7 @@ import math
 # ----------------------------
 # Config imports
 # ----------------------------
-from .config import (
+from ..config import (
     KP_EMA_ENABLE,          # EMA 스무딩 전체 on/off
     KP_EMA_ALPHA,           # 기본 EMA alpha (fallback용)
     KP_MIN_CONF_FOR_SMOOTH, # 이 conf 이하면 업데이트 안 함(hold)

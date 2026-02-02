@@ -5,11 +5,14 @@ import threading
 import collections
 from datetime import datetime
 from typing import Optional, Deque, Tuple, Any
+import subprocess
+from pathlib import Path
 
-from .config import (
+from ..config import (
     FRAME_W, FRAME_H,
     CLIP_DIR, CLIP_FPS, CLIP_PRE_SEC, CLIP_POST_SEC,
-    CLIP_COOLDOWN_S, CLIP_EVENT_POST_SEC
+    CLIP_COOLDOWN_S, CLIP_EVENT_POST_SEC,
+    CLIP_RESIZE_WIDTH, CLIP_RESIZE_HEIGHT
 )
 
 os.makedirs(CLIP_DIR, exist_ok=True)
@@ -18,8 +21,7 @@ class ClipRecorder:
     """
     Level1 발생 시 "과거 PRE_SEC + 이후 POST_SEC" 프레임을 mp4로 저장하는 클래스.
     - 내부에 링버퍼를 가지고 있다.
-    - start() 호출 시 버퍼에 있는 과거 프레임을 먼저 저장한다.
-    - update()는 매 프레임 호출되며, 녹화중이면 POST 프레임을 저장한다.
+    - push() 시 설정된 해상도(CLIP_RESIZE_WIDTH/HEIGHT)로 리사이징하여 메모리를 절약한다.
     
     개선사항:
     - save_segment()에 중복 감지 필터링 추가
@@ -30,7 +32,7 @@ class ClipRecorder:
         self.lock = threading.Lock()
         # 버퍼 크기: PRE_SEC + (abnormal_enter ~ level1 대기 시간) + EVENT_POST_SEC + 여유
         # abnormal_enter부터 level1까지 최대 10초 + 여유 5초
-        buf_size = CLIP_FPS * (CLIP_PRE_SEC + 25 + CLIP_EVENT_POST_SEC + 2)
+        buf_size = CLIP_FPS * (CLIP_PRE_SEC + 20 + CLIP_EVENT_POST_SEC + 2)
 
         self.buffer: Deque[Tuple[float, Any]] = collections.deque(maxlen=buf_size)
 
@@ -45,6 +47,13 @@ class ClipRecorder:
         self.save_segment_cooldown: float = 3.0   # 3초 내 중복 저장 방지
 
     def push(self, ts: float, frame_bgr):
+        # 메모리 절약을 위해 리사이징 후 버퍼링
+        if frame_bgr is not None:
+            # 원본이 설정 해상도와 다를 때만 리사이징
+            h, w = frame_bgr.shape[:2]
+            if w != CLIP_RESIZE_WIDTH or h != CLIP_RESIZE_HEIGHT:
+                frame_bgr = cv2.resize(frame_bgr, (CLIP_RESIZE_WIDTH, CLIP_RESIZE_HEIGHT))
+
         with self.lock:
             self.buffer.append((ts, frame_bgr.copy()))
 
@@ -66,13 +75,13 @@ class ClipRecorder:
         
         # 유효성 검사
         if w <= 0 or h <= 0:
-            logging.error(f"[CLIP] Invalid frame dimensions: {w}x{h}")
-            raise ValueError(f"Invalid frame dimensions: {w}x{h}")
+            logging.error(f"[CLIP] 프레임 해상도 유효하지 않음: {w}x{h}")
+            raise ValueError(f"프레임 해상도 유효하지 않음: {w}x{h}")
         
         # fps 범위 검증
         fps = float(fps)
         if fps <= 0 or fps > 240:
-            logging.warning(f"[CLIP] FPS out of range: {fps}, clamping to [5, 240]")
+            logging.warning(f"[CLIP] FPS 범위 벗어남: {fps}, [5, 240]로 조정 중")
             fps = max(5.0, min(240.0, fps))
         
         # 코덱 재시도 목록 (우선순위 순)
@@ -91,16 +100,16 @@ class ClipRecorder:
                 
                 # VideoWriter 유효성 검증
                 if writer.isOpened():
-                    logging.info(f"[CLIP] VideoWriter opened with codec '{codec_name}': {w}x{h} @ {fps}fps")
+                    logging.info(f"[CLIP] 코덱으로 VideoWriter 열기 '{codec_name}': {w}x{h} @ {fps}fps")
                     return writer
                 else:
-                    logging.warning(f"[CLIP] Codec '{codec_name}' failed to open: {w}x{h} @ {fps}fps")
+                    logging.warning(f"[CLIP] 코덱 '{codec_name}' 열기 실패: {w}x{h} @ {fps}fps")
                     writer.release()
             except Exception as e:
-                logging.warning(f"[CLIP] Codec '{codec_name}' error: {e}")
+                logging.warning(f"[CLIP] 코덱 '{codec_name}' 오류: {e}")
                 continue
         
-        logging.error(f"[CLIP] All codecs failed for {w}x{h} @ {fps}fps. Creating dummy writer.")
+        logging.error(f"[CLIP] 모든 코덱이 실패함 {w}x{h} @ {fps}fps. 기본 writer 생성 중.")
         # 마지막 시도: 기본 코덱
         writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
         return writer
@@ -302,6 +311,38 @@ class ClipRecorder:
                 except Exception:
                     pass
 
-            return path
+            path = self.transcode_mp4_for_web(path)
 
             return path
+
+    def transcode_mp4_for_web(self, in_path: str) -> str:
+        """
+        브라우저 호환(H.264/AAC/yuv420p) + faststart로 재인코딩.
+        """
+        p = Path(in_path)
+        out_path = str(p.with_suffix(".web.tmp.mp4"))
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", str(p),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-movflags", "+faststart",
+            out_path,
+        ]
+
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            os.replace(out_path, str(p))
+            return str(p)
+        except FileNotFoundError:
+            return str(p)
+        except subprocess.CalledProcessError:
+            try:
+                if os.path.exists(out_path):
+                    os.remove(out_path)
+            except Exception:
+                pass
+            return str(p)
