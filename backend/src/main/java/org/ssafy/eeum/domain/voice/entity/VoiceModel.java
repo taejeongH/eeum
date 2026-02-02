@@ -48,6 +48,6 @@ public class VoiceModel extends BaseEntity {
     }
 
     public enum ModelStatus {
-        TRAINING, COMPLETED, ERROR
+        NOT_STARTED, TRAINING, COMPLETED, ERROR
     }
 }
