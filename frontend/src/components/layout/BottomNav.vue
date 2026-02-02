@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-24 flex justify-around items-end pb-4 z-50">
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-20 flex justify-around items-end pb-3 z-50">
     <!-- Message -->
     <button @click="setActive('message')" class="flex flex-col items-center justify-end w-1/5 transition-colors" :class="activeTab === 'message' ? 'text-[#e76f51]' : 'text-[#8d6e63]'">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -15,19 +15,19 @@
       </svg>
       <span class="text-xs font-semibold">갤러리</span>
     </button>
-
+  
     <!-- Center Home Button (Floating Effect) -->
     <div class="relative w-1/5 flex justify-center">
       <button 
         @click="setActive('home')" 
-        class="absolute -top-12 rounded-full p-5 shadow-xl flex items-center justify-center border-[5px] border-white active:scale-95 transition-transform duration-200"
+        class="absolute -top-11 rounded-full p-5 shadow-xl flex items-center justify-center border-[5px] border-white active:scale-95 transition-transform duration-200"
         :class="activeTab === 'home' ? 'bg-[#e76f51] text-white' : 'bg-white text-[#8d6e63]'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       </button>
-      <span class="text-xs font-bold mt-10" :class="activeTab === 'home' ? 'text-[#e76f51]' : 'text-[#8d6e63]'">홈</span>
+      <span class="text-xs font-bold mt-9 invisible select-none" aria-hidden="true">홈</span>
     </div>
 
     <!-- Calendar -->
