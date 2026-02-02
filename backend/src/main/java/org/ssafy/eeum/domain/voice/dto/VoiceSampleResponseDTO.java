@@ -20,11 +20,25 @@ public class VoiceSampleResponseDTO {
     @Schema(description = "샘플 생성일")
     private LocalDateTime createdAt;
 
+    @Schema(description = "테스트 음성 URL", example = "https://s3...")
+    private String testAudioUrl;
+
     public static VoiceSampleResponseDTO from(VoiceSample sample) {
         return VoiceSampleResponseDTO.builder()
                 .id(sample.getId())
                 .nickname(sample.getNickname())
                 .createdAt(sample.getCreatedAt())
+                .testAudioUrl(sample.getTestAudioPath()) // This will be replaced with actual Presigned URL in service
+                                                         // if needed, but for now DTO stores the data
+                .build();
+    }
+
+    public static VoiceSampleResponseDTO from(VoiceSample sample, String testAudioUrl) {
+        return VoiceSampleResponseDTO.builder()
+                .id(sample.getId())
+                .nickname(sample.getNickname())
+                .createdAt(sample.getCreatedAt())
+                .testAudioUrl(testAudioUrl)
                 .build();
     }
 }
