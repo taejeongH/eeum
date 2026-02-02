@@ -4,18 +4,27 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.ssafy.eeum.domain.album.dto.AlbumDTOs;
 import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.family.repository.SupporterRepository;
+import org.ssafy.eeum.domain.iot.entity.ActionType;
+import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.message.dto.MessageRequestDto;
 import org.ssafy.eeum.domain.message.dto.MessageResponseDto;
 import org.ssafy.eeum.domain.message.entity.Message;
 import org.ssafy.eeum.domain.message.repository.MessageRepository;
+import org.ssafy.eeum.domain.voice.entity.VoiceLog;
+import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
+import org.ssafy.eeum.domain.voice.service.VoiceService;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import java.util.List;
 
@@ -29,10 +38,10 @@ public class MessageService {
         private final FamilyRepository familyRepository;
         private final UserRepository userRepository;
         private final SupporterRepository supporterRepository;
-        private final org.ssafy.eeum.domain.voice.service.VoiceService voiceService;
-        private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService; // Handled
-        private final org.ssafy.eeum.global.infra.s3.S3Service s3Service;
-        private final org.ssafy.eeum.domain.voice.repository.VoiceLogRepository voiceLogRepository;
+        private final VoiceService voiceService;
+        private final IotSyncService iotSyncService; // Handled
+        private final S3Service s3Service;
+        private final VoiceLogRepository voiceLogRepository;
 
         @Transactional
         public MessageResponseDto send(Integer groupId, Integer senderUserId, MessageRequestDto requestDto) {
@@ -64,23 +73,34 @@ public class MessageService {
                         String voiceUrl = voiceService.createTtsUrl(senderUserId, requestDto.getContent());
                         if (voiceUrl != null) {
                                 saved.updateVoiceUrl(voiceUrl);
-                                // JPA 더티 체킹에 의해 메서드 종료 시 voiceUrl이 업데이트됨
+
+                                // 5. TTS가 성공했을 때만 로그를 작성하고 IoT 알림을 보냄
+                                // Log 저장 (ADD)
+                                saveLog(groupId, saved.getId(), ActionType.ADD);
+
+                                // 트랜잭션 커밋 완료 후 MQTT 알림 전송 (IoT 동기화 타이밍 이슈 해결)
+                                if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                                        TransactionSynchronizationManager
+                                                        .registerSynchronization(new TransactionSynchronization() {
+                                                                @Override
+                                                                public void afterCommit() {
+                                                                        try {
+                                                                                iotSyncService.notifyUpdate(groupId,
+                                                                                                "voice");
+                                                                        } catch (Exception e) {
+                                                                                log.error("IoT Sync Notification failed after commit: {}",
+                                                                                                e.getMessage());
+                                                                        }
+                                                                }
+                                                        });
+                                } else {
+                                        iotSyncService.notifyUpdate(groupId, "voice");
+                                }
                         }
                 } catch (Exception e) {
-                        // "학습된 음성 샘플이 없습니다" 등의 에러를 여기서 차단
                         log.warn("TTS 생성이 중단되었습니다 (메시지 전송은 계속됨): {}", e.getMessage());
                 }
 
-                // 5. IoT 동기화 알림 (목소리가 없더라도 텍스트 업데이트 알림은 보냄)
-                try {
-                        // Log 저장 (ADD)
-                        saveLog(groupId, saved.getId(), org.ssafy.eeum.domain.iot.entity.ActionType.ADD);
-                        iotSyncService.notifyUpdate(groupId, "voice");
-                } catch (Exception e) {
-                        log.error("IoT Sync Notification failed: {}", e.getMessage());
-                }
-
-                // Auth check already retrieved the supporter (sender's supporter)
                 Supporter senderSupporter = supporterRepository.findByUserAndFamily(sender, group)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
@@ -100,7 +120,6 @@ public class MessageService {
                 List<Message> messages = messageRepository.findAllByGroupAndDeletedAtIsNullOrderByCreatedAtAsc(group);
                 List<Supporter> supporters = supporterRepository.findAllByFamily(group);
 
-                // Map: UserId -> Supporter
                 java.util.Map<Integer, Supporter> supporterMap = supporters.stream()
                                 .collect(java.util.stream.Collectors.toMap(
                                                 s -> s.getUser().getId(),
@@ -164,17 +183,17 @@ public class MessageService {
                 message.softDelete();
 
                 // Log 저장 (DELETE)
-                saveLog(groupId, messageId, org.ssafy.eeum.domain.iot.entity.ActionType.DELETE);
+                saveLog(groupId, messageId, ActionType.DELETE);
 
                 // IoT 동기화 알림
                 iotSyncService.notifyUpdate(groupId, "voice");
         }
 
         @Transactional
-        public org.ssafy.eeum.domain.album.dto.AlbumDTOs.IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
+        public AlbumDTOs.IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
                 List<Message> unsyncedMessages = messageRepository.findAllByGroupIdAndIsSyncedFalse(familyId);
 
-                List<org.ssafy.eeum.domain.album.dto.AlbumDTOs.AlbumSyncItemResponseDTO> addedItems = new java.util.ArrayList<>();
+                List<AlbumDTOs.AlbumSyncItemResponseDTO> addedItems = new java.util.ArrayList<>();
                 List<Integer> deletedIds = new java.util.ArrayList<>();
                 List<Integer> syncedIds = new java.util.ArrayList<>();
 
@@ -182,7 +201,7 @@ public class MessageService {
                         if (msg.getDeletedAt() != null) {
                                 deletedIds.add(msg.getId());
                         } else if (msg.getVoiceUrl() != null) {
-                                addedItems.add(org.ssafy.eeum.domain.album.dto.AlbumDTOs.AlbumSyncItemResponseDTO
+                                addedItems.add(AlbumDTOs.AlbumSyncItemResponseDTO
                                                 .builder()
                                                 .id(msg.getId())
                                                 .url(s3Service.getPresignedUrl(msg.getVoiceUrl()))
@@ -197,7 +216,7 @@ public class MessageService {
                         messageRepository.markAsSynced(syncedIds);
                 }
 
-                return org.ssafy.eeum.domain.album.dto.AlbumDTOs.IotAlbumSyncResponseDTO.builder()
+                return AlbumDTOs.IotAlbumSyncResponseDTO.builder()
                                 .added(addedItems)
                                 .deleted(deletedIds)
                                 .build();
@@ -231,9 +250,8 @@ public class MessageService {
                                 .build();
         }
 
-        private void saveLog(Integer familyId, Integer voiceId,
-                        org.ssafy.eeum.domain.iot.entity.ActionType actionType) {
-                org.ssafy.eeum.domain.voice.entity.VoiceLog log = org.ssafy.eeum.domain.voice.entity.VoiceLog.builder()
+        private void saveLog(Integer familyId, Integer voiceId, ActionType actionType) {
+                VoiceLog log = VoiceLog.builder()
                                 .groupId(familyId)
                                 .voiceId(voiceId)
                                 .actionType(actionType)

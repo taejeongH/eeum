@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 public class HealthMetricRequestDTO {
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss[.SSS]")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]")
     private LocalDateTime recordDate;
     private Integer steps;
     private Integer restingHeartRate;
