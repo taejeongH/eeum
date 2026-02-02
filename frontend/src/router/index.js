@@ -197,6 +197,11 @@ const routes = [
     component: () => import('../views/HeartRateView.vue'),
   },
   {
+    path: '/families/:familyId/devices',
+    name: 'DeviceManagement',
+    component: () => import('../views/DeviceManagementPage.vue'),
+  },
+  {
     path: '/setup-complete',
     name: 'InitialSetupComplete',
     component: () => import('../views/InitialSetupComplete.vue'),

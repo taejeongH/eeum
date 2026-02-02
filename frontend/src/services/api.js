@@ -224,3 +224,53 @@ export const getFamilyDetails = async (familyId) => {
   }
 };
 
+// IoT Device Management APIs
+export const generatePairingCode = async (familyId) => {
+  try {
+    const response = await apiClient.post(`/families/${familyId}/iot/pair/code`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to generate pairing code for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const getIotDevices = async (familyId) => {
+  try {
+    const response = await apiClient.get(`/families/${familyId}/devices`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch IoT devices for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const registerIotDevice = async (familyId, deviceData) => {
+  try {
+    const response = await apiClient.post(`/families/${familyId}/devices`, deviceData);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to register IoT device for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const updateIotDevice = async (familyId, deviceId, updateData) => {
+  try {
+    const response = await apiClient.patch(`/families/${familyId}/devices/${deviceId}`, updateData);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to update IoT device ${deviceId}:`, error);
+    throw error;
+  }
+};
+
+export const deleteIotDevice = async (familyId, deviceId) => {
+  try {
+    const response = await apiClient.delete(`/families/${familyId}/devices/${deviceId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to delete IoT device ${deviceId}:`, error);
+    throw error;
+  }
+};
