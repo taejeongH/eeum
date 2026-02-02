@@ -62,7 +62,7 @@ const fetchMembers = async (id) => {
   try {
     const response = await api.get(`/families/${id}/members`);
     members.value = response.data;
-    console.log('Fetched members:', response.data);
+
   } catch (error) {
     console.error(`Failed to fetch members for familyId ${id}:`, error);
     members.value = [];

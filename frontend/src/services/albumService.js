@@ -36,7 +36,7 @@ export const uploadFile = async (familyId, file) => {
         // Method: GET /api/album/presigned-url
         // Query: fileName, contentType
         const presignedRes = await getPresignedUrl(file.name, file.type);
-        console.log("Presigned URL Response:", presignedRes.data);
+
 
         // Expected Response: { url: "...", fileName: "album/uuid..." }
         // Adjust extraction based on actual wrapper (data.data or data.result etc if exists)
@@ -75,7 +75,7 @@ export const uploadFile = async (familyId, file) => {
             description: file.name
         };
 
-        console.log("Saving metadata:", metadata); // Debug log
+
 
         await savePhotoMetadata(familyId, metadata);
 

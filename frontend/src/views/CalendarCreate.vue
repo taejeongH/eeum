@@ -194,10 +194,10 @@ const formData = ref({
 
 onMounted(async () => {
     if (!familyStore.selectedFamily) {
-        console.log("Family not selected, fetching...");
+
         await familyStore.fetchFamilies();
     }
-    console.log("Current Family:", familyStore.selectedFamily);
+
 
     // Edit Mode: Fetch existing data
     if (isEditMode.value) {
@@ -267,7 +267,7 @@ const selectCategory = (type) => {
 };
 
 const submitForm = async () => {
-    console.log("submitForm called");
+
     const targetFamilyId = route.params.familyId || familyStore.selectedFamily?.id;
 
     if (!targetFamilyId) {
@@ -289,14 +289,14 @@ const submitForm = async () => {
             visitPurpose: formData.value.visitPurpose || null,
             visitorName: formData.value.visitorName || null
         };
-        console.log("Payload:", payload);
+
         
         if (isEditMode.value) {
              await scheduleService.updateSchedule(targetFamilyId, route.query.id, payload);
-             console.log("Schedule updated successfully");
+
         } else {
              await scheduleService.createSchedule(targetFamilyId, payload);
-             console.log("Schedule created successfully");
+
         }
 
         router.back();

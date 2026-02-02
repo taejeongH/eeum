@@ -246,7 +246,7 @@ const fetchAlbumPhotos = async () => {
     if (!familyStore.selectedFamily) return;
     try {
         const response = await getPhotos(familyStore.selectedFamily.id);
-        console.log("getPhotos raw response:", response);
+
         
         let rawPhotos = [];
         // Checking for different possible structures of response
@@ -275,7 +275,7 @@ const fetchAlbumPhotos = async () => {
             };
         });
         
-        console.log("Processed Photos:", photos.value);
+
 
     } catch (error) {
         console.error("Failed to fetch photos:", error);

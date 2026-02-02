@@ -36,7 +36,7 @@ const emit = defineEmits(['leave-group']);
 
 import { watch } from 'vue';
 watch(() => props.isRepresentative, (newVal) => {
-    console.log('SettingsDropdown: isRepresentative prop updated:', newVal, 'type:', typeof newVal);
+
 }, { immediate: true });
 </script>
 

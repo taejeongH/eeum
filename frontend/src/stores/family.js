@@ -61,7 +61,7 @@ export const useFamilyStore = defineStore('family', () => {
     const family = families.value.find(f => String(f.id) === String(familyId));
     if (family) {
       selectFamily(family);
-      console.log('familyStore: Switched to family:', familyId);
+
     }
   }
 

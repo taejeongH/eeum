@@ -198,7 +198,7 @@ const handlePhotoClick = (photo) => {
         togglePhotoSelection(photo);
     } else {
         // Future: Open lightbox or detail view
-        console.log("View photo:", photo);
+
     }
 };
 

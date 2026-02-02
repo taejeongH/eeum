@@ -83,7 +83,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                     const sourceDiseases = detail.chronicDiseases || detail.diseases
 
                     if (sourceDiseases) {
-                        console.log('Raw diseases data:', sourceDiseases)
+
                         if (Array.isArray(sourceDiseases)) {
                             diseases.value = sourceDiseases
                         } else if (typeof sourceDiseases === 'string') {
@@ -103,10 +103,10 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
             const familyDetailRes = await api.get(`/families/${familyId}/details`)
             const familyDetail = familyDetailRes.data
 
-            console.log('Fetched Family Details:', familyDetail)
+
 
             if (familyDetail && familyDetail.memberPriorities) {
-                console.log('Found priorities:', familyDetail.memberPriorities)
+
                 familyDetail.memberPriorities.forEach((p) => {
                     const priorityIndex = p.emergencyPriority - 1
                     if (priorityIndex >= 0 && priorityIndex < 3) {
@@ -118,20 +118,20 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                     }
                 })
             } else {
-                console.log('No member priorities found.')
+
             }
 
             // 4. Fetch Medications (New API)
             const medRes = await api.get(`/families/${familyId}/medications`)
             if (medRes.data && medRes.data.length > 0) {
-                console.log('Fetched existing medications:', medRes.data)
+
                 medications.value = medRes.data.map(m => ({
                     ...m,
                     // Ensure format matches what UI expects if needed (e.g. time strings)
                     // The DTO response has notificationTimes as Array<string>, which matches UI.
                 }))
             } else {
-                console.log('No existing medications found.')
+
                 medications.value = []
             }
 
@@ -180,17 +180,17 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                 memberPriorities: priorities
             }
 
-            console.log('Sending Group Update Payload:', payload)
+
 
             // 2. Call API (Group Info)
             await api.put(`/families/${familyId}`, payload)
-            console.log('Group Update Success')
+
 
             // 3. Handle Medications
 
             // 3-1. Delete removed medications
             if (deletedMedicationIds.value.length > 0) {
-                console.log('Deleting medications:', deletedMedicationIds.value)
+
                 await Promise.all(deletedMedicationIds.value.map(id =>
                     api.delete(`/families/${familyId}/medications/${id}`)
                 ))
@@ -200,7 +200,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
             const newMedications = medications.value.filter(m => !m.id)
 
             if (newMedications.length > 0) {
-                console.log('Creating NEW medications:', newMedications)
+
                 const medPayload = newMedications.map(m => ({
                     medicineName: m.medicineName,
                     cycleType: m.cycleType,
@@ -213,7 +213,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                 }))
 
                 await api.post(`/families/${familyId}/medications`, medPayload)
-                console.log('Medications Create Success')
+
             }
 
         } catch (error) {

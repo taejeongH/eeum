@@ -16,7 +16,7 @@ export function useSamsungHealth() {
 
       // MOCK Bridge Response for Browser Testing
       if (import.meta.env.VITE_USE_MOCK === 'true') {
-        console.log("⚠️ Using MOCK Bridge Response");
+
         setTimeout(() => {
           // Simulate Android calling window.onReceiveHealthData
           const mockData = JSON.stringify({
@@ -31,7 +31,7 @@ export function useSamsungHealth() {
 
   // 2. 네이티브로부터 데이터를 받기 위한 전역 콜백 함수
   window.onReceiveHealthData = (data) => {
-    console.log("네이티브로부터 받은 원본 데이터:", data);
+
     isLoading.value = false;
 
     // 안드로이드가 'null' 문자열을 보냈는지, 실제 null을 보냈는지 체크
