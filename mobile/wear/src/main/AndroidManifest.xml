@@ -35,6 +35,11 @@
         </activity>
         
         <service
+            android:name=".presentation.HeartRateService"
+            android:exported="false"
+            android:foregroundServiceType="health|dataSync" />
+
+        <service
             android:name=".presentation.WearableListenerService"
             android:exported="true">
             <intent-filter>

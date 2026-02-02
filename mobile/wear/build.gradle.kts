@@ -45,8 +45,10 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.health.services.client)
     implementation(libs.kotlinx.coroutines.guava)
+    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.coroutines.android) // lifecycleScope 사용을 위해 필요할 수 있음
     implementation(libs.androidx.lifecycle.runtime.ktx) // lifecycleScope
+    implementation(libs.androidx.lifecycle.service) // LifecycleService
     implementation(libs.androidx.concurrent.futures)
 
 

@@ -372,6 +372,37 @@ class HealthJsBridge(
         Log.d("BRIDGE", "Access Token Retrieved Native: $token")
         return token
     }
+
+    @JavascriptInterface
+    fun startHeartRateMonitoring() {
+        Log.d("BRIDGE", "startHeartRateMonitoring called")
+        activity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            sendMessageToWatch("/emergency/start")
+        }
+    }
+
+    @JavascriptInterface
+    fun stopHeartRateMonitoring() {
+        Log.d("BRIDGE", "stopHeartRateMonitoring called")
+        activity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            sendMessageToWatch("/emergency/stop")
+        }
+    }
+
+    private suspend fun sendMessageToWatch(path: String) {
+        try {
+            val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(activity)
+            val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
+            val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(activity)
+            
+            nodes.forEach { node ->
+                com.google.android.gms.tasks.Tasks.await(messageClient.sendMessage(node.id, path, null))
+                Log.d("BRIDGE", "Sent $path to ${node.displayName}")
+            }
+        } catch (e: Exception) {
+            Log.e("BRIDGE", "Failed to send message", e)
+        }
+    }
 }
 
 // ====== WebViewScreen ======

@@ -11,15 +11,14 @@ class WearableListenerService : WearableListenerService() {
         Log.d(TAG, "onMessageReceived: ${messageEvent.path}")
 
         if (messageEvent.path == "/emergency/start") {
-            Log.d(TAG, "Request received: Start Heart Rate Monitoring")
-            // TODO: Start Foreground Service to measure HR
+            Log.d(TAG, "Request received: Start Heart Rate Monitoring (Service)")
             
-            // For PoC: Start Activity as visual confirmation
-            val intent = Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra("action", "start")
-            }
-            startActivity(intent)
+            val serviceIntent = Intent(this, HeartRateService::class.java)
+            startForegroundService(serviceIntent)
+        } else if (messageEvent.path == "/emergency/stop") {
+             Log.d(TAG, "Request received: Stop Heart Rate Monitoring")
+             val serviceIntent = Intent(this, HeartRateService::class.java)
+             stopService(serviceIntent)
         }
     }
 

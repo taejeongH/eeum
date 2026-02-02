@@ -19,6 +19,11 @@
         <p v-else>워치 연결을 확인해주세요.</p>
         <p class="last-update" v-if="lastUpdate">마지막 수신: {{ lastUpdate }}</p>
       </div>
+
+      <div class="controls">
+        <button class="btn start" @click="startMonitoring">측정 시작</button>
+        <button class="btn stop" @click="stopMonitoring">측정 종료</button>
+      </div>
     </div>
   </div>
 </template>
@@ -42,6 +47,25 @@ const updateHeartRate = (hr) => {
   resetTimer = setTimeout(() => {
     isMeasuring.value = false;
   }, 5000);
+};
+
+const startMonitoring = () => {
+  if (window.AndroidBridge && window.AndroidBridge.startHeartRateMonitoring) {
+    window.AndroidBridge.startHeartRateMonitoring();
+    alert("워치에 측정 시작 신호를 보냈습니다.");
+  } else {
+    console.warn("Android Bridge not found");
+  }
+};
+
+const stopMonitoring = () => {
+  if (window.AndroidBridge && window.AndroidBridge.stopHeartRateMonitoring) {
+    window.AndroidBridge.stopHeartRateMonitoring();
+    isMeasuring.value = false;
+    alert("워치에 측정 종료 신호를 보냈습니다.");
+  } else {
+    console.warn("Android Bridge not found");
+  }
 };
 
 onMounted(() => {
@@ -109,6 +133,37 @@ onUnmounted(() => {
   30% { transform: scale(1); }
   45% { transform: scale(1.15); }
   60% { transform: scale(1); }
+}
+
+.controls {
+  margin-top: 40px;
+  display: flex;
+  gap: 20px;
+}
+
+.btn {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn.start {
+  background-color: #e76f51;
+  color: white;
+}
+
+.btn.stop {
+  background-color: #f0f0f0;
+  color: #666;
+  border: 1px solid #ddd;
 }
 
 .data-display {
