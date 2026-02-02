@@ -51,12 +51,23 @@ public class IotDeviceSyncController {
                 return RestApiResponse.success(response);
         }
 
-        @SwaggerApiSpec(summary = "[IoT] 목소리 메시지 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 목소리 메시지 변경 내역을 조회합니다.", successMessage = "목소리 동기화 데이터 조회 성공")
-        @GetMapping("/sync/voice")
-        public RestApiResponse<IotSyncDto> syncVoiceForIot(
-                        @AuthenticationPrincipal DeviceDetails deviceDetails,
-                        @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
-                IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "voice", lastLogId);
-                return RestApiResponse.success(response);
-        }
+    @SwaggerApiSpec(summary = "[IoT] 실시간 스트리밍 URL 업데이트", description = "IoT 기기의 현재 실시간 스트리밍 접속 URL을 업데이트합니다.", successMessage = "스트리밍 URL 업데이트 성공")
+    @PutMapping("/streaming")
+    public RestApiResponse<Void> updateStreamingURL(
+            @AuthenticationPrincipal DeviceDetails deviceDetails,
+            @RequestBody org.ssafy.eeum.domain.iot.dto.IotStreamingUrlRequestDTO request) {
+        Integer familyId = deviceDetails.getGroupId();
+        iotDeviceService.updateStreamingUrl(familyId, request.getStreamingUrl());
+        return RestApiResponse.success(null);
+    }
+
+    @SwaggerApiSpec(summary = "[IoT] 목소리 메시지 동기화 데이터 조회", description = "IoT 기기가 아직 동기화하지 않은 최신 목소리 메시지 변경 내역을 조회합니다.", successMessage = "목소리 동기화 데이터 조회 성공")
+    @GetMapping("/sync/voice")
+    public RestApiResponse<IotSyncDto> syncVoiceForIot(
+                @AuthenticationPrincipal DeviceDetails deviceDetails,
+                @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
+        IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "voice", lastLogId);
+        return RestApiResponse.success(response);
+    }
+
 }

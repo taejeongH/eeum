@@ -119,8 +119,9 @@ apiClient.interceptors.response.use(
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
 
-        if (window.AndroidBridge && window.AndroidBridge.logout) {
-          window.AndroidBridge.logout();
+        if (window.AndroidBridge) {
+          if (window.AndroidBridge.logout) window.AndroidBridge.logout();
+          if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear token
         }
         window.location.href = '/login';
         return Promise.reject(err);
@@ -190,5 +191,36 @@ export const login = (credentials) => {
   return apiClient.post('/auth/login', credentials);
 };
 
+
 export default apiClient;
+
+export const getNotificationHistory = async (familyId) => {
+  try {
+    const response = await apiClient.get(`/notifications/families/${familyId}/history`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch notification history for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const getFallVideo = async (eventId) => {
+  try {
+    const response = await apiClient.get(`/falls/${eventId}/video`);
+    return response.data; // Expected: { videoUrl: "..." }
+  } catch (error) {
+    console.error(`Failed to fetch fall video for event ${eventId}:`, error);
+    throw error;
+  }
+};
+
+export const getFamilyDetails = async (familyId) => {
+  try {
+    const response = await apiClient.get(`/families/${familyId}/details`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch family details for ${familyId}:`, error);
+    throw error;
+  }
+};
 

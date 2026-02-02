@@ -37,7 +37,8 @@ public class NotificationController {
                 requestDto.getFamilyId(),
                 requestDto.getTitle(),
                 requestDto.getMessage(),
-                requestDto.getType()
+                requestDto.getType(),
+                null
         );
 
         // 2. 알림 전송 (FCM)
@@ -58,7 +59,7 @@ public class NotificationController {
     @Operation(summary = "낙상 감지 테스트", description = "낙상 이벤트를 발생시켜 우선순위에 따른 순차 발송을 테스트합니다.")
     @PostMapping("/fall-test/{familyId}")
     public ResponseEntity<String> triggerFallDetection(@org.springframework.web.bind.annotation.PathVariable Integer familyId) {
-        fallDetectionService.handleFallDetection(familyId, "테스트 낙상 감지 발생!");
+        fallDetectionService.handleFallDetection(familyId, "테스트 낙상 감지 발생!", null);
         return ResponseEntity.ok("낙상 감지가 발생했습니다. 서버 로그와 알림을 확인하세요.");
     }
 

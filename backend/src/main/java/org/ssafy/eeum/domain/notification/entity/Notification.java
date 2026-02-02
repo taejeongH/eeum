@@ -29,11 +29,14 @@ public class Notification extends BaseEntity {
 
     private String type;
 
+    private Integer relatedId;
+
     @Builder
-    public Notification(Family family, String title, String message, String type) {
+    public Notification(Family family, String title, String message, String type, Integer relatedId) {
         this.family = family;
         this.title = title;
         this.message = message;
         this.type = type;
+        this.relatedId = relatedId;
     }
 }

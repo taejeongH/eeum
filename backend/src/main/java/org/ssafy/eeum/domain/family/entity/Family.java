@@ -38,6 +38,9 @@ public class Family {
     @Column(unique = true)
     private String inviteCode;
 
+    @Column
+    private String streamingUrl;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -51,10 +54,11 @@ public class Family {
     private Integer lastVoiceLogId = 0;
 
     @Builder
-    public Family(String groupName, String inviteCode, User user) {
+    public Family(String groupName, String inviteCode, User user, String streamingUrl) {
         this.groupName = groupName;
         this.inviteCode = inviteCode;
         this.user = user;
+        this.streamingUrl = streamingUrl;
     }
 
     public void updateGroupName(String newGroupName) {
@@ -65,11 +69,15 @@ public class Family {
         this.inviteCode = newInviteCode;
     }
 
+    public void updateStreamingUrl(String streamingUrl) {
+        this.streamingUrl = streamingUrl;
+
     public void updateLastMediaLogId(Integer logId) {
         this.lastMediaLogId = logId;
     }
 
     public void updateLastVoiceLogId(Integer logId) {
         this.lastVoiceLogId = logId;
+
     }
 }

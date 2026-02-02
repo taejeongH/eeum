@@ -28,6 +28,9 @@ public enum ErrorCode {
     SUPPORTER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY003", "가족 구성원 정보를 찾을 수 없습니다."),
     NOT_FAMILY_REPRESENTATIVE(HttpStatus.FORBIDDEN, "FAMILY004", "가족 대표자만 이 작업을 수행할 수 있습니다."),
     INVALID_EMERGENCY_PRIORITY(HttpStatus.BAD_REQUEST, "FAMILY005", "응급 우선순위는 1에서 4 사이여야 합니다."),
+    
+    // IOT
+    VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "IOT001", "비디오가 아직 준비되지 않았거나 처리 중입니다."),
     ALREADY_FAMILY_MEMBER(HttpStatus.BAD_REQUEST, "FAMILY006", "이미 해당 가족 그룹의 멤버입니다."),
     ALREADY_FAMILY_REPRESENTATIVE(HttpStatus.BAD_REQUEST, "FAMILY007", "이미 해당 가족 그룹의 대표자입니다."),
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "FAMILY008", "유효하지 않은 초대 코드입니다."),

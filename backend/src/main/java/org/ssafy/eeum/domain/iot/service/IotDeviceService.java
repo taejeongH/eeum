@@ -241,4 +241,10 @@ public class IotDeviceService {
                                 .groupId(familyId)
                                 .build();
         }
+        @Transactional
+        public void updateStreamingUrl(Integer familyId, String streamingUrl) {
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+                family.updateStreamingUrl(streamingUrl);
+        }
 }
