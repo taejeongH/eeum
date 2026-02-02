@@ -54,6 +54,20 @@
       </div>
     </main>
 
+    <!-- Onboarding Footer -->
+    <footer v-if="isInitialSetup" class="fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 flex gap-4 z-40">
+        <button @click="handleSkip" class="flex-1 py-4 px-6 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all">
+            건너뛰기
+        </button>
+        <button 
+            @click="handleCompleteSetup" 
+            :disabled="completedCount === 0"
+            class="flex-[2] py-4 px-6 rounded-2xl bg-[var(--color-primary)] text-white font-bold shadow-lg shadow-orange-200 hover:bg-orange-600 transition-all disabled:opacity-50 disabled:shadow-none"
+        >
+            등록 완료
+        </button>
+    </footer>
+
     <!-- Recorder Modal (Mock) -->
     <div v-if="selectedSample" class="fixed inset-0 z-50 flex items-end">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="selectedSample = null"></div>
@@ -95,14 +109,19 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
+import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
+const route = useRoute();
+const modalStore = useModalStore();
+
+const isInitialSetup = computed(() => route.query.flow === 'initial');
 
 // Mock Data
 const voiceSamples = ref([
-    { id: 1, text: "안녕하세요, 저는 김철수입니다. 만나서 반갑습니다.", isRecorded: true },
-    { id: 2, text: "오늘 날씨가 참 좋네요. 산책이라도 다녀올까요?", isRecorded: true },
+    { id: 1, text: "안녕하세요, 저는 김철수입니다. 만나서 반갑습니다.", isRecorded: false },
+    { id: 2, text: "오늘 날씨가 참 좋네요. 산책이라도 다녀올까요?", isRecorded: false },
     { id: 3, text: "밥은 먹었니? 언제나 건강 챙기고 아프지 마라.", isRecorded: false },
     { id: 4, text: "사랑하는 우리 딸, 항상 응원한다.", isRecorded: false },
     { id: 5, text: "도움이 필요하면 언제든 말해렴.", isRecorded: false },
@@ -134,10 +153,29 @@ const toggleRecord = () => {
         isRecording.value = true;
     }
 };
+
+const handleSkip = async () => {
+    const confirmed = await modalStore.openConfirm(
+        "목소리 등록을 건너뛰시겠습니까?",
+        "목소리를 등록하면 가족들이 회원님의 목소리로 알림을 받을 수 있어요."
+    );
+    
+    if (confirmed) {
+        router.push('/setup-complete');
+    }
+};
+
+const handleCompleteSetup = () => {
+    router.push('/setup-complete');
+};
 </script>
 
 <style scoped>
-/* Removed local font-family definition to use global one */
+/* Added padding for bottom fixed button */
+.min-h-screen {
+    padding-bottom: 5rem;
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }

@@ -5,6 +5,7 @@ import VoiceRegistration from '../views/VoiceRegistration.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
 import LoginView from '../views/Login.vue';
+import InitialSetupWizard from '../views/InitialSetupWizard.vue';
 import MemberDetailView from '../views/MemberDetailView.vue';
 import JoinGroupView from '../views/JoinGroupView.vue';
 import GroupSetupLayout from '../views/group-setup/GroupSetupLayout.vue';
@@ -122,6 +123,11 @@ const routes = [
     ],
   },
   {
+    path: '/initial-setup',
+    name: 'InitialSetupWizard',
+    component: InitialSetupWizard,
+  },
+  {
     path: '/join',
     name: 'JoinGroup',
     component: JoinGroupView,
@@ -190,6 +196,11 @@ const routes = [
     name: 'RealTimeHeartRate',
     component: () => import('../views/HeartRateView.vue'),
   },
+  {
+    path: '/setup-complete',
+    name: 'InitialSetupComplete',
+    component: () => import('../views/InitialSetupComplete.vue'),
+  },
 ];
 
 const router = createRouter({
@@ -198,18 +209,38 @@ const router = createRouter({
 });
 
 // 전역 가드 설정
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const userStore = useUserStore();
 
-  if (to.name === 'login' && isAuthenticated) {
-    next({ name: 'HomePage' }); // 이미 로그인된 경우 홈으로
-  } else if (to.name === 'login' && !isAuthenticated) {
-    next();
-  } else if (to.name === 'JoinGroup' && !to.query.code) {
-    next({ name: 'HomePage' });
-  } else {
-    next();
+  // 1. 로그인 상태인 경우
+  if (token) {
+    if (to.name === 'login') {
+      return next({ name: 'HomePage' });
+    }
+
+    // 초기 설정 대상인지 확인 (프로필 이름이 비어있는 경우)
+    // 데이터 로드가 안되어 있으면 시도
+    if (!userStore.profile) {
+      await userStore.fetchUser();
+    }
+
+    const isMissingProfile = userStore.profile && !userStore.profile.phone;
+    const isSetupRoute = ['InitialSetupWizard', 'InitialSetupComplete'].includes(to.name);
+
+    if (isMissingProfile && !isSetupRoute && to.name !== 'logout') {
+      return next({ name: 'InitialSetupWizard' });
+    }
+
+    return next();
   }
+
+  // 2. 비로그인 상태
+  if (to.name !== 'login' && to.name !== 'onboarding' && to.name !== 'signup' && to.name !== 'FindAccount') {
+    return next({ name: 'login' });
+  }
+
+  next();
 });
 
 export default router;
