@@ -171,7 +171,7 @@
       </div>
 
       <!-- 2. AI Health Analysis (NOW AT BOTTOM) -->
-      <div class="space-y-6 pt-2">
+      <div id="ai-analysis" class="space-y-6 pt-2">
           <div class="flex items-center justify-between px-2">
              <h3 class="text-lg font-bold text-slate-900">AI 건강 도우미 분석</h3>
              <button 
@@ -262,10 +262,13 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, reactive, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useHealthStore } from '@/stores/health';
 import healthService from '@/services/healthService';
 import BottomNav from '@/components/layout/BottomNav.vue';
+
+const route = useRoute();
 
 const familyStore = useFamilyStore();
 const healthStore = useHealthStore();
@@ -364,7 +367,7 @@ const fetchAllData = () => {
 
 // Callback from Android
 window.onReceiveAllHealthData = (dataString) => {
-    console.log("Received Full Health Data:", dataString);
+
     syncLoading.value = false;
     
     if (!dataString || dataString === "null") {
@@ -397,7 +400,7 @@ window.onReceiveAllHealthData = (dataString) => {
             activeMinutes: data.active_minutes
         };
         
-        console.log("Mapped Data for Backend:", mappedData);
+
         healthStore.latestMetrics = mappedData; // Update store immediately for UI feedback
         syncMessage.value = '데이터를 서버에 저장 중...';
         uploadToBackend(mappedData);
@@ -413,9 +416,9 @@ const uploadToBackend = async (mappedData) => {
     if (!groupId) return;
 
     try {
-        console.log("Health Data Uploading for group:", groupId, mappedData);
+
         const response = await healthService.saveHealthMetrics(groupId, [mappedData]);
-        console.log("Upload success:", response);
+
         syncMessage.value = '정상적으로 동기화되었습니다.';
         fetchLatestData(); // Refresh after upload
         setTimeout(() => syncMessage.value = '', 3000);
@@ -436,6 +439,19 @@ window.onReceiveSteps = window.onReceiveAllHealthData;
 window.onReceiveSleep = window.onReceiveAllHealthData;
 
 onMounted(async () => {
+    if (route.query.scrollTo === 'analysis') {
+        const checkElement = setInterval(() => {
+            const el = document.getElementById('ai-analysis');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+                clearInterval(checkElement);
+            }
+        }, 100);
+        setTimeout(() => clearInterval(checkElement), 3000); // safety clear
+    } else {
+        window.scrollTo(0, 0);
+    }
+
     if (!familyStore.selectedFamily) {
         await familyStore.fetchFamilies();
     }

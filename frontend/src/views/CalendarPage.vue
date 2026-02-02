@@ -155,7 +155,7 @@ const fetchCalendarEvents = async () => {
 
     if (!targetFamilyId) return;
     
-    console.log("Fetching calendar events for family:", targetFamilyId);
+
     try {
         const data = await scheduleService.getMonthlySchedules(targetFamilyId, year.value, month.value);
         events.value = data;

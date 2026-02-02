@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(
       // 반드시 Bearer 뒤에 한 칸 공백이 있어야 합니다.
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      console.log("토큰이 없습니다.");
+
     }
     return config;
   },
