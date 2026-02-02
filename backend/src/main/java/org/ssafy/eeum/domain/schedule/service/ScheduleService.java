@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Collections;
 
 @Slf4j
 @Service
@@ -83,8 +82,7 @@ public class ScheduleService {
             // 1. 해당 날짜에 예외(수정/삭제) 일정이 있는지 확인
             Optional<Schedule> exceptionSchedule = scheduleRepository.findAll().stream()
                     .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
-                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate)
-                            && s.getDeletedAt() == null)
+                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
                     .findFirst();
 
             if (exceptionSchedule.isPresent()) {
@@ -329,7 +327,7 @@ public class ScheduleService {
 
         scheduleRepository.save(schedule);
         invalidateCache(familyId, dto.getStartAt().toLocalDate());
-        iotSyncService.notifyUpdate(familyId, "schedule", 1);
+        iotSyncService.notifyUpdate(familyId, "schedule");
     }
 
     // 일정 수정
@@ -359,8 +357,7 @@ public class ScheduleService {
 
             Schedule schedule = scheduleRepository.findAll().stream()
                     .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
-                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate)
-                            && s.getDeletedAt() == null)
+                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
                     .findFirst()
                     .orElseGet(() -> {
                         Schedule parent = scheduleRepository.findById(parentId)
@@ -392,7 +389,7 @@ public class ScheduleService {
             scheduleRepository.save(schedule);
             invalidateCache(familyId, targetDate);
             invalidateCache(familyId, dto.getStartAt().toLocalDate());
-            iotSyncService.notifyUpdate(familyId, "schedule", 1);
+            iotSyncService.notifyUpdate(familyId, "schedule");
 
         } else {
             Schedule schedule = scheduleRepository.findById(parsedId.dbId())
@@ -414,7 +411,7 @@ public class ScheduleService {
 
             invalidateCache(familyId, oldDate.toLocalDate());
             invalidateCache(familyId, dto.getStartAt().toLocalDate());
-            iotSyncService.notifyUpdate(familyId, "schedule", 1);
+            iotSyncService.notifyUpdate(familyId, "schedule");
         }
     }
 
@@ -457,7 +454,7 @@ public class ScheduleService {
                     scheduleRepository.delete(schedule);
                     invalidateCache(familyId, schedule.getStartAt().toLocalDate());
                 }
-                iotSyncService.notifyUpdate(familyId, "schedule", 1);
+                iotSyncService.notifyUpdate(familyId, "schedule");
             }
         }
     }

@@ -11,6 +11,9 @@ import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.iot.service.IotSyncService;
+import org.ssafy.eeum.domain.iot.entity.ActionType;
+import org.ssafy.eeum.domain.album.entity.MediaLog;
+import org.ssafy.eeum.domain.album.repository.MediaLogRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.s3.S3Service;
@@ -29,6 +32,7 @@ public class AlbumService {
     private final FamilyRepository familyRepository;
     private final S3Service s3Service;
     private final IotSyncService iotSyncService;
+    private final MediaLogRepository mediaLogRepository;
 
     // 0. 업로드용 Presigned URL 생성
     public PresignedUrlResponseDTO generateUploadUrl(String fileName, String contentType) {
@@ -57,12 +61,12 @@ public class AlbumService {
         albumRepository.save(asset);
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(familyId, "image", 1);
+        iotSyncService.notifyUpdate(familyId, "image");
     }
 
     // 2. 가족별 사진 목록 조회
     public List<AlbumResponseDTO> getPhotos(Integer familyId) {
-        return albumRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId).stream()
+        return albumRepository.findAllByFamilyId(familyId).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
@@ -75,8 +79,11 @@ public class AlbumService {
 
         asset.update(request.getTakenAt(), request.getDescription());
 
+        // Log 저장 (UPDATE)
+        saveLog(asset.getFamily().getId(), asset.getId(), ActionType.UPDATE);
+
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(asset.getFamily().getId(), "image", 1);
+        iotSyncService.notifyUpdate(asset.getFamily().getId(), "image");
     }
 
     // 4. 사진 삭제 (Soft Delete)
@@ -89,7 +96,7 @@ public class AlbumService {
         albumRepository.delete(asset); // SQLDelete에 의해 isSynced=false 처리됨
 
         // IoT 동기화 알림
-        iotSyncService.notifyUpdate(familyId, "image", 1);
+        iotSyncService.notifyUpdate(familyId, "image");
     }
 
     /**
@@ -105,18 +112,15 @@ public class AlbumService {
         List<Integer> syncedIds = new ArrayList<>();
 
         for (MediaAsset asset : unsyncedAssets) {
-            if (asset.getDeletedAt() != null) {
-                // 삭제된 경우 ID만 전송
-                deletedIds.add(asset.getId());
-            } else {
-                // 추가 혹은 수정된 경우 전체 정보 전송
-                addedItems.add(AlbumSyncItemResponseDTO.builder()
-                        .id(asset.getId())
-                        .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
-                        .description(asset.getDescription())
-                        .takenAt(asset.getTakenAt())
-                        .build());
-            }
+            // 하드 델리트 환경에서는 unsynced인데 DB에 있으면 추가/수정된 것임.
+            // 삭제된 내역은 별도의 Log를 사용하거나 sync logic을 고도화해야 함.
+            // 현재 요구사항에 맞춰 물리적 삭제로 진행하므로 deletedAt 체크 제거.
+            addedItems.add(AlbumSyncItemResponseDTO.builder()
+                    .id(asset.getId())
+                    .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
+                    .description(asset.getDescription())
+                    .takenAt(asset.getTakenAt())
+                    .build());
             syncedIds.add(asset.getId());
         }
 
@@ -140,5 +144,14 @@ public class AlbumService {
                 .uploaderName(asset.getUploader().getName())
                 .createdAt(asset.getCreatedAt().toString())
                 .build();
+    }
+
+    private void saveLog(Integer familyId, Integer mediaId, ActionType actionType) {
+        MediaLog log = MediaLog.builder()
+                .groupId(familyId)
+                .mediaId(mediaId)
+                .actionType(actionType)
+                .build();
+        mediaLogRepository.save(log);
     }
 }

@@ -13,7 +13,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FcmService {
 
-    public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route, Integer familyId) {
+    public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route,
+            Integer familyId, String groupName, Integer eventId) {
         if (token == null || token.isEmpty()) {
             return;
         }
@@ -33,8 +34,16 @@ public class FcmService {
                 messageBuilder.putData("familyId", String.valueOf(familyId));
             }
 
+            if (groupName != null) {
+                messageBuilder.putData("groupName", groupName);
+            }
+
             if (route != null) {
                 messageBuilder.putData("route", route);
+            }
+
+            if (eventId != null) {
+                messageBuilder.putData("eventId", String.valueOf(eventId));
             }
 
             Message message = messageBuilder.build();
@@ -42,11 +51,16 @@ public class FcmService {
             String response = FirebaseMessaging.getInstance().send(message);
             log.info("Successfully sent message: " + response);
         } catch (FirebaseMessagingException e) {
+            if ("UNREGISTERED".equals(e.getMessagingErrorCode().name())) {
+                log.warn("FCM token is unregistered. Marking for cleanup: {}", token);
+                throw new FcmUnregisteredTokenException(token, "FCM token is unregistered", e);
+            }
             log.error("Failed to send FCM message", e);
         }
     }
 
-    public void sendMulticast(List<String> tokens, String title, String body, String type, Long notificationId, String route, Integer familyId) {
+    public void sendMulticast(List<String> tokens, String title, String body, String type, Long notificationId,
+            String route, Integer familyId) {
         if (tokens == null || tokens.isEmpty()) {
             return;
         }
@@ -83,12 +97,12 @@ public class FcmService {
 
             BatchResponse response = FirebaseMessaging.getInstance().sendMulticast(message);
             log.info("Successfully sent multicast message. Success count: " + response.getSuccessCount());
-            
+
             if (response.getFailureCount() > 0) {
-                 log.warn("List of tokens that caused failures: " + response.getResponses().stream()
-                         .filter(r -> !r.isSuccessful())
-                         .map(SendResponse::getException)
-                         .collect(Collectors.toList()));
+                log.warn("List of tokens that caused failures: " + response.getResponses().stream()
+                        .filter(r -> !r.isSuccessful())
+                        .map(SendResponse::getException)
+                        .collect(Collectors.toList()));
             }
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send multicast FCM message", e);

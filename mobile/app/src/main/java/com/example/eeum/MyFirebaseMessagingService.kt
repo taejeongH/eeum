@@ -48,13 +48,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         
         val notificationId = data["notificationId"]
         val familyId = data["familyId"]
+        val groupName = data["groupName"] ?: ""
         
         // 포그라운드 상태에서 수신 시 즉시 WebView에 전달
         if (notificationId != null) {
-            MainActivity.emitNotification(notificationId, type, familyId)
+            MainActivity.emitNotification(notificationId, type, familyId, title, body, groupName)
         }
         
-        sendNotification(title, body, type, notificationId, route, familyId)
+        // 앱이 포그라운드 상태가 아닐 때만 시스템 알림 표시
+        if (!MainActivity.isAppInForeground) {
+            sendNotification(title, body, type, notificationId, route, familyId, groupName)
+        } else {
+            Log.d(TAG, "App is in foreground - skipping system notification")
+        }
     }
 
     private fun sendRegistrationToServer(token: String) {
@@ -62,7 +68,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Send token to server: $token")
     }
 
-    private fun sendNotification(title: String, body: String, type: String, notificationId: String? = null, route: String? = null, familyId: String? = null) {
+    private fun sendNotification(title: String, body: String, type: String, notificationId: String? = null, route: String? = null, familyId: String? = null, groupName: String? = null) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         
@@ -76,6 +82,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (familyId != null) {
             intent.putExtra("familyId", familyId)
         }
+        if (groupName != null) {
+            intent.putExtra("groupName", groupName)
+        }
+        intent.putExtra("title", title)
+        intent.putExtra("body", body)
         
         val pendingIntent = PendingIntent.getActivity(
             this, 0 /* Request code */, intent,

@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-24 flex justify-around items-end pb-4 z-50">
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-20 flex justify-around items-end pb-3 z-50">
     <!-- Message -->
     <button @click="setActive('message')" class="flex flex-col items-center justify-end w-1/5 transition-colors" :class="activeTab === 'message' ? 'text-[#f3532b]' : 'text-[#8d6e63]'">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -15,7 +15,7 @@
       </svg>
       <span class="text-xs font-semibold">갤러리</span>
     </button>
-
+  
     <!-- Center Home Button (Floating Effect) -->
     <div class="relative w-1/5 flex justify-center">
       <button 
@@ -27,7 +27,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       </button>
-      <span class="text-xs font-bold mt-10" :class="activeTab === 'home' ? 'text-[#f3532b]' : 'text-[#8d6e63]'">홈</span>
+      <span class="text-xs font-bold mt-9 invisible select-none" aria-hidden="true">홈</span>
     </div>
 
     <!-- Calendar -->
@@ -60,6 +60,18 @@
           >
             <span class="material-symbols-outlined text-3xl">monitor_heart</span>
             <span class="text-[10px] font-bold uppercase tracking-wider">건강</span>
+          </button>
+
+          <div class="w-10 h-[1px] bg-orange-50 rounded-full"></div>
+
+          <button 
+            @click="navigateTo('realtime-hr')" 
+            class="flex flex-col items-center justify-center gap-1.5 transition-colors text-[#8d6e63] hover:text-[#e76f51] w-full"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            <span class="text-[10px] font-bold uppercase tracking-wider">심박수</span>
           </button>
 
           <div class="w-10 h-[1px] bg-orange-50 rounded-full"></div>
@@ -214,6 +226,8 @@ const navigateTo = (type) => {
     }
   } else if (type === 'health') {
     router.push('/health-detail');
+  } else if (type === 'realtime-hr') {
+    router.push('/realtime-heart-rate');
   }
 };
 

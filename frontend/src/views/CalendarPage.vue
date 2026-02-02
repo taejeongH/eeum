@@ -1,21 +1,12 @@
 <template>
   <div class="bg-[#fcfcfc] text-slate-800 min-h-screen flex flex-col pb-20">
-    <header class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-6 pb-4 transiton-all duration-300">
-      <div class="flex items-center mb-2" :class="isSearchOpen ? 'justify-end' : 'justify-between'">
-        <button v-if="!isSearchOpen" @click="$router.push('/home')" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div class="flex gap-2">
-          <button class="p-2 text-slate-600">
-            <span class="material-symbols-outlined">menu</span>
-          </button>
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-2 pb-4 transiton-all duration-300 border-b border-slate-100">
+      <div class="flex items-center justify-end mb-2">
           <!-- Search Toggle -->
-          <button @click="toggleSearch" class="p-2 text-slate-600">
+          <button @click="toggleSearch" class="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
             <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
           </button>
-        </div>
       </div>
       
       <!-- Search Input -->
@@ -24,7 +15,7 @@
       </div>
 
       <!-- Month Navigation -->
-      <div v-if="!isSearchOpen" class="mt-2 text-center flex items-center justify-center gap-4 animate-fade-in">
+      <div v-if="!isSearchOpen" class="mt-0 text-center flex items-center justify-center gap-4 animate-fade-in">
         <button @click="prevMonth" class="text-slate-400 hover:text-slate-600">
             <span class="material-symbols-outlined">chevron_left</span>
         </button>
@@ -33,7 +24,7 @@
             <span class="material-symbols-outlined">chevron_right</span>
         </button>
       </div>
-    </header>
+    </div>
     <main class="flex-1 px-4 relative">
       <div v-if="!isSearchOpen" class="calendar-grid text-center mb-6 select-none">
         <div class="py-2 text-sm font-semibold text-red-400">일</div>
@@ -130,13 +121,14 @@
         </button>
       </div>
     </main>
-    <BottomNav />
+    <BottomNav v-if="!isModalOpen" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router'; // Added useRoute
+import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family'; 
@@ -145,6 +137,11 @@ const router = useRouter();
 const route = useRoute(); // Instance
 const familyStore = useFamilyStore();
 const familyId = ref(route.params.familyId); // Reactive familyId
+const isModalOpen = ref(false);
+
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen;
+};
 
 const currentDate = ref(new Date());
 const events = ref([]);

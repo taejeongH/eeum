@@ -4,18 +4,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.ssafy.eeum.domain.album.dto.AlbumDTOs;
 import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.family.repository.SupporterRepository;
+import org.ssafy.eeum.domain.iot.entity.ActionType;
+import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.message.dto.MessageRequestDto;
 import org.ssafy.eeum.domain.message.dto.MessageResponseDto;
 import org.ssafy.eeum.domain.message.entity.Message;
 import org.ssafy.eeum.domain.message.repository.MessageRepository;
+import org.ssafy.eeum.domain.voice.entity.VoiceLog;
+import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import java.util.List;
 
@@ -29,9 +35,10 @@ public class MessageService {
         private final FamilyRepository familyRepository;
         private final UserRepository userRepository;
         private final SupporterRepository supporterRepository;
-        private final org.ssafy.eeum.domain.voice.service.VoiceService voiceService;
-        private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService;
-        private final org.ssafy.eeum.global.infra.s3.S3Service s3Service;
+        private final IotSyncService iotSyncService; // Handled
+        private final S3Service s3Service;
+        private final VoiceLogRepository voiceLogRepository;
+        private final MessageTtsAsyncService messageTtsAsyncService;
 
         @Transactional
         public MessageResponseDto send(Integer groupId, Integer senderUserId, MessageRequestDto requestDto) {
@@ -54,30 +61,38 @@ public class MessageService {
                                 .isSynced(false)
                                 .build();
 
-                // 3. 메시지 먼저 저장 (TTS 실패 시에도 롤백되지 않도록 함)
+                // 3. 메시지 먼저 저장
                 Message saved = messageRepository.save(message);
 
-                // 4. TTS 생성 및 업데이트 (예외가 발생해도 현재 트랜잭션에 영향을 주지 않도록 내부에서 완전 격리)
-                try {
-                        // voiceService.createTtsUrl 내부에서 예외가 발생해도 catch 문으로 이동함
-                        String voiceUrl = voiceService.createTtsUrl(senderUserId, requestDto.getContent());
-                        if (voiceUrl != null) {
-                                saved.updateVoiceUrl(voiceUrl);
-                                // JPA 더티 체킹에 의해 메서드 종료 시 voiceUrl이 업데이트됨
-                        }
-                } catch (Exception e) {
-                        // "학습된 음성 샘플이 없습니다" 등의 에러를 여기서 차단
-                        log.warn("TTS 생성이 중단되었습니다 (메시지 전송은 계속됨): {}", e.getMessage());
-                }
+                // 4. 비동기로 TTS 생성 및 후속 처리 요청
+                messageTtsAsyncService.processTtsAsync(saved.getId(), senderUserId, requestDto.getContent(), groupId);
 
-                // 5. IoT 동기화 알림 (목소리가 없더라도 텍스트 업데이트 알림은 보냄)
-                try {
-                        iotSyncService.notifyUpdate(groupId, "voice", 1);
-                } catch (Exception e) {
-                        log.error("IoT Sync Notification failed: {}", e.getMessage());
-                }
+                Supporter senderSupporter = supporterRepository.findByUserAndFamily(sender, group)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-                return toDto(saved);
+                return toDto(saved, senderSupporter);
+        }
+
+        @Transactional
+        public void generateTts(Integer userId, Integer groupId, String text) {
+                // 1. Family & User 조회 (검증용)
+                Family group = familyRepository.findById(groupId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+                User sender = userRepository.findById(userId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+                // 2. 메시지 저장
+                Message message = Message.builder()
+                                .group(group)
+                                .sender(sender)
+                                .content(text)
+                                .isRead(false)
+                                .isSynced(false)
+                                .build();
+                Message saved = messageRepository.save(message);
+
+                // 3. 비동기로 TTS 처리 요청
+                messageTtsAsyncService.processTtsAsync(saved.getId(), userId, text, groupId);
         }
 
         public List<MessageResponseDto> getMessages(Integer groupId, Integer requesterUserId) {
@@ -90,9 +105,17 @@ public class MessageService {
                 supporterRepository.findByUserAndFamily(requester, group)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-                return messageRepository.findAllByGroupAndDeletedAtIsNullOrderByCreatedAtAsc(group)
-                                .stream()
-                                .map(this::toDto)
+                List<Message> messages = messageRepository.findAllByGroupAndDeletedAtIsNullOrderByCreatedAtAsc(group);
+                List<Supporter> supporters = supporterRepository.findAllByFamily(group);
+
+                java.util.Map<Integer, Supporter> supporterMap = supporters.stream()
+                                .collect(java.util.stream.Collectors.toMap(
+                                                s -> s.getUser().getId(),
+                                                s -> s,
+                                                (existing, replacement) -> existing));
+
+                return messages.stream()
+                                .map(msg -> toDto(msg, supporterMap.get(msg.getSender().getId())))
                                 .toList();
         }
 
@@ -115,7 +138,12 @@ public class MessageService {
                 }
 
                 message.markRead();
-                return toDto(message);
+
+                Supporter senderSupporter = supporterRepository
+                                .findByUserAndFamily(message.getSender(), group)
+                                .orElse(null);
+
+                return toDto(message, senderSupporter);
         }
 
         @Transactional
@@ -141,13 +169,19 @@ public class MessageService {
                 }
 
                 message.softDelete();
+
+                // Log 저장 (DELETE)
+                saveLog(groupId, messageId, ActionType.DELETE);
+
+                // IoT 동기화 알림
+                iotSyncService.notifyUpdate(groupId, "voice");
         }
 
         @Transactional
-        public org.ssafy.eeum.domain.album.dto.AlbumDTOs.IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
+        public AlbumDTOs.IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
                 List<Message> unsyncedMessages = messageRepository.findAllByGroupIdAndIsSyncedFalse(familyId);
 
-                List<org.ssafy.eeum.domain.album.dto.AlbumDTOs.AlbumSyncItemResponseDTO> addedItems = new java.util.ArrayList<>();
+                List<AlbumDTOs.AlbumSyncItemResponseDTO> addedItems = new java.util.ArrayList<>();
                 List<Integer> deletedIds = new java.util.ArrayList<>();
                 List<Integer> syncedIds = new java.util.ArrayList<>();
 
@@ -155,7 +189,7 @@ public class MessageService {
                         if (msg.getDeletedAt() != null) {
                                 deletedIds.add(msg.getId());
                         } else if (msg.getVoiceUrl() != null) {
-                                addedItems.add(org.ssafy.eeum.domain.album.dto.AlbumDTOs.AlbumSyncItemResponseDTO
+                                addedItems.add(AlbumDTOs.AlbumSyncItemResponseDTO
                                                 .builder()
                                                 .id(msg.getId())
                                                 .url(s3Service.getPresignedUrl(msg.getVoiceUrl()))
@@ -170,17 +204,13 @@ public class MessageService {
                         messageRepository.markAsSynced(syncedIds);
                 }
 
-                return org.ssafy.eeum.domain.album.dto.AlbumDTOs.IotAlbumSyncResponseDTO.builder()
+                return AlbumDTOs.IotAlbumSyncResponseDTO.builder()
                                 .added(addedItems)
                                 .deleted(deletedIds)
                                 .build();
         }
 
-        private MessageResponseDto toDto(Message message) {
-                Supporter senderSupporter = supporterRepository
-                                .findByUserAndFamily(message.getSender(), message.getGroup())
-                                .orElse(null);
-
+        private MessageResponseDto toDto(Message message, Supporter senderSupporter) {
                 String senderRelationship = null;
                 String senderRole = null;
                 if (senderSupporter != null) {
@@ -206,5 +236,14 @@ public class MessageService {
                                                 ? s3Service.getPresignedUrl(message.getVoiceUrl())
                                                 : null)
                                 .build();
+        }
+
+        private void saveLog(Integer familyId, Integer voiceId, ActionType actionType) {
+                VoiceLog log = VoiceLog.builder()
+                                .groupId(familyId)
+                                .voiceId(voiceId)
+                                .actionType(actionType)
+                                .build();
+                voiceLogRepository.save(log);
         }
 }

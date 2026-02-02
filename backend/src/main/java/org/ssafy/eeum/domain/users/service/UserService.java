@@ -1,6 +1,7 @@
 package org.ssafy.eeum.domain.users.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,7 +13,9 @@ import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.fcm.FcmUnregisteredTokenException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -75,7 +78,7 @@ public class UserService {
     public String sendTestMessage(String userId, String title, String body, String type) {
         User user = userRepository.findById(Integer.parseInt(userId))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        
+
         String token = user.getFcmToken();
         if (token == null || token.isEmpty()) {
             return "FCM Token not found for user";
@@ -85,7 +88,13 @@ public class UserService {
         String finalBody = body != null && !body.isEmpty() ? body : "이 메시지가 보이면 FCM이 정상 동작하는 것입니다!";
         String finalType = type != null && !type.trim().isEmpty() ? type.trim() : "NORMAL";
 
-        fcmService.sendMessageTo(token, finalTitle, finalBody, finalType, null, null, null);
+        try {
+            fcmService.sendMessageTo(token, finalTitle, finalBody, finalType, null, null, null, null, null);
+        } catch (FcmUnregisteredTokenException e) {
+            log.warn("Test FCM message failed: token unregistered for user {}. Clearing token.", userId);
+            user.updateFcmToken(null);
+            return "Failed to send: FCM Token was invalid and has been cleared.";
+        }
         return "Message sent to " + user.getName();
     }
 }

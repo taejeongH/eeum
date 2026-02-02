@@ -89,7 +89,7 @@
             <span class="ml-2 eeum-sub">로그인 유지</span>
           </label>
           <button type="button" class="text-sm font-medium" style="color: var(--color-primary);" @click="handleForgotPassword">
-            비밀번호 찾기
+            계정/비밀번호 찾기
           </button>
         </div>
 
@@ -172,15 +172,19 @@ const handleLogin = async () => {
       withCredentials: false
     })
 
-    const { accessToken } = response.data
+    const { accessToken, refreshToken } = response.data
     
     // 로그인 유지 체크 여부에 따라 스토리지 분기
     if (loginForm.rememberMe) {
       localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
       sessionStorage.removeItem('accessToken')
+      sessionStorage.removeItem('refreshToken')
     } else {
       sessionStorage.setItem('accessToken', accessToken)
+      sessionStorage.setItem('refreshToken', refreshToken)
       localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
     }
     
     // axios 헤더에 토큰 설정
@@ -204,7 +208,7 @@ const handleLogin = async () => {
 }
 
 const handleForgotPassword = () => {
-  errorMessage.value = '비밀번호 찾기 기능은 현재 UI만 제공됩니다.'
+  router.push('/find-account')
 }
 
 const handleSignup = () => {

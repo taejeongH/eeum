@@ -187,6 +187,7 @@ public class FamilyService {
                                 .dependentUserId(dependentUserId)
                                 .memberPriorities(memberPriorities)
                                 .members(members)
+                                .streamingUrl(family.getStreamingUrl())
                                 .build();
         }
 

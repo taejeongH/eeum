@@ -1,24 +1,11 @@
 <template>
   <div class="min-h-screen" style="background-color: var(--bg-page);">
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    
     <header class="bg-white border-b border-gray-200">
       <div class="max-w-2xl mx-auto px-4 py-3">
         <!-- Top Row -->
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <button 
-              @click="goBack"
-              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            
-            <div class="flex items-center gap-2">
-              <h1 class="text-lg font-bold text-gray-800">{{ groupName || '우리 가족' }}</h1>
-            </div>
-          </div>
-          
+        <div class="flex items-center justify-end mb-4">
           <div class="flex items-center gap-2">
             <button 
               @click="openSearch"
@@ -55,7 +42,7 @@
         </div>
 
         <!-- Patient Profile Section -->
-        <div class="flex flex-col items-center py-4">
+        <div v-if="!familyLoading" class="flex flex-col items-center py-4">
           <div class="relative mb-3">
             <img 
               :src="patientImage || getFullImageUrl(null, 'Family')"
@@ -114,54 +101,49 @@
 
 
       <!-- Message Detail Modal -->
-      <transition name="fade">
-        <div 
-          v-if="selectedMessage"
-          class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4"
-          @click.self="closeMessageDetail"
-        >
-          <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
-            <!-- Detail Header -->
-            <div class="flex items-center justify-between p-4 border-b border-gray-200">
-              <div class="flex items-center gap-3">
-                <img 
-                  :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
-                  :alt="selectedMessage.senderName || 'User'"
-                  class="w-12 h-12 rounded-full object-cover"
-                />
-                <div>
-                  <h3 class="font-bold text-gray-800">{{ selectedMessage.senderRelationship || selectedMessage.senderName }}</h3>
-                  <p class="text-xs text-gray-500">{{ formatFullDate(selectedMessage.createdAt) }}</p>
-                </div>
+      <div 
+        v-if="selectedMessage"
+        class="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+        @click.self="closeMessageDetail"
+      >
+        <div class="bg-white rounded-3xl shadow-2xl w-[85%] max-w-md max-h-[350px] flex flex-col min-h-[200px]">
+          <!-- Detail Header -->
+          <div class="flex-none flex items-center justify-between p-4 border-b border-gray-200">
+            <div class="flex items-center gap-3">
+              <img 
+                :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
+                :alt="selectedMessage.senderName || 'User'"
+                class="w-12 h-12 rounded-full object-cover"
+              />
+              <div>
+                <h3 class="font-bold text-gray-800">{{ selectedMessage.senderRelationship || selectedMessage.senderName }}</h3>
+                <p class="text-xs text-gray-500">{{ formatFullDate(selectedMessage.createdAt) }}</p>
               </div>
-              <button 
-                @click="closeMessageDetail"
-                class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
             </div>
+            <button 
+              @click="closeMessageDetail"
+              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
 
-            <!-- Detail Content -->
-            <div class="p-6">
-              <p class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{{ selectedMessage.content }}</p>
-            </div>
+          <!-- Detail Content -->
+          <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <p class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{{ selectedMessage.content }}</p>
           </div>
         </div>
-      </transition>
+      </div>
 
 
       <!-- Floating Action Button (FAB) -->
       <button 
         @click="openMessageModal"
-        class="fixed right-4 bottom-28 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95 z-40"
-        style="background: linear-gradient(135deg, var(--color-primary) 0%, #ff8a65 100%);"
+        class="fixed bottom-32 right-6 z-30 bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform"
       >
-         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-         </svg>
+        <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0, 'wght' 600">add</span>
       </button>
 
       <!-- Message Composer Modal: Scrollable Bottom Sheet with Sticky Header -->
@@ -219,8 +201,8 @@
             <div class="mb-4">
               <div class="relative">
                 <textarea
-                  v-model="newMessage.content"
-                  @input="updateCharCount"
+                  :value="newMessage.content"
+                  @input="handleInput"
                   placeholder="따뜻한 메시지를 적어보세요!"
                   class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
                   rows="4"
@@ -287,7 +269,7 @@
     </main>
 
     <!-- Bottom Navigation -->
-    <BottomNav />
+    <BottomNav v-if="!isModalOpen" />
   </div>
 </template>
 
@@ -299,14 +281,21 @@ import { familyService } from '@/services/familyService'
 import { useFamilyStore } from '@/stores/family'
 import BottomNav from '@/components/layout/BottomNav.vue'
 import { useModalStore } from '@/stores/modal'
+import MainHeader from '@/components/MainHeader.vue'
 
 const router = useRouter()
 const route = useRoute()
 const modalStore = useModalStore()
 const familyStore = useFamilyStore()
 
+const isModalOpen = ref(false)
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen
+}
+
 const messages = ref([])
 const loading = ref(false)
+const familyLoading = ref(true)
 const currentPage = ref(0)
 const totalPages = ref(0)
 const familyId = ref(null)
@@ -412,6 +401,11 @@ const closeMessageModal = () => {
   if (messageSheet.value) messageSheet.value.style.transform = ''
 }
 
+const handleInput = (e) => {
+  newMessage.value.content = e.target.value
+  updateCharCount()
+}
+
 const updateCharCount = () => {
   charCount.value = newMessage.value.content.length
 }
@@ -440,6 +434,8 @@ const sendMessage = async () => {
 }
 
 const openMessageDetail = (message) => {
+  console.log("MessageList: Open Detail", message);
+
   selectedMessage.value = message
 }
 
@@ -519,6 +515,7 @@ const nextPage = () => {
 // 초기화
 const fetchFamilyDetails = async () => {
     if (!familyId.value) return;
+    familyLoading.value = true;
     
     try {
         const res = await familyService.getFamilyDetails(familyId.value);
@@ -535,6 +532,8 @@ const fetchFamilyDetails = async () => {
         }
     } catch (err) {
          console.error('Failed to fetch family details', err);
+    } finally {
+        familyLoading.value = false;
     }
 };
 
@@ -572,8 +571,11 @@ onMounted(async () => {
   }
 
   if (familyId.value) {
-    await fetchMessages();
-    await fetchFamilyDetails();
+    // API 호출 병렬 처리로 속도 개선
+    await Promise.all([
+      fetchMessages(),
+      fetchFamilyDetails()
+    ]);
   }
 })
 </script>
@@ -616,5 +618,28 @@ onMounted(async () => {
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+</style>
+
+<style scoped>
+/* Custom Scrollbar for Message Detail */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 20px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* Match CalendarPage icon style */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 28px;
 }
 </style>

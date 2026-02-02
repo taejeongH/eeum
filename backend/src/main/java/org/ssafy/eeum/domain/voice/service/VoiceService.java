@@ -2,17 +2,15 @@ package org.ssafy.eeum.domain.voice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation; // 추가됨
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.ssafy.eeum.domain.auth.entity.User;
-import org.ssafy.eeum.domain.voice.dto.TtsRequestDTO;
+import org.ssafy.eeum.domain.voice.dto.PythonTtsRequestDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceModelStatusResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleRequestDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceSampleResponseDTO;
+import org.ssafy.eeum.domain.voice.entity.VoiceModel;
 import org.ssafy.eeum.domain.voice.entity.VoiceSample;
 import org.ssafy.eeum.domain.voice.entity.VoiceScript;
 import org.ssafy.eeum.domain.voice.repository.VoiceModelRepository;
@@ -20,12 +18,10 @@ import org.ssafy.eeum.domain.voice.repository.VoiceSampleRepository;
 import org.ssafy.eeum.domain.voice.repository.VoiceScriptRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
-import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -37,121 +33,277 @@ public class VoiceService {
     private final VoiceSampleRepository sampleRepository;
     private final VoiceModelRepository modelRepository;
     private final S3Service s3Service;
-    private final MqttService mqttService;
-    private final RestTemplate restTemplate;
-    private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService;
+    private final VoiceAiClient voiceAiClient;
 
-    @Value("${spring.ai-server.url}")
-    private String AI_SERVER_URL;
-
-    @Value("${spring.ai-server.key}")
-    private String AI_SERVER_KEY;
-
-    @Value("${spring.cloud.aws.s3.bucket}")
-    private String bucketName;
+    private static final List<String> TEST_QUOTES = List.of(
+            "너나 잘하세요.",
+            "계획이 다 있었구나.",
+            "니가 가라, 하와이.",
+            "묻고 더블로 가!",
+            "어이가 없네.");
 
     // 1. 대본 목록 조회
     public List<VoiceScript> getScripts() {
         return scriptRepository.findAll();
     }
 
-    // 2. 업로드용 URL 발급 (samples/{userId}/{scriptId}.wav)
-    public String getUploadUrl(Integer userId, Integer scriptId) {
-        String fileName = String.format("samples/%d/script_%d.wav", userId, scriptId);
-        return s3Service.generatePresignedUrl(fileName, "audio/wav");
+    // 2. 업로드용 URL 발급 (samples/{userId}/{UUID}.{extension})
+    public String getUploadUrl(Integer userId, String extension) {
+        String uuid = UUID.randomUUID().toString();
+        String fileName = String.format("samples/%d/%s.%s", userId, uuid, extension);
+        String contentType = getContentTypeByExtension(extension);
+        return s3Service.generatePresignedUrl(fileName, contentType);
     }
 
-    // 3. 음성 샘플 정보 저장 및 5개 수집 시 학습 요청
+    private String getContentTypeByExtension(String extension) {
+        if (extension == null)
+            return "audio/wav";
+        return switch (extension.toLowerCase()) {
+            case "m4a" -> "audio/x-m4a";
+            case "mp3" -> "audio/mpeg";
+            case "3gp" -> "audio/3gpp";
+            case "webm" -> "audio/webm";
+            case "ogg" -> "audio/ogg";
+            default -> "audio/wav";
+        };
+    }
+
+    // 3. 음성 샘플 정보 저장
     @Transactional
     public void saveSample(User user, VoiceSampleRequestDTO request) {
-        VoiceScript script = scriptRepository.findById(request.getScriptId())
-                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+        VoiceScript script = null;
+        if (request.getScriptId() != null) {
+            script = scriptRepository.findById(request.getScriptId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+        }
+
+        if (script == null && (request.getTranscript() == null || request.getTranscript().trim().isEmpty())) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
 
         VoiceSample sample = VoiceSample.builder()
                 .user(user)
                 .voiceScript(script)
                 .samplePath(request.getSamplePath())
                 .durationSec(request.getDurationSec())
+                .transcript(request.getTranscript())
+                .nickname(request.getNickname())
                 .build();
+
+        if (request.getDurationSec() == null || request.getDurationSec() < 3.0 || request.getDurationSec() > 10.0) {
+            throw new CustomException(ErrorCode.INVALID_AUDIO_DURATION);
+        }
+
         sampleRepository.save(sample);
+        log.info("음성 샘플 정보 저장 완료: {}", request.getSamplePath());
+    }
 
-        String originalPath = request.getSamplePath();
-        if (!originalPath.toLowerCase().endsWith(".wav")) {
-            log.info("WAV 형식이 아님을 감지: {}. AI 서버에 변환을 요청합니다.", originalPath);
+    // 3-1. 모델 학습 상태 조회
+    public VoiceModelStatusResponseDTO getVoiceModelStatus(Integer userId) {
+        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        List<VoiceSampleResponseDTO> sampleDtos = samples.stream()
+                .map(sample -> {
+                    String testUrl = null;
+                    if (sample.getTestAudioPath() != null) {
+                        testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
+                    }
+                    return VoiceSampleResponseDTO.from(sample, testUrl);
+                })
+                .toList();
 
+        VoiceModel model = modelRepository.findByUserId(userId).orElse(null);
+        return VoiceModelStatusResponseDTO.of(samples.size(), model, sampleDtos);
+    }
+
+    // 3-2. 테스트용 음성 샘플 목록 조회
+    public List<VoiceSampleResponseDTO> getTestAudios(Integer userId) {
+        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        return samples.stream()
+                .map(sample -> {
+                    String testUrl = null;
+                    if (sample.getTestAudioPath() != null) {
+                        testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
+                    }
+                    return VoiceSampleResponseDTO.from(sample, testUrl);
+                })
+                .toList();
+    }
+
+    // 3-2.1 테스트용 음성 일괄 생성 (랜덤 명대사 활용)
+    @Transactional
+    public void generateTestAudios(Integer userId) {
+        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        if (samples.isEmpty()) {
+            throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
+        }
+
+        // 사용자의 학습된 모델이 있는지 확인
+        VoiceModel model = modelRepository.findByUserId(userId).orElse(null);
+        String gptKey = (model != null && model.getStatus() == VoiceModel.ModelStatus.COMPLETED) ? model.getGptPath()
+                : null;
+        String sovitsKey = (model != null && model.getStatus() == VoiceModel.ModelStatus.COMPLETED)
+                ? model.getSovitsPath()
+                : null;
+
+        String randomQuote = TEST_QUOTES.get((int) (Math.random() * TEST_QUOTES.size()));
+
+        for (VoiceSample sample : samples) {
             try {
-                String convertUrl = AI_SERVER_URL + "/api/voice/convert";
+                String refText = sample.getVoiceScript() != null
+                        ? sample.getVoiceScript().getContent()
+                        : sample.getTranscript();
 
-                Map<String, String> requestBody = new HashMap<>();
-                requestBody.put("s3_url", request.getSamplePath());
-                requestBody.put("bucket_name", bucketName);
+                PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
+                        .userId(String.valueOf(userId))
+                        .gptKey(gptKey)
+                        .sovitsKey(sovitsKey)
+                        .refWavKey(sample.getSamplePath())
+                        .refText(refText)
+                        .text(randomQuote)
+                        .build();
 
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("X-API-Key", AI_SERVER_KEY);
-
-                HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
-
-                Map<String, Object> response = restTemplate.postForObject(convertUrl, entity, Map.class);
-
-                if (response != null && "success".equals(response.get("status"))) {
-                    String convertedS3Key = (String) response.get("s3_key");
-                    log.info("AI 변환 성공: {}", convertedS3Key);
-                    sample.updateSamplePath(convertedS3Key);
+                String audioUrl = voiceAiClient.generateTts(requestDto);
+                if (audioUrl != null) {
+                    // S3 URL에서 key만 추출하여 저장
+                    String testAudioKey = extractS3Key(audioUrl);
+                    sample.updateTestAudioPath(testAudioKey);
                 }
             } catch (Exception e) {
-                log.error("AI 변환 호출 실패: {}", e.getMessage());
+                log.error("샘플 {}의 테스트 음성 생성 실패: {}", sample.getId(), e.getMessage());
             }
         }
+    }
+
+    private String extractS3Key(String url) {
+        if (url == null || !url.contains(".com/")) {
+            return url;
+        }
+        return url.substring(url.indexOf(".com/") + 5);
+    }
+
+    // 3-2. 대표 샘플 설정
+    @Transactional
+    public void setRepresentativeSample(Integer userId, Integer sampleId) {
+        VoiceSample sample = sampleRepository.findById(sampleId)
+                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND));
+
+        if (!sample.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+
+        VoiceModel model = modelRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    VoiceModel newModel = VoiceModel.builder()
+                            .user(sample.getUser())
+                            .status(VoiceModel.ModelStatus.NOT_STARTED)
+                            .build();
+                    return modelRepository.save(newModel);
+                });
+
+        model.updateRepresentativeSample(sample);
+    }
+
+    // 3-2.1 대표 샘플 조회
+    public VoiceSampleResponseDTO getRepresentativeSample(Integer userId) {
+        VoiceModel model = modelRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND));
+
+        if (model.getRepresentativeSample() == null) {
+            throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
+        }
+
+        VoiceSample sample = model.getRepresentativeSample();
+        String testUrl = null;
+        if (sample.getTestAudioPath() != null) {
+            testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
+        }
+        return VoiceSampleResponseDTO.from(sample, testUrl);
+    }
+
+    // 3-3. 음성 샘플 별명 수정
+    @Transactional
+    public void updateSampleNickname(Integer userId, Integer sampleId, String nickname) {
+        VoiceSample sample = sampleRepository.findById(sampleId)
+                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND));
+
+        if (!sample.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+
+        sample.updateNickname(nickname);
+    }
+
+    // 3-4. 음성 샘플 삭제 (Hard Delete)
+    @Transactional
+    public void deleteSample(Integer userId, Integer sampleId) {
+        VoiceSample sample = sampleRepository.findById(sampleId)
+                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND));
+
+        if (!sample.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+
+        // 대표 샘플인지 확인
+        VoiceModel model = modelRepository.findByUserId(userId).orElse(null);
+        if (model != null && model.getRepresentativeSample() != null &&
+                model.getRepresentativeSample().getId().equals(sampleId)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE); // 대표 샘플은 삭제 불가
+        }
+
+        sampleRepository.delete(sample);
     }
 
     // 4. TTS 생성 (URL 반환) - 독립 트랜잭션 설정
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String createTtsUrl(Integer userId, String text) {
-        List<VoiceSample> samples = sampleRepository.findAllByUserId(userId);
-        if (samples.isEmpty()) {
-            // ErrorCode에 맞는 메시지를 전달하거나 기본 생성자 활용
-            throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
+        log.debug("사용자 {}의 목소리 모델 및 대표 샘플을 조회합니다.", userId);
+
+        VoiceModel voiceModel = modelRepository.findByUserId(userId)
+                .orElseThrow(() -> {
+                    log.warn("사용자 {}의 목소리 모델을 찾을 수 없습니다.", userId);
+                    return new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
+                });
+
+        if (voiceModel.getStatus() != VoiceModel.ModelStatus.COMPLETED) {
+            log.warn("사용자 {}의 모델이 학습 완료 상태가 아닙니다. Status: {}", userId, voiceModel.getStatus());
+            throw new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
         }
-        VoiceSample representativeSample = samples.get(0);
 
-        try {
-            String ttsUrl = AI_SERVER_URL + "/api/voice/tts";
+        if (voiceModel.getGptPath() == null || voiceModel.getSovitsPath() == null) {
+            log.warn("사용자 {}의 모델 경로(GptPath/SovitsPath)가 누락되었습니다.", userId);
+            throw new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
+        }
 
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("text", text);
-            requestBody.put("sample_s3_url", representativeSample.getSamplePath());
-            requestBody.put("sample_transcript", representativeSample.getVoiceScript().getContent());
-            requestBody.put("user_id", userId);
-            requestBody.put("bucket_name", bucketName);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-API-Key", AI_SERVER_KEY);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            Map<String, Object> response = restTemplate.postForObject(ttsUrl, entity, Map.class);
-
-            if (response != null && "success".equals(response.get("status"))) {
-                return (String) response.get("full_url");
+        // 대표 샘플이 지정되어 있으면 사용, 없으면 가장 최근 샘플 사용
+        VoiceSample referenceSample = voiceModel.getRepresentativeSample();
+        if (referenceSample == null) {
+            List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+            if (samples.isEmpty()) {
+                throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
             }
-            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
-        } catch (Exception e) {
-            log.error("TTS 생성 호출 실패: {}", e.getMessage());
-            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+            referenceSample = samples.get(0);
+            log.debug("대표 샘플이 설정되지 않았거나 삭제되어 가장 최근 샘플(ID: {})을 사용합니다.", referenceSample.getId());
+        } else {
+            log.debug("설정된 대표 샘플(ID: {})을 사용합니다.", referenceSample.getId());
         }
-    }
 
-    // 5. TTS 생성 및 IoT 전달 (기존 유지용)
-    @Transactional
-    public void generateTts(Integer userId, TtsRequestDTO request) {
-        String generatedUrl = createTtsUrl(userId, request.getText());
+        String refText = referenceSample.getVoiceScript() != null
+                ? referenceSample.getVoiceScript().getContent()
+                : referenceSample.getTranscript();
 
-        String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", generatedUrl,
-                request.getText());
-        mqttService.sendToIot(request.getGroupId(), "voice", jsonPayload);
+        PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
+                .userId(String.valueOf(userId))
+                .gptKey(voiceModel.getGptPath())
+                .sovitsKey(voiceModel.getSovitsPath())
+                .refWavKey(referenceSample.getSamplePath())
+                .refText(refText)
+                .text(text)
+                .build();
 
-        // 새로운 음성 생성 알림
-        iotSyncService.notifyUpdate(request.getGroupId(), "voice", 1);
+        String audioUrl = voiceAiClient.generateTts(requestDto);
+        if (audioUrl != null) {
+            return audioUrl;
+        }
+        throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 }

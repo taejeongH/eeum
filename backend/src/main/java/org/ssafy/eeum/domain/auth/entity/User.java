@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -27,6 +28,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Supporter> supporters = new ArrayList<>();
 
@@ -141,5 +143,10 @@ public class User {
             return new ArrayList<>();
         }
         return Arrays.asList(this.chronicDiseases.split(","));
+    }
+
+    public void updatePassword(String password) {
+        this.password = password;
+        this.updatedAt = LocalDateTime.now();
     }
 }

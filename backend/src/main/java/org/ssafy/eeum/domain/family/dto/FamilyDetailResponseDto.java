@@ -23,4 +23,7 @@ public class FamilyDetailResponseDto {
 
     @Schema(description = "전체 멤버 목록")
     private List<FamilyMemberDto> members;
+
+    @Schema(description = "실시간 스트리밍 URL")
+    private String streamingUrl;
 }

@@ -29,7 +29,7 @@ public class FallDetectionService {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    public void handleFallDetection(Integer familyId, String message) {
+    public void handleFallDetection(Integer familyId, String message, Integer eventId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
@@ -61,7 +61,7 @@ public class FallDetectionService {
         }
 
         // 1. 알림 기록 생성 (한 번만)
-        Long notificationId = notificationService.createNotification(familyId, title, body, "EMERGENCY");
+        Long notificationId = notificationService.createNotification(familyId, title, body, "EMERGENCY", eventId);
 
         // 2. 단계적 알림 프로세스 시작
         notifyCaregiver(caregivers, 0, notificationId);

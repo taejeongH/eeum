@@ -20,6 +20,7 @@ public enum ErrorCode {
     EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "AUTH004", "이메일 인증이 완료되지 않았습니다."),
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH005", "이메일 또는 비밀번호가 일치하지 않습니다."),
     EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH006", "이메일 발송에 실패했습니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH007", "유효하지 않은 리프레시 토큰입니다."),
 
     // Family 관련 에러 코드
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY001", "유저를 찾을 수 없습니다."),
@@ -27,6 +28,9 @@ public enum ErrorCode {
     SUPPORTER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY003", "가족 구성원 정보를 찾을 수 없습니다."),
     NOT_FAMILY_REPRESENTATIVE(HttpStatus.FORBIDDEN, "FAMILY004", "가족 대표자만 이 작업을 수행할 수 있습니다."),
     INVALID_EMERGENCY_PRIORITY(HttpStatus.BAD_REQUEST, "FAMILY005", "응급 우선순위는 1에서 4 사이여야 합니다."),
+    
+    // IOT
+    VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "IOT001", "비디오가 아직 준비되지 않았거나 처리 중입니다."),
     ALREADY_FAMILY_MEMBER(HttpStatus.BAD_REQUEST, "FAMILY006", "이미 해당 가족 그룹의 멤버입니다."),
     ALREADY_FAMILY_REPRESENTATIVE(HttpStatus.BAD_REQUEST, "FAMILY007", "이미 해당 가족 그룹의 대표자입니다."),
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "FAMILY008", "유효하지 않은 초대 코드입니다."),
@@ -46,7 +50,12 @@ public enum ErrorCode {
 
     // 알림 관련 에러 코드
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI001", "알림 정보를 찾을 수 없습니다."),
-    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI002", "알림 수신 정보를 찾을 수 없습니다.");
+    DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI002", "알림 수신 정보를 찾을 수 없습니다."),
+
+    // 목소리 관련 에러 코드
+    VOICE_SAMPLE_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE001", "목소리 샘플이 없습니다."),
+    VOICE_MODEL_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE002", "학습된 목소리 모델이 없습니다."),
+    INVALID_AUDIO_DURATION(HttpStatus.BAD_REQUEST, "VOICE003", "녹음 길이는 3초 이상 10초 이하여야 합니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
