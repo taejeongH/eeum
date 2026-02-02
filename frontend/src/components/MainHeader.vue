@@ -424,11 +424,11 @@ watch(() => route.params.userId, (newId) => {
 });
 
 watch(selectedGroup, (newGroup) => {
-    console.log('MainHeader: selectedGroup changed:', newGroup);
+
     if (newGroup) {
-        console.log('MainHeader: owner field:', newGroup.owner);
-        console.log('MainHeader: all keys:', Object.keys(newGroup));
-        console.log('MainHeader: serialized:', JSON.stringify(newGroup));
+
+
+
     }
     fetchMembers();
 }, { immediate: true });

@@ -47,5 +47,10 @@ export const useHealthStore = defineStore('health', {
                 this.loading = false;
             }
         }
+    },
+    persist: {
+        key: 'health-store',
+        storage: localStorage,
+        paths: ['latestMetrics', 'currentReport']
     }
 });

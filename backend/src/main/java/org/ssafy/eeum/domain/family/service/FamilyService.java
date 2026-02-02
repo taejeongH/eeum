@@ -65,6 +65,7 @@ public class FamilyService {
                 return CreateFamilyResponseDto.of(savedFamily);
         }
 
+        @Transactional(readOnly = true)
         public List<FamilySimpleResponseDto> findMyFamilies(String userId) {
                 User user = userRepository.findById(Integer.parseInt(userId))
                                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -72,7 +73,31 @@ public class FamilyService {
                 List<Supporter> supporters = supporterRepository.findAllByUser(user);
 
                 return supporters.stream()
-                                .map(supporter -> FamilySimpleResponseDto.of(supporter.getFamily(), supporter.isRepresentativeFlag()))
+                                .map(supporter -> {
+                                        String rel = supporter.getRelationship();
+                                        // If current user's relationship is null, try to find any relationship in the
+                                        // family
+                                        if (rel == null || rel.trim().isEmpty()) {
+                                                rel = supporterRepository.findAllByFamily(supporter.getFamily())
+                                                                .stream()
+                                                                .map(Supporter::getRelationship)
+                                                                .filter(r -> r != null && !r.trim().isEmpty())
+                                                                .findFirst()
+                                                                .orElse(null);
+                                        }
+
+                                        // Find dependent name in this family
+                                        String dependentName = supporterRepository
+                                                        .findAllByFamily(supporter.getFamily())
+                                                        .stream()
+                                                        .filter(s -> s.getRole() == Supporter.Role.PATIENT)
+                                                        .map(s -> s.getUser().getName())
+                                                        .findFirst()
+                                                        .orElse(null);
+
+                                        return FamilySimpleResponseDto.of(supporter.getFamily(),
+                                                        supporter.isRepresentativeFlag(), rel, dependentName);
+                                })
                                 .collect(Collectors.toList());
         }
 

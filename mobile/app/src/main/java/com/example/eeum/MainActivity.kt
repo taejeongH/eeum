@@ -398,6 +398,10 @@ fun WebViewScreen(
                     }
                 }
 
+                // 로컬 개발 환경용
+                // loadUrl("http://192.168.35.76:5173")
+
+                // 배포 서버용
 //                loadUrl("http://10.0.2.2:5173")
                 loadUrl("https://i14a105.p.ssafy.io")
             }

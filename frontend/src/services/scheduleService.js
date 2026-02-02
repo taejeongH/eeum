@@ -48,7 +48,7 @@ export const scheduleService = {
             visitPurpose: formData.visitPurpose || null,
             visitorName: formData.visitorName || null
         };
-        console.log("Sending createSchedule payload:", requestBody);
+
 
         try {
             return await apiClient.post(`/families/${familyId}/schedules`, requestBody);
