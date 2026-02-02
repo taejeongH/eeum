@@ -33,13 +33,13 @@ public class VoiceController {
                 return RestApiResponse.success(voiceService.getScripts());
         }
 
-        @SwaggerApiSpec(summary = "음성 샘플 업로드용 URL 발급", description = "S3에 음성 샘플(.wav)을 직접 업로드하기 위한 Presigned URL을 발급합니다.", successMessage = "Presigned URL 발급 성공", errors = {
+        @SwaggerApiSpec(summary = "음성 샘플 업로드용 URL 발급", description = "S3에 음성 샘플을 직접 업로드하기 위한 Presigned URL을 발급합니다. UUID 기반의 파일명을 사용하며, 다양한 확장자(.wav, .m4a, .mp3 등)를 지원합니다.", successMessage = "Presigned URL 발급 성공", errors = {
                         ErrorCode.ENTITY_NOT_FOUND, ErrorCode.INTERNAL_SERVER_ERROR })
         @GetMapping("/presigned-url")
         public RestApiResponse<String> getUrl(
                         @AuthenticationPrincipal CustomUserDetails userDetails,
-                        @RequestParam Integer scriptId) {
-                return RestApiResponse.success(voiceService.getUploadUrl(userDetails.getId(), scriptId));
+                        @RequestParam(defaultValue = "wav") String extension) {
+                return RestApiResponse.success(voiceService.getUploadUrl(userDetails.getId(), extension));
         }
 
         @SwaggerApiSpec(summary = "음성 샘플 메타데이터 저장", description = """

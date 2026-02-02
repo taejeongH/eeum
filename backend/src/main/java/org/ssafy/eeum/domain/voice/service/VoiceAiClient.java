@@ -10,8 +10,6 @@ import org.springframework.web.client.RestTemplate;
 import org.ssafy.eeum.domain.voice.dto.PythonTtsRequestDTO;
 import org.ssafy.eeum.domain.voice.dto.PythonTtsResponseDTO;
 
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -53,28 +51,4 @@ public class VoiceAiClient {
         }
     }
 
-    public String convertWav(String samplePath) {
-        try {
-            String convertUrl = AI_SERVER_URL + "/api/voice/convert";
-
-            Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("s3_url", samplePath);
-            requestBody.put("bucket_name", bucketName);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-API-Key", AI_SERVER_KEY);
-
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
-            Map<String, Object> response = restTemplate.postForObject(convertUrl, entity, Map.class);
-
-            if (response != null && "success".equals(response.get("status"))) {
-                return (String) response.get("s3_key");
-            }
-            return null;
-        } catch (Exception e) {
-            log.error("AI 서버 WAV 변환 호출 실패: {}", e.getMessage());
-            return null;
-        }
-    }
 }

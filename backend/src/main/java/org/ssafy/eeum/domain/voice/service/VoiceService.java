@@ -21,6 +21,7 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -39,10 +40,25 @@ public class VoiceService {
         return scriptRepository.findAll();
     }
 
-    // 2. 업로드용 URL 발급 (samples/{userId}/{scriptId}.wav)
-    public String getUploadUrl(Integer userId, Integer scriptId) {
-        String fileName = String.format("samples/%d/script_%d.wav", userId, scriptId);
-        return s3Service.generatePresignedUrl(fileName, "audio/wav");
+    // 2. 업로드용 URL 발급 (samples/{userId}/{UUID}.{extension})
+    public String getUploadUrl(Integer userId, String extension) {
+        String uuid = UUID.randomUUID().toString();
+        String fileName = String.format("samples/%d/%s.%s", userId, uuid, extension);
+        String contentType = getContentTypeByExtension(extension);
+        return s3Service.generatePresignedUrl(fileName, contentType);
+    }
+
+    private String getContentTypeByExtension(String extension) {
+        if (extension == null)
+            return "audio/wav";
+        return switch (extension.toLowerCase()) {
+            case "m4a" -> "audio/x-m4a";
+            case "mp3" -> "audio/mpeg";
+            case "3gp" -> "audio/3gpp";
+            case "webm" -> "audio/webm";
+            case "ogg" -> "audio/ogg";
+            default -> "audio/wav";
+        };
     }
 
     // 3. 음성 샘플 정보 저장
@@ -72,16 +88,7 @@ public class VoiceService {
         }
 
         sampleRepository.save(sample);
-
-        String originalPath = request.getSamplePath();
-        if (!originalPath.toLowerCase().endsWith(".wav")) {
-            log.info("WAV 형식이 아님을 감지: {}. AI 서버에 변환을 요청합니다.", originalPath);
-            String convertedS3Key = voiceAiClient.convertWav(originalPath);
-            if (convertedS3Key != null) {
-                log.info("AI 변환 성공: {}", convertedS3Key);
-                sample.updateSamplePath(convertedS3Key);
-            }
-        }
+        log.info("음성 샘플 정보 저장 완료: {}", request.getSamplePath());
     }
 
     // 3-1. 모델 학습 상태 조회
