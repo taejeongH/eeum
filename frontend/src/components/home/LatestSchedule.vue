@@ -54,23 +54,55 @@ const fetchLatestSchedule = async () => {
     const familyId = familyStore.selectedFamily?.id;
     if (!familyId) return;
 
-    // Fetch schedules for today
-    const response = await api.get(`/families/${familyId}/schedules`);
-    const schedules = response.data;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // Backend expects 1-indexed
+
+    // Fetch schedules for this month
+    const response = await api.get(`/families/${familyId}/schedules`, {
+      params: { year, month }
+    });
     
-    // Simple filter for today and sorting (mock logic for now if backend doesn't support today only)
-    const today = new Date().toISOString().split('T')[0];
-    const todaySchedules = schedules.filter(s => s.date === today);
+    // Response wrapper: { statusCode, message, data: [...] }
+    const schedules = response.data.data || [];
+    
+    const todayStr = now.toISOString().split('T')[0];
+    
+    // Filter for today
+    const todaySchedules = schedules.filter(s => s.startAt && s.startAt.startsWith(todayStr));
     
     if (todaySchedules.length > 0) {
-      // Sort by time and pick the next/latest one
-      todaySchedules.sort((a, b) => a.time.localeCompare(b.time));
-      latestSchedule.value = todaySchedules[0];
+      // Sort by time
+      todaySchedules.sort((a, b) => a.startAt.localeCompare(b.startAt));
+      
+      const target = todaySchedules[0];
+      
+      // Format time (e.g., "오전 09:00" or "09:00 PM")
+      const dateObj = new Date(target.startAt);
+      const timeStr = new Intl.DateTimeFormat('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }).format(dateObj);
+
+      latestSchedule.value = {
+        ...target,
+        time: timeStr,
+        location: target.description // Fallback to description if location not separate
+      };
+    } else {
+      latestSchedule.value = null;
     }
   } catch (e) {
     console.error("Failed to fetch schedules:", e);
   }
 };
+
+// Re-fetch when family changes
+import { watch } from 'vue';
+watch(() => familyStore.selectedFamily, () => {
+  fetchLatestSchedule();
+});
 
 onMounted(() => {
   fetchLatestSchedule();
