@@ -35,11 +35,15 @@
         <h3 class="text-lg font-bold text-slate-900">녹음 문장</h3>
         
         <div v-for="(sample, index) in voiceSamples" :key="sample.id" 
-             class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between active:scale-[0.98] transition-all"
+             class="p-5 rounded-2xl shadow-sm border flex items-center justify-between active:scale-[0.98] transition-all"
+             :class="sample.isRecorded ? 'bg-green-50/50 border-green-100' : 'bg-white border-slate-100'"
              @click="openRecorder(sample)">
             <div class="flex-1 mr-4">
                 <div class="flex items-center gap-2 mb-1">
-                    <span class="text-xs font-bold text-primary px-2 py-0.5 bg-primary/10 rounded-md">문장 {{ index + 1 }}</span>
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-md"
+                          :class="sample.isRecorded ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'">
+                        문장 {{ index + 1 }}
+                    </span>
                     <span v-if="sample.isRecorded" class="text-xs font-bold text-green-600 flex items-center">
                         <span class="material-symbols-outlined text-[14px] mr-1">check_circle</span> 완료
                     </span>
@@ -48,9 +52,16 @@
             </div>
             <button class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                 :class="sample.isRecorded ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'">
-                <span class="material-symbols-outlined">{{ sample.isRecorded ? 'play_arrow' : 'mic_none' }}</span>
+                <span class="material-symbols-outlined">{{ sample.isRecorded ? 'refresh' : 'mic_none' }}</span>
             </button>
         </div>
+
+        <button v-if="completedCount >= 5 || serverSampleCount >= 5" 
+                @click="goToSettings"
+                class="w-full py-4 mt-8 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <span>목소리 설정으로 이동</span>
+            <span class="material-symbols-outlined">arrow_forward</span>
+        </button>
       </div>
     </main>
 
@@ -84,7 +95,7 @@
                 <button @click="toggleRecord" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-500/30 active:scale-95 transition-all">
                      <span class="material-symbols-outlined text-4xl">{{ isRecording ? 'stop' : 'mic' }}</span>
                 </button>
-                <button v-if="!isRecording && selectedSample.isRecorded" class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                <button v-if="!isRecording && recordedBlob" @click="saveRecording" class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center animate-bounce-small">
                     <span class="material-symbols-outlined">check</span>
                 </button>
             </div>
@@ -94,46 +105,248 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import * as voiceService from '@/services/voiceService';
 
 const router = useRouter();
 
-// Mock Data
-const voiceSamples = ref([
-    { id: 1, text: "안녕하세요, 저는 김철수입니다. 만나서 반갑습니다.", isRecorded: true },
-    { id: 2, text: "오늘 날씨가 참 좋네요. 산책이라도 다녀올까요?", isRecorded: true },
-    { id: 3, text: "밥은 먹었니? 언제나 건강 챙기고 아프지 마라.", isRecorded: false },
-    { id: 4, text: "사랑하는 우리 딸, 항상 응원한다.", isRecorded: false },
-    { id: 5, text: "도움이 필요하면 언제든 말해렴.", isRecorded: false },
-]);
-
+// State
+const voiceSamples = ref([]);
 const selectedSample = ref(null);
 const isRecording = ref(false);
+const isLoading = ref(false);
+const recorder = ref(null);
+const audioChunks = ref([]);
+const audioUrl = ref(null);
+const recordingDuration = ref(0);
+const recordingTimer = ref(null);
+const recordedBlob = ref(null);
 
-const completedCount = computed(() => voiceSamples.value.filter(s => s.isRecorded).length);
-const progressPercentage = computed(() => (completedCount.value / voiceSamples.value.length) * 100);
+// Computeds
+const completedCount = computed(() => Math.max(voiceSamples.value.filter(s => s.isRecorded).length, serverSampleCount.value));
+const progressPercentage = computed(() => {
+    if (voiceSamples.value.length === 0) return 0;
+    return Math.min((completedCount.value / voiceSamples.value.length) * 100, 100);
+});
 
-const openRecorder = (sample) => {
-    selectedSample.value = sample;
-    isRecording.value = false;
-};
+// Lifecycle
+onMounted(async () => {
+    await fetchScripts();
+});
 
-const toggleRecord = () => {
-    if (isRecording.value) {
-        // Stop recording
-        isRecording.value = false;
-        if (selectedSample.value) {
-            selectedSample.value.isRecorded = true;
-            setTimeout(() => {
-                selectedSample.value = null; // Close modal after short delay
-            }, 500);
+onUnmounted(() => {
+    stopStream();
+});
+
+// Methods
+const serverSampleCount = ref(0); // [NEW] Count from backend
+
+// ... existing code ...
+
+const fetchScripts = async () => {
+    try {
+        isLoading.value = true;
+        const scripts = await voiceService.getScripts();
+        // Backend returns: { id, content, scriptOrder }
+        // We map it to our UI model
+        voiceSamples.value = scripts.map(s => ({
+            id: s.id,
+            text: s.content,
+            isRecorded: false // Initial state
+        }));
+        
+        // Status Check
+        const statusData = await voiceService.getVoiceStatus();
+        if (statusData) {
+             console.log("Status Data:", statusData);
+             serverSampleCount.value = statusData.sampleCount || 0;
+             
+             // Sync 'isRecorded' state from server samples
+             if (statusData.samples && Array.isArray(statusData.samples)) {
+                 statusData.samples.forEach(sample => {
+                     // 1. Try to match by explicit scriptId
+                     let matchedScriptId = sample.scriptId;
+
+                     // 2. Fallback: Parse testAudioUrl for "script_1" pattern
+                     if (!matchedScriptId && sample.testAudioUrl) {
+                         const match = sample.testAudioUrl.match(/script_(\d+)/i);
+                         if (match && match[1]) {
+                             matchedScriptId = parseInt(match[1]);
+                         }
+                     }
+
+                     // 3. Fallback: Parse nickname "Sample {id}"
+                     if (!matchedScriptId && sample.nickname) {
+                         const match = sample.nickname.match(/Sample\s+(\d+)/i);
+                         if (match && match[1]) {
+                             matchedScriptId = parseInt(match[1]);
+                         }
+                     }
+                     
+                     if (matchedScriptId) {
+                         const script = voiceSamples.value.find(s => s.id === matchedScriptId);
+                         if (script) {
+                             script.isRecorded = true;
+                         }
+                     }
+                 });
+             }
         }
-    } else {
-        // Start recording
-        isRecording.value = true;
+    } catch (error) {
+        console.error("Failed to load scripts:", error);
+    } finally {
+        isLoading.value = false;
     }
 };
+
+const openRecorder = async (sample) => {
+    // Check if max samples reached (6 or more) AND we are recording a new script (unlikely here as scripts are fixed)
+    // Actually, logic is: Re-recording a script = New Sample. 
+    // If it replaces old sample => Count stays same.
+    // If it keeps old sample (because it was representative) => Count +1.
+    // Max limit is 6 (1 active rep + 5 new).
+    
+    // Check current count
+    try {
+        const status = await voiceService.getVoiceStatus();
+        const currentCount = status.sampleCount;
+        
+        // If current script is already recorded (locally known), warn user
+        if (sample.isRecorded) {
+            if (!confirm("이미 녹음된 문장입니다. 다시 녹음하시겠습니까?\n(새로운 모델이 생성됩니다)")) {
+                return;
+            }
+        } else {
+             // If not recorded yet, but global count is high (e.g. 5 or 6).
+             // If 6, we can't add more.
+             if (currentCount >= 6) {
+                 alert("목소리 모델은 최대 6개까지만 저장할 수 있습니다.\n설정 페이지에서 불필요한 모델을 삭제해주세요.");
+                 return;
+             }
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+    selectedSample.value = sample;
+    isRecording.value = false;
+    audioUrl.value = null;
+    recordedBlob.value = null;
+    recordingDuration.value = 0;
+};
+const stopStream = () => {
+    if (recorder.value && recorder.value.stream) {
+        recorder.value.stream.getTracks().forEach(track => track.stop());
+    }
+    if (recordingTimer.value) {
+        clearInterval(recordingTimer.value);
+    }
+};
+
+const toggleRecord = async () => {
+    if (isRecording.value) {
+        // Stop Loop
+        if (recorder.value && recorder.value.state !== 'inactive') {
+            recorder.value.stop();
+            stopStream();
+        }
+        isRecording.value = false;
+    } else {
+        // Start Loop
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks.value = [];
+            
+            // Try to use a mime type that is widely supported. 
+            // Ideally we want 'audio/wav', but browsers usually support 'audio/webm'
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+            
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.value.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks.value, { type: mimeType || 'audio/webm' });
+                recordedBlob.value = blob;
+                audioUrl.value = URL.createObjectURL(blob);
+                
+                // Validate duration
+                if (recordingDuration.value < 3) {
+                    alert("녹음은 최소 3초 이상이어야 합니다.");
+                    audioUrl.value = null; // Reset
+                    return;
+                }
+            };
+
+            mediaRecorder.start();
+            recorder.value = mediaRecorder;
+            isRecording.value = true;
+            recordingDuration.value = 0;
+            
+            recordingTimer.value = setInterval(() => {
+                recordingDuration.value += 0.1;
+            }, 100);
+
+        } catch (err) {
+            console.error("Error accessing microphone:", err);
+            alert("마이크 접근 권한이 필요합니다.");
+        }
+    }
+};
+
+const saveRecording = async () => {
+    if (!recordedBlob.value || !selectedSample.value) return;
+    
+    if (recordingDuration.value < 3 || recordingDuration.value > 10) {
+        alert("녹음 길이는 3초 이상 10초 이하여야 합니다.");
+        return;
+    }
+
+    try {
+        isLoading.value = true;
+        
+        await voiceService.uploadVoiceSample(
+            recordedBlob.value, 
+            selectedSample.value.id, 
+            parseFloat(recordingDuration.value.toFixed(1))
+        );
+
+        selectedSample.value.isRecorded = true;
+        
+        // [NEW] Update server count locally to reflect change immediately
+        // Note: Logic is complex (replace vs add). 
+        // If we assumed replacement: count same. 
+        // If we assumed add: count + 1. 
+        // Safe bet: Fetch status again or just accept user will see button if already >= 5.
+        // Let's refetch status to be sure.
+        try {
+            const status = await voiceService.getVoiceStatus();
+            serverSampleCount.value = status.sampleCount;
+        } catch(e) {}
+
+        alert("저장되었습니다.");
+        
+        setTimeout(() => {
+            selectedSample.value = null; 
+        }, 500);
+
+    } catch (error) {
+        console.error("Upload failed:", error);
+        alert("업로드에 실패했습니다.\n" + error.message);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const goToSettings = () => {
+    router.push('/voice-settings');
+};
+
 </script>
 
 <style scoped>
