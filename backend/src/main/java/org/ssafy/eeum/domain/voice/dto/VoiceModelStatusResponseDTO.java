@@ -36,8 +36,6 @@ public class VoiceModelStatusResponseDTO {
             if (model.getRepresentativeSample() != null) {
                 repId = model.getRepresentativeSample().getId();
             }
-        } else if (sampleCount >= 5) {
-            status = "READY_TO_TRAIN";
         }
 
         return VoiceModelStatusResponseDTO.builder()

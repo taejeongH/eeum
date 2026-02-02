@@ -192,9 +192,32 @@ public class VoiceService {
         }
 
         VoiceModel model = modelRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND));
+                .orElseGet(() -> {
+                    VoiceModel newModel = VoiceModel.builder()
+                            .user(sample.getUser())
+                            .status(VoiceModel.ModelStatus.NOT_STARTED)
+                            .build();
+                    return modelRepository.save(newModel);
+                });
 
         model.updateRepresentativeSample(sample);
+    }
+
+    // 3-2.1 대표 샘플 조회
+    public VoiceSampleResponseDTO getRepresentativeSample(Integer userId) {
+        VoiceModel model = modelRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND));
+
+        if (model.getRepresentativeSample() == null) {
+            throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
+        }
+
+        VoiceSample sample = model.getRepresentativeSample();
+        String testUrl = null;
+        if (sample.getTestAudioPath() != null) {
+            testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
+        }
+        return VoiceSampleResponseDTO.from(sample, testUrl);
     }
 
     // 3-3. 음성 샘플 별명 수정
@@ -240,6 +263,11 @@ public class VoiceService {
                     log.warn("사용자 {}의 목소리 모델을 찾을 수 없습니다.", userId);
                     return new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
                 });
+
+        if (voiceModel.getStatus() != VoiceModel.ModelStatus.COMPLETED) {
+            log.warn("사용자 {}의 모델이 학습 완료 상태가 아닙니다. Status: {}", userId, voiceModel.getStatus());
+            throw new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
+        }
 
         if (voiceModel.getGptPath() == null || voiceModel.getSovitsPath() == null) {
             log.warn("사용자 {}의 모델 경로(GptPath/SovitsPath)가 누락되었습니다.", userId);
