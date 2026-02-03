@@ -1,5 +1,7 @@
 package org.ssafy.eeum.domain.notification.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @lombok.Data
 @lombok.Builder
 public class NotificationHistoryResponseDto {
@@ -7,5 +9,7 @@ public class NotificationHistoryResponseDto {
     private String title;
     private String message;
     private String type;
+    @JsonProperty("related_id")
+    private Integer relatedId;
     private java.time.LocalDateTime createdAt;
 }

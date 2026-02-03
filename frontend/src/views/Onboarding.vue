@@ -6,14 +6,14 @@
         class="h-full transition-all duration-700 ease-out"
         :style="{ 
           width: `${((currentSlide + 1) / slides.length) * 100}%`,
-          backgroundColor: '#f3532b' 
+          backgroundColor: '#e76f51' 
         }"
       ></div>
     </div>
     
     <header class="w-full px-8 pt-12 flex justify-between items-end z-[1000]">
       <div class="flex flex-col text-left">
-        <span class="text-[10px] font-black tracking-[0.1em] uppercase mb-1" style="color: #f3532b;">Step</span>
+        <span class="text-[10px] font-black tracking-[0.1em] uppercase mb-1" style="color: #e76f51;">Step</span>
         <div class="flex items-baseline gap-1">
           <span class="text-4xl font-black text-gray-900 leading-none tracking-tighter">{{ currentSlide + 1 }}</span>
           <span class="text-xl font-bold text-gray-200">/ {{ slides.length }}</span>
@@ -26,8 +26,8 @@
         @click="finishOnboarding"
         class="group flex items-center gap-2"
       >
-        <span class="text-xs font-black tracking-widest text-gray-400 group-hover:text-[#f3532b] uppercase transition-all">skip</span>
-        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-[#f3532b]/10 transition-all">
+        <span class="text-xs font-black tracking-widest text-gray-400 group-hover:text-[#e76f51] uppercase transition-all">skip</span>
+        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-[#e76f51]/10 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7" />
           </svg>
@@ -68,7 +68,7 @@
           @click="handleNext"
           class="flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95 shadow-xl overflow-hidden h-16"
           :style="{ 
-            backgroundColor: isLastSlide ? '#111827' : '#f3532b',
+            backgroundColor: isLastSlide ? '#111827' : '#e76f51',
             width: isLastSlide ? '100%' : '64px',
             borderRadius: isLastSlide ? '1rem' : '50%',
             color: '#ffffff'

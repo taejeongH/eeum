@@ -263,8 +263,26 @@ onMounted(async () => {
                   if (currentFamily.members) dependent = currentFamily.members.find(m => m.dependent === true || m.role === 'DEPENDENT' || m.relationship === '피부양자');
               }
 
+              // [NEW] 실시간 알림 수신 시 서버에서 상세 정보(진짜 eventId 등) 가져오기
+              let resolvedEventId = notificationId; 
+              try {
+                  // 히스토리 다시 가져오기
+                  await notificationStore.fetchHistory(familyId, notificationId);
+                  
+                  // 방금 온 알림(notificationId)을 목록에서 찾기
+                  const matchingNoti = notificationStore.notifications.find(n => String(n.id) === String(notificationId));
+                  if (matchingNoti && (matchingNoti.eventId || matchingNoti.event_id || matchingNoti.related_id)) {
+                      resolvedEventId = matchingNoti.eventId || matchingNoti.event_id || matchingNoti.related_id;
+                      console.log(`[onNativeNotification] Resolved eventId: ${resolvedEventId} from notificationId: ${notificationId}`);
+                  } else {
+                      console.warn(`[onNativeNotification] Could not find eventId in history for notificationId: ${notificationId}. Falling back to notificationId.`);
+                  }
+              } catch (err) {
+                  console.error('[onNativeNotification] Failed to resolve real eventId:', err);
+              }
+
               emergencyStore.open({
-                  eventId: notificationId,
+                  eventId: resolvedEventId,
                   familyId: familyId,
                   groupName: groupName || currentFamily?.name || '가족 그룹',
                   // Use message directly if available (e.g. "Grandma fell"), otherwise computed name

@@ -3,7 +3,7 @@
     <!-- Compact Health Summary Card -->
     <div 
       @click="goToReport"
-      class="relative bg-gradient-to-br from-[#f3532b] to-[#ff7e5f] rounded-3xl p-5 text-white shadow-lg overflow-hidden active:scale-[0.98] transition-all cursor-pointer group"
+      class="relative bg-gradient-to-br from-[#e76f51] to-[#ff7e5f] rounded-3xl p-5 text-white shadow-lg overflow-hidden active:scale-[0.98] transition-all cursor-pointer group"
     >
       <!-- Subtle Pattern Background -->
       <div class="absolute -top-12 -right-12 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
