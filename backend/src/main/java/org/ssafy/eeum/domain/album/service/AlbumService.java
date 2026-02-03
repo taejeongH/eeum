@@ -127,6 +127,10 @@ public class AlbumService {
                     .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
                     .description(asset.getDescription())
                     .takenAt(asset.getTakenAt())
+                    .uploaderName(asset.getUploader().getName())
+                    .uploaderProfileImage(asset.getUploader().getProfileImage() != null
+                            ? s3Service.getPresignedUrl(asset.getUploader().getProfileImage())
+                            : null)
                     .build());
             syncedIds.add(asset.getId());
         }

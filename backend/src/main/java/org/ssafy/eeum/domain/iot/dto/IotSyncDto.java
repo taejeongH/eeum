@@ -20,5 +20,7 @@ public class IotSyncDto {
         private String description; // content for voice
         private String takenAt; // or createdAt
         private Integer userId;
+        private String userName;
+        private String profileImageUrl;
     }
 }
