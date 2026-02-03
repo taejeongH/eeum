@@ -34,6 +34,8 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import com.google.android.gms.wearable.Wearable
+import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
 
@@ -144,10 +146,10 @@ class MainActivity : ComponentActivity() {
             try {
                 // IO 스레드에서 실행
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(this@MainActivity)
-                    val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
+                    val nodeClient = Wearable.getNodeClient(this@MainActivity)
+                    val nodes = nodeClient.connectedNodes.await()
                     if (nodes.isNotEmpty()) {
-                        val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(this@MainActivity)
+                        val messageClient = Wearable.getMessageClient(this@MainActivity)
                         nodes.forEach { node ->
                             Log.d("Wearable", "Sending /emergency/start to node: ${node.displayName} (${node.id})")
                             // 비동기 전송은 await 없이 리스너만 달아도 되지만, 여기선 Tasks.await를 쓰진 않았으므로 그대로 둠.
@@ -295,12 +297,12 @@ class HealthJsBridge(
 
     private suspend fun sendMessageToWatch(path: String) {
         try {
-            val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(activity)
-            val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
-            val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(activity)
+            val nodeClient = Wearable.getNodeClient(activity)
+            val nodes = nodeClient.connectedNodes.await()
+            val messageClient = Wearable.getMessageClient(activity)
             
             nodes.forEach { node ->
-                com.google.android.gms.tasks.Tasks.await(messageClient.sendMessage(node.id, path, null))
+                messageClient.sendMessage(node.id, path, null).await()
                 Log.d("BRIDGE", "Sent $path to ${node.displayName}")
             }
         } catch (e: Exception) {
@@ -352,6 +354,10 @@ fun WebViewScreen(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
                 webViewRef = this
                 settings.apply {
                     javaScriptEnabled = true
