@@ -1,5 +1,6 @@
 <template>
-  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-20 flex justify-around items-end pb-3 z-50">
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-end z-50 transition-all duration-300"
+       style="height: calc(5rem + var(--sab)); padding-bottom: calc(0.75rem + var(--sab));">
     <!-- Message -->
     <button @click="setActive('message')" class="flex flex-col items-center justify-end w-1/5 transition-colors" :class="activeTab === 'message' ? 'text-[#f3532b]' : 'text-[#8d6e63]'">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

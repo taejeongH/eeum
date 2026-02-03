@@ -1,5 +1,5 @@
 <template>
-  <header class="bg-white px-6 pt-5 pb-3 shadow-sm relative z-30">
+  <header class="bg-white px-6 pt-[calc(1.25rem+var(--sat))] pb-3 shadow-sm relative z-30 transition-all duration-300">
     <!-- 상단 네비게이션 영역 -->
     <div class="flex items-center justify-between mb-2">
       
@@ -24,7 +24,7 @@
       <!-- Title (Center) -->
       <div class="flex-1 flex flex-col items-center justify-center">
         <router-link to="/home" class="flex flex-col items-center group">
-          <h1 class="text-2xl font-extrabold text-[var(--text-title)] tracking-tighter leading-none" style="font-family: 'Pretendard', sans-serif;">
+          <h1 class="text-2xl font-extrabold text-[var(--text-title)] tracking-tighter leading-none whitespace-nowrap" style="font-family: 'Pretendard', sans-serif;">
             이음
           </h1>
         </router-link>
@@ -36,7 +36,7 @@
          <div v-if="showSettings" class="relative" ref="settingsMenu">
              <button 
                @click="toggleSettings" 
-               class="p-2 rounded-full hover:bg-gray-50/80 active:bg-gray-100 transition text-[var(--text-sub)] hover:text-[var(--text-body)] -mr-2"
+               class="p-2 rounded-full hover:bg-gray-50/80 active:bg-gray-100 transition text-[var(--text-sub)] hover:text-[var(--text-body)]"
              >
                  <!-- 점 3개 (더보기) 아이콘 -->
                  <svg class="w-6 h-6 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@
        :class="isCollapsed ? 'max-h-0 opacity-0' : 'max-h-48 opacity-100'"
      >
        <!-- 가족 프로필 리스트 -->
-       <div class="flex items-end justify-between pt-2 pb-1 gap-2">
+       <div class="flex items-end justify-between pt-2 pb-1 gap-2 -mr-6">
          <!-- 왼쪽: 고정된 피부양자/본인 + 스크롤 가능한 멤버 목록 -->
          <div class="flex items-end gap-2 flex-grow min-w-0">
            
@@ -108,7 +108,7 @@
           <div v-if="otherMembers.length > 0" class="w-px h-8 bg-gray-100 mb-6 mx-0.5"></div>
   
           <!-- 스크롤 가능한 나머지 멤버 -->
-          <div class="flex-1 flex items-end gap-2 overflow-x-auto hide-scrollbar pb-1 px-0.5 pt-2 min-w-0">
+          <div class="flex-1 flex items-end gap-2 overflow-x-auto hide-scrollbar pb-1 px-0.5 pt-2 min-w-0 pr-6">
             <template v-for="member in otherMembers" :key="member.userId">
               <router-link 
                 :to="{ name: 'MemberDetail', params: { familyId: selectedGroup.id, userId: member.userId } }" 
