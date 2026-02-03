@@ -20,7 +20,7 @@
       </button>
     </header>
     
-    <main v-if="familyStore.families.length > 0" class="space-y-2 pt-6">
+    <main v-if="familyStore.families.length > 0" class="space-y-5 pt-8 pb-12">
       <NoticeBar />
       <StatusCard />
       <LatestSchedule />

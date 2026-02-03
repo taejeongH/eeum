@@ -91,6 +91,7 @@ public class SecurityConfig {
                                 "http://127.0.0.1:*",
                                 "http://10.0.2.2:*",
                                 "http://192.168.*:*",
+                                "http://70.12.*:*",
                                 "https://192.168.*:*",
                                 "https://i14a105.p.ssafy.io:*",
                                 "https://i14a105.p.ssafy.io"));
