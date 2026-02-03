@@ -1,16 +1,26 @@
 <template>
-  <div class="bg-background-light min-h-screen flex flex-col relative pb-20">
-    <!-- Header -->
-    <header class="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md px-6 pt-12 pb-4">
-      <div class="flex items-center">
-        <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <IconBack class="text-slate-600" />
-        </button>
-        <h1 class="flex-1 text-center text-xl font-bold text-slate-900 mr-8">목소리 등록</h1>
-      </div>
-    </header>
+  <div class="bg-gray-50 min-h-screen flex flex-col relative pb-20">
+    <!-- Premium Header Area -->
+    <div class="relative w-full h-48 bg-[var(--color-primary)] rounded-b-[2.5rem] shadow-xl overflow-hidden shrink-0">
+      <!-- Gradient Overlay -->
+      <div class="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent"></div>
+      
+      <!-- Decorative Pattern -->
+      <div class="absolute top-[-50%] left-[-20%] w-[150%] h-[150%] opacity-10" 
+           style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 24px 24px;"></div>
 
-    <main class="flex-1 px-6 pt-4 space-y-6">
+      <!-- Navigation Bar -->
+      <div class="relative z-30 flex items-center justify-between p-5 pt-6">
+        <div class="flex items-center gap-4">
+            <button @click="$router.back()" class="p-2 -ml-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
+              <IconBack />
+            </button>
+            <h1 class="text-xl font-bold text-white tracking-wide">목소리 등록</h1>
+        </div>
+      </div>
+    </div>
+
+    <main class="flex-1 px-6 -mt-16 relative z-30 space-y-6">
       
       <!-- Progress Card -->
       <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
@@ -118,7 +128,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
+import { useModalStore } from '@/stores/modal';
+import IconBack from '@/components/icons/IconBack.vue';
 import * as voiceService from '@/services/voiceService';
 
 const router = useRouter();
