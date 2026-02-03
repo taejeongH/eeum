@@ -84,8 +84,15 @@
         <!-- New Profile Card Design -->
         <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/60 p-6 flex flex-col items-center relative overflow-hidden mb-6 border border-white/50">
           <!-- Profile Image -->
-          <div class="w-28 h-28 rounded-full p-1 bg-white shadow-xl mb-3 ring-4 ring-orange-100/50">
+          <div 
+            class="relative w-28 h-28 rounded-full p-1 bg-white shadow-xl mb-3 ring-4 ring-orange-100/50 transition-all duration-300"
+          >
             <img class="w-full h-full object-cover rounded-full" :src="member.profileImage || '/default-profile.png'" alt="Profile">
+            
+            <!-- Crown for representative -->
+            <div v-if="member.representative" class="absolute -bottom-1 -right-1 w-8 h-8 z-10 filter drop-shadow-lg">
+                <IconCrown class="text-amber-400 w-full h-full" />
+            </div>
           </div>
           
           <div class="text-center w-full">
@@ -93,6 +100,7 @@
             <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 text-[var(--color-primary)] rounded-full mb-2">
                 <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]"></span>
                 <span class="text-xs font-bold tracking-wide">{{ member.dependent ? '피부양자' : (member.relationship || '부양자') }}</span>
+                <span v-if="member.representative" class="ml-1 text-[10px] font-black text-amber-500 bg-amber-50 px-1 rounded uppercase">대표</span>
             </div>
             
             <!-- Name -->
@@ -171,6 +179,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { useModalStore } from '@/stores/modal';
 import api from '@/services/api';
+import IconCrown from '@/components/icons/IconCrown.vue';
+
 
 const route = useRoute();
 const router = useRouter();
