@@ -7,7 +7,6 @@ import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
-import org.ssafy.eeum.domain.notification.controller.NotificationController;
 import org.ssafy.eeum.domain.notification.dto.NotificationHistoryResponseDto;
 import org.ssafy.eeum.domain.notification.entity.Notification;
 import org.ssafy.eeum.domain.notification.entity.NotificationDelivery;
@@ -21,10 +20,7 @@ import org.ssafy.eeum.global.infra.fcm.FcmUnregisteredTokenException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -135,6 +131,7 @@ public class NotificationService {
                                                         .title(notification.getTitle())
                                                         .message(notification.getMessage())
                                                         .type(notification.getType())
+                                                        .relatedId(notification.getRelatedId())
                                                         .createdAt(notification.getCreatedAt())
                                                         .build();
                                 })
