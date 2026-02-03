@@ -4,9 +4,15 @@
       <div v-for="(member, index) in visibleMembers" :key="member.userId"
            :class="{'flex-none flex flex-col items-center justify-end text-center rounded-lg': true,
                       'w-32': true}">
-        <img :src="member.profileImage || '/default-profile.png'" alt="Profile"
-             :class="{'rounded-full object-cover border-2 border-primary': true,
-                        'w-24 h-24': true}" />
+        <div class="relative">
+          <img :src="member.profileImage || '/default-profile.png'" alt="Profile"
+               :class="{'rounded-full object-cover border-2 border-primary': true,
+                          'w-24 h-24': true}" />
+          <!-- Crown for representative -->
+          <div v-if="member.representative" class="absolute -bottom-1 -right-1 w-7 h-7 z-10 filter drop-shadow-md">
+              <IconCrown class="text-amber-400 w-full h-full" />
+          </div>
+        </div>
         <p :class="{'font-semibold truncate mt-2 text-base': true}">
           {{ member.name }}
         </p>
@@ -33,6 +39,8 @@
 import { ref, watch, computed } from 'vue';
 import api from '@/services/api';
 import { useModalStore } from '@/stores/modal';
+import IconCrown from '@/components/icons/IconCrown.vue';
+
 
 const modalStore = useModalStore();
 

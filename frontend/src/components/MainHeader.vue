@@ -93,12 +93,14 @@
                >
                    <div 
                      class="relative w-[68px] h-[68px] rounded-full p-0.5 bg-white transition-all duration-300"
-                     :class="selectedId === dependentOrPlaceholder.userId ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 shadow-md' : 'ring-1 ring-gray-100 shadow-sm'"
+                     :class="[
+                       selectedId === dependentOrPlaceholder.userId ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 shadow-md' : 'ring-1 ring-gray-100 shadow-sm'
+                     ]"
                    >
                        <img :src="dependentOrPlaceholder.profileImage || '/default-profile.png'" alt="Profile" class="w-full h-full rounded-full object-cover" />
                        <!-- Crown Icon for Owner -->
-                       <div v-if="ownerId && String(dependentOrPlaceholder.userId) === String(ownerId)" class="absolute -bottom-1 -right-1 w-6 h-6 z-10 filter drop-shadow-sm">
-                           <IconCrown class="text-yellow-400 w-full h-full" />
+                       <div v-if="dependentOrPlaceholder.representative" class="absolute -bottom-1 -right-1 w-6 h-6 z-10 filter drop-shadow-md">
+                           <IconCrown class="text-amber-400 w-full h-full" />
                        </div>
                        <div v-if="selectedId === dependentOrPlaceholder.userId" class="absolute inset-0 rounded-full border-2 border-white/20"></div>
                    </div>
@@ -126,8 +128,8 @@
                 >
                   <img :src="member.profileImage || '/default-profile.png'" alt="Profile" class="w-full h-full rounded-full object-cover" />
                   <!-- Crown Icon for Owner -->
-                  <div v-if="ownerId && String(member.userId) === String(ownerId)" class="absolute -bottom-1 -right-1 w-5 h-5 z-10 filter drop-shadow-sm">
-                      <IconCrown class="text-yellow-400 w-full h-full" />
+                  <div v-if="member.representative" class="absolute -bottom-1 -right-1 w-5 h-5 z-10 filter drop-shadow-md">
+                      <IconCrown class="text-amber-400 w-full h-full" />
                   </div>
                 </div>
                 <span 
@@ -223,13 +225,11 @@ const emit = defineEmits(['modal-state-change']);
 
 // Import IconCrown
 import IconCrown from '@/components/icons/IconCrown.vue';
-import { getFamilyDetails } from '@/services/api';
 
 const groupSelectorRef = ref(null);
 const groupSelectorWrapper = ref(null);
 const members = ref([]);
 const selectedId = ref(null);
-const ownerId = ref(null); // [NEW] Owner ID state
 const isGroupCreateModalOpen = ref(false);
 const isInviteModalOpen = ref(false);
 const isSettingsOpen = ref(false);
@@ -383,7 +383,6 @@ const toggleGroupSelector = () => groupSelectorRef.value?.toggle();
 const fetchMembers = async () => {
   if (!selectedGroup.value) {
     members.value = [];
-    ownerId.value = null; // reset
     return;
   }
   try {
@@ -391,32 +390,9 @@ const fetchMembers = async () => {
     const response = await api.get(`/families/${selectedGroup.value.id}/members`);
     let fetchedMembers = response.data;
     
-    // 2. Fetch Owner ID via family details to verify representative
-    try {
-        // [Fallback 1] If current user is owner (from family list DTO), use current user ID
-        if (selectedGroup.value.owner && userStore.profile?.id) {
-            ownerId.value = userStore.profile.id;
-        }
+    // 2. Process and Sort Members
+    // The backend now provides 'isRepresentative' flag for each member
 
-        const detailRes = await getFamilyDetails(selectedGroup.value.id);
-        console.log('[MainHeader] Family Details:', detailRes);
-        
-        let fetchedOwnerId = null;
-        if (detailRes) {
-            if (detailRes.ownerId) fetchedOwnerId = detailRes.ownerId;
-            else if (detailRes.owner && typeof detailRes.owner === 'object' && detailRes.owner.id) fetchedOwnerId = detailRes.owner.id;
-            else if (detailRes.representativeId) fetchedOwnerId = detailRes.representativeId;
-        }
-
-        if (fetchedOwnerId) {
-            ownerId.value = fetchedOwnerId;
-        }
-
-        console.log('[MainHeader] Final resolved Owner ID:', ownerId.value);
-
-    } catch (err) {
-        console.warn('Failed to fetch family details for owner check', err);
-    }
     
     // Sort and process members
     const dependent = fetchedMembers.find(m => m.dependent);
@@ -426,12 +402,6 @@ const fetchMembers = async () => {
       fetchedMembers.unshift({ userId: 'add-dependent', name: '피부양자 설정', isPlaceholder: true });
     }
     members.value = fetchedMembers;
-
-    members.value.forEach(m => {
-        // Compare loosely (string vs number)
-        const isMatch = ownerId.value && String(m.userId) === String(ownerId.value);
-        console.log(`[MainHeader] Member ${m.name}: ID=${m.userId} Match=${isMatch}`);
-    });
     
     syncSelectedIdWithRoute();
     
