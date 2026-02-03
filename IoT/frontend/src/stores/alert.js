@@ -7,9 +7,13 @@ export const useAlertStore = defineStore('alert', () => {
     const chatHistory = ref([]); // 가족 메시지함 (실시간 동기화)
     const isConnected = ref(false);
     let eventSource = null;
+    let reconnectTimer = null;
 
     const connect = () => {
         if (eventSource) return;
+
+        // Clear any pending reconnect
+        if (reconnectTimer) clearTimeout(reconnectTimer);
 
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081';
         console.log(`SSE 연결 시도: ${apiUrl}/api/alerts/stream`);
@@ -40,13 +44,20 @@ export const useAlertStore = defineStore('alert', () => {
 
             eventSource.onerror = (error) => {
                 isConnected.value = false;
-                eventSource.close();
-                eventSource = null;
-                console.warn('[AlertStore] SSE 연결 끊김');
-                // 지연 후 재연결 시도 가능
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                console.warn('[AlertStore] SSE 연결 끊김. 5초 후 재연결 시도...');
+
+                reconnectTimer = setTimeout(() => {
+                    console.log('[AlertStore] 재연결 시도 중...');
+                    connect(); // Recursive call safe due to eventSource check at top
+                }, 5000);
             };
         } catch (e) {
             console.warn('[AlertStore] SSE 연결 초기화 실패:', e);
+            reconnectTimer = setTimeout(connect, 5000);
         }
     };
 
@@ -55,6 +66,10 @@ export const useAlertStore = defineStore('alert', () => {
             eventSource.close();
             eventSource = null;
             isConnected.value = false;
+        }
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
         }
     };
 

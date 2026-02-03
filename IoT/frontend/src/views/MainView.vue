@@ -2,6 +2,8 @@
   <div 
     class="relative w-full h-full overflow-hidden bg-black font-sans select-none flex justify-center items-center"
     @click="toggleDetailView"
+    @touchstart="handleTouchStart"
+    @touchend="handleTouchEnd"
   >
     
     <!-- 1. Background Layer (Global, Blurred) -->
@@ -13,6 +15,10 @@
                 :src="currentPhoto.url" 
                 class="w-full h-full object-cover blur-[80px] opacity-40 brightness-50 transition-all duration-1000 transform scale-105"
             >
+            <div 
+                v-else
+                class="w-full h-full bg-gradient-to-br from-gray-900 via-stone-900 to-black transition-all duration-1000"
+            ></div>
         </Transition>
     </div>
 
@@ -27,6 +33,31 @@
                 class="max-w-full max-h-full rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] object-contain transition-all duration-700"
                 @load="checkOrientation"
              >
+             <!-- Default Screen (No Photo) -->
+             <div 
+                v-else 
+                class="flex flex-col items-center justify-center gap-12 animate-fade-in-up"
+             >
+                <div class="flex flex-col items-center">
+                    <h1 class="text-[12rem] font-black text-white/90 tracking-tighter leading-none font-mono">
+                        {{ currentTimeFormatted }}
+                    </h1>
+                    <p class="text-5xl text-orange-400 font-bold uppercase tracking-[0.5em] mt-4">
+                        {{ currentDayStr }}
+                    </p>
+                </div>
+                
+                <div class="h-px w-48 bg-white/20"></div>
+
+                <div class="text-center">
+                    <p class="text-5xl font-medium text-white/90 leading-relaxed">
+                        행복한 순간을<br>공유해주세요
+                    </p>
+                    <p class="text-2xl text-white/40 mt-6 tracking-wide">
+                        가족들의 사진을 기다리고 있습니다
+                    </p>
+                </div>
+             </div>
         </Transition>
     </div>
 
@@ -37,7 +68,7 @@
           
           <!-- 3. Left Panel: Photo Info Panel -->
           <!-- Floats on the Left "Wing" -->
-          <div class="absolute top-0 bottom-0 left-0 w-[520px] flex flex-col justify-center items-center pointer-events-auto pl-10">
+          <div v-if="currentPhoto" class="absolute top-0 bottom-0 left-0 w-[520px] flex flex-col justify-center items-center pointer-events-auto pl-10">
               
               <!-- Modern Sticky Notes Board -->
               <div 
@@ -86,14 +117,21 @@
                           
                           <div class="relative z-10 flex items-center gap-4">
                               <!-- Avatar -->
-                              <div class="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-lg ring-4 ring-blue-100">
-                                  {{ (currentPhoto.uploader || 'F')[0] }}
+                              <div class="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-lg ring-4 ring-blue-100 overflow-hidden">
+                                  <img 
+                                      v-if="currentPhoto.sender?.profile_image_url" 
+                                      :src="currentPhoto.sender.profile_image_url" 
+                                      class="w-full h-full object-cover"
+                                  >
+                                  <span v-else>{{ (currentPhoto.sender?.name || currentPhoto.uploader || '가')[0] }}</span>
                               </div>
                               
                               <!-- Info (Left-aligned) -->
                               <div class="text-left">
                                   <div class="text-xs font-black text-blue-600 uppercase tracking-wider mb-1">From</div>
-                                  <div class="text-2xl font-black text-gray-800">{{ currentPhoto.uploader || '가족' }}</div>
+                                  <div class="text-2xl font-black text-gray-800">
+                                      {{ currentPhoto.sender?.name || currentPhoto.uploader || '가족' }}
+                                  </div>
                                   <div class="flex items-center gap-1.5 text-gray-600 mt-2">
                                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -106,6 +144,42 @@
                   </div>
 
               </div>
+          </div>
+
+          <!-- Central Playback Controls -->
+          <div class="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-8 pointer-events-auto z-30">
+              <button 
+                  @click.stop="slideshowStore.controlPrev()"
+                  class="p-5 bg-stone-900/60 backdrop-blur-3xl rounded-full border border-white/10 hover:bg-stone-800/80 transition-all text-white/50 hover:text-white hover:scale-110 shadow-2xl"
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+                  </svg>
+              </button>
+              
+              <button 
+                  @click.stop="toggleSlideshow"
+                  class="w-28 h-28 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(249,115,22,0.4)] transition-all hover:scale-110 active:scale-95 text-white relative overflow-hidden group"
+              >
+                <!-- Sparkle effect -->
+                <div class="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent rotate-45 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+                
+                <svg v-if="slideshowStore.isPlaying" xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 relative z-10 ml-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+
+              <button 
+                  @click.stop="slideshowStore.controlNext()"
+                  class="p-5 bg-stone-900/60 backdrop-blur-3xl rounded-full border border-white/10 hover:bg-stone-800/80 transition-all text-white/50 hover:text-white hover:scale-110 shadow-2xl"
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+                  </svg>
+              </button>
           </div>
 
 
@@ -203,11 +277,20 @@
                     <!-- Header -->
                     <div class="p-8 flex items-center justify-between border-b border-white/10">
                         <h3 class="text-3xl font-black tracking-tight">{{ tabTitle }}</h3>
-                        <button @click="activeTab = null" class="p-3 hover:bg-white/10 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                        <div class="flex items-center gap-4">
+                            <button 
+                                v-if="activeTab === 'alert' && displayData.length > 0"
+                                @click="confirmClearAlerts"
+                                class="px-5 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-full text-sm font-bold transition-colors"
+                            >
+                                전체 삭제
+                            </button>
+                            <button @click="activeTab = null" class="p-3 hover:bg-white/10 rounded-full transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Content -->
@@ -716,6 +799,15 @@ const fetchTabData = async (tab) => {
     }
 }
 
+const confirmClearAlerts = async () => {
+    if (activeTab.value !== 'alert' || displayData.value.length === 0) return
+    
+    if (await showConfirm('모든 알림을 삭제하시겠습니까?\n삭제된 알림은 복구할 수 없습니다.', '전체 삭제')) {
+        alertStore.clearHistory()
+        await showAlert('모든 알림이 삭제되었습니다.', '삭제 완료')
+    }
+}
+
 
 const currentPhoto = computed(() => slideshowStore.currentSlide)
 const isDetailView = ref(false)
@@ -734,7 +826,7 @@ const currentTimeFormatted = computed(() => {
     return `${h}:${m}`
 })
 const currentDayStr = computed(() => {
-    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+    const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
     return days[now.value.getDay()]
 })
 const currentDateFormatted = computed(() => {
@@ -1165,6 +1257,23 @@ const adjustVolume = (value) => {
     console.log('Volume set to:', volume.value)
 }
 
+// Slideshow Control
+const slideInterval = ref(60)
+
+const toggleSlideshow = () => {
+    if (slideshowStore.isPlaying) {
+        slideshowStore.controlPause()
+    } else {
+        slideshowStore.controlPlay(slideInterval.value)
+    }
+}
+
+const updateInterval = () => {
+    if (slideshowStore.isPlaying) {
+        slideshowStore.controlPlay(slideInterval.value)
+    }
+}
+
 const restartDevice = async () => {
     if (!await showConfirm('기기를 재시작하시겠습니까?', '재시작 확인')) return
     
@@ -1177,10 +1286,45 @@ const restartDevice = async () => {
         })
         if (response.ok) {
             await showAlert('기기를 재시작합니다.', '명령 전송됨')
+        } else {
+             throw new Error('Response not ok') // Trigger catch
         }
     } catch (e) {
         console.error('Device restart failed:', e)
         await showAlert('기기 재시작에 실패했습니다.', '오류')
+    }
+}
+
+// Touch Sweep Logic (API Control)
+const touchStartX = ref(0)
+const touchEndX = ref(0)
+
+const handleTouchStart = (e) => {
+    touchStartX.value = e.changedTouches[0].screenX
+}
+
+const handleTouchEnd = (e) => {
+    touchEndX.value = e.changedTouches[0].screenX
+    handleSwipe()
+}
+
+const handleSwipe = () => {
+    const threshold = 50 // Minimum distance for swipe
+    const distance = touchStartX.value - touchEndX.value
+    
+    // If detail view or any modal is open, do not trigger slide change
+    if (isDetailView.value || activeTab.value !== null || generalModal.value.show || showPasswordModal.value || selectedItem.value) return
+
+    if (Math.abs(distance) > threshold) {
+        if (distance > 0) {
+             // Swipe Left (Gesture) -> Go Next
+             console.log('Swipe Left -> Next')
+             slideshowStore.controlNext()
+        } else {
+             // Swipe Right (Gesture) -> Go Prev
+             console.log('Swipe Right -> Prev')
+             slideshowStore.controlPrev()
+        }
     }
 }
 </script>
@@ -1250,6 +1394,14 @@ const restartDevice = async () => {
     animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+}
+
 .shadow-3xl {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
@@ -1264,10 +1416,11 @@ const restartDevice = async () => {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
   transition: all 0.2s;
+  margin-top: -6px; /* (12px track / 2) - (24px thumb / 2) */
 }
 
 .slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.1);
   box-shadow: 0 6px 16px rgba(249, 115, 22, 0.6);
 }
 
@@ -1283,7 +1436,7 @@ const restartDevice = async () => {
 }
 
 .slider::-moz-range-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.1);
   box-shadow: 0 6px 16px rgba(249, 115, 22, 0.6);
 }
 
