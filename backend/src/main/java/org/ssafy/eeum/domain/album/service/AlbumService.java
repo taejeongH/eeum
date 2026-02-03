@@ -60,6 +60,9 @@ public class AlbumService {
 
         albumRepository.save(asset);
 
+        // Log 저장 (ADD)
+        saveLog(familyId, asset.getId(), ActionType.ADD);
+
         // IoT 동기화 알림
         iotSyncService.notifyUpdate(familyId, "image");
     }
@@ -93,6 +96,10 @@ public class AlbumService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
         Integer familyId = asset.getFamily().getId();
+
+        // Log 저장 (DELETE)
+        saveLog(familyId, asset.getId(), ActionType.DELETE);
+
         albumRepository.delete(asset); // SQLDelete에 의해 isSynced=false 처리됨
 
         // IoT 동기화 알림
