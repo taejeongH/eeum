@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.ssafy.eeum.domain.medication.dto.request.MedicationRequest;
 import org.ssafy.eeum.domain.medication.dto.response.MedicationResponse;
 import org.ssafy.eeum.domain.medication.entity.MedicationPlan;
@@ -25,15 +27,20 @@ public class MedicationService {
     private final MedicationRepository medicationRepository;
     private final MedicationAlarmRedisService medicationAlarmRedisService;
 
-    @jakarta.annotation.PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void bootstrapRedis() {
-        log.info("[MedicationService] Bootstrapping Redis Alarm Cache from DB...");
-        List<MedicationPlan> allPlans = medicationRepository.findAllWithTimes();
-        for (MedicationPlan plan : allPlans) {
-            medicationAlarmRedisService.scheduleAlarm(plan);
+        try {
+            log.info("[MedicationService] Bootstrapping Redis Alarm Cache from DB...");
+            List<MedicationPlan> allPlans = medicationRepository.findAllWithTimes();
+            for (MedicationPlan plan : allPlans) {
+                medicationAlarmRedisService.scheduleAlarm(plan);
+            }
+            log.info("[MedicationService] Redis Bootstrap Complete. Scheduled {} plans.", allPlans.size());
+        } catch (Exception e) {
+            log.error("[MedicationService] CRITICAL Error during Redis bootstrap: {}", e.getMessage());
+            // 애플리케이션 기동은 실패시키지 않되, 에러 로그를 남깁니다.
         }
-        log.info("[MedicationService] Redis Bootstrap Complete. Scheduled {} plans.", allPlans.size());
     }
 
     @org.springframework.scheduling.annotation.Scheduled(cron = "0 * * * * *")
