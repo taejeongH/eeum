@@ -5,15 +5,17 @@ from typing import Optional, Dict, Any, Callable
 
 import cv2
 
-from .config import FRAME_W, FRAME_H
+from ..config import FRAME_W, FRAME_H
 
 def encode_jpeg(img, jpeg_quality: int) -> Optional[bytes]:
+    """이미지를 JPEG로 인코딩"""
     ok, jpg = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), int(jpeg_quality)])
     if not ok:
         return None
     return jpg.tobytes()
 
 def render_replay_frame(obs: Dict[str, Any], w: int = FRAME_W, h: int = FRAME_H):
+    """replay 프레임 렌더링"""
     import numpy as np
     img = np.zeros((h, w, 3), dtype=np.uint8)
 

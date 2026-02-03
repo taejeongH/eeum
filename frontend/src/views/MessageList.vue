@@ -1,23 +1,18 @@
 <template>
   <div class="min-h-screen" style="background-color: var(--bg-page);">
-    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
+      <template #actions>
+         <button 
+           @click="toggleSearch"
+           class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]"
+         >
+           <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
+         </button>
+      </template>
+    </MainHeader>
     
-    <header class="bg-white border-b border-gray-200">
+    <div class="bg-white border-b border-gray-200">
       <div class="max-w-2xl mx-auto px-4 py-3">
-        <!-- Top Row -->
-        <div class="flex items-center justify-end mb-4">
-          <div class="flex items-center gap-2">
-            <button 
-              @click="openSearch"
-              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <!-- Search Bar (Expanded) -->
         <div v-if="isSearchOpen" class="mb-4">
           <div class="relative">
@@ -27,16 +22,14 @@
               placeholder="보낸 사람, 내용 검색"
               class="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-full text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#e76f51]"
             />
-            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[20px]">search</span>
+            <!-- Close button for search input not strictly needed if we have toggle in header, but keeping clear button logic -->
             <button 
-              @click="closeSearch"
+              v-if="searchQuery"
+              @click="searchQuery = ''"
               class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
+               <span class="material-symbols-outlined text-[20px]">cancel</span>
             </button>
           </div>
         </div>
@@ -55,7 +48,7 @@
           <p class="text-sm text-gray-500">따뜻한 마음을 전해주세요!</p>
         </div>
       </div>
-    </header>
+    </div>
 
     <main class="max-w-2xl mx-auto px-4 py-6 pb-20">
       <div v-if="loading" class="flex justify-center items-center py-20">
@@ -377,13 +370,11 @@ const filteredMessages = computed(() => {
 })
 
 // Methods
-const openSearch = () => {
-  isSearchOpen.value = true
-}
-
-const closeSearch = () => {
-  isSearchOpen.value = false
-  searchQuery.value = ''
+const toggleSearch = () => {
+  isSearchOpen.value = !isSearchOpen.value
+  if (!isSearchOpen.value) {
+    searchQuery.value = ''
+  }
 }
 
 const openMessageModal = () => {

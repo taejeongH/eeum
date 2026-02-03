@@ -1,7 +1,7 @@
 <template>
   <div class="bg-[#fcfcfc] min-h-screen flex flex-col" :class="{ 'pb-20': familyStore.families.length > 0 }">
     <!-- 그룹이 있을 때만 정식 헤더 표시 -->
-    <MainHeader v-if="familyStore.families.length > 0" @modal-state-change="handleModalStateChange" />
+    <MainHeader v-if="familyStore.families.length > 0" @modal-state-change="handleModalStateChange" :show-settings="true" />
     
     <!-- 그룹이 없을 때는 심플한 타이틀 + 로그아웃 표시 -->
     <header v-else class="bg-white px-6 py-4 shadow-sm flex justify-between items-center relative z-30">

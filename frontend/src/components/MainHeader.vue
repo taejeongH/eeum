@@ -31,8 +31,9 @@
       </div>
 
        <!-- Settings (Right) -->
-       <div class="flex-shrink-0 w-36 flex justify-end items-center relative z-50">
-         <div class="relative" ref="settingsMenu">
+       <div class="flex-shrink-0 w-36 flex justify-end items-center relative z-50 gap-1">
+         <slot name="actions"></slot>
+         <div v-if="showSettings" class="relative" ref="settingsMenu">
              <button 
                @click="toggleSettings" 
                class="p-2 rounded-full hover:bg-gray-50/80 active:bg-gray-100 transition text-[var(--text-sub)] hover:text-[var(--text-body)] -mr-2"
@@ -190,6 +191,10 @@ const props = defineProps({
   showProfiles: {
     type: Boolean,
     default: true
+  },
+  showSettings: {
+    type: Boolean,
+    default: false
   }
 });
 

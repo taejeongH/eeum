@@ -67,13 +67,13 @@
           <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
         </div>
         <div class="px-6 pb-12 pt-4">
-          <header class="flex justify-between items-center mb-8">
-            <h2 class="text-2xl font-bold text-slate-900">{{ pageTitle }}</h2>
-            <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors">
+          <header class="relative flex items-center justify-center mb-8">
+            <button @click="$router.back()" class="absolute left-0 p-2 rounded-full hover:bg-slate-100 transition-colors">
               <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
+            <h2 class="text-2xl font-bold text-slate-900">{{ pageTitle }}</h2>
           </header>
           <form class="space-y-8" @submit.prevent="submitForm">
             <div class="space-y-2">
@@ -242,6 +242,10 @@ onMounted(async () => {
             await modalStore.openAlert("일정 정보를 불러오는데 실패했습니다.");
             router.back();
         }
+    } else if (route.query.date) {
+        // Create Mode with specific date
+        formData.value.startAtDate = route.query.date;
+        formData.value.endAtDate = route.query.date;
     }
 });
 

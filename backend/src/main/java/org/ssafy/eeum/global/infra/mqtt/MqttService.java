@@ -18,6 +18,8 @@ import org.ssafy.eeum.domain.iot.service.FallEventService;
 import org.ssafy.eeum.domain.iot.event.IotDeviceEvent;
 import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 import org.springframework.context.event.EventListener;
+import org.ssafy.eeum.domain.iot.service.IotNotificationService;
+import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 
 import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.global.error.exception.CustomException;
@@ -43,6 +45,8 @@ public class MqttService {
 
     private final JwtProvider jwtProvider;
     private final FamilyRepository familyRepository;
+    private final IotNotificationService notificationService;
+    private final IotDeviceRepository iotDeviceRepository;
 
     public void publish(String topic, String payload) {
         try {
@@ -283,6 +287,12 @@ public class MqttService {
         }
     }
 
+    private Integer getGroupIdBySerialNumber(String serialNumber) {
+        return iotDeviceRepository.findBySerialNumber(serialNumber)
+                .map(device -> device.getFamily().getId())
+                .orElse(null);
+    }
+
     /**
      * IoT 기기로 알람 전송 (복약, 일정 등)
      * Topic: eeum/device/{device_id}/alarm
@@ -304,6 +314,12 @@ public class MqttService {
 
             String jsonPayload = objectMapper.writeValueAsString(message);
             publish(topic, jsonPayload);
+
+            // 알림 로그 저장 추가
+            Integer groupId = getGroupIdBySerialNumber(serialNumber);
+            if (groupId != null) {
+                notificationService.saveNotification(serialNumber, groupId, kind, msgId, content);
+            }
 
             log.info("Sent Alarm: SN={}, Kind={}, Content={}", serialNumber, kind, content);
         } catch (Exception e) {

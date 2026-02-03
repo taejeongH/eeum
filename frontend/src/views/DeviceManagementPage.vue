@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#fcfcfc] min-h-screen pb-20">
-    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    <!-- <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" /> -->
     
     <div class="bg-white/90 backdrop-blur-md sticky top-0 z-[90] border-b border-gray-100 shadow-sm px-6 py-4 flex items-center justify-between transition-all duration-300">
        <h1 class="text-xl font-bold text-gray-900 tracking-tight">기기 관리</h1>
@@ -207,9 +207,9 @@
 </template>
 
 <script setup>
-// 창민 추가
-import MainHeader from '@/components/MainHeader.vue';
-// 창민 추가
+// // 창민 추가
+// import MainHeader from '@/components/MainHeader.vue';
+// // 창민 추가
 import QRCode from 'qrcode';
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -220,12 +220,12 @@ import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
-// 창민추가
-const isModalOpen = ref(false);
-const handleModalStateChange = (isOpen) => {
-  isModalOpen.value = isOpen;
-};
-// 창민추가
+// // 창민추가
+// const isModalOpen = ref(false);
+// const handleModalStateChange = (isOpen) => {
+//   isModalOpen.value = isOpen;
+// };
+// // 창민추가
 const { selectedFamily } = storeToRefs(familyStore);
 const familyId = ref(parseInt(route.params.familyId));
 
