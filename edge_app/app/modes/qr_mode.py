@@ -137,16 +137,14 @@ class QRMode(BaseMode):
         
         self.last_qr_time = current_time
         
-        logger.info(f"QR detected: {qr_token[:8]}...")
-        print(f"[QRMode] QR detected: {qr_token.get('code', 'N/A')}...")
-        # 토큰 검증
-        if not verify_qr_token(qr_token):
-            logger.warning(f"Invalid or expired QR token")
-            return
         
+        logger.info(f"QR detected: {qr_token[:8]}...")
+        print(f"[QRMode] QR detected: {qr_token}...")
+
         # 서버에 등록 요청
         try:
-            result = self.server_client.register_device(qr_token.get('code', 'N/A'), DEVICE_ID)
+            # QR 토큰 내용이 바로 pairing_code라고 가정
+            result = self.server_client.register_device(qr_token, DEVICE_ID)
             
             if result and result.get("status") == "200 OK":
                 data = result.get("data", {})
@@ -179,7 +177,7 @@ class QRMode(BaseMode):
                     serial_number=serial_number
                 ):
                     logger.info(f"Device registered successfully: {DEVICE_ID} (group: {group_id})")
-                    complete_qr_token(qr_token, DEVICE_ID)
+                    # complete_qr_token(qr_token, DEVICE_ID) # 로컬 스토어 미사용 시 제거
                     return True
                 else:
                     logger.error("Failed to save device state")
