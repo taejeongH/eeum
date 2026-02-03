@@ -4,9 +4,7 @@
     <header class="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md px-6 pt-12 pb-4">
       <div class="flex items-center">
         <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <IconBack class="text-slate-600" />
         </button>
         <h1 class="flex-1 text-center text-xl font-bold text-slate-900 mr-8">목소리 등록</h1>
       </div>
@@ -111,6 +109,7 @@
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useModalStore } from '@/stores/modal';
+import IconBack from '@/components/icons/IconBack.vue';
 
 const router = useRouter();
 const route = useRoute();

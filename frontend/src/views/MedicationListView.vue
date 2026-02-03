@@ -14,9 +14,7 @@
       <div class="relative z-30 flex items-center justify-between p-5 pt-6">
         <div class="flex items-center gap-4">
             <button @click="goBack" class="p-2 -ml-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
+              <IconBack />
             </button>
             <h1 class="text-xl font-bold text-white tracking-wide">복약 정보</h1>
         </div>
@@ -208,6 +206,7 @@ import { storeToRefs } from 'pinia';
 import api from '@/services/api';
 import MedicationAddModal from './group-setup/MedicationAddModal.vue';
 import { useModalStore } from '@/stores/modal';
+import IconBack from '@/components/icons/IconBack.vue';
 
 const modalStore = useModalStore();
 

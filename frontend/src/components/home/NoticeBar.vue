@@ -1,5 +1,5 @@
 <template>
-  <div class="px-7 mb-4">
+  <div class="px-6 mb-4">
     <div 
       @click="goToNotifications"
       class="rounded-2xl px-5 py-4 flex items-center shadow-sm cursor-pointer active:scale-[0.98] transition-all border"

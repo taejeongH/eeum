@@ -12,7 +12,7 @@
       <!-- Navigation Bar -->
       <div class="relative z-30 flex justify-between items-start p-5 pt-6 pb-2">
         <button @click="$router.back()" class="p-2 -ml-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
-          <span class="material-symbols-outlined">arrow_back</span>
+          <IconBack />
         </button>
         <h1 class="text-xl font-bold text-white tracking-tight pt-1.5">실시간 건강 정보</h1>
         <div class="flex items-center gap-2">
@@ -267,6 +267,7 @@ import { useFamilyStore } from '@/stores/family';
 import { useHealthStore } from '@/stores/health';
 import healthService from '@/services/healthService';
 import BottomNav from '@/components/layout/BottomNav.vue';
+import IconBack from '@/components/icons/IconBack.vue';
 
 const route = useRoute();
 
