@@ -20,10 +20,84 @@
 
   <title>frontend</title>
   <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <style>
+    [v-cloak] {
+      display: none;
+    }
+
+    #initial-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .loader-logo {
+      width: 100px;
+      height: auto;
+      margin-bottom: 24px;
+      animation: logo-float 2s ease-in-out infinite;
+    }
+
+    .shimmer-bar {
+      width: 120px;
+      height: 3px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .shimmer-bar::after {
+      content: '';
+      position: absolute;
+      width: 40%;
+      height: 100%;
+      background: #FF9D00;
+      left: -40%;
+      animation: shimmer 1.5s infinite ease-in-out;
+    }
+
+    @keyframes logo-float {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    @keyframes shimmer {
+      0% {
+        left: -40%;
+      }
+
+      100% {
+        left: 100%;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <div id="initial-loader">
+      <img src="/src/assets/eeum_logo2.png" alt="IEUM" class="loader-logo" />
+      <div class="shimmer-bar"></div>
+      <p style="margin-top: 16px; color: #333; font-family: sans-serif; font-weight: 600;">이음을 준비하고 있어요</p>
+    </div>
+  </div>
   <script type="module" src="/src/main.js"></script>
 </body>
 

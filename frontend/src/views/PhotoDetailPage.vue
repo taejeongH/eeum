@@ -33,14 +33,24 @@
     </div>
 
     <!-- Main Image Area -->
-    <div class="flex-1 flex items-center justify-center relative w-full h-full bg-black">
-        <img 
-            v-if="photo" 
-            :src="photo.displayUrl" 
-            class="max-w-full max-h-full object-contain"
-            alt="Detail Photo"
-        />
-        <div v-else class="text-gray-500">
+    <div class="flex-1 relative w-full h-full bg-black">
+        <swiper
+          v-if="isReady && allPhotos.length > 0"
+          :initial-slide="currentIndex"
+          @slide-change="onSlideChange"
+          class="h-full w-full"
+        >
+            <swiper-slide v-for="p in allPhotos" :key="p.photoId || p.id">
+                <div class="flex items-center justify-center w-full h-full">
+                    <img 
+                        :src="p.displayUrl" 
+                        class="max-w-full max-h-full object-contain"
+                        alt="Detail Photo"
+                    />
+                </div>
+            </swiper-slide>
+        </swiper>
+        <div v-else class="flex items-center justify-center h-full text-gray-500">
             사진을 불러오는 중...
         </div>
     </div>
@@ -118,12 +128,19 @@ import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto, updatePhoto } from '@/services/albumService';
 
+// Swiper Imports
+import { Swiper, SwiperSlide } from 'swiper/vue';
+import 'swiper/css';
+
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 
 const photo = ref(null);
+const allPhotos = ref([]);
+const currentIndex = ref(-1);
+const isReady = ref(false);
 const showMenu = ref(false);
 const isEditing = ref(false);
 const moreMenu = ref(null);
@@ -141,15 +158,17 @@ const formatDate = (dateString) => {
 };
 
 const fetchPhotoDetail = async () => {
-    // Since there is no single photo API, we fetch all and find
+    // URL의 familyId와 store의 selectedFamily 동기화
+    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
+        familyStore.selectFamilyById(route.params.familyId);
+    }
+
     if (!familyStore.selectedFamily) return;
 
-    // Try to find in store first if we assume store has data, but better to refresh or check
-    // Fetch photos
     try {
         const response = await getPhotos(familyStore.selectedFamily.id);
-         let rawPhotos = [];
-         // ... (Same extraction logic as AlbumPage)
+        let rawPhotos = [];
+        
         if (Array.isArray(response.data)) {
             rawPhotos = response.data;
         } else if (response.data && Array.isArray(response.data.data)) {
@@ -160,15 +179,28 @@ const fetchPhotoDetail = async () => {
             rawPhotos = response.data.content;
         }
 
-        const targetId = parseInt(route.params.photoId);
-        const found = rawPhotos.find(p => (p.photoId || p.id) === targetId);
-
-        if (found) {
-            let url = found.storageUrl || found.imageUrl;
+        // Process URLs for all photos to allow navigation
+        allPhotos.value = rawPhotos.map(p => {
+            let url = p.storageUrl || p.imageUrl;
             if (url && !url.startsWith('http')) {
                 url = S3_BASE_URL + url;
             }
-            photo.value = { ...found, displayUrl: url };
+            return { ...p, displayUrl: url };
+        });
+
+        // Sort by takenAt descending (to match Gallery order usually)
+        allPhotos.value.sort((a, b) => {
+            const dateA = new Date(a.takenAt || a.createdAt || 0);
+            const dateB = new Date(b.takenAt || b.createdAt || 0);
+            return dateB - dateA;
+        });
+
+        const targetId = parseInt(route.params.photoId);
+        currentIndex.value = allPhotos.value.findIndex(p => (p.photoId || p.id) === targetId);
+
+        if (currentIndex.value !== -1) {
+            photo.value = allPhotos.value[currentIndex.value];
+            isReady.value = true;
         } else {
              await modalStore.openAlert('사진을 찾을 수 없습니다.');
              router.back();
@@ -178,6 +210,14 @@ const fetchPhotoDetail = async () => {
          await modalStore.openAlert('사진 로드 중 오류가 발생했습니다.');
          router.back();
     }
+};
+
+const onSlideChange = (swiper) => {
+    currentIndex.value = swiper.activeIndex;
+    photo.value = allPhotos.value[currentIndex.value];
+    const newPhotoId = photo.value.photoId || photo.value.id;
+    // Update URL without adding to history to avoid back-button hell
+    router.replace({ name: 'PhotoDetail', params: { photoId: newPhotoId } });
 };
 
 const toggleMenu = () => {

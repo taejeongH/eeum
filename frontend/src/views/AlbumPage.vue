@@ -14,7 +14,9 @@
           </svg>
         </button>
         <div class="flex flex-col">
-          <h2 class="text-[#1c140d] text-xl font-bold leading-tight tracking-[-0.015em]">가족 앨범</h2>
+          <h2 class="text-[#1c140d] text-xl font-bold leading-tight tracking-[-0.015em]">
+            {{ albumTitle }}
+          </h2>
           <p class="text-xs text-[#9c7349] font-medium">{{ photos.length }}개 항목 • 가족 공유</p>
         </div>
       </div>
@@ -153,10 +155,16 @@ const filterDateLocal = computed({
 // Update title based on query
 const albumTitle = computed(() => {
     const uploader = route.query.uploader;
-    return uploader ? `${uploader}의 앨범` : '가족 앨범';
+    const groupName = familyStore.selectedFamily?.name || '우리 가족';
+    return uploader ? `${uploader}의 앨범` : `${groupName} 앨범`;
 });
 
 const fetchPhotos = async () => {
+    // URL의 familyId와 store의 selectedFamily 동기화
+    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
+        familyStore.selectFamilyById(route.params.familyId);
+    }
+
     if (!familyStore.selectedFamily) return;
     try {
         const response = await getPhotos(familyStore.selectedFamily.id);

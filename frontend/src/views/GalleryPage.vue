@@ -75,7 +75,9 @@
       <!-- Family Albums Grid -->
       <section class="px-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold leading-tight tracking-tight text-[#1c140d]">가족 앨범</h3>
+          <h3 class="text-lg font-bold leading-tight tracking-tight text-[#1c140d]">
+            {{ familyStore.selectedFamily?.name || '우리 가족' }} 앨범
+          </h3>
         </div>
         <div class="grid grid-cols-3 gap-x-3 gap-y-6">
           <!-- Dynamic Albums (from API) -->
@@ -132,7 +134,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import ImagePreviewModal from '@/components/gallery/ImagePreviewModal.vue';
@@ -153,6 +155,7 @@ import 'swiper/css/effect-creative';
 const modules = [EffectCreative];
 
 const router = useRouter();
+const route = useRoute();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 const photos = ref([]);
@@ -269,6 +272,11 @@ const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
 
 const fetchAlbumPhotos = async () => {
+    // URL의 familyId와 store의 selectedFamily 동기화
+    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
+        familyStore.selectFamilyById(route.params.familyId);
+    }
+
     if (!familyStore.selectedFamily) return;
     try {
         const response = await getPhotos(familyStore.selectedFamily.id);
