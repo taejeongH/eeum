@@ -14,15 +14,24 @@ const apiClient = axios.create({
 // [중요] 모든 요청에 토큰을 자동으로 붙여주는 인터셉터입니다.
 apiClient.interceptors.request.use(
   (config) => {
-    // localStorage 또는 sessionStorage에서 토큰 확인
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    // 1. localStorage 또는 sessionStorage에서 토큰 확인
+    let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+    // 2. [NEW] 모바일 앱: AndroidBridge에서 토큰 가져오기 (fallback)
+    if (!token && window.AndroidBridge?.getAccessToken) {
+      const nativeToken = window.AndroidBridge.getAccessToken();
+      if (nativeToken && nativeToken !== 'null' && nativeToken.length > 0) {
+        token = nativeToken;
+        // 다음 요청을 위해 localStorage에 동기화
+        localStorage.setItem('accessToken', nativeToken);
+      }
+    }
 
     if (token) {
       // 반드시 Bearer 뒤에 한 칸 공백이 있어야 합니다.
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
-
     }
+
     return config;
   },
   (error) => {
