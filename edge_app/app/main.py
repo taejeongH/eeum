@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import threading
 from typing import Optional, Dict, Any
@@ -11,17 +12,20 @@ from ultralytics import YOLO
 
 from .config import (
     CAM_INDEX, FRAME_W, FRAME_H, JPEG_QUALITY,
-    DETERMINISTIC, MODEL_PATH, RUNS_DIR, 
-    DEVICE_ID, LOCATION_ID, SERVER_URL, RPI_URL
+    DETERMINISTIC, MODEL_PATH, RUNS_DIR,
+    DEVICE_ID, LOCATION_ID, SERVER_URL, RPI_URL,
+    MODEL_IOU, MODEL_DET
 )
-from .level1 import Level1Params, Level1Engine, PresenceParams, PresenceEngine
-from .clip_recorder import ClipRecorder
-from .replay import start_replay_thread
-from .live import LivePipeline
-from .notifier import Notifier
 
+from .core import Level1Params, Level1Engine, PresenceParams, PresenceEngine, ClipRecorder
+from .engine import LivePipeline
+from .modes import BaseMode, LiveMode, QRMode
+from .state import get_device_state
+from .utils import start_replay_thread
+from .api.server_client import ServerClient
 
 app = FastAPI()
+server_client = ServerClient()
 
 # ---------- deterministic 옵션 ----------
 if DETERMINISTIC:
@@ -30,32 +34,91 @@ if DETERMINISTIC:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-# ---------- model/camera ----------
+# ---------- model ----------
 model = YOLO(MODEL_PATH)
 
-cap = cv2.VideoCapture(CAM_INDEX)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
+# ---------- model setting ----------
+model.iou = MODEL_IOU
+model.max_det = MODEL_DET
 
-live = LivePipeline(model=model, cap=cap, jpeg_quality=JPEG_QUALITY, source_id="cam0")
+# ---------- camera ----------
+cap: Optional[cv2.VideoCapture] = None  # 전역 단일 카메라 핸들(프로세스당 1개만!)
+
+def open_camera() -> cv2.VideoCapture:
+    """OS에 맞는 backend로 카메라 1개를 열어서 반환"""
+    cam_device = os.getenv("CAM_DEVICE", "").strip()  # 예: /dev/video1
+    cam_index = int(os.getenv("CAM_INDEX", str(CAM_INDEX)))
+
+    if sys.platform.startswith("win"):
+        c = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
+        if not c.isOpened():
+            c.release()
+            c = cv2.VideoCapture(cam_index, cv2.CAP_MSMF)
+    else:
+        if cam_device:
+            c = cv2.VideoCapture(cam_device, cv2.CAP_V4L2)
+        else:
+            c = cv2.VideoCapture(cam_index, cv2.CAP_V4L2)
+
+    # 설정
+    c.set(cv2.CAP_PROP_FPS, 15)
+    c.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    c.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
+    c.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
+    return c
+
+def ensure_camera_opened() -> bool:
+    """cap이 열려있도록 보장. 열기 실패 시 False."""
+    global cap
+    if cap is not None and cap.isOpened():
+        return True
+    if cap is not None:
+        try:
+            cap.release()
+        except Exception:
+            pass
+    cap = open_camera()
+    print("[CAM] platform=", sys.platform, "CAM_DEVICE=", os.getenv("CAM_DEVICE"), "CAM_INDEX=", os.getenv("CAM_INDEX", CAM_INDEX))
+    print("[CAM] opened=", cap.isOpened())
+    return cap.isOpened()
+
+# LivePipeline은 모드에 따라 생성됨
+live = None  # type: Optional[LivePipeline]
 
 # ---------- shared state ----------
 state_lock = threading.Lock()
 latest_obs: Optional[Dict[str, Any]] = None
 latest_jpeg: Optional[bytes] = None
-mode = "live"  # live/replay
+processing_mode: str = "initial"  # initial/qr/live/replay
+current_mode_instance: Optional[BaseMode] = None
+mode_stop_event = threading.Event()
 
-# ---------- jsonl recording ----------
+# jsonl recording ----------
 record_lock = threading.Lock()
 record_fp = None
 record_path = None
 
-notifier = Notifier(server_url=SERVER_URL, rpi_url=RPI_URL)
-current_event_id = None
-current_event_detected_at = None
+def configure_camera_for_mode(mode_name: str):
+    """모드별 카메라 설정을 강제한다."""
+    global cap
+    if cap is None:
+        return
 
-incident_ts = None
-incident_event_id = None
+    if mode_name == "qr":
+        w, h = 640, 480
+    else:
+        w, h = FRAME_W, FRAME_H
+
+    cap.set(cv2.CAP_PROP_FPS, 15)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(w))
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(h))
+
+    # 일부 장치는 set이 무시되기도 해서 실제값 로그 남기기
+    aw = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    ah = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print(f"[CAM] mode={mode_name} requested=({w}x{h}) actual=({aw}x{ah})")
+
 
 def start_recording():
     global record_fp, record_path
@@ -95,15 +158,277 @@ level1_engine = Level1Engine(Level1Params())
 clip_recorder = ClipRecorder()
 last_level1_event: Optional[Dict[str, Any]] = None
 
+# ---------- mode dispatcher & background processing ----------
+
+def initialize_mode():
+    """시작 시 장치 등록 상태에 따라 QRMode 또는 LiveMode 초기화 (카메라는 재사용)"""
+    global processing_mode, current_mode_instance, live, cap
+
+    device_state = get_device_state()
+
+    # Windows 테스트용: 임시 등록 상태 생성
+    if sys.platform == "win32" and not device_state.is_registered():
+        print("[TEST] Windows environment - Creating temporary registration")
+        device_state.register(
+            device_id="TEST_DEVICE_001",
+            access_token="test_access_token_xxx",
+            refresh_token="test_refresh_token_xxx",
+            group_id=1,
+            serial_number="TEST-001"
+        )
+
+    if not ensure_camera_opened():
+        # 카메라가 열리지 않으면 QR/LIVE 어느 것도 진행 불가
+        print("[ERROR] Camera not opened. Check device mapping/permissions.")
+        time.sleep(1.0)
+
+    is_registered = device_state.is_registered()
+
+    qrmode_available = QRMode is not None
+    print(f"[DEBUG] QRMode available: {qrmode_available}, Device registered: {is_registered}")
+
+    # QRMode 사용 가능 + 미등록: QRMode
+    if qrmode_available and not is_registered:
+        print("[MODE] Device not registered - Starting QRMode")
+        configure_camera_for_mode("qr")
+        mode = QRMode(cap=cap, jpeg_quality=JPEG_QUALITY)
+        processing_mode = "qr"
+    else:
+        device_id = device_state.get_device_id() or "UNKNOWN"
+        reason = "device registered" if is_registered else "QRMode not available"
+        print(f"[MODE] Starting LiveMode (device_id={device_id}, reason={reason})")
+        configure_camera_for_mode("live")
+        mode = LiveMode(model=model, cap=cap, jpeg_quality=JPEG_QUALITY)
+        processing_mode = "live"
+
+    current_mode_instance = mode
+    live = None
+    return mode
+
+def mode_processing_loop():
+    global processing_mode, current_mode_instance, latest_obs, latest_jpeg, live
+
+    local_incident_ts = None
+    local_last_level1_event = None
+
+    device_state = get_device_state()
+
+    try:
+        current_mode = initialize_mode()
+        current_mode.setup()
+        print(f"[LOOP] Mode processing loop started (mode={processing_mode})")
+
+        while not mode_stop_event.is_set():
+            # QRMode에서 등록되면 LiveMode로 전환(카메라 재사용)
+            if processing_mode == "qr" and device_state.is_registered():
+                print("[MODE] Device now registered - Switching to LiveMode")
+                current_mode.cleanup()
+
+                configure_camera_for_mode("live")
+                current_mode = LiveMode(model=model, cap=cap, jpeg_quality=JPEG_QUALITY)
+                current_mode.setup()
+                processing_mode = "live"
+                local_incident_ts = None
+                local_last_level1_event = None
+
+            try:
+                obs, jpg, frame = current_mode.step()
+            except Exception as e:
+                print(f"[ERROR] Mode step failed: {e}")
+                time.sleep(0.2)
+                continue
+
+            if obs is None or jpg is None:
+                # QR/LIVE 어느 모드든 최신 jpg가 없으면 스트림이 멈추니,
+                # 프레임만이라도 있으면 여기서 JPEG로 만들어 올려준다.
+                if frame is not None:
+                    ok, enc = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), int(JPEG_QUALITY)])
+                    if ok:
+                        with state_lock:
+                            latest_obs = obs if obs is not None else latest_obs
+                            latest_jpeg = enc.tobytes()
+                time.sleep(0.02)
+                continue
+
+            if processing_mode == "qr":
+                # QR 가이드 오버레이(필요하면 끄면 됨)
+                if frame is not None:
+                    h, w = frame.shape[:2]
+                    # 중앙 스캔 박스
+                    box_w, box_h = int(w * 0.6), int(h * 0.6)
+                    x1 = (w - box_w) // 2
+                    y1 = (h - box_h) // 2
+                    x2 = x1 + box_w
+                    y2 = y1 + box_h
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(frame, "Scan QR to register", (20, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                    ok, enc = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), int(JPEG_QUALITY)])
+                    if ok:
+                        jpg = enc.tobytes()
+
+                with state_lock:
+                    latest_obs = obs
+                    latest_jpeg = jpg
+
+            elif processing_mode == "live":
+                ts_now = float(obs["ts"])
+
+                pe = presence_engine.step(obs)
+                if pe is not None:
+                    ptype = pe["data"]["event"]
+                    event_name = "enter" if ptype == "enter" else "exit"
+                    payload = {
+                        "kind": "vision",
+                        "device_id": DEVICE_ID,
+                        "data": {
+                            "location_id": LOCATION_ID,
+                            "event": event_name
+                        },
+                        "ts": float(ts_now),
+                    }
+                    server_client.send_event_rpi(payload)
+
+                clip_recorder.push(ts_now, frame)
+
+                ev = level1_engine.step(obs)
+                if ev is not None:
+                    print(
+                        f"[LEVEL EVT] {ev.get('type')} "
+                        f"ts={ev.get('ts'):.2f} "
+                        f"frame={ev.get('frame_index')} "
+                        f"reason={ev.get('reason', '')}"
+                    )
+                    et = ev.get("type")
+
+                    if et == "abnormal_enter":
+                        local_incident_ts = float(ev.get("ts", ts_now))
+
+                    elif et == "abnormal_exit":
+                        local_incident_ts = None
+
+                    elif et == "level1":
+                        device_state = get_device_state()
+                        
+                        # 토큰 유효성 확인 및 갱신
+                        access_token = device_state.ensure_valid_token(server_client)
+                        if not access_token:
+                             print("[ERROR] Token invalid and refresh failed. Cannot send fall event.")
+                             # 토큰이 없으면 전송 불가, 로깅만 하고 스킵? 
+                             # 그래도 RPI에는 보낼 수 있으면 보내야 할까? 
+                             # 일단 서버 전송은 실패하더라도 다음 로직 진행
+                             access_token = ""
+
+                        local_last_level1_event = ev
+
+                        current_event_id = ev.get("event_id") or f"level1_{time.strftime('%Y%m%d_%H%M%S')}"
+                        ev["event_id"] = current_event_id
+
+                        t0 = (obs.get("tracks") or [{}])[0]
+                        payload = {
+                            "kind": "fall",
+                            "device_id": DEVICE_ID,
+                            "detected_at": float(ts_now),
+                            "data": {
+                                "location_id": LOCATION_ID,
+                                "event": "fall_detected",
+                                "level": 1,
+                                "has_person": bool(t0.get("has_person", False)),
+                                "confidence": ev.get("values", {}).get("confidence_score", 0.0),
+                            },
+                        }
+                        try:
+                            server_client.send_event_rpi(payload)
+                        except Exception as e:
+                            print(f"Failed to send rpi: {e}")
+
+                        presigned_url, video_path = "", ""
+                        try:
+                            presigned_url, video_path = server_client.send_event_server(payload, access_token=access_token)
+                        except Exception as e:
+                            print(f"Failed to send server: {e}")
+
+                        if local_incident_ts is not None:
+                            clip_path = clip_recorder.save_segment(
+                                incident_ts=local_incident_ts,
+                                pre_sec=7.0,
+                                post_sec=4.0,
+                                filename_prefix="incident"
+                            )
+                            if clip_path and presigned_url:
+                                # print("[DBG] clip_path =", clip_path, flush=True)
+                                # print("[DBG] exists =", os.path.exists(clip_path), "size =", (os.path.getsize(clip_path) if os.path.exists(clip_path) else None), flush=True)
+                                # time.sleep(0.2)  # 아주 짧게(파일 시스템 flush 여유)
+                                try:
+                                    server_client.upload_clip_via_presigned_put(presigned_url=presigned_url, clip_path=clip_path, timeout=120.0)
+                                except Exception as e:
+                                    print(f"Failed to upload clip: {e}")
+
+                                try:
+                                    server_client.send_video_upload_success(video_path=video_path, access_token=access_token)
+                                except Exception as e:
+                                    print(f"Failed to send video upload success: {e}")
+
+                        local_incident_ts = None
+
+                with state_lock:
+                    latest_obs = obs
+                    latest_jpeg = jpg
+
+                write_obs(obs)
+
+            time.sleep(0.001)
+
+    finally:
+        if current_mode_instance:
+            try:
+                current_mode_instance.cleanup()
+            except Exception:
+                pass
+        print("[LOOP] Mode processing loop stopped")
+
+# ---------- background thread ----------
+mode_thread = None
+
+@app.on_event("startup")
+async def startup_event():
+    global mode_thread, mode_stop_event
+    mode_stop_event.clear()
+
+    # 카메라는 startup에서 딱 한 번만 오픈
+    ensure_camera_opened()
+
+    print("[STARTUP] Starting mode processing background thread")
+    mode_thread = threading.Thread(target=mode_processing_loop, daemon=True)
+    mode_thread.start()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global mode_thread, mode_stop_event, cap
+
+    print("[SHUTDOWN] Stopping mode processing background thread")
+    mode_stop_event.set()
+    if mode_thread:
+        mode_thread.join(timeout=5)
+
+    # 앱 종료 시 cap release
+    if cap is not None:
+        try:
+            cap.release()
+        except Exception:
+            pass
+        cap = None
+
 # ---------- replay ----------
 replay_stop_event = threading.Event()
 replay_thread = None
 replay_running = False
 
 def on_replay_frame(obs: Dict[str, Any], jpg: bytes):
-    global latest_obs, latest_jpeg, mode
+    global latest_obs, latest_jpeg, processing_mode
     with state_lock:
-        mode = "replay"
+        processing_mode = "replay"
         latest_obs = obs
         latest_jpeg = jpg
 
@@ -114,7 +439,7 @@ def health():
         st = clip_recorder.status()
         return {
             "status": "ok",
-            "mode": mode,
+            "processing_mode": processing_mode,
             "recording_jsonl": record_fp is not None,
             "replay_running": replay_running,
             **st,
@@ -127,17 +452,14 @@ def level1_status():
 
 @app.post("/mode/live")
 def set_mode_live():
-    global mode
-    with state_lock:
-        mode = "live"
-    return {"mode": "live"}
+    return {"status": "auto_mode_active", "info": "모드는 자동으로 선택됩니다 (QR 미등록/Live 등록)"}
 
 @app.post("/mode/replay")
 def set_mode_replay():
-    global mode
+    global processing_mode
     with state_lock:
-        mode = "replay"
-    return {"mode": "replay"}
+        processing_mode = "replay"
+    return {"processing_mode": "replay"}
 
 @app.post("/record/start")
 def record_start():
@@ -151,7 +473,7 @@ def record_stop():
 
 @app.post("/replay/start")
 def replay_start(path: str = Query(...), fps: float = Query(15.0)):
-    global replay_thread, replay_running, mode
+    global replay_thread, replay_running, processing_mode
 
     if replay_thread and replay_thread.is_alive():
         return JSONResponse(status_code=409, content={"error": "replay already running"})
@@ -170,14 +492,16 @@ def replay_start(path: str = Query(...), fps: float = Query(15.0)):
     replay_running = True
 
     with state_lock:
-        mode = "replay"
+        processing_mode = "replay"
     return {"replay": True, "path": path, "fps": float(fps)}
 
 @app.post("/replay/stop")
 def replay_stop():
-    global replay_running
+    global replay_running, processing_mode
     replay_stop_event.set()
     replay_running = False
+    with state_lock:
+        processing_mode = "live"
     return {"replay": False}
 
 @app.get("/pose")
@@ -188,134 +512,23 @@ def pose():
         return latest_obs
 
 @app.get("/stream")
-def stream(overlay: str = Query("smooth", pattern="^(raw|smooth|both)$")):
-    def gen():
-        boundary = "frame"
-        global latest_obs, latest_jpeg, mode, last_level1_event
-        global incident_ts, incident_event_id
+def stream():
+    boundary = "frame"
 
+    def gen():
         while True:
             with state_lock:
-                current_mode = mode
+                jpg = latest_jpeg
 
-            if current_mode == "live":
-                obs, jpg, frame = live.step(overlay=overlay)
-                if obs is None or jpg is None or frame is None:
-                    time.sleep(0.02)
-                    continue
+            if jpg is None:
+                time.sleep(0.05)
+                continue
 
-                ts_now = float(obs["ts"])
-
-                # 사람 등장/사라짐 이벤트 체크
-                pe = presence_engine.step(obs)
-                if pe is not None:
-                    ptype = pe["data"]["event"]  # "enter" | "exit"
-                    event_name = "enter" if ptype == "enter" else "exit"
-
-                    payload = {
-                        "kind": "vision",
-                        "device_id": DEVICE_ID,
-                        "data": {
-                            "location_id": LOCATION_ID,
-                            "event": event_name,
-                        },
-                        "ts": float(ts_now),
-                    }
-                    print(payload) 
-                    notifier.send_event_rpi_only(payload)
-
-                # 링버퍼 업데이트(클립 저장용)
-                clip_recorder.push(ts_now, frame)
-
-                # level1 이벤트 체크
-                ev = level1_engine.step(obs)
-                if ev is not None:
-                    print(
-                        f"[LEVEL EVT] {ev.get('type')} "
-                        f"ts={ev.get('ts'):.2f} "
-                        f"frame={ev.get('frame_index')} "
-                        f"reason={ev.get('reason', '')}"
-                    )
-
-                    et = ev.get("type")
-
-                    # 1) Level0 진입: 사건 시작 시각만 기억 (녹화 X)
-                    if et == "abnormal_enter":
-                        incident_ts = float(ev.get("ts", ts_now))
-                        incident_event_id = f"incident_{time.strftime('%Y%m%d_%H%M%S')}"
-
-                    # 2) 회복: 사건 폐기 (저장 X)
-                    elif et == "abnormal_exit":
-                        incident_ts = None
-                        incident_event_id = None
-
-                    # 3) Level1 확정: 여기서만 저장 + 전송
-                    elif et == "level1":
-                        last_level1_event = ev
-
-                        # event_id 정리
-                        current_event_id = ev.get("event_id") or f"level1_{time.strftime('%Y%m%d_%H%M%S')}"
-                        current_event_detected_at = ts_now
-                        ev["event_id"] = current_event_id
-
-                        # (A) 서버/RPi에 level1 이벤트 JSON 전송
-                        t0 = (obs.get("tracks") or [{}])[0]
-                        payload = {
-                            "kind": "vision",
-                            "device_id": DEVICE_ID,
-                            "data": {
-                                "location_id": LOCATION_ID,
-                                "event": "fall",
-                                "level": 1,
-                                "has_person": bool(t0.get("has_person", False)),
-                            },
-                            "detected_at": float(ts_now),
-                        }
-                        notifier.send_event(payload)
-
-                        # (B) 사건 시작 시각 기준으로 전후 구간만 저장
-                        if incident_ts is not None:
-                            # 원하는 전후 길이
-                            pre_sec = 6.0
-                            post_sec = 7.0
-
-                            clip_path = clip_recorder.save_segment(
-                                incident_ts=incident_ts,
-                                pre_sec=pre_sec,
-                                post_sec=post_sec,
-                                filename_prefix="incident"
-                            )
-
-                            if clip_path:
-                                payload2 = dict(payload)
-                                payload2["clip_status"] = "ready"
-                                notifier.send_clip(event_id=current_event_id, clip_path=clip_path, payload=payload2)
-
-                        # (C) 사건 정보 초기화(선택)
-                        incident_ts = None
-                        incident_event_id = None
-
-                # 최신 상태 업데이트
-                with state_lock:
-                    latest_obs = obs
-                    latest_jpeg = jpg
-
-                # JSONL 기록(옵션)
-                write_obs(obs)
-
-            else:
-                with state_lock:
-                    jpg = latest_jpeg
-                if jpg is None:
-                    time.sleep(0.02)
-                    continue
-
-            data = jpg
             yield (
                 b"--" + boundary.encode() + b"\r\n"
                 b"Content-Type: image/jpeg\r\n"
-                b"Content-Length: " + str(len(data)).encode() + b"\r\n\r\n"
-                + data + b"\r\n"
+                b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+                + jpg + b"\r\n"
             )
 
     return StreamingResponse(gen(), media_type="multipart/x-mixed-replace; boundary=frame")

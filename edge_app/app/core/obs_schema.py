@@ -1,8 +1,9 @@
 from typing import Dict, Any, List, Optional
 
-from .config import DEFAULT_CONF, USE_HALF, MODEL_PATH
+from ..config import DEFAULT_CONF
 
 def clamp01(x: float) -> float:
+    """0과 1 사이로 값 제한"""
     return 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
 
 def build_observation(
@@ -13,6 +14,7 @@ def build_observation(
     frame_idx: int,
     source_id: str = "cam0",
 ) -> Dict[str, Any]:
+    """YOLO 결과에서 관측 객체 구축"""
     obs: Dict[str, Any] = {
         "schema_version": "1.0",
         "ts": float(ts),
@@ -20,9 +22,7 @@ def build_observation(
         "source_id": source_id,
         "tracks": [],
         "meta": {
-            "model": MODEL_PATH,
             "conf_thres": float(DEFAULT_CONF),
-            "half": bool(USE_HALF),
         },
     }
 
@@ -66,10 +66,11 @@ def build_observation(
             "has_person": bool(has_person),
             "bbox": bbox_norm,
             "conf": float(box_conf),
-            "keypoints_raw": kps,     # 추가
-            "keypoints_smooth": None, # 추가 (smoothing에서 채움)
-            "keypoints": kps,         # 기존 유지(호환)
+            "keypoints_raw": kps,     # 추가: 원본
+            "keypoints_smooth": None, # 추가 (스무딩에서 채움)
+            "keypoints": kps,         # 기존 유지 (호환성)
             "quality_score": float(quality),
+            "frame_shape": (frame_h, frame_w),  # EMA 프레임 크기 변화 감지용
         }
     )
     return obs
