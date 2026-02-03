@@ -2,26 +2,24 @@
   <div class="bg-background-light min-h-screen text-[#1c140d] pb-24 relative">
     
     <!-- Refined Header -->
-    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
+      <template #actions>
+        <div class="flex items-center gap-1 -mr-2">
+          <EeumDatePicker v-model="selectedDateProxy">
+            <template #trigger>
+              <button class="p-2 rounded-full hover:bg-gray-50 text-[#1c140d] transition-colors">
+                <span class="material-symbols-outlined">calendar_today</span>
+              </button>
+            </template>
+          </EeumDatePicker>
+          <button class="p-2 rounded-full hover:bg-gray-50 text-[#1c140d] transition-colors">
+            <span class="material-symbols-outlined">tune</span>
+          </button>
+        </div>
+      </template>
+    </MainHeader>
     
-    <!-- Sub Header for Page Controls -->
-    <div class="sticky top-0 z-20 bg-background-light/80 backdrop-blur-md px-4 pt-4 pb-4 transition-colors duration-200 flex items-center justify-between border-b border-gray-100/50">
-      <div class="flex items-center gap-3">
-        <h1 class="text-xl font-bold tracking-tight pl-2">가족 갤러리</h1>
-      </div>
-      <div class="flex items-center gap-1">
-        <EeumDatePicker v-model="selectedDateProxy">
-          <template #trigger>
-            <button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
-              <span class="material-symbols-outlined">calendar_today</span>
-            </button>
-          </template>
-        </EeumDatePicker>
-        <button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
-          <span class="material-symbols-outlined">tune</span>
-        </button>
-      </div>
-    </div>
+
 
     <main class="space-y-6">
       <!-- Recently Added (Swiper) -->
