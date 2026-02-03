@@ -5,6 +5,13 @@ import AlertItem from './AlertItem.vue';
 
 const alertStore = useAlertStore();
 const { alerts } = storeToRefs(alertStore);
+
+const handleDismiss = (id) => {
+    // 1. Remove from floating overlay
+    alertStore.removeAlert(id);
+    // 2. Also remove from history sidebar
+    alertStore.removeHistory(id);
+};
 </script>
 
 <template>
@@ -17,14 +24,15 @@ const { alerts } = storeToRefs(alertStore);
     leave-active-class="transition ease-in duration-300 absolute w-full" 
     leave-from-class="opacity-100" 
     leave-to-class="opacity-0 translate-x-full"
-    class="fixed top-0 right-0 h-full z-50 flex flex-col justify-start gap-8 p-8 w-full max-w-[800px] pointer-events-none"
+    class="fixed top-0 right-0 h-full z-50 flex flex-col justify-start gap-2 p-8 w-full max-w-[800px] pointer-events-none"
   >
     <AlertItem
       v-for="alert in alerts" 
-      :key="alert.msg_id || alert.id"
+      :key="alert.id"
       :alert="alert"
       class="pointer-events-auto"
       @close="alertStore.removeAlert(alert.id)"
+      @dismiss="handleDismiss(alert.id)"
     />
   </TransitionGroup>
 </template>
