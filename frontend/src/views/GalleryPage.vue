@@ -8,12 +8,12 @@
           <EeumDatePicker v-model="selectedDateProxy">
             <template #trigger>
               <button class="p-2 rounded-full hover:bg-gray-50 text-[#1c140d] transition-colors">
-                <span class="material-symbols-outlined">calendar_today</span>
+                <IconCalendar />
               </button>
             </template>
           </EeumDatePicker>
           <button class="p-2 rounded-full hover:bg-gray-50 text-[#1c140d] transition-colors">
-            <span class="material-symbols-outlined">tune</span>
+            <IconFilter />
           </button>
         </div>
       </template>
@@ -141,6 +141,8 @@ import { useModalStore } from '@/stores/modal';
 import { getPhotos } from '@/services/albumService';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 import { usePhotoUpload } from '@/composables/usePhotoUpload';
+import IconCalendar from '@/components/icons/IconCalendar.vue';
+import IconFilter from '@/components/icons/IconFilter.vue';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';

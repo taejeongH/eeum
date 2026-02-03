@@ -4,9 +4,10 @@
       <template #actions>
          <button 
            @click="toggleSearch"
-           class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]"
+           class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d] -mr-2"
          >
-           <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
+           <IconClose v-if="isSearchOpen" />
+           <IconSearch v-else />
          </button>
       </template>
     </MainHeader>
@@ -22,14 +23,16 @@
               placeholder="보낸 사람, 내용 검색"
               class="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-full text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#e76f51]"
             />
-            <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[20px]">search</span>
+            <div class="absolute left-3 top-2.5 text-gray-400">
+               <IconSearch class="w-5 h-5" />
+            </div>
             <!-- Close button for search input not strictly needed if we have toggle in header, but keeping clear button logic -->
             <button 
               v-if="searchQuery"
               @click="searchQuery = ''"
               class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
             >
-               <span class="material-symbols-outlined text-[20px]">cancel</span>
+               <IconClose class="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -275,6 +278,8 @@ import { useFamilyStore } from '@/stores/family'
 import BottomNav from '@/components/layout/BottomNav.vue'
 import { useModalStore } from '@/stores/modal'
 import MainHeader from '@/components/MainHeader.vue'
+import IconSearch from '@/components/icons/IconSearch.vue'
+import IconClose from '@/components/icons/IconClose.vue'
 
 const router = useRouter()
 const route = useRoute()

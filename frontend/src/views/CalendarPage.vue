@@ -3,7 +3,8 @@
     <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
       <template #actions>
         <button @click="toggleSearch" class="p-2 -mr-2 text-[#1c140d] hover:bg-gray-100 rounded-full transition-colors">
-          <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
+          <IconClose v-if="isSearchOpen" />
+          <IconSearch v-else />
         </button>
       </template>
     </MainHeader>
@@ -130,6 +131,8 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router'; // Added useRoute
 import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
+import IconSearch from '@/components/icons/IconSearch.vue';
+import IconClose from '@/components/icons/IconClose.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family'; 
 
