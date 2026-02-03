@@ -594,23 +594,24 @@ public class ScheduleService {
                         .filter(s -> s.getStartAt().toLocalDate().equals(targetDate))
                         .toList();
 
-                if (targetSchedules.isEmpty()) {
-                    continue;
-                }
-
                 // 알림 메시지 구성
                 StringBuilder contentBuilder = new StringBuilder();
-                contentBuilder.append(String.format("%s 총 %d개의 일정이 있습니다. ", dayLabel, targetSchedules.size()));
-
                 List<Map<String, Object>> scheduleList = new ArrayList<>();
-                for (ScheduleResponseDTO s : targetSchedules) {
-                    contentBuilder.append(String.format("%s, %s. ",
-                            s.getStartAt().toLocalTime().toString(), s.getTitle()));
 
-                    Map<String, Object> sMap = new HashMap<>();
-                    sMap.put("title", s.getTitle());
-                    sMap.put("time", s.getStartAt().toLocalTime().toString());
-                    scheduleList.add(sMap);
+                if (targetSchedules.isEmpty()) {
+                    contentBuilder.append(String.format("%s 예정된 일정이 없습니다.", dayLabel));
+                } else {
+                    contentBuilder.append(String.format("%s 총 %d개의 일정이 있습니다. ", dayLabel, targetSchedules.size()));
+
+                    for (ScheduleResponseDTO s : targetSchedules) {
+                        contentBuilder.append(String.format("%s, %s. ",
+                                s.getStartAt().toLocalTime().toString(), s.getTitle()));
+
+                        Map<String, Object> sMap = new HashMap<>();
+                        sMap.put("title", s.getTitle());
+                        sMap.put("time", s.getStartAt().toLocalTime().toString());
+                        scheduleList.add(sMap);
+                    }
                 }
 
                 Map<String, Object> data = new HashMap<>();
