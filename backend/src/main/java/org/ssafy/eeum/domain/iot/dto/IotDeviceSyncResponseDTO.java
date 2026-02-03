@@ -17,5 +17,7 @@ public class IotDeviceSyncResponseDTO {
     @JsonProperty("serial_number")
     private String serialNumber;
 
+    private List<IotFamilyMemberDto> members;
+
     private List<IotSimpleDeviceInfoResponseDTO> devices;
 }

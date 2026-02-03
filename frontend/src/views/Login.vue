@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #ffffff 0%, var(--color-primary-soft) 100%);">
+  <div class="min-h-[100dvh] flex items-center justify-center" style="background: linear-gradient(135deg, #ffffff 0%, var(--color-primary-soft) 100%);">
     <div class="w-full max-w-md px-6 py-10">
       <div class="text-center mb-8">
         <div class="flex items-center justify-center mb-1">

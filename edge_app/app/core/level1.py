@@ -37,9 +37,9 @@ class Level1Params:
     aspect_abs_th: float = 1.2
     aspect_ratio_th: float = 0.55
 
-    # ⭐ 핵심: Level 0에서 10초 이상 정상 회복 못하면 Level 1 승격
-    sustain_s: float = 10.0  # 정지 상태 누적 시간
-    abnormal_timeout_s: float = 10.0  # Level 0 상태 타임아웃 (움직여도 10초면 Level 1)
+    # ⭐ 핵심: Level 0에서 일정 시간 이상 정상 회복 못하면 Level 1 승격
+    sustain_s: float = 20.0  # 정지 상태 누적 시간 (10s -> 20s)
+    abnormal_timeout_s: float = 30.0  # Level 0 상태 타임아웃 (10s -> 30s)
 
     # Recovery to NORMAL - 5초에서 3초로 변경 (너무 엄격한 조건은 독거 노인에게 맞지 않음)
     recover_s: float = 3.0
@@ -55,11 +55,11 @@ class Level1Params:
     # Partial body (Near camera)
     partial_min_y2: float = 0.95   # bbox y2가 이보다 크면 하단 잘림 의심
     partial_conf_th: float = 0.3   # 하체 키포인트 신뢰도 임계값
-    partial_vy_relax: float = 0.4  # 상반신만 보일 때 허용할 완화된 속도 계수 (비율)
+    partial_vy_relax: float = 0.6  # 상반신만 보일 때 허용할 완화된 속도 계수 (비율 상향: 0.4 -> 0.6)
 
     # Low Posture Persistence (Forced ABNORMAL entry for slow collapse)
     force_abnormal_aspect_th: float = 0.7  # 이 비율보다 낮으면 "매우 낮은 자세"로 간주
-    force_abnormal_frames: int = 15        # N프레임(약 0.5~1초) 이상 유지되면 즉시 위험 진입
+    force_abnormal_frames: int = 45        # N프레임(약 2~3초) 이상 유지되면 즉시 위험 진입 (15 -> 45)
 
 
 class Level1Engine:
@@ -99,6 +99,9 @@ class Level1Engine:
         
         # Low posture persistence counter
         self.low_posture_cnt = 0
+        
+        # Head drop continuity counter
+        self.head_drop_cnt = 0
 
     def reset_all(self):
         self.state = "NORMAL"
@@ -117,6 +120,7 @@ class Level1Engine:
         self.drop_hits.clear()
         self.aspect_hist.clear()
         self.low_posture_cnt = 0
+        self.head_drop_cnt = 0
 
     def _compute_baseline_aspect(self, ts: float) -> Optional[float]:
         # keep only baseline_window_s
@@ -213,14 +217,12 @@ class Level1Engine:
         # 0.2 미만이면 0점, 0.8 이상이면 100점
         score_qual = min(100.0, max(0.0, (avg_q - 0.2) / 0.6 * 100.0))
 
-        score_qual = min(100.0, max(0.0, (avg_q - 0.2) / 0.6 * 100.0))
-
         # 4. 근접 페널티 (Partial Penalty)
         partial_cnt = stats.get("partial_count", 0)
         ratio_partial = partial_cnt / cnt if cnt > 0 else 0.0
         penalty = 0.0
         if ratio_partial > 0.5:
-             # 절반 이상이 상반신만 보였다면 의심스러움. 점수 깎기
+             # 절반 이상이 상반신만 보였다면 의심스럽기 때문에 점수 차감
              penalty = 20.0 * ratio_partial
 
         # 가중치 합산
@@ -232,7 +234,7 @@ class Level1Engine:
             "score_signal": score_signal,
             "score_still": score_still,
             "score_qual": score_qual,
-            "stats": stats
+            "stats": stats.copy()  # 통계 복사
         }
         return float(final_score), detail
 
@@ -334,15 +336,63 @@ class Level1Engine:
         # 상반신 근접 여부 체크
         is_partial = self._check_partial_body(bbox, kps_list)
 
-        # 머리 위치 하강 여부 (Nose: 0)
+        # 머리 위치 하강 여부 (Nose: 0, Shoulders: 5, 6)
         head_down = False
         if self.prev_kps and kps_list:
-            curr_nose = next((k for k in kps_list if int(k.get("id", -1)) == 0), None)
+            
+            def get_kp(id):
+                return next((k for k in kps_list if int(k.get("id", -1)) == id), None)
+
+            curr_nose = get_kp(0)
             prev_nose = self.prev_kps.get(0)
+            
+            # --- 고개 흔들림/끄덕임 오탐지 방지 로직 ---
             if curr_nose and prev_nose:
-                # y값이 증가하면 아래로 이동한 것
-                if float(curr_nose["y"]) > float(prev_nose[1]) + 0.01:
+                ny, py = float(curr_nose["y"]), float(prev_nose[1])
+                nx, px = float(curr_nose["x"]), float(prev_nose[0])
+                
+                dy = ny - py  # +가 하강
+                dx = abs(nx - px)
+                
+                # 1. X/Y Motion Ratio: 좌우 흔들림(도리도리) 감지
+                # X축 이동이 Y축 이동보다 크면 고개 젓기일 확률 높음
+                is_shaking = dx > abs(dy) * 1.5
+                
+                # 2. Shoulder Consistency: 어깨 동기화 확인
+                # 고개만 숙이는(끄덕) 경우 어깨는 거의 움직이지 않음
+                is_nodding = False
+                curr_ls, curr_rs = get_kp(5), get_kp(6)
+                prev_ls, prev_rs = self.prev_kps.get(5), self.prev_kps.get(6)
+                
+                shoulder_dy_sum = 0.0
+                shoulder_cnt = 0
+                if curr_ls and prev_ls:
+                    shoulder_dy_sum += (float(curr_ls["y"]) - float(prev_ls[1]))
+                    shoulder_cnt += 1
+                if curr_rs and prev_rs:
+                    shoulder_dy_sum += (float(curr_rs["y"]) - float(prev_rs[1]))
+                    shoulder_cnt += 1
+                
+                if shoulder_cnt > 0:
+                    avg_s_dy = shoulder_dy_sum / shoulder_cnt
+                    # 코는 많이 내려가는데(dy > 0.02), 어깨는 제자리(< 0.005)거나 오히려 올라가면 끄덕임
+                    if dy > 0.02 and avg_s_dy < 0.005:
+                        is_nodding = True
+
+                # 종합 판정: 하강함 & 흔들림 아님 & 끄덕임 아님
+                # 임계값: 0.03 (기존 강화된 값 유지)
+                valid_drop = (dy > 0.03) and (not is_shaking) and (not is_nodding)
+                
+                # 3. Temporal Continuity: 연속성 확인 (3프레임 이상)
+                if valid_drop:
+                    self.head_drop_cnt += 1
+                else:
+                    self.head_drop_cnt = max(0, self.head_drop_cnt - 1)
+                
+                if self.head_drop_cnt >= 3:
                     head_down = True
+            else:
+                self.head_drop_cnt = 0
 
         # stillness (needs prev values; do before updating prev_ts/cx/cy)
         center_move, kp_move, is_still = self._compute_stillness(cx, cy, kps_list)
@@ -354,9 +404,9 @@ class Level1Engine:
 
         # ---- STATE MACHINE ----
         if self.state == "NORMAL":
-            # 1. 저자세 지속성 체크 (Low Posture Persistence)
             # 속도가 느려도, 자세가 매우 낮게 깔린 상태가 지속되면 위험으로 간주
-            if aspect < self.p.force_abnormal_aspect_th:
+            # 단, 근접 상황(is_partial)에서는 상반신만 보여 종횡비가 왜곡되므로 제외
+            if not is_partial and aspect < self.p.force_abnormal_aspect_th:
                 self.low_posture_cnt += 1
             else:
                 self.low_posture_cnt = 0
@@ -371,8 +421,9 @@ class Level1Engine:
             # (B) 상반신 근접 시 (Partial Body)
             elif is_partial:
                 relaxed_vy_th = self.p.vy_th * self.p.partial_vy_relax
-                # 속도가 아예 없지는 않으면서 머리가 내려가거나, 자세가 무너졌을 때
-                if (vy is not None and vy > relaxed_vy_th) and (head_down or posture_signal):
+                # 속도가 어느 정도 있으면서(relaxed_vy_th) 머리가 확실히 내려갔을 때만 진입
+                # 근접 상황에서는 aspect ratio 기반인 posture_signal은 오탐지가 많아 제외
+                if (vy is not None and vy > relaxed_vy_th) and head_down:
                     trigger = True
             # (C) 일반적인 경우 (Normal Distance)
             else:
@@ -381,7 +432,6 @@ class Level1Engine:
 
             if trigger:
                 self.state = "ABNORMAL"  # Level0
-                self.abnormal_start_ts = ts
                 self.abnormal_start_ts = ts
                 self.recover_acc_s = 0.0
                 self.still_acc_s = 0.0

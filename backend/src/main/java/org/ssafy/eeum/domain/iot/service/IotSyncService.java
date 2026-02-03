@@ -60,12 +60,18 @@ public class IotSyncService {
         List<Integer> deletedIds = new java.util.ArrayList<>();
         Map<Integer, Integer> addedMap = new HashMap<>();
 
+        List<org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto> members = getFamilyMembers(familyId);
+
         if ("image".equals(kind)) {
             List<MediaLog> logs = mediaLogRepository
                     .findByGroupIdAndIdGreaterThan(familyId, lastLogId);
             if (logs.isEmpty())
-                return IotSyncDto.builder().added(List.of()).deleted(List.of())
-                        .lastLogId(lastLogId).build();
+                return IotSyncDto.builder()
+                        .added(List.of())
+                        .deleted(List.of())
+                        .lastLogId(lastLogId)
+                        .members(members)
+                        .build();
 
             int maxLogId = lastLogId;
             for (var log : logs) {
@@ -97,14 +103,19 @@ public class IotSyncService {
                     .added(addedItems)
                     .deleted(deletedIds)
                     .lastLogId(maxLogId)
+                    .members(members)
                     .build();
 
         } else if ("voice".equals(kind)) {
             List<VoiceLog> logs = voiceLogRepository
                     .findByGroupIdAndIdGreaterThan(familyId, lastLogId);
             if (logs.isEmpty())
-                return IotSyncDto.builder().added(List.of()).deleted(List.of())
-                        .lastLogId(lastLogId).build();
+                return IotSyncDto.builder()
+                        .added(List.of())
+                        .deleted(List.of())
+                        .lastLogId(lastLogId)
+                        .members(members)
+                        .build();
 
             int maxLogId = lastLogId;
             for (var log : logs) {
@@ -130,6 +141,7 @@ public class IotSyncService {
                         .url(msg.getVoiceUrl() != null ? s3Service.getPresignedUrl(msg.getVoiceUrl()) : null)
                         .description(msg.getContent())
                         .takenAt(msg.getCreatedAt().toString())
+                        .userId(msg.getSender().getId())
                         .build());
             }
 
@@ -137,10 +149,29 @@ public class IotSyncService {
                     .added(addedItems)
                     .deleted(deletedIds)
                     .lastLogId(maxLogId)
+                    .members(members)
                     .build();
         }
 
         return null;
+    }
+
+    public List<org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto> getFamilyMembers(Integer familyId) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        return family.getSupporters().stream()
+                .map(supporter -> {
+                    org.ssafy.eeum.domain.auth.entity.User user = supporter.getUser();
+                    return org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto.builder()
+                            .userId(user.getId())
+                            .name(user.getName())
+                            .profileImageUrl(
+                                    user.getProfileImage() != null ? s3Service.getPresignedUrl(user.getProfileImage())
+                                            : null)
+                            .build();
+                })
+                .toList();
     }
 
     /**

@@ -43,23 +43,18 @@ class ServerClient:
         """
         try:
             url = f"{self.server_url}/api/iot/auth/pairing"
+            # 기본 하위 장치 목록
+            # TODO: 설정 파일이나 Env에서 가져오도록 개선 가능
+            child_devices = [
+                {"serial_number": device_id, "device_type": "JETSON"},
+                {"serial_number": "EEUM-R105", "device_type": "RPI"},
+                {"serial_number": "EEUM-E105-1", "device_type": "ESP32"}
+            ]
+
             payload = {
                 "pairing_code": pairing_code,
                 "master_serial": device_id,
-                "devices": [ # 함께 등록할 하위 기기 목록
-                        {
-                            "serial_number":"EEUM-J105",
-                            "device_type":"JETSON"
-                        },
-                        {
-                            "serial_number":"EEUM-R105",
-                            "device_type":"RPI"
-                        },
-                        {
-                            "serial_number":"EEUM-E105-1",
-                            "device_type":"ESP32"
-                        }
-                    ]
+                "devices": child_devices
             }
             resp = requests.post(url, json=payload, timeout=self.timeout)
             resp.raise_for_status()
