@@ -23,14 +23,14 @@
       </div>
  
       <!-- Card Footer -->
-      <div class="flex items-center justify-between border-t border-white/10 pt-4">
+      <div class="flex items-center justify-between border-t border-white/20 pt-4">
         <div class="flex items-center gap-2 text-[10px] font-bold">
-          <div class="w-1 h-1 rounded-full bg-emerald-400"></div>
+          <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
           {{ lastSyncTime }}
         </div>
-        <div class="flex items-center bg-white/10 px-2.5 py-1 rounded-lg group-hover:bg-white/20 transition-colors">
-          <span class="text-[10px] font-bold">상세 보기</span>
-          <span class="material-symbols-outlined text-[12px] ml-1">chevron_right</span>
+        <div class="flex items-center bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 group-hover:bg-white/20 transition-all duration-300 leading-none -mr-1">
+          <span class="text-[11px] font-black tracking-tight mt-[0.5px]">GMS 상세 분석</span>
+          <span class="material-symbols-outlined text-[16px] ml-1 -mr-1 opacity-80" style="font-variation-settings: 'wght' 500">chevron_right</span>
         </div>
       </div>
     </div>
