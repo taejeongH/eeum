@@ -1,5 +1,8 @@
 <template>
-  <header class="bg-white px-6 pt-[calc(1.25rem+var(--sat))] pb-3 shadow-sm relative z-30 transition-all duration-300">
+  <header
+  class="bg-white px-6 pt-[calc(1.25rem+var(--sat))] pb-3 shadow-sm
+         sticky top-0 z-[100]
+         transition-all duration-300">
     <!-- 상단 네비게이션 영역 -->
     <div class="flex items-center justify-between mb-2">
       
@@ -143,14 +146,14 @@
     </div>
 
     <!-- Toggle Button Container (Integrated with Header) -->
-    <div v-if="showProfiles" class="flex justify-center -mb-6 relative z-20">
+    <div v-if="showProfiles" class="flex justify-center -mb-3.5 relative z-20">
       <!-- Collapse Toggle Button -->
-      <div class="flex px-4 py-1 justify-center">
+      <div class="flex justify-center">
         <button 
           @click="isCollapsed = !isCollapsed"
-          class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-white shadow-sm border border-gray-100 text-[#1c140d] hover:bg-gray-50 transition gap-2"
+          class="flex w-14 cursor-pointer items-center justify-center overflow-hidden rounded-b-lg h-5 bg-white shadow-sm border-b border-x border-gray-100 text-[#1c140d] hover:bg-gray-50 transition gap-2"
         >
-           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform duration-300" :class="isCollapsed ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform transition-transform duration-300" :class="isCollapsed ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
           </svg>
         </button>

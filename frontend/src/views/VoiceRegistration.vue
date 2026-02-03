@@ -123,7 +123,7 @@ const voiceSamples = ref([
     { id: 2, text: "오늘 날씨가 참 좋네요. 산책이라도 다녀올까요?", isRecorded: false },
     { id: 3, text: "밥은 먹었니? 언제나 건강 챙기고 아프지 마라.", isRecorded: false },
     { id: 4, text: "사랑하는 우리 딸, 항상 응원한다.", isRecorded: false },
-    { id: 5, text: "도움이 필요하면 언제든 말해렴.", isRecorded: false },
+    { id: 5, text: "도움이 필요하면 언제든 말하렴.", isRecorded: false },
 ]);
 
 const selectedSample = ref(null);
