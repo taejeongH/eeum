@@ -145,12 +145,15 @@ const server = http.createServer((req, res) => {
                 ts: Date.now() / 1000,
                 seq: seq++,
                 item: {
-                    id: seq,
+                    id: 10 + seq,
                     url: imageUrl,
                     description: description,
-                    message: "오늘도 건강하고 행복한 하루 보내세요. 항상 사랑합니다!",
-                    takenAt: "2026-02-03",
-                    uploader: "테스트 도우미"
+                    takenAt: new Date().toISOString().split('T')[0],
+                    sender: {
+                        user_id: 7,
+                        name: "홍길동",
+                        profile_image_url: `https://i.pravatar.cc/150?u=7`
+                    }
                 },
                 reason: reason
             };
@@ -199,7 +202,34 @@ const server = http.createServer((req, res) => {
         }));
     }
 
-    else if (req.url.startsWith('/api/slideshow/')) {
+    else if (req.url === '/api/slideshow/play' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            const { interval_sec } = JSON.parse(body || '{}');
+            console.log(`[Mock] Slideshow PLAY (Interval: ${interval_sec}s)`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+        });
+    }
+
+    else if (req.url === '/api/slideshow/pause' && req.method === 'POST') {
+        console.log('[Mock] Slideshow PAUSE');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+    }
+
+    else if (req.url === '/api/slideshow/next' && req.method === 'POST') {
+        console.log('[Mock] Slideshow NEXT');
+        // In a real server, this would trigger a push to all clients.
+        // For mock, we just log it as the client handles local playlist logic mostly,
+        // OR we can force a new SSE event here if we tracked clients properly.
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+    }
+
+    else if (req.url === '/api/slideshow/prev' && req.method === 'POST') {
+        console.log('[Mock] Slideshow PREV');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
     }
