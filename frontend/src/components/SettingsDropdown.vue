@@ -10,6 +10,14 @@
           그룹 설정
         </router-link>
 
+        <router-link
+          v-if="familyId"
+          :to="{ name: 'DeviceManagement', params: { familyId } }"
+          class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-center"
+        >
+          기기 관리
+        </router-link>
+
         <a v-if="familyId" href="#" @click.prevent="emit('leave-group')" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 text-center">그룹 탈퇴</a>
       </div>
     </div>
@@ -36,7 +44,7 @@ const emit = defineEmits(['leave-group']);
 
 import { watch } from 'vue';
 watch(() => props.isRepresentative, (newVal) => {
-    console.log('SettingsDropdown: isRepresentative prop updated:', newVal, 'type:', typeof newVal);
+
 }, { immediate: true });
 </script>
 

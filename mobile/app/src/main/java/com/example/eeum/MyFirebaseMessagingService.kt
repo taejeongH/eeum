@@ -55,7 +55,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             MainActivity.emitNotification(notificationId, type, familyId, title, body, groupName)
         }
         
-        sendNotification(title, body, type, notificationId, route, familyId, groupName)
+        // 앱이 포그라운드 상태가 아닐 때만 시스템 알림 표시
+        if (!MainActivity.isAppInForeground) {
+            sendNotification(title, body, type, notificationId, route, familyId, groupName)
+        } else {
+            Log.d(TAG, "App is in foreground - skipping system notification")
+        }
     }
 
     private fun sendRegistrationToServer(token: String) {

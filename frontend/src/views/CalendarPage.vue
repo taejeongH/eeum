@@ -1,22 +1,14 @@
 <template>
   <div class="bg-[#fcfcfc] text-slate-800 min-h-screen flex flex-col pb-20">
-    <header class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-6 pb-4 transiton-all duration-300">
-      <div class="flex items-center mb-2" :class="isSearchOpen ? 'justify-end' : 'justify-between'">
-        <button v-if="!isSearchOpen" @click="$router.push('/home')" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
+      <template #actions>
+        <button @click="toggleSearch" class="p-2 -mr-2 text-[#1c140d] hover:bg-gray-100 rounded-full transition-colors">
+          <IconClose v-if="isSearchOpen" />
+          <IconSearch v-else />
         </button>
-        <div class="flex gap-2">
-          <button class="p-2 text-slate-600">
-            <span class="material-symbols-outlined">menu</span>
-          </button>
-          <!-- Search Toggle -->
-          <button @click="toggleSearch" class="p-2 text-slate-600">
-            <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
-          </button>
-        </div>
-      </div>
+      </template>
+    </MainHeader>
+    <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-2 pb-4 transiton-all duration-300 border-b border-slate-100">
       
       <!-- Search Input -->
       <div v-if="isSearchOpen" class="mb-4 animate-fade-in">
@@ -24,16 +16,16 @@
       </div>
 
       <!-- Month Navigation -->
-      <div v-if="!isSearchOpen" class="mt-2 text-center flex items-center justify-center gap-4 animate-fade-in">
+      <div v-if="!isSearchOpen" class="mt-0 text-center flex items-center justify-center gap-4 animate-fade-in">
         <button @click="prevMonth" class="text-slate-400 hover:text-slate-600">
             <span class="material-symbols-outlined">chevron_left</span>
         </button>
-        <h1 class="text-3xl font-bold text-slate-900">{{ month }}월</h1>
+        <h1 @click="resetToToday" class="text-3xl font-bold text-slate-900 cursor-pointer active:scale-95 transition-transform">{{ month }}월</h1>
         <button @click="nextMonth" class="text-slate-400 hover:text-slate-600">
             <span class="material-symbols-outlined">chevron_right</span>
         </button>
       </div>
-    </header>
+    </div>
     <main class="flex-1 px-4 relative">
       <div v-if="!isSearchOpen" class="calendar-grid text-center mb-6 select-none">
         <div class="py-2 text-sm font-semibold text-red-400">일</div>
@@ -125,19 +117,22 @@
         </div>
       </div>
       <div class="fixed bottom-32 right-6 z-30">
-        <button @click="$router.push({ name: 'CalendarCreate', params: { familyId: familyId } })" class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform">
+        <button @click="$router.push({ name: 'CalendarCreate', params: { familyId: familyId }, query: { date: selectedDate } })" class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform">
           <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0, 'wght' 600">add</span>
         </button>
       </div>
     </main>
-    <BottomNav />
+    <BottomNav v-if="!isModalOpen" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router'; // Added useRoute
+import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
+import IconSearch from '@/components/icons/IconSearch.vue';
+import IconClose from '@/components/icons/IconClose.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family'; 
 
@@ -145,6 +140,11 @@ const router = useRouter();
 const route = useRoute(); // Instance
 const familyStore = useFamilyStore();
 const familyId = ref(route.params.familyId); // Reactive familyId
+const isModalOpen = ref(false);
+
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen;
+};
 
 const currentDate = ref(new Date());
 const events = ref([]);
@@ -158,7 +158,7 @@ const fetchCalendarEvents = async () => {
 
     if (!targetFamilyId) return;
     
-    console.log("Fetching calendar events for family:", targetFamilyId);
+
     try {
         const data = await scheduleService.getMonthlySchedules(targetFamilyId, year.value, month.value);
         events.value = data;
@@ -288,6 +288,9 @@ const selectDate = (day) => {
     // Auto-switch month if clicking prev/next days (Optional UX improvement)
     if (day.type === 'prev') prevMonth();
     if (day.type === 'next') nextMonth();
+    
+    // Save state
+    sessionStorage.setItem('calendar_last_date', selectedDate.value);
 };
 
 const toggleSearch = () => {
@@ -309,6 +312,14 @@ const nextMonth = () => {
     currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1);
 };
 
+const resetToToday = () => {
+    const today = new Date();
+    currentDate.value = today;
+    selectedDate.value = toLocalDateString(today);
+    sessionStorage.setItem('calendar_last_date', selectedDate.value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 // Check if a day is today
 const isToday = (day) => {
     const today = new Date();
@@ -321,6 +332,17 @@ onMounted(async () => {
     // 1. Prefer route param if available
     if (route.params.familyId) {
         familyId.value = route.params.familyId;
+    }
+    
+    // Restore state if available
+    const savedDate = sessionStorage.getItem('calendar_last_date');
+    if (savedDate) {
+        // Simple check if it's a valid date string
+        if (/^\d{4}-\d{2}-\d{2}$/.test(savedDate)) {
+            selectedDate.value = savedDate;
+            // Also update view month to match the selected date
+            currentDate.value = new Date(savedDate); 
+        }
     }
     // 2. Fallback: If no route param but store has selection (e.g. direct nav bug?) -> Correct URL
     else if (familyStore.selectedFamily?.id) {

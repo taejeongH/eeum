@@ -1,45 +1,100 @@
 <template>
-  <div class="px-7 mb-8">
-    <!-- Main Card -->
-    <div class="bg-[#e76f51] rounded-2xl p-6 text-white relative shadow-lg overflow-hidden transform transition hover:scale-[1.01]">
-        <!-- Floating Heart Decoration -->
-        <div class="absolute top-4 right-4 animate-pulse">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white opacity-80" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-            </svg>
-        </div>
+  <div class="px-6 mb-10">
+    <!-- Compact Health Summary Card -->
+    <div 
+      @click="goToReport"
+      class="relative bg-gradient-to-br from-[#f3532b] to-[#ff7e5f] rounded-3xl p-5 text-white shadow-lg overflow-hidden active:scale-[0.98] transition-all cursor-pointer group"
+    >
+      <!-- Subtle Pattern Background -->
+      <div class="absolute -top-12 -right-12 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
       
-      <!-- Pill Shape Tag -->
-      <div class="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full inline-block mb-3">
-        <span class="text-xs font-semibold text-white tracking-wide">Daily Check</span>
+      <!-- Card Header -->
+      <div class="flex items-center gap-2 mb-3 opacity-90">
+        <span class="material-symbols-outlined text-[14px]">analytics</span>
+        <span class="text-[10px] font-bold tracking-wider uppercase">오늘의 건강 요약</span>
       </div>
-
-      <h2 class="text-2xl font-bold mb-2">할머니는 오늘 건강해요.</h2>
-      <p class="text-white/90 text-sm mb-6 leading-relaxed">
-        All medications have been taken on schedule.
-      </p>
-
-      <div class="flex justify-between items-center border-t border-white/20 pt-4 mt-2">
-        <div class="flex items-center text-xs text-white/90 font-medium">
-          <span class="w-2 h-2 rounded-full bg-green-400 mr-2 shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
-          Last checked: 10 mins ago
+ 
+      <!-- Main Status -->
+      <div class="mb-5">
+        <p class="text-white/80 text-[11px] font-medium mb-1">{{ dependentName || '할머니' }}님의 상태</p>
+        <h2 class="text-xl font-black leading-tight tracking-tight">
+          "{{ healthStore.currentReport?.summary || '데이터 분석 중...' }}"
+        </h2>
+      </div>
+ 
+      <!-- Card Footer -->
+      <div class="flex items-center justify-between border-t border-white/10 pt-4">
+        <div class="flex items-center gap-2 text-[10px] font-bold">
+          <div class="w-1 h-1 rounded-full bg-emerald-400"></div>
+          {{ lastSyncTime }}
         </div>
-        <button @click="goToReport" class="bg-[#d65a3d] hover:bg-[#c34e32] active:bg-[#b0422a] text-white text-xs font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
-          상세 보기
-        </button>
+        <div class="flex items-center bg-white/10 px-2.5 py-1 rounded-lg group-hover:bg-white/20 transition-colors">
+          <span class="text-[10px] font-bold">상세 보기</span>
+          <span class="material-symbols-outlined text-[12px] ml-1">chevron_right</span>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
+import { useHealthStore } from '@/stores/health';
+import api from '@/services/api';
 
 const router = useRouter();
 const familyStore = useFamilyStore();
+const healthStore = useHealthStore();
+
+const dependentName = ref('');
+
+const lastSyncTime = computed(() => {
+    const metric = healthStore.latestMetrics;
+    const time = metric?.updatedAt || metric?.createdAt || metric?.recordDate;
+    if (!time) return '최근 데이터 없음';
+    
+    try {
+        const date = new Date(time);
+        return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 업데이트';
+    } catch (e) {
+        return '방금 전 업데이트';
+    }
+});
+
+const fetchData = async () => {
+    try {
+        await familyStore.fetchFamilies();
+        const familyId = familyStore.selectedFamily?.id;
+        if (!familyId) return;
+
+        // Try to get dependent name from the family store if already populated by backend
+        const currentFamily = familyStore.families.find(f => f.id === familyId);
+        if (currentFamily?.dependentName) {
+            dependentName.value = currentFamily.dependentName;
+        } else {
+            // Fallback: Fetch members if not in simple list
+            const membersResponse = await api.get(`/families/${familyId}/members`);
+            const members = membersResponse.data;
+            const dependent = members.find(m => m.isDependent);
+            if (dependent) {
+                dependentName.value = dependent.name;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch data:", e);
+    }
+};
+
+onMounted(() => {
+    fetchData();
+});
 
 const goToReport = () => {
-    router.push('/health-detail');
+    router.push({ path: '/health-detail', query: { scrollTo: 'analysis' } });
 };
 </script>
+
+<style scoped>
+</style>

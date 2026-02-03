@@ -5,7 +5,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLDelete;
+import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
@@ -16,7 +16,6 @@ import java.time.LocalDate;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "media_assets")
-@SQLDelete(sql = "UPDATE media_assets SET deleted_at = NOW(), is_synced = false WHERE id = ?")
 public class MediaAsset extends BaseEntity {
 
     @Id

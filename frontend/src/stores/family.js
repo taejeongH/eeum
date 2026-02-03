@@ -61,7 +61,7 @@ export const useFamilyStore = defineStore('family', () => {
     const family = families.value.find(f => String(f.id) === String(familyId));
     if (family) {
       selectFamily(family);
-      console.log('familyStore: Switched to family:', familyId);
+
     }
   }
 
@@ -71,6 +71,51 @@ export const useFamilyStore = defineStore('family', () => {
     localStorage.removeItem('selectedFamilyId');
   }
 
+  async function createFamily(data) {
+    isLoading.value = true;
+    try {
+      const response = await api.post('/families', data);
+      await fetchFamilies(); // 리스트 갱신
+
+      // 방금 만든 가족으로 자동 선택
+      if (response.data && response.data.id) {
+        selectFamilyById(response.data.id);
+      } else if (families.value.length > 0) {
+        selectFamily(families.value[families.value.length - 1]);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to create family:', error);
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function joinFamily(inviteCode) {
+    isLoading.value = true;
+    try {
+      const response = await api.post('/families/join', inviteCode, {
+        headers: { 'Content-Type': 'text/plain' },
+        transformRequest: [(data) => data]
+      });
+      await fetchFamilies(); // 리스트 갱신
+
+      // 방금 가입한 가족으로 자동 선택
+      if (response.data && response.data.id) {
+        selectFamilyById(response.data.id);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Failed to join family:', error);
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   return {
     families,
     selectedFamily,
@@ -78,6 +123,8 @@ export const useFamilyStore = defineStore('family', () => {
     fetchFamilies,
     selectFamily,
     selectFamilyById,
-    clearFamily
+    clearFamily,
+    createFamily,
+    joinFamily
   };
 });

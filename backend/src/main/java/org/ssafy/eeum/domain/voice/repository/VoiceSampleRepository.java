@@ -9,4 +9,6 @@ public interface VoiceSampleRepository extends JpaRepository<VoiceSample, Intege
     List<VoiceSample> findAllByUserId(Integer userId);
 
     List<VoiceSample> findAllByUserIdOrderByCreatedAtDesc(Integer userId);
+
+    long countByUserId(Integer userId);
 }

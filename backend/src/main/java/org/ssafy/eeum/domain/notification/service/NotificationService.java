@@ -16,6 +16,7 @@ import org.ssafy.eeum.domain.notification.repository.NotificationRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.fcm.FcmService;
+import org.ssafy.eeum.global.infra.fcm.FcmUnregisteredTokenException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,102 +32,112 @@ import java.util.Set;
 @Slf4j
 public class NotificationService {
 
-    private final NotificationRepository notificationRepository;
-    private final NotificationDeliveryRepository notificationDeliveryRepository;
-    private final FamilyRepository familyRepository;
-    private final UserRepository userRepository;
-    private final FcmService fcmService;
+        private final NotificationRepository notificationRepository;
+        private final NotificationDeliveryRepository notificationDeliveryRepository;
+        private final FamilyRepository familyRepository;
+        private final UserRepository userRepository;
+        private final FcmService fcmService;
 
-    @Transactional
-    public Long createNotification(Integer familyId, String title, String message, String type) {
-        Family family = familyRepository.findById(familyId)
-                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+        @Transactional
+        public Long createNotification(Integer familyId, String title, String message, String type, Integer relatedId) {
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-        Notification notification = Notification.builder()
-                .family(family)
-                .title(title)
-                .message(message)
-                .type(type)
-                .build();
+                Notification notification = Notification.builder()
+                                .family(family)
+                                .title(title)
+                                .message(message)
+                                .type(type)
+                                .relatedId(relatedId)
+                                .build();
 
-        notificationRepository.save(notification);
-        return notification.getId();
-    }
+                notificationRepository.save(notification);
+                return notification.getId();
+        }
 
-    @Transactional
-    public void sendNotification(Long notificationId, Integer targetUserId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
+        @Transactional
+        public void sendNotification(Long notificationId, Integer targetUserId) {
+                Notification notification = notificationRepository.findById(notificationId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
 
-        User user = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                User user = userRepository.findById(targetUserId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        NotificationDelivery delivery = NotificationDelivery.builder()
-                .notification(notification)
-                .user(user)
-                .channel("FCM")
-                .build();
+                NotificationDelivery delivery = NotificationDelivery.builder()
+                                .notification(notification)
+                                .user(user)
+                                .channel("FCM")
+                                .build();
 
-        notificationDeliveryRepository.save(delivery);
+                notificationDeliveryRepository.save(delivery);
 
-            String token = user.getFcmToken();
-            if (token != null && !token.isEmpty()) {
-                String route = null;
-                Integer familyId = notification.getFamily().getId();
-                String groupName = notification.getFamily().getGroupName();
-                
-                log.info("FCM Debug: Notification Type from DB: '{}'", notification.getType());
-                
-                if ("EMERGENCY".equalsIgnoreCase(notification.getType())) {
-                    route = "/families/" + familyId + "/emergency";
-                } else if ("ACTIVITY".equalsIgnoreCase(notification.getType())) {
-                    route = "/families/" + familyId + "/activity";
+                String token = user.getFcmToken();
+                if (token != null && !token.isEmpty()) {
+                        String route = null;
+                        Integer familyId = notification.getFamily().getId();
+                        String groupName = notification.getFamily().getGroupName();
+
+                        log.info("FCM Debug: Notification Type from DB: '{}'", notification.getType());
+
+                        if ("EMERGENCY".equalsIgnoreCase(notification.getType())) {
+                                route = "/families/" + familyId + "/emergency";
+                        } else if ("ACTIVITY".equalsIgnoreCase(notification.getType())) {
+                                route = "/families/" + familyId + "/activity";
+                        }
+
+                        log.info("FCM Debug: Calculated Route: '{}'", route);
+
+                        try {
+                                fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(),
+                                                notification.getType(), notification.getId(), route, familyId,
+                                                groupName, notification.getRelatedId());
+                                delivery.updateSentAt();
+                        } catch (FcmUnregisteredTokenException e) {
+                                log.warn("FCM token unregistered for user {}. Clearing token.", targetUserId);
+                                user.updateFcmToken(null);
+                        }
                 }
-                
-                log.info("FCM Debug: Calculated Route: '{}'", route);
-                
-                fcmService.sendMessageTo(token, notification.getTitle(), notification.getMessage(), notification.getType(), notification.getId(), route, familyId, groupName);
-                delivery.updateSentAt();
-            }
-    }
+        }
 
-    @Transactional
-    public void markAsRead(Long notificationId, Integer userId) {
-        log.info("Processing markAsRead: NotificationID={}, UserID={}", notificationId, userId);
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
+        @Transactional
+        public void markAsRead(Long notificationId, Integer userId) {
+                log.info("Processing markAsRead: NotificationID={}, UserID={}", notificationId, userId);
+                Notification notification = notificationRepository.findById(notificationId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        NotificationDelivery delivery = notificationDeliveryRepository.findByUserAndNotification(user, notification)
-                .orElseThrow(() -> new CustomException(ErrorCode.DELIVERY_NOT_FOUND));
-        
-        log.info("Found Delivery: ID={}, Current IsRead={}", delivery.getId(), delivery.isRead());
+                NotificationDelivery delivery = notificationDeliveryRepository
+                                .findByUserAndNotification(user, notification)
+                                .orElseThrow(() -> new CustomException(ErrorCode.DELIVERY_NOT_FOUND));
 
-        delivery.markAsRead();
-        log.info("Updated Delivery IsRead to true");
-    }
+                log.info("Found Delivery: ID={}, Current IsRead={}", delivery.getId(), delivery.isRead());
 
-    public boolean isAnyRead(Long notificationId) {
-        return notificationDeliveryRepository.existsByNotificationIdAndIsReadTrue(notificationId);
-    }
+                delivery.markAsRead();
+                log.info("Updated Delivery IsRead to true");
+        }
 
-    public List<NotificationHistoryResponseDto> getNotificationHistory(Integer familyId, Integer userId) {
-        LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
-        java.util.List<Notification> notifications = notificationRepository.findByFamilyIdAndCreatedAtAfterOrderByCreatedAtDesc(familyId, oneWeekAgo);
-        
-        return notifications.stream()
-                .map(notification -> {
-                    
-                    return NotificationHistoryResponseDto.builder()
-                            .id(notification.getId())
-                            .title(notification.getTitle())
-                            .message(notification.getMessage())
-                            .type(notification.getType())
-                            .createdAt(notification.getCreatedAt())
-                            .build();
-                })
-                .collect(java.util.stream.Collectors.toList());
-    }
+        public boolean isAnyRead(Long notificationId) {
+                return notificationDeliveryRepository.existsByNotificationIdAndIsReadTrue(notificationId);
+        }
+
+        public List<NotificationHistoryResponseDto> getNotificationHistory(Integer familyId, Integer userId) {
+                LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
+                java.util.List<Notification> notifications = notificationRepository
+                                .findByFamilyIdAndCreatedAtAfterOrderByCreatedAtDesc(familyId, oneWeekAgo);
+
+                return notifications.stream()
+                                .map(notification -> {
+
+                                        return NotificationHistoryResponseDto.builder()
+                                                        .id(notification.getId())
+                                                        .title(notification.getTitle())
+                                                        .message(notification.getMessage())
+                                                        .type(notification.getType())
+                                                        .createdAt(notification.getCreatedAt())
+                                                        .build();
+                                })
+                                .collect(java.util.stream.Collectors.toList());
+        }
 }

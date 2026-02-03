@@ -8,6 +8,7 @@ import { useNotificationStore } from './stores/notification'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
 import GlobalEmergencyModal from '@/components/common/GlobalEmergencyModal.vue'
 import GlobalNotificationModal from '@/components/common/GlobalNotificationModal.vue'
+import LoadingOverlay from '@/components/common/LoadingOverlay.vue'
 
 const userStore = useUserStore()
 const emergencyStore = useEmergencyStore()
@@ -19,12 +20,12 @@ const router = useRouter()
 const syncFcmToken = async (retryCount = 0) => {
     // 로그인이 안되어 있으면 동기화 건너뜀 (인증 후 watcher가 다시 트리거함)
     if (!userStore.isAuthenticated) {
-        console.log("FCM: Not authenticated, skipping sync.");
+
         return;
     }
 
     if (retryCount > 10) { // 최대 10번 (10초) 시도
-        console.log("FCM: Max retry reached.");
+
         return;
     }
 
@@ -32,13 +33,13 @@ const syncFcmToken = async (retryCount = 0) => {
         try {
             const fcmToken = window.AndroidBridge.getFcmToken();
             if (fcmToken && fcmToken.length > 0) {
-                console.log("FCM: Token found:", fcmToken.substring(0, 10) + "...");
+
                 const { updateFcmToken } = await import('@/services/api');
                 const response = await updateFcmToken(fcmToken);
-                console.log("✅ FCM Token Synced Successfully:", response.status);
+
                 return; // 성공 시 종료
             } else {
-                console.log("FCM: Token is empty or null from bridge.");
+
             }
         } catch (e) {
             console.error("FCM: Sync failed. Status:", e.response?.status);
@@ -53,7 +54,7 @@ const syncFcmToken = async (retryCount = 0) => {
 // [NEW] 로그인 성공 시 FCM 토큰 동기화 및 멤버 정보 트리거
 watch(() => userStore.isAuthenticated, async (isAuth) => {
   if (isAuth) {
-    console.log("FCM: User authenticated, triggering sync and data fetch...");
+
     syncFcmToken();
     await familyStore.fetchFamilies();
   }
@@ -62,7 +63,7 @@ watch(() => userStore.isAuthenticated, async (isAuth) => {
 // [NEW] Native에서 직접 토큰을 밀어넣어줄 때 호출되는 함수
 window.onFcmTokenReceived = (fcmToken) => {
   if (fcmToken && userStore.isAuthenticated) {
-    console.log("FCM: Received from native, syncing...");
+
     import('@/services/api').then(({ updateFcmToken }) => {
       updateFcmToken(fcmToken);
     });
@@ -70,19 +71,19 @@ window.onFcmTokenReceived = (fcmToken) => {
 };
 
   window.handlePushRoute = (route) => {
-    console.log("FCM handlePushRoute called with:", route);
+
     if (route) {
       // 만약 응급 상황 경로라면 모달을 띄웁니다.
       if (route.includes('/emergency')) {
-        console.log("FCM: Emergency detected, opening modal...");
+
         emergencyStore.open();
         return;
       }
       
       try {
-      console.log("FCM: Current path before push:", router.currentRoute.value.path);
+
       router.push(route);
-      console.log("FCM: router.push executed for:", route);
+
     } catch (e) {
       console.error("FCM: router.push failed:", e);
     }
@@ -105,7 +106,7 @@ onMounted(async () => {
     if (window.AndroidBridge && window.AndroidBridge.saveAccessToken) {
         window.AndroidBridge.saveAccessToken(token);
     }
-    console.log("✅ 새로운 토큰 저장 성공!");
+
 
     // 3. [핵심] 쿼리 파라미터를 지우고 프로필 페이지로 부드럽게 이동
     // window.location.href 대신 router.replace를 써야 흐름이 안 끊깁니다.
@@ -123,9 +124,9 @@ onMounted(async () => {
           }
           try {
               await userStore.fetchUser();
-              console.log("✅ 유저 정보 로드 완료");
+
               await familyStore.fetchFamilies();
-              console.log("✅ 가족 정보 로드 완료");
+
               
               // 유효한 토큰이면 홈으로 이동 (로그인 페이지에 갇히지 않도록)
               if (router.currentRoute.value.path === '/login' || router.currentRoute.value.path === '/') {
@@ -158,6 +159,15 @@ onMounted(async () => {
               }
           } catch (e) {
              console.error("❌ Native Token Restore Failed", e);
+             // [FIX] 복구 실패 시 잘못된 토큰이 로컬에 남지 않도록 삭제
+             localStorage.removeItem('accessToken');
+             localStorage.removeItem('refreshToken');
+             if (window.AndroidBridge) {
+                 if (window.AndroidBridge.logout) window.AndroidBridge.logout();
+                 if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear
+             }
+             router.replace('/login');
+             return; // Stop further retries
           }
       }
 
@@ -176,7 +186,6 @@ onMounted(async () => {
       try {
         const data = window.AndroidBridge.consumeNotificationId();
         if (data) {
-           console.log("✅ Consumed Notification Data from Native:", data);
            const parts = data.split('|');
            const id = parts[0];
            const type = parts[1];
@@ -216,12 +225,11 @@ onMounted(async () => {
   window.onNativeNotification = async (notificationId, type, familyId, title, message, groupName) => {
       if (!notificationId) return;
 
-      console.log('FCM: Received ID:', notificationId, 'Type:', type, 'FamilyId:', familyId, 'Message:', message, 'Group:', groupName);
       
       try {
           // 1. 필수 데이터 선행 로드 (가족 정보가 없으면 로딩 대기)
           if (familyStore.families.length === 0) {
-              console.log('FCM: Families not loaded, fetching first...');
+
               await familyStore.fetchFamilies();
           }
 
@@ -234,7 +242,6 @@ onMounted(async () => {
 
           // 3. 유형별 UI 동작 분기 (그룹 전환 후 수행)
           if (type === 'EMERGENCY' || type === 'FALL') {
-              console.log('FCM: Emergency detected, opening modal with message:', message);
               
               // Robust Search Logic (Fallback)
               let currentFamily = familyStore.selectedFamily;
@@ -257,7 +264,9 @@ onMounted(async () => {
               }
 
               emergencyStore.open({
-                  groupName: groupName || currentFamily?.groupName || '가족 그룹',
+                  eventId: notificationId,
+                  familyId: familyId,
+                  groupName: groupName || currentFamily?.name || '가족 그룹',
                   // Use message directly if available (e.g. "Grandma fell"), otherwise computed name
                   dependentName: message ? message : (dependent ? (dependent.relationship || dependent.name) : '대상자 정보 없음'), 
                   type: 'FALL',
@@ -266,12 +275,12 @@ onMounted(async () => {
                   messageContent: message || title // Pass fully just in case
               });
           } else if (['ACTIVITY', 'OUTING', 'RETURN'].includes(type)) {
-              console.log('FCM: Activity detected, opening notification modal...');
+
               
               // [User Request] 활동/외출 알림 시 현재 화면 위에 모달 표시
               notificationStore.openModal({
                   type: type,
-                  groupName: groupName || familyStore.selectedFamily?.groupName || '우리 가족',
+                  groupName: groupName || familyStore.selectedFamily?.name || '우리 가족',
                   dependentName: '피부양자', // 실제 데이터가 있다면 개선 가능
                   message: type === 'OUTING' ? '외출이 감지되었습니다.' : (type === 'RETURN' ? '귀가가 확인되었습니다.' : '활동이 감지되었습니다.')
               });
@@ -303,7 +312,7 @@ onMounted(async () => {
               // 실시간 목록 업데이트 (최신 데이터 보장)
               if (currentFamilyId) {
                   await notificationStore.fetchHistory(currentFamilyId, notificationId);
-                  console.log('FCM: History refreshed for family:', currentFamilyId);
+
               }
           }
       } catch (e) {
@@ -314,6 +323,41 @@ onMounted(async () => {
   // 초기 실행
   setTimeout(() => checkNotificationFromNative(), 500);
   setTimeout(() => syncFcmToken(), 1000);
+
+  // [RESTORED] Global Health Sync Callback
+  window.onReceiveAllHealthData = async (dataString) => {
+
+    try {
+        if (!dataString || dataString === 'null' || dataString === '') {
+            const hs = (await import('@/stores/health')).useHealthStore();
+            hs.setSyncStatus(false, '건강 데이터를 가져오지 못했습니다.');
+            return;
+        }
+        const healthStore = (await import('@/stores/health')).useHealthStore();
+        const { mapSamsungHealthToBackend } = await import('@/utils/healthMapper');
+        const { default: healthService } = await import('@/services/healthService');
+        const { useFamilyStore } = await import('@/stores/family');
+        const familyStore = useFamilyStore();
+        
+        if (!familyStore.selectedFamily) await familyStore.fetchFamilies();
+        const familyId = familyStore.selectedFamily?.id;
+        if (!familyId) throw new Error('그룹 정보를 찾을 수 없습니다.');
+
+        healthStore.setSyncStatus(true, '데이터 처리 중...');
+        const mappedData = mapSamsungHealthToBackend(dataString);
+        if (!mappedData) throw new Error('데이터 변환에 실패했습니다.');
+
+        await healthService.saveHealthMetrics(familyId, [mappedData]);
+        await Promise.all([
+          healthStore.fetchLatestMetrics(familyId),
+          healthStore.fetchDailyReport(familyId, new Date().toISOString().split('T')[0])
+        ]);
+        healthStore.setSyncStatus(false, '성공적으로 동기화되었습니다.');
+    } catch (e) {
+        const hs = (await import('@/stores/health')).useHealthStore();
+        hs.setSyncStatus(false, '동기화 오류: ' + (e.message || 'Error'));
+    }
+  };
 });
 </script>
 
@@ -323,6 +367,7 @@ onMounted(async () => {
     <GlobalConfirmModal />
     <GlobalEmergencyModal />
     <GlobalNotificationModal />
+    <LoadingOverlay />
   </div>
 </template>
 

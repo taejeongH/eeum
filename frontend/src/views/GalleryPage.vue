@@ -2,28 +2,24 @@
   <div class="bg-background-light min-h-screen text-[#1c140d] pb-24 relative">
     
     <!-- Refined Header -->
-    <header class="sticky top-0 z-30 bg-background-light/80 backdrop-blur-md px-4 pt-4 pb-4 transition-colors duration-200 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <button @click="$router.push({ name: 'HomePage' })" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <svg class="w-6 h-6 text-[#1c140d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 class="text-xl font-bold tracking-tight">가족 갤러리</h1>
-      </div>
-      <div class="flex items-center gap-1">
-        <EeumDatePicker v-model="selectedDateProxy">
-          <template #trigger>
-            <button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
-              <span class="material-symbols-outlined">calendar_today</span>
-            </button>
-          </template>
-        </EeumDatePicker>
-        <button class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d]">
-          <span class="material-symbols-outlined">tune</span>
-        </button>
-      </div>
-    </header>
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
+      <template #actions>
+        <div class="flex items-center gap-1 -mr-2">
+          <EeumDatePicker v-model="selectedDateProxy">
+            <template #trigger>
+              <button class="p-2 rounded-full hover:bg-gray-50 text-[#1c140d] transition-colors">
+                <IconCalendar />
+              </button>
+            </template>
+          </EeumDatePicker>
+          <button class="p-2 rounded-full hover:bg-gray-50 text-[#1c140d] transition-colors">
+            <IconFilter />
+          </button>
+        </div>
+      </template>
+    </MainHeader>
+    
+
 
     <main class="space-y-6">
       <!-- Recently Added (Swiper) -->
@@ -57,7 +53,7 @@
           class="recent-swiper"
         >
           <swiper-slide v-for="(photo, index) in recentPhotos" :key="photo.photoId || index">
-            <div class="photo-card relative group overflow-hidden rounded-2xl bg-black/5">
+            <div @click="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
               <!-- Blurred Background for Fill -->
               <img :src="photo.displayUrl" class="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30" aria-hidden="true" />
               
@@ -79,7 +75,9 @@
       <!-- Family Albums Grid -->
       <section class="px-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold leading-tight tracking-tight text-[#1c140d]">가족 앨범</h3>
+          <h3 class="text-lg font-bold leading-tight tracking-tight text-[#1c140d]">
+            {{ familyStore.selectedFamily?.name || '우리 가족' }} 앨범
+          </h3>
         </div>
         <div class="grid grid-cols-3 gap-x-3 gap-y-6">
           <!-- Dynamic Albums (from API) -->
@@ -123,18 +121,30 @@
     </button>
     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload" />
     
-    <BottomNav />
+    <ImagePreviewModal 
+      :is-open="showPreviewModal"
+      :image-src="previewUrl"
+      @close="handleUploadCancel"
+      @confirm="handleUploadConfirm"
+    />
+
+    <BottomNav v-if="!isModalOpen && !showPreviewModal" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
+import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
+import ImagePreviewModal from '@/components/gallery/ImagePreviewModal.vue';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
-import { getPhotos, uploadFile } from '@/services/albumService';
+import { getPhotos } from '@/services/albumService';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
+import { usePhotoUpload } from '@/composables/usePhotoUpload';
+import IconCalendar from '@/components/icons/IconCalendar.vue';
+import IconFilter from '@/components/icons/IconFilter.vue';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -145,11 +155,30 @@ import 'swiper/css/effect-creative';
 const modules = [EffectCreative];
 
 const router = useRouter();
+const route = useRoute();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 const photos = ref([]);
-const fileInput = ref(null);
-const isUploading = ref(false);
+const isModalOpen = ref(false);
+
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen;
+};
+
+// Use Shared Upload Logic
+const {
+  fileInput,
+  previewUrl,
+  showPreviewModal,
+  isUploading,
+  triggerFileInput,
+  handleFileUpload,
+  handleUploadConfirm,
+  handleUploadCancel
+} = usePhotoUpload(async () => {
+    // Callback on success
+    await fetchAlbumPhotos();
+});
 
 const selectedDateProxy = computed({
     get: () => '',
@@ -243,10 +272,15 @@ const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
 
 const fetchAlbumPhotos = async () => {
+    // URL의 familyId와 store의 selectedFamily 동기화
+    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
+        familyStore.selectFamilyById(route.params.familyId);
+    }
+
     if (!familyStore.selectedFamily) return;
     try {
         const response = await getPhotos(familyStore.selectedFamily.id);
-        console.log("getPhotos raw response:", response);
+
         
         let rawPhotos = [];
         // Checking for different possible structures of response
@@ -275,14 +309,12 @@ const fetchAlbumPhotos = async () => {
             };
         });
         
-        console.log("Processed Photos:", photos.value);
+
 
     } catch (error) {
         console.error("Failed to fetch photos:", error);
     }
 };
-
-// ... (triggerFileInput same)
 
 const navigateToAlbum = (album) => {
   const query = {};
@@ -297,30 +329,12 @@ const navigateToAlbum = (album) => {
   });
 };
 
-const triggerFileInput = () => {
-    fileInput.value.click();
+const goToPhotoDetail = (photo) => {
+    router.push({
+        name: 'PhotoDetail',
+        params: { photoId: photo.photoId || photo.id }
+    });
 };
-
-const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file || !familyStore.selectedFamily) return;
-
-    isUploading.value = true;
-    try {
-        await uploadFile(familyStore.selectedFamily.id, file);
-        // Refresh list
-        await fetchAlbumPhotos();
-        await modalStore.openAlert('사진이 업로드되었습니다.');
-    } catch (error) {
-        await modalStore.openAlert('사진 업로드에 실패했습니다.');
-        console.error(error);
-    } finally {
-        isUploading.value = false;
-        event.target.value = ''; // Reset input
-    }
-};
-
-
 
 onMounted(() => {
     if (familyStore.selectedFamily) {

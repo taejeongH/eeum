@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { MOCK_USER } from '../mocks/data';
+import { useUiStore } from '../stores/ui';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -14,15 +15,30 @@ const apiClient = axios.create({
 // [중요] 모든 요청에 토큰을 자동으로 붙여주는 인터셉터입니다.
 apiClient.interceptors.request.use(
   (config) => {
-    // localStorage 또는 sessionStorage에서 토큰 확인
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    // [NEW] 전역 로딩 시작
+    const uiStore = useUiStore();
+    uiStore.startLoading();
+
+    // 1. localStorage 또는 sessionStorage에서 토큰 확인
+    let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+    // ... (rest of the code follows)
+
+    // 2. [NEW] 모바일 앱: AndroidBridge에서 토큰 가져오기 (fallback)
+    if (!token && window.AndroidBridge?.getAccessToken) {
+      const nativeToken = window.AndroidBridge.getAccessToken();
+      if (nativeToken && nativeToken !== 'null' && nativeToken.length > 0) {
+        token = nativeToken;
+        // 다음 요청을 위해 localStorage에 동기화
+        localStorage.setItem('accessToken', nativeToken);
+      }
+    }
 
     if (token) {
       // 반드시 Bearer 뒤에 한 칸 공백이 있어야 합니다.
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.log("토큰이 없습니다.");
     }
+
     return config;
   },
   (error) => {
@@ -47,6 +63,9 @@ const processQueue = (error, token = null) => {
 
 apiClient.interceptors.response.use(
   (response) => {
+    // [NEW] 전역 로딩 종료
+    const uiStore = useUiStore();
+    uiStore.finishLoading();
     return response;
   },
   async (error) => {
@@ -119,15 +138,20 @@ apiClient.interceptors.response.use(
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
 
-        if (window.AndroidBridge && window.AndroidBridge.logout) {
-          window.AndroidBridge.logout();
+        if (window.AndroidBridge) {
+          if (window.AndroidBridge.logout) window.AndroidBridge.logout();
+          if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear token
         }
-        window.location.href = '/login';
+        window.location.href = '#/login';
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
       }
     }
+
+    // [NEW] 전역 로딩 종료
+    const uiStore = useUiStore();
+    uiStore.finishLoading();
 
     return Promise.reject(error);
   }
@@ -190,5 +214,86 @@ export const login = (credentials) => {
   return apiClient.post('/auth/login', credentials);
 };
 
+
 export default apiClient;
 
+export const getNotificationHistory = async (familyId) => {
+  try {
+    const response = await apiClient.get(`/notifications/families/${familyId}/history`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch notification history for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const getFallVideo = async (eventId) => {
+  try {
+    const response = await apiClient.get(`/falls/${eventId}/video`);
+    return response.data; // Expected: { videoUrl: "..." }
+  } catch (error) {
+    console.error(`Failed to fetch fall video for event ${eventId}:`, error);
+    throw error;
+  }
+};
+
+export const getFamilyDetails = async (familyId) => {
+  try {
+    const response = await apiClient.get(`/families/${familyId}/details`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch family details for ${familyId}:`, error);
+    throw error;
+  }
+};
+
+// IoT Device Management APIs
+export const generatePairingCode = async (familyId) => {
+  try {
+    const response = await apiClient.post(`/families/${familyId}/iot/pair/code`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to generate pairing code for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const getIotDevices = async (familyId) => {
+  try {
+    const response = await apiClient.get(`/families/${familyId}/devices`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch IoT devices for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const registerIotDevice = async (familyId, deviceData) => {
+  try {
+    const response = await apiClient.post(`/families/${familyId}/devices`, deviceData);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to register IoT device for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const updateIotDevice = async (familyId, deviceId, updateData) => {
+  try {
+    const response = await apiClient.patch(`/families/${familyId}/devices/${deviceId}`, updateData);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to update IoT device ${deviceId}:`, error);
+    throw error;
+  }
+};
+
+export const deleteIotDevice = async (familyId, deviceId) => {
+  try {
+    const response = await apiClient.delete(`/families/${familyId}/devices/${deviceId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to delete IoT device ${deviceId}:`, error);
+    throw error;
+  }
+};

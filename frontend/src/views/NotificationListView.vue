@@ -107,7 +107,7 @@ const filters = [
 // (컴포넌트가 재사용되는 경우 onMounted가 다시 호출되지 않기 때문)
 watch(() => route.params.familyId, async (newFamilyId) => {
   if (newFamilyId) {
-    console.log('NotificationListView: Family changed or mounted, fetching history:', newFamilyId);
+
     await notificationStore.fetchHistory(newFamilyId);
   }
 }, { immediate: true });

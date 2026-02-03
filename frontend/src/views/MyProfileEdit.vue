@@ -341,7 +341,7 @@ const submitProfile = async () => {
     await userStore.fetchUser();
     
     if (isInitialSetup.value) {
-      router.push('/voice-sample');
+      router.push({ name: 'VoiceRegistration', query: { flow: 'initial' } });
     } else {
       // Redirect to Member Detail Page (e.g., /members/4/7)
       const familyId = familyStore.selectedFamily?.id;

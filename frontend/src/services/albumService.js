@@ -30,13 +30,13 @@ export const updatePhoto = (photoId, photoData) => {
 
 // Helper to handle full upload flow
 // Helper to handle full upload flow
-export const uploadFile = async (familyId, file) => {
+export const uploadFile = async (familyId, file, description) => {
     try {
         // 1. Get Presigned URL
         // Method: GET /api/album/presigned-url
         // Query: fileName, contentType
         const presignedRes = await getPresignedUrl(file.name, file.type);
-        console.log("Presigned URL Response:", presignedRes.data);
+
 
         // Expected Response: { url: "...", fileName: "album/uuid..." }
         // Adjust extraction based on actual wrapper (data.data or data.result etc if exists)
@@ -72,10 +72,10 @@ export const uploadFile = async (familyId, file) => {
         const metadata = {
             storageUrl: storageFileName,
             takenAt: new Date().toISOString().split('T')[0],
-            description: file.name
+            description: description || file.name // Use provided description or fallback to filename
         };
 
-        console.log("Saving metadata:", metadata); // Debug log
+
 
         await savePhotoMetadata(familyId, metadata);
 

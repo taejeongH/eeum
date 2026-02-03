@@ -33,7 +33,21 @@ public class VoiceSample extends BaseEntity {
     @Column(name = "duration_sec", nullable = false)
     private Double durationSec;
 
+    @Column(name = "nickname")
+    private String nickname;
+
+    @Column(name = "test_audio_path")
+    private String testAudioPath;
+
     public void updateSamplePath(String newPath) {
         this.samplePath = newPath;
+    }
+
+    public void updateTestAudioPath(String path) {
+        this.testAudioPath = path;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
     }
 }

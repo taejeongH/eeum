@@ -14,7 +14,9 @@
           </svg>
         </button>
         <div class="flex flex-col">
-          <h2 class="text-[#1c140d] text-xl font-bold leading-tight tracking-[-0.015em]">가족 앨범</h2>
+          <h2 class="text-[#1c140d] text-xl font-bold leading-tight tracking-[-0.015em]">
+            {{ albumTitle }}
+          </h2>
           <p class="text-xs text-[#9c7349] font-medium">{{ photos.length }}개 항목 • 가족 공유</p>
         </div>
       </div>
@@ -87,6 +89,21 @@
         </div>
       </div>
     </div>
+    
+    <!-- Upload FAB (Only show when not in selection mode) -->
+    <button v-if="!isSelectionMode" @click="triggerFileInput" class="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform z-30">
+      <span v-if="!isUploading" class="material-symbols-outlined text-3xl">add_photo_alternate</span>
+      <span v-else class="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
+    </button>
+    <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload" />
+
+    <ImagePreviewModal 
+      :is-open="showPreviewModal"
+      :image-src="previewUrl"
+      @close="handleUploadCancel"
+      @confirm="handleUploadConfirm"
+    />
+
   </div>
 </template>
 
@@ -97,6 +114,8 @@ import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto } from '@/services/albumService';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
+import ImagePreviewModal from '@/components/gallery/ImagePreviewModal.vue';
+import { usePhotoUpload } from '@/composables/usePhotoUpload';
 
 const route = useRoute();
 const router = useRouter();
@@ -105,6 +124,21 @@ const modalStore = useModalStore();
 const allPhotos = ref([]); // Store all fetched photos
 const photos = ref([]); // Store filtered photos
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
+
+// Use Shared Upload Logic
+const {
+  fileInput,
+  previewUrl,
+  showPreviewModal,
+  isUploading,
+  triggerFileInput,
+  handleFileUpload,
+  handleUploadConfirm,
+  handleUploadCancel
+} = usePhotoUpload(async () => {
+    // Callback on success
+    await fetchPhotos();
+});
 
 const filterDateLocal = computed({
     get: () => route.query.date || '',
@@ -121,10 +155,16 @@ const filterDateLocal = computed({
 // Update title based on query
 const albumTitle = computed(() => {
     const uploader = route.query.uploader;
-    return uploader ? `${uploader}의 앨범` : '가족 앨범';
+    const groupName = familyStore.selectedFamily?.name || '우리 가족';
+    return uploader ? `${uploader}의 앨범` : `${groupName} 앨범`;
 });
 
 const fetchPhotos = async () => {
+    // URL의 familyId와 store의 selectedFamily 동기화
+    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
+        familyStore.selectFamilyById(route.params.familyId);
+    }
+
     if (!familyStore.selectedFamily) return;
     try {
         const response = await getPhotos(familyStore.selectedFamily.id);
@@ -197,8 +237,11 @@ const handlePhotoClick = (photo) => {
     if (isSelectionMode.value) {
         togglePhotoSelection(photo);
     } else {
-        // Future: Open lightbox or detail view
-        console.log("View photo:", photo);
+        // Navigate to detail page
+        router.push({
+            name: 'PhotoDetail',
+            params: { photoId: photo.photoId || photo.id }
+        });
     }
 };
 

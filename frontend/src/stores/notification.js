@@ -54,7 +54,7 @@ export const useNotificationStore = defineStore('notification', () => {
 
                     // [NEW] expectedId가 있는데 목록에 없다면 (레이스 컨디션), 1초 뒤 한 번 더 시도
                     if (expectedId && !notifications.value.some(n => String(n.id) === String(expectedId))) {
-                        console.log(`FCM Store: Expected ID ${expectedId} not found, retrying in 1s...`);
+
                         await new Promise(resolve => setTimeout(resolve, 1000));
 
                         const retryTimestamp = new Date().getTime();

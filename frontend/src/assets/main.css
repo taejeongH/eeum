@@ -13,6 +13,12 @@
   --color-primary-light: #ec856b;
   --color-primary-soft: #fde8e3;
 
+  /* Safe Area Insets */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
+
   /* Emergency Color */
   --color-emergency: #dc2626;
   --color-emergency-dark: #b91c1c;

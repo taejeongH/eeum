@@ -12,6 +12,7 @@ import { useRouter } from 'vue-router';
 import { logout } from '@/services/api';
 import { useFamilyStore } from '@/stores/family';
 import { useGroupSetupStore } from '@/stores/groupSetup';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 const userStore = useUserStore();

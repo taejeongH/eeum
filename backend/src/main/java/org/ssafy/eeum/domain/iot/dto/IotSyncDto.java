@@ -10,6 +10,7 @@ public class IotSyncDto {
     private List<SyncItem> added;
     private List<Integer> deleted;
     private Integer lastLogId;
+    private List<IotFamilyMemberDto> members;
 
     @Getter
     @Builder
@@ -18,5 +19,6 @@ public class IotSyncDto {
         private String url;
         private String description; // content for voice
         private String takenAt; // or createdAt
+        private Integer userId;
     }
 }

@@ -66,7 +66,7 @@ public class AlbumService {
 
     // 2. 가족별 사진 목록 조회
     public List<AlbumResponseDTO> getPhotos(Integer familyId) {
-        return albumRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId).stream()
+        return albumRepository.findAllByFamilyId(familyId).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
@@ -112,18 +112,15 @@ public class AlbumService {
         List<Integer> syncedIds = new ArrayList<>();
 
         for (MediaAsset asset : unsyncedAssets) {
-            if (asset.getDeletedAt() != null) {
-                // 삭제된 경우 ID만 전송
-                deletedIds.add(asset.getId());
-            } else {
-                // 추가 혹은 수정된 경우 전체 정보 전송
-                addedItems.add(AlbumSyncItemResponseDTO.builder()
-                        .id(asset.getId())
-                        .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
-                        .description(asset.getDescription())
-                        .takenAt(asset.getTakenAt())
-                        .build());
-            }
+            // 하드 델리트 환경에서는 unsynced인데 DB에 있으면 추가/수정된 것임.
+            // 삭제된 내역은 별도의 Log를 사용하거나 sync logic을 고도화해야 함.
+            // 현재 요구사항에 맞춰 물리적 삭제로 진행하므로 deletedAt 체크 제거.
+            addedItems.add(AlbumSyncItemResponseDTO.builder()
+                    .id(asset.getId())
+                    .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
+                    .description(asset.getDescription())
+                    .takenAt(asset.getTakenAt())
+                    .build());
             syncedIds.add(asset.getId());
         }
 

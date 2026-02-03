@@ -2,10 +2,14 @@ package org.ssafy.eeum.domain.schedule.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
+import org.ssafy.eeum.domain.iot.entity.IotDevice;
+import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
+import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.schedule.dto.ScheduleRequestDTO;
 import org.ssafy.eeum.domain.schedule.dto.ScheduleResponseDTO;
 import org.ssafy.eeum.domain.auth.entity.User;
@@ -15,6 +19,7 @@ import org.ssafy.eeum.domain.schedule.entity.Schedule;
 import org.ssafy.eeum.domain.schedule.repository.ScheduleRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import org.ssafy.eeum.global.infra.redis.RedisService;
 import org.ssafy.eeum.global.util.CalendarUtils;
 
@@ -41,9 +46,9 @@ public class ScheduleService {
     private final FamilyRepository familyRepository;
     private final UserRepository userRepository;
     private final RedisService redisService;
-    private final org.ssafy.eeum.domain.iot.service.IotSyncService iotSyncService;
-    private final org.ssafy.eeum.global.infra.mqtt.MqttService mqttService;
-    private final org.ssafy.eeum.domain.iot.repository.IotDeviceRepository iotDeviceRepository;
+    private final IotSyncService iotSyncService;
+    private final MqttService mqttService;
+    private final IotDeviceRepository iotDeviceRepository;
 
     // 월간 일정 조회 (캐시 적용)
     public List<ScheduleResponseDTO> getMonthlySchedules(Integer familyId, int year, int month, String category,
@@ -82,8 +87,7 @@ public class ScheduleService {
             // 1. 해당 날짜에 예외(수정/삭제) 일정이 있는지 확인
             Optional<Schedule> exceptionSchedule = scheduleRepository.findAll().stream()
                     .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
-                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate)
-                            && s.getDeletedAt() == null)
+                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
                     .findFirst();
 
             if (exceptionSchedule.isPresent()) {
@@ -358,8 +362,7 @@ public class ScheduleService {
 
             Schedule schedule = scheduleRepository.findAll().stream()
                     .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
-                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate)
-                            && s.getDeletedAt() == null)
+                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
                     .findFirst()
                     .orElseGet(() -> {
                         Schedule parent = scheduleRepository.findById(parentId)
@@ -564,62 +567,68 @@ public class ScheduleService {
         }
     }
 
-    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 8 * * *")
+    @Transactional
+    @Scheduled(cron = "0 0 8 * * *")
     public void sendDailyScheduleAlarm() {
-        LocalDate today = LocalDate.now();
-        LocalDateTime start = today.atStartOfDay();
-        LocalDateTime end = today.atTime(LocalTime.MAX);
-        YearMonth ym = YearMonth.from(today);
+        sendScheduleAlarmForDate(LocalDate.now(), "오늘");
+    }
+
+    @Transactional
+    @Scheduled(cron = "0 0 20 * * *")
+    public void sendNextDayScheduleAlarm() {
+        sendScheduleAlarmForDate(LocalDate.now().plusDays(1), "내일");
+    }
+
+    private void sendScheduleAlarmForDate(LocalDate targetDate, String dayLabel) {
+        YearMonth ym = YearMonth.from(targetDate);
 
         // 모든 가족 그룹 순회
         List<Family> families = familyRepository.findAll();
 
         for (Family family : families) {
             try {
-                // 해당 가족의 오늘 일정 계산
-                // calculateMonthlySchedules는 한 달 치를 계산하므로 비효율적일 수 있지만,
-                // 로직 재사용 측면에서는 가장 확실함. (반복, 음력 등 처리)
-                // 성능 최적화가 필요하다면 범위 조회를 줄여서 호출해야 함.
+                // 해당 가족의 대상 날짜 일정 계산
                 List<ScheduleResponseDTO> monthlySchedules = calculateMonthlySchedules(
                         family.getId(), ym, null, null, null, null);
 
-                // 오늘 날짜 일정만 필터링
-                List<ScheduleResponseDTO> todaySchedules = monthlySchedules.stream()
-                        .filter(s -> s.getStartAt().toLocalDate().equals(today))
+                // 대상 날짜 일정만 필터링
+                List<ScheduleResponseDTO> targetSchedules = monthlySchedules.stream()
+                        .filter(s -> s.getStartAt().toLocalDate().equals(targetDate))
                         .toList();
-
-                if (todaySchedules.isEmpty()) {
-                    continue;
-                }
 
                 // 알림 메시지 구성
                 StringBuilder contentBuilder = new StringBuilder();
-                contentBuilder.append(String.format("오늘 총 %d개의 일정이 있습니다. ", todaySchedules.size()));
-
                 List<Map<String, Object>> scheduleList = new ArrayList<>();
-                for (ScheduleResponseDTO s : todaySchedules) {
-                    contentBuilder.append(String.format("%s, %s. ",
-                            s.getStartAt().toLocalTime().toString(), s.getTitle()));
 
-                    Map<String, Object> sMap = new HashMap<>();
-                    sMap.put("title", s.getTitle());
-                    sMap.put("time", s.getStartAt().toLocalTime().toString());
-                    scheduleList.add(sMap);
+                if (targetSchedules.isEmpty()) {
+                    contentBuilder.append(String.format("%s 예정된 일정이 없습니다.", dayLabel));
+                } else {
+                    contentBuilder.append(String.format("%s 총 %d개의 일정이 있습니다. ", dayLabel, targetSchedules.size()));
+
+                    for (ScheduleResponseDTO s : targetSchedules) {
+                        contentBuilder.append(String.format("%s, %s. ",
+                                s.getStartAt().toLocalTime().toString(), s.getTitle()));
+
+                        Map<String, Object> sMap = new HashMap<>();
+                        sMap.put("title", s.getTitle());
+                        sMap.put("time", s.getStartAt().toLocalTime().toString());
+                        scheduleList.add(sMap);
+                    }
                 }
 
                 Map<String, Object> data = new HashMap<>();
                 data.put("events_for_today", scheduleList);
 
                 // IoT 기기로 전송
-                List<org.ssafy.eeum.domain.iot.entity.IotDevice> devices = iotDeviceRepository
-                        .findAllByFamilyId(family.getId());
+                List<IotDevice> devices = iotDeviceRepository.findAllByFamilyId(family.getId());
 
-                for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
+                for (IotDevice device : devices) {
                     mqttService.sendAlarm(device.getSerialNumber(), "schedule", contentBuilder.toString(), data);
                 }
 
             } catch (Exception e) {
-                log.error("Failed to send daily schedule alarm for family {}: {}", family.getId(), e.getMessage());
+                log.error("Failed to send {} schedule alarm for family {}: {}", dayLabel, family.getId(),
+                        e.getMessage());
             }
         }
     }

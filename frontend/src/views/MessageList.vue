@@ -1,36 +1,19 @@
 <template>
   <div class="min-h-screen" style="background-color: var(--bg-page);">
-    <header class="bg-white border-b border-gray-200">
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
+      <template #actions>
+         <button 
+           @click="toggleSearch"
+           class="p-2 rounded-full hover:bg-gray-100 transition-colors text-[#1c140d] -mr-2"
+         >
+           <IconClose v-if="isSearchOpen" />
+           <IconSearch v-else />
+         </button>
+      </template>
+    </MainHeader>
+    
+    <div class="bg-white border-b border-gray-200">
       <div class="max-w-2xl mx-auto px-4 py-3">
-        <!-- Top Row -->
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <button 
-              @click="goBack"
-              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            
-            <div class="flex items-center gap-2">
-              <h1 v-if="!familyLoading" class="text-lg font-bold text-gray-800">{{ groupName || '우리 가족' }}</h1>
-            </div>
-          </div>
-          
-          <div class="flex items-center gap-2">
-            <button 
-              @click="openSearch"
-              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <!-- Search Bar (Expanded) -->
         <div v-if="isSearchOpen" class="mb-4">
           <div class="relative">
@@ -40,16 +23,16 @@
               placeholder="보낸 사람, 내용 검색"
               class="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-full text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#e76f51]"
             />
-            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
+            <div class="absolute left-3 top-2.5 text-gray-400">
+               <IconSearch class="w-5 h-5" />
+            </div>
+            <!-- Close button for search input not strictly needed if we have toggle in header, but keeping clear button logic -->
             <button 
-              @click="closeSearch"
+              v-if="searchQuery"
+              @click="searchQuery = ''"
               class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
+               <IconClose class="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -68,7 +51,7 @@
           <p class="text-sm text-gray-500">따뜻한 마음을 전해주세요!</p>
         </div>
       </div>
-    </header>
+    </div>
 
     <main class="max-w-2xl mx-auto px-4 py-6 pb-20">
       <div v-if="loading" class="flex justify-center items-center py-20">
@@ -227,20 +210,14 @@
               </div>
             </div>
 
-            <!-- TTS Settings -->
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-4">
-              <div class="flex items-center gap-2 text-sm text-gray-600">
-                <svg class="w-4 h-4 text-[#e76f51]" fill="currentColor" viewBox="0 0 24 24">
+            <!-- TTS Guidance Message -->
+            <div class="bg-blue-50 rounded-xl p-3 mb-4">
+              <div class="flex items-center gap-2 text-sm text-blue-700">
+                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
                 </svg>
-                <span class="font-medium">TTS 음성 읽기</span>
+                <span class="font-medium">이 메세지는 TTS로 보내집니다</span>
               </div>
-              <button
-                @click="showTTSSettings = true"
-                class="text-xs px-3 py-1 rounded-lg bg-orange-50 text-[#e76f51] font-medium hover:bg-orange-100 transition-colors"
-              >
-                설정
-              </button>
             </div>
 
             <!-- Send Button -->
@@ -257,89 +234,6 @@
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
-            </button>
-          </div>
-        </div>
-      </transition>
-
-      <!-- TTS Settings Modal -->
-      <transition name="fade">
-        <div 
-          v-if="showTTSSettings"
-          class="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4"
-          @click.self="showTTSSettings = false"
-        >
-          <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-xl font-bold text-gray-800">TTS 설정</h3>
-              <button 
-                @click="showTTSSettings = false"
-                class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Voice Selection -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">음성</label>
-              <div class="relative">
-                <button
-                  @click="showVoiceDropdown = !showVoiceDropdown"
-                  class="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#e76f51] text-left flex items-center justify-between"
-                >
-                  <span>{{ getVoiceLabel(ttsSettings.voice) }}</span>
-                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-                <div v-if="showVoiceDropdown" class="eeum-dropdown">
-                  <div
-                    v-for="option in voiceOptions"
-                    :key="option.value"
-                    @click="selectVoice(option.value)"
-                    class="eeum-dropdown-item"
-                    :class="{ 'bg-orange-50': ttsSettings.voice === option.value }"
-                  >
-                    {{ option.label }}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Speed Control -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">속도: {{ ttsSettings.speed }}x</label>
-              <input 
-                v-model="ttsSettings.speed"
-                type="range" 
-                min="0.5" 
-                max="2" 
-                step="0.1"
-                class="w-full accent-[#e76f51]"
-              >
-            </div>
-
-            <!-- Volume Control -->
-            <div class="mb-6">
-              <label class="block text-sm font-medium text-gray-700 mb-2">음량: {{ ttsSettings.volume }}%</label>
-              <input 
-                v-model="ttsSettings.volume"
-                type="range" 
-                min="0" 
-                max="100" 
-                step="5"
-                class="w-full accent-[#e76f51]"
-              >
-            </div>
-
-            <button
-              @click="showTTSSettings = false"
-              class="w-full py-3 bg-[#e76f51] text-white font-bold rounded-xl hover:bg-[#d65d42] transition-colors"
-            >
-              적용하기
             </button>
           </div>
         </div>
@@ -371,7 +265,7 @@
     </main>
 
     <!-- Bottom Navigation -->
-    <BottomNav />
+    <BottomNav v-if="!isModalOpen" />
   </div>
 </template>
 
@@ -383,11 +277,19 @@ import { familyService } from '@/services/familyService'
 import { useFamilyStore } from '@/stores/family'
 import BottomNav from '@/components/layout/BottomNav.vue'
 import { useModalStore } from '@/stores/modal'
+import MainHeader from '@/components/MainHeader.vue'
+import IconSearch from '@/components/icons/IconSearch.vue'
+import IconClose from '@/components/icons/IconClose.vue'
 
 const router = useRouter()
 const route = useRoute()
 const modalStore = useModalStore()
 const familyStore = useFamilyStore()
+
+const isModalOpen = ref(false)
+const handleModalStateChange = (isOpen) => {
+  isModalOpen.value = isOpen
+}
 
 const messages = ref([])
 const loading = ref(false)
@@ -412,19 +314,6 @@ const charCount = ref(0)
 const sending = ref(false)
 const selectedMessage = ref(null)
 const groupName = ref('')
-const showTTSSettings = ref(false)
-const ttsSettings = ref({
-  voice: 'female1',
-  speed: 1.0,
-  volume: 80
-})
-const showVoiceDropdown = ref(false)
-const voiceOptions = [
-  { value: 'female1', label: '구수~한 손자 목소리' },
-  { value: 'female2', label: '우리 큰아들 목소리' },
-  { value: 'male1', label: '며느래기 목소리' },
-  { value: 'male2', label: '우리 아들 목소리' }
-]
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/'
 
@@ -486,18 +375,16 @@ const filteredMessages = computed(() => {
 })
 
 // Methods
-const openSearch = () => {
-  isSearchOpen.value = true
-}
-
-const closeSearch = () => {
-  isSearchOpen.value = false
-  searchQuery.value = ''
+const toggleSearch = () => {
+  isSearchOpen.value = !isSearchOpen.value
+  if (!isSearchOpen.value) {
+    searchQuery.value = ''
+  }
 }
 
 const openMessageModal = () => {
   showMessageModal.value = true
-  newMessage.value = { content: '', enableTTS: true }
+  newMessage.value = { content: '' }
   charCount.value = 0
   // Reset transform if reused
   if (messageSheet.value) messageSheet.value.style.transform = ''
@@ -505,7 +392,7 @@ const openMessageModal = () => {
 
 const closeMessageModal = () => {
   showMessageModal.value = false
-  newMessage.value = { content: '', enableTTS: true }
+  newMessage.value = { content: '' }
   charCount.value = 0
   if (messageSheet.value) messageSheet.value.style.transform = ''
 }
@@ -586,16 +473,6 @@ const formatFullDate = (timestamp) => {
   const minutes = String(date.getMinutes()).padStart(2, '0')
   
   return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`
-}
-
-const getVoiceLabel = (value) => {
-  const option = voiceOptions.find(opt => opt.value === value)
-  return option ? option.label : '음성 선택'
-}
-
-const selectVoice = (value) => {
-  ttsSettings.value.voice = value
-  showVoiceDropdown.value = false
 }
 
 const fetchMessages = async () => {

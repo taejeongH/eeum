@@ -12,7 +12,7 @@
       <!-- Navigation Bar -->
       <div class="relative z-30 flex justify-between items-start p-5 pt-6 pb-2">
         <button @click="$router.back()" class="p-2 -ml-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
-          <span class="material-symbols-outlined">arrow_back</span>
+          <IconBack />
         </button>
         <h1 class="text-xl font-bold text-white tracking-tight pt-1.5">실시간 건강 정보</h1>
         <div class="flex items-center gap-2">
@@ -171,7 +171,7 @@
       </div>
 
       <!-- 2. AI Health Analysis (NOW AT BOTTOM) -->
-      <div class="space-y-6 pt-2">
+      <div id="ai-analysis" class="space-y-6 pt-2">
           <div class="flex items-center justify-between px-2">
              <h3 class="text-lg font-bold text-slate-900">AI 건강 도우미 분석</h3>
              <button 
@@ -262,10 +262,14 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, reactive, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useHealthStore } from '@/stores/health';
 import healthService from '@/services/healthService';
 import BottomNav from '@/components/layout/BottomNav.vue';
+import IconBack from '@/components/icons/IconBack.vue';
+
+const route = useRoute();
 
 const familyStore = useFamilyStore();
 const healthStore = useHealthStore();
@@ -364,7 +368,7 @@ const fetchAllData = () => {
 
 // Callback from Android
 window.onReceiveAllHealthData = (dataString) => {
-    console.log("Received Full Health Data:", dataString);
+
     syncLoading.value = false;
     
     if (!dataString || dataString === "null") {
@@ -397,7 +401,7 @@ window.onReceiveAllHealthData = (dataString) => {
             activeMinutes: data.active_minutes
         };
         
-        console.log("Mapped Data for Backend:", mappedData);
+
         healthStore.latestMetrics = mappedData; // Update store immediately for UI feedback
         syncMessage.value = '데이터를 서버에 저장 중...';
         uploadToBackend(mappedData);
@@ -413,9 +417,9 @@ const uploadToBackend = async (mappedData) => {
     if (!groupId) return;
 
     try {
-        console.log("Health Data Uploading for group:", groupId, mappedData);
+
         const response = await healthService.saveHealthMetrics(groupId, [mappedData]);
-        console.log("Upload success:", response);
+
         syncMessage.value = '정상적으로 동기화되었습니다.';
         fetchLatestData(); // Refresh after upload
         setTimeout(() => syncMessage.value = '', 3000);
@@ -436,6 +440,19 @@ window.onReceiveSteps = window.onReceiveAllHealthData;
 window.onReceiveSleep = window.onReceiveAllHealthData;
 
 onMounted(async () => {
+    if (route.query.scrollTo === 'analysis') {
+        const checkElement = setInterval(() => {
+            const el = document.getElementById('ai-analysis');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+                clearInterval(checkElement);
+            }
+        }, 100);
+        setTimeout(() => clearInterval(checkElement), 3000); // safety clear
+    } else {
+        window.scrollTo(0, 0);
+    }
+
     if (!familyStore.selectedFamily) {
         await familyStore.fetchFamilies();
     }

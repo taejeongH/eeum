@@ -92,7 +92,7 @@ public class AuthService {
         if (users.isEmpty()) {
             throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
         }
-        
+
         // 첫 번째 사용자의 이메일 반환 (마스킹 처리)
         // 예: test@example.com -> te**@example.com
         String email = users.get(0).getEmail();
@@ -137,14 +137,16 @@ public class AuthService {
     }
 
     private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return email;
+        if (email == null || !email.contains("@"))
+            return email;
         int atIndex = email.indexOf("@");
-        if (atIndex <= 2) return email; // 너무 짧으면 그대로
+        if (atIndex <= 2)
+            return email; // 너무 짧으면 그대로
 
         String id = email.substring(0, atIndex);
         String domain = email.substring(atIndex);
-        
-        if(id.length() > 2) {
+
+        if (id.length() > 2) {
             return id.substring(0, 2) + "**" + domain;
         }
         return id + "**" + domain;
@@ -198,10 +200,12 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN); // ErrorCode 확인 필요
         }
 
-        // 2. Access Token에서 User email 가져오기 (만료되었어도 claim은 파싱 가능 혹은 Refresh Token에서 가져오기)
+        // 2. Access Token에서 User email 가져오기 (만료되었어도 claim은 파싱 가능 혹은 Refresh Token에서
+        // 가져오기)
         // Refresh Token도 JWT이므로 바로 파싱 가능
         org.springframework.security.core.Authentication authentication = jwtProvider.getAuthentication(refreshToken);
-        org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails = (org.ssafy.eeum.global.auth.model.CustomUserDetails) authentication.getPrincipal();
+        org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails = (org.ssafy.eeum.global.auth.model.CustomUserDetails) authentication
+                .getPrincipal();
         String email = userDetails.getEmail();
 
         // 3. Redis에서 Refresh Token 저장 확인
@@ -211,8 +215,10 @@ public class AuthService {
         }
 
         // 4. 새로운 토큰 생성
-        String newAccessToken = jwtProvider.createAccessToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
-        String newRefreshToken = jwtProvider.createRefreshToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
+        String newAccessToken = jwtProvider.createAccessToken(userDetails.getId(), userDetails.getName(),
+                userDetails.getRole());
+        String newRefreshToken = jwtProvider.createRefreshToken(userDetails.getId(), userDetails.getName(),
+                userDetails.getRole());
 
         // 5. Refresh Token Rotation (Redis 업데이트)
         redisTemplate.opsForValue().set(RT_PREFIX + email, newRefreshToken, 7, TimeUnit.DAYS);

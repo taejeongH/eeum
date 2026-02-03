@@ -4,9 +4,7 @@
     <header class="sticky top-0 z-10 bg-background-light/80 backdrop-blur-md px-6 pt-12 pb-4">
       <div class="flex items-center">
         <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
-          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <IconBack class="text-slate-600" />
         </button>
         <h1 class="flex-1 text-center text-xl font-bold text-slate-900 mr-8">목소리 등록</h1>
       </div>
@@ -65,6 +63,20 @@
       </div>
     </main>
 
+    <!-- Onboarding Footer -->
+    <footer v-if="isInitialSetup" class="fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 flex gap-4 z-40">
+        <button @click="handleSkip" class="flex-1 py-4 px-6 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all">
+            건너뛰기
+        </button>
+        <button 
+            @click="handleCompleteSetup" 
+            :disabled="completedCount === 0"
+            class="flex-[2] py-4 px-6 rounded-2xl bg-[var(--color-primary)] text-white font-bold shadow-lg shadow-orange-200 hover:bg-orange-600 transition-all disabled:opacity-50 disabled:shadow-none"
+        >
+            등록 완료
+        </button>
+    </footer>
+
     <!-- Recorder Modal (Mock) -->
     <div v-if="selectedSample" class="fixed inset-0 z-50 flex items-end">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="selectedSample = null"></div>
@@ -110,6 +122,10 @@ import { useRouter } from 'vue-router';
 import * as voiceService from '@/services/voiceService';
 
 const router = useRouter();
+const route = useRoute();
+const modalStore = useModalStore();
+
+const isInitialSetup = computed(() => route.query.flow === 'initial');
 
 // State
 const voiceSamples = ref([]);
@@ -350,7 +366,11 @@ const goToSettings = () => {
 </script>
 
 <style scoped>
-/* Removed local font-family definition to use global one */
+/* Added padding for bottom fixed button */
+.min-h-screen {
+    padding-bottom: 5rem;
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }

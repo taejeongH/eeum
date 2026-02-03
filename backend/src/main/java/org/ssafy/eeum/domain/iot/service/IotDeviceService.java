@@ -46,7 +46,8 @@ public class IotDeviceService {
         private final ApplicationEventPublisher eventPublisher;
 
         private static final String PAIRING_PREFIX = "PAIR:";
-        private static final String REFRESH_TOKEN_PREFIX = "RT:";
+        private static final String REFRESH_TOKEN_PREFIX = "RT:IOT:";
+        private static final String OLD_REFRESH_TOKEN_PREFIX = "RT:IOT:OLD:";
 
         @Transactional
         public Integer registerDevice(Integer familyId, IotDeviceRequestDTO request) {
@@ -76,7 +77,7 @@ public class IotDeviceService {
 
         @Transactional
         public void updateDevice(CustomUserDetails userDetails, Integer deviceId,
-                                 IotDeviceUpdateRequestDTO updateDto) {
+                        IotDeviceUpdateRequestDTO updateDto) {
                 IotDevice device = iotDeviceRepository.findById(deviceId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
@@ -215,30 +216,104 @@ public class IotDeviceService {
                 Integer familyId = device.getFamily().getId();
 
                 // 2. Redis에서 해당 가족의 Refresh Token 조회
-                String savedToken = (String) redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + familyId);
-                if (savedToken == null || !savedToken.equals(refreshToken)) {
+                String currentKey = REFRESH_TOKEN_PREFIX + familyId;
+                String oldKey = OLD_REFRESH_TOKEN_PREFIX + familyId;
+
+                String savedCurrentToken = (String) redisTemplate.opsForValue().get(currentKey);
+
+                // 로그: 현재 저장된 토큰 정보 출력 (디버깅용)
+                String reqTokenPart = (refreshToken != null)
+                                ? refreshToken.substring(0, Math.min(20, refreshToken.length()))
+                                : "NULL";
+                String savedTokenPart = (savedCurrentToken != null)
+                                ? savedCurrentToken.substring(0, Math.min(20, savedCurrentToken.length()))
+                                : "NULL";
+
+                log.debug("[IOT-REFRESH] Refresh request. Serial: {}, FamilyId: {}, ReqToken: {}..., SavedToken: {}...",
+                                serialNumber, familyId, reqTokenPart, savedTokenPart);
+
+                // 토큰 null 체크
+                if (refreshToken == null) {
+                        log.warn("[IOT-REFRESH] Refresh token is NULL. Serial: {}, FamilyId: {}", serialNumber,
+                                        familyId);
                         throw new CustomException(ErrorCode.INVALID_TOKEN);
                 }
 
-                // 3. 토큰 유효성 자체 검증
-                if (!jwtProvider.validateToken(refreshToken)) {
-                        throw new CustomException(ErrorCode.INVALID_TOKEN);
+                String finalAccessToken;
+                String finalRefreshToken;
+
+                // 상황 1: 현재 유효한 토큰(Current)으로 요청한 경우 -> 진짜 갱신(Rotation) 진행
+                if (savedCurrentToken != null && savedCurrentToken.equals(refreshToken)) {
+                        log.info("[IOT-REFRESH] Real Rotation triggered. Serial: {}, FamilyId: {}", serialNumber,
+                                        familyId);
+
+                        // 3. 토큰 유효성 자체 검증 (만료 여부 등)
+                        if (!jwtProvider.validateToken(refreshToken)) {
+                                log.warn("[IOT-REFRESH] Current JWT validation failed. Serial: {}, FamilyId: {}",
+                                                serialNumber, familyId);
+                                throw new CustomException(ErrorCode.INVALID_TOKEN);
+                        }
+
+                        // 4. 새로운 가족 통합 토큰 쌍 생성
+                        finalAccessToken = jwtProvider.createDeviceAccessToken(familyId);
+                        finalRefreshToken = jwtProvider.createDeviceRefreshToken(familyId);
+
+                        // 5. Redis 업데이트
+                        // 현재 토큰을 '이전 토큰'으로 이동 (3분 유예)
+                        redisTemplate.opsForValue().set(oldKey, savedCurrentToken, Duration.ofMinutes(3));
+                        // 새 토큰을 '현재 토큰'으로 저장
+                        redisTemplate.opsForValue().set(currentKey, finalRefreshToken,
+                                        Duration.ofMillis(jwtProperties.getRefreshTokenExpiration()));
+
+                        log.info("[IOT-REFRESH] Rotation success. New Current RT saved. Serial: {}, FamilyId: {}",
+                                        serialNumber, familyId);
                 }
+                // 상황 2: 이미 갱신된 '이전 토큰(Old)'으로 요청한 경우 -> 따라잡기(Catch-up) 진행
+                else {
+                        String savedOldToken = (String) redisTemplate.opsForValue().get(oldKey);
 
-                // 4. 새로운 가족 통합 토큰 쌍 생성
-                String newAccessToken = jwtProvider.createDeviceAccessToken(familyId);
-                String newRefreshToken = jwtProvider.createDeviceRefreshToken(familyId);
+                        if (savedOldToken != null && savedOldToken.equals(refreshToken)) {
+                                log.info("[IOT-REFRESH] Catch-up triggered. Serial: {}, FamilyId: {}. Returning existing Current RT.",
+                                                serialNumber, familyId);
 
-                // 5. Redis 업데이트 (가족 단위)
-                redisTemplate.opsForValue().set(REFRESH_TOKEN_PREFIX + familyId, newRefreshToken,
-                                Duration.ofMillis(jwtProperties.getRefreshTokenExpiration()));
+                                // 토큰 유효성 검증
+                                if (!jwtProvider.validateToken(refreshToken)) {
+                                        log.warn("[IOT-REFRESH] Old JWT validation failed. Serial: {}, FamilyId: {}",
+                                                        serialNumber, familyId);
+                                        throw new CustomException(ErrorCode.INVALID_TOKEN);
+                                }
+
+                                // 새 Access Token은 발급해주되, Refresh Token은 Redis에 저장되어 있는 '현재 거'를 그대로 줌
+                                finalAccessToken = jwtProvider.createDeviceAccessToken(familyId);
+                                finalRefreshToken = savedCurrentToken; // 따라잡기 핵심
+
+                                if (finalRefreshToken == null) {
+                                        // 혹시라도 그 사이에 현재 토큰마저 사라졌다면 에러
+                                        log.error("[IOT-REFRESH] Critical: Catch-up failed because Current RT is missing in Redis. FamilyId: {}",
+                                                        familyId);
+                                        throw new CustomException(ErrorCode.INVALID_TOKEN);
+                                }
+                        } else {
+                                // 둘 다 안 맞으면 진짜 유효하지 않은 토큰
+                                log.warn("[IOT-REFRESH] Token mismatch. Serial: {}, FamilyId: {}", serialNumber,
+                                                familyId);
+                                throw new CustomException(ErrorCode.INVALID_TOKEN);
+                        }
+                }
 
                 return IotDeviceInitResponseDTO.builder()
                                 .status("success")
-                                .accessToken(newAccessToken)
-                                .refreshToken(newRefreshToken)
+                                .accessToken(finalAccessToken)
+                                .refreshToken(finalRefreshToken)
                                 .serialNumber(serialNumber)
                                 .groupId(familyId)
                                 .build();
+        }
+
+        @Transactional
+        public void updateStreamingUrl(Integer familyId, String streamingUrl) {
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+                family.updateStreamingUrl(streamingUrl);
         }
 }

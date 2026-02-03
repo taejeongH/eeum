@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
+      host: true, // 로컬-원격 하이브리드 설정(창민)
       proxy: {
         '/api': {
           // 환경 변수에 설정된 주소를 타겟으로 함 (배포 시 유연함)

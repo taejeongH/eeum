@@ -13,6 +13,9 @@ import java.time.LocalTime;
 public interface MedicationRepository extends JpaRepository<MedicationPlan, Long> {
     List<MedicationPlan> findByGroupId(Long groupId);
 
+    @Query("SELECT distinct p FROM MedicationPlan p LEFT JOIN FETCH p.medicationPlanTimes")
+    List<MedicationPlan> findAllWithTimes();
+
     @Query("SELECT distinct p FROM MedicationPlan p JOIN p.medicationPlanTimes t " +
             "WHERE t.notificationTime = :time " +
             "AND p.startDate <= :date AND p.endDate >= :date")
