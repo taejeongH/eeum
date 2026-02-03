@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-[#fcfcfc] min-h-screen text-slate-800 pb-24 relative overflow-x-hidden">
+  <div class="bg-[#fcfcfc] min-h-screen text-slate-800 pb-32 relative overflow-x-hidden">
     <!-- Premium Header Area (from HealthReportView) -->
     <div class="relative w-full h-56 bg-[var(--color-primary)] rounded-b-[3rem] shadow-2xl overflow-hidden shrink-0">
       <!-- Gradient Overlay -->
@@ -25,8 +25,14 @@
       <!-- Date Display -->
       <div class="relative z-30 px-10 mt-1 flex flex-col items-center justify-center text-white">
           <p class="text-[10px] font-bold opacity-80 mb-0.5 tracking-widest">{{ formattedYear }}</p>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 mb-3">
               <h2 class="text-xl font-black tracking-tight">{{ formattedDate }}</h2>
+          </div>
+          
+          <!-- Last Update Badge -->
+          <div class="flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white/90 border border-white/20">
+            <span class="material-symbols-outlined text-[12px] opacity-70">history</span>
+            <span class="text-[9px] font-bold tracking-tight">{{ lastUpdateTime }}</span>
           </div>
       </div>
     </div>
@@ -38,11 +44,8 @@
           {{ syncMessage }}
       </div>
 
-      <!-- 1. Real Vitals Section (NOW AT TOP) -->
-      <div class="space-y-4">
-          <div class="flex items-center justify-end px-2">
-            <span class="text-[10px] font-bold text-slate-400">최근 업데이트: {{ healthStore.latestMetrics.recordDate ? new Date(healthStore.latestMetrics.recordDate).toLocaleTimeString() : '--' }}</span>
-          </div>
+      <!-- 1. Real Vitals Section -->
+      <div class="space-y-4 pt-4">
 
           <!-- Quick Stats Grid -->
           <div class="grid grid-cols-2 gap-3">
@@ -286,6 +289,18 @@ const formattedYear = computed(() => currentDate.value.getFullYear() + '년');
 const formattedDate = computed(() => {
   const options = { month: 'long', day: 'numeric', weekday: 'short' };
   return currentDate.value.toLocaleDateString('ko-KR', options);
+});
+
+const lastUpdateTime = computed(() => {
+  const time = healthStore.latestMetrics.recordDate;
+  if (!time) return '데이터 없음';
+  
+  try {
+    const date = new Date(time);
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 업데이트';
+  } catch (e) {
+    return '최근 업데이트';
+  }
 });
 
 const formattedAdvisorComment = computed(() => {

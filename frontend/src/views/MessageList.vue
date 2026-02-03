@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <main class="max-w-2xl mx-auto px-4 py-6 pb-20">
+    <main class="max-w-2xl mx-auto px-4 py-6 pb-32">
       <div v-if="loading" class="flex justify-center items-center py-20">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2" style="border-color: var(--color-primary);"></div>
       </div>
@@ -155,7 +155,7 @@
         <div 
           v-if="showMessageModal"
           ref="messageSheet"
-          class="fixed inset-x-0 bottom-0 z-[70] bg-white rounded-t-3xl shadow-2xl min-h-[470px] max-h-[90vh] overflow-y-auto touch-pan-y pb-20"
+          class="fixed inset-x-0 bottom-0 z-[70] bg-white rounded-t-3xl shadow-2xl min-h-[470px] max-h-[90vh] overflow-y-auto touch-pan-y pb-32"
           @touchstart="onTouchStart"
           @touchmove="onTouchMove"
           @touchend="onTouchEnd"

@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-background-light min-h-screen text-[#1c140d] pb-24 relative">
+  <div class="bg-background-light min-h-screen text-[#1c140d] pb-32 relative">
     
     <!-- Refined Header -->
     <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">

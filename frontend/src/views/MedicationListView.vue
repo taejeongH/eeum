@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-gray-50 min-h-screen pb-20">
+  <div class="bg-gray-50 min-h-screen pb-32">
     
     <!-- Premium Header Area -->
     <div class="relative w-full h-48 bg-[var(--color-primary)] rounded-b-[2.5rem] shadow-xl overflow-hidden shrink-0">
