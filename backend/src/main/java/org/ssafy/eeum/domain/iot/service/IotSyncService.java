@@ -97,10 +97,7 @@ public class IotSyncService {
                         .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
                         .description(asset.getDescription())
                         .takenAt(asset.getTakenAt().toString())
-                        .userName(asset.getUploader().getName())
-                        .profileImageUrl(asset.getUploader().getProfileImage() != null
-                                ? s3Service.getPresignedUrl(asset.getUploader().getProfileImage())
-                                : null)
+                        .userId(asset.getUploader().getId())
                         .build());
                 addedMap.remove(asset.getId());
             }
