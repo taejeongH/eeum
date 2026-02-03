@@ -270,18 +270,16 @@ const albums = computed(() => {
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
+// [FIX] Reactive familyId
+const familyId = ref(null);
 
 const fetchAlbumPhotos = async () => {
-    // URL의 familyId와 store의 selectedFamily 동기화
-    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
-        familyStore.selectFamilyById(route.params.familyId);
-    }
+    // Prefer reactive familyId
+    if (!familyId.value) return;
 
-    if (!familyStore.selectedFamily) return;
     try {
-        const response = await getPhotos(familyStore.selectedFamily.id);
+        const response = await getPhotos(familyId.value);
 
-        
         let rawPhotos = [];
         // Checking for different possible structures of response
         if (Array.isArray(response.data)) {
@@ -309,8 +307,6 @@ const fetchAlbumPhotos = async () => {
             };
         });
         
-
-
     } catch (error) {
         console.error("Failed to fetch photos:", error);
     }
@@ -337,14 +333,36 @@ const goToPhotoDetail = (photo) => {
 };
 
 onMounted(() => {
-    if (familyStore.selectedFamily) {
+    // 1. Prefer route param
+    if (route.params.familyId) {
+        familyId.value = route.params.familyId;
+    } 
+    // 2. Fallback to store
+    else if (familyStore.selectedFamily?.id) {
+        familyId.value = familyStore.selectedFamily.id;
+        router.replace({ name: 'GalleryPage', params: { familyId: familyId.value } });
+    }
+
+    if (familyId.value) {
         fetchAlbumPhotos();
     }
 });
 
-watch(() => familyStore.selectedFamily, (newFamily) => {
-    if (newFamily) {
+// React to route changes (e.g. Back button or Redirect)
+watch(() => route.params.familyId, (newId) => {
+    if (newId && newId !== familyId.value) {
+        familyId.value = newId;
         fetchAlbumPhotos();
+    }
+});
+
+// React to store selection changes (Header Dropdown)
+watch(() => familyStore.selectedFamily, (newFamily) => {
+    if (newFamily && newFamily.id) {
+        // If Store changes, redirect to the new URL
+        if (String(newFamily.id) !== String(route.params.familyId)) {
+            router.replace({ name: 'GalleryPage', params: { familyId: newFamily.id } });
+        }
     }
 });
 </script>
