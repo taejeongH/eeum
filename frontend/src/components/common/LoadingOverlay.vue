@@ -1,6 +1,6 @@
 <template>
   <Transition name="fade">
-    <div v-if="uiStore.isLoading" class="loading-overlay">
+    <div v-if="shouldShow" class="loading-overlay">
       <div class="loader-content">
         <div class="logo-container">
           <img src="@/assets/eeum_logo2.png" alt="IEUM Logo" class="loader-logo" />
@@ -16,11 +16,29 @@
     </div>
   </Transition>
 </template>
-
 <script setup>
+import { ref, watch } from 'vue';
 import { useUiStore } from '@/stores/ui';
 
 const uiStore = useUiStore();
+const shouldShow = ref(false);
+let timer = null;
+
+watch(() => uiStore.isLoading, (loading) => {
+  if (loading) {
+    // 300ms 지연 후 로딩 화면 표시
+    timer = setTimeout(() => {
+      shouldShow.value = true;
+    }, 300);
+  } else {
+    // 로딩이 끝나면 타이머 제거 및 즉시 숨김
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    shouldShow.value = false;
+  }
+});
 </script>
 
 <style scoped>

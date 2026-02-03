@@ -41,7 +41,7 @@
 
 
     <!-- 4-Column ImageGrid -->
-    <div class="flex-1 overflow-y-auto px-4 pb-24">
+    <div class="flex-1 overflow-y-auto px-4 pb-32">
       <div v-if="photos.length > 0" class="grid grid-cols-4 gap-1.5">
         <div 
             v-for="photo in photos" 
