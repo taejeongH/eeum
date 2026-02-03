@@ -43,6 +43,9 @@ public class FallEvent extends BaseEntity {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    @Column(name = "confidence")
+    private Double confidence;
+
     public enum StatusType {
         UNDER_REVIEW, EMERGENCY, SAFE, RESOLVED
     }

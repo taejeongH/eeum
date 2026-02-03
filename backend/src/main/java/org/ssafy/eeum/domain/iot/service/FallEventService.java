@@ -56,6 +56,7 @@ public class FallEventService {
         FallEvent.FallEventBuilder eventBuilder = FallEvent.builder()
                 .family(family)
                 .severity(level)
+                .confidence(request.getData().getConfidence())
                 .statusType(FallEvent.StatusType.UNDER_REVIEW)
                 .videoStatus(FallEvent.VideoStatus.NONE);
 
@@ -220,10 +221,10 @@ public class FallEventService {
         }
 
         String presignedUrl = s3Service.getPresignedUrl(event.getVideoPath());
-        
+
         java.util.Map<String, String> response = new java.util.HashMap<>();
         response.put("videoUrl", presignedUrl);
-        
+
         return response;
     }
 }
