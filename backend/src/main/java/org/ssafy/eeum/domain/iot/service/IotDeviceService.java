@@ -21,6 +21,7 @@ import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
 import org.ssafy.eeum.domain.iot.dto.IotDeviceInitResponseDTO;
+import org.ssafy.eeum.domain.iot.dto.IotStreamingIpRequestDTO;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -315,5 +316,17 @@ public class IotDeviceService {
                 Family family = familyRepository.findById(familyId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
                 family.updateStreamingUrl(streamingUrl);
+        }
+
+        @Transactional
+        public void updateStreamingIp(Integer familyId, IotStreamingIpRequestDTO requestDto) {
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+                String streamingUrl = String.format("http://%s:8000/api/iot/device/falls/stream", 
+                                requestDto.getIpAddress());
+                
+                family.updateStreamingUrl(streamingUrl);
+                familyRepository.save(family);
         }
 }
