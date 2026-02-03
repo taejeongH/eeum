@@ -315,13 +315,29 @@ const expiryText = computed(() => {
 // Methods
 const generateQR = async () => {
   console.log('[QR] Current familyId.value:', familyId.value);
+  
+  // 토큰 확인 로그 추가
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  console.log('[QR] Token exists:', !!token);
+  console.log('[QR] Token length:', token?.length);
+  
+  // AndroidBridge 확인
+  if (window.AndroidBridge?.getAccessToken) {
+    const nativeToken = window.AndroidBridge.getAccessToken();
+    console.log('[QR] AndroidBridge token exists:', !!nativeToken);
+    console.log('[QR] AndroidBridge token length:', nativeToken?.length);
+  }
+  
   if (!familyId.value || isNaN(familyId.value)) {
     alert('가족 ID가 유효하지 않습니다. 페이지를 새로고침해 주세요.');
     return;
   }
   isGenerating.value = true;
   try {
+    console.log('[QR] Calling generatePairingCode with familyId:', familyId.value);
     const response = await generatePairingCode(familyId.value);
+    console.log('[QR] Raw response:', response);
+    
     // 서버 응답 구조가 { data: { ... } } 형태일 경우와 아닐 경우 모두 대응
     const qrData = response.data || response;
     
@@ -343,14 +359,21 @@ const generateQR = async () => {
         },
         errorCorrectionLevel: 'H'
       });
+      console.log('[QR] QR code generated successfully');
     } else {
       throw new Error('QR 데이터(qrContent)가 응답에 포함되어 있지 않습니다.');
     }
 
     startExpiryTimer();
   } catch (error) {
-    console.error('Failed to generate QR code:', error);
-    alert(`QR 코드 생성 실패: ${error.message || JSON.stringify(error)}`);
+    console.error('[QR] Failed to generate QR code:', error);
+    console.error('[QR] Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      headers: error.response?.headers
+    });
+    alert(`QR 코드 생성 실패: ${error.response?.data?.message || error.message || JSON.stringify(error)}`);
   } finally {
     isGenerating.value = false;
   }
