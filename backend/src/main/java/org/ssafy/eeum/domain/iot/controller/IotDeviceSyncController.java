@@ -9,6 +9,7 @@ import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.iot.service.IotDeviceService;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceSyncResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotSimpleDeviceInfoResponseDTO;
+import org.ssafy.eeum.domain.iot.dto.IotStreamingIpRequestDTO;
 import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.global.common.response.RestApiResponse;
 import org.ssafy.eeum.global.config.swagger.SwaggerApiSpec;
@@ -54,13 +55,12 @@ public class IotDeviceSyncController {
                 return RestApiResponse.success(response);
         }
 
-        @SwaggerApiSpec(summary = "[IoT] 실시간 스트리밍 URL 업데이트", description = "IoT 기기의 현재 실시간 스트리밍 접속 URL을 업데이트합니다.", successMessage = "스트리밍 URL 업데이트 성공")
-        @PutMapping("/streaming")
-        public RestApiResponse<Void> updateStreamingURL(
-                        @AuthenticationPrincipal DeviceDetails deviceDetails,
-                        @RequestBody org.ssafy.eeum.domain.iot.dto.IotStreamingUrlRequestDTO request) {
-                Integer familyId = deviceDetails.getGroupId();
-                iotDeviceService.updateStreamingUrl(familyId, request.getStreamingUrl());
+        @SwaggerApiSpec(summary = "[IoT] 실시간 스트리밍 IP 업데이트", description = "IoT 기기의 현재 IP를 기반으로 스트리밍 접속 URL을 업데이트합니다.", successMessage = "스트리밍 IP 업데이트 성공")
+        @PatchMapping("/{familyId}/streaming-ip")
+        public RestApiResponse<Void> updateStreamingIp(
+                        @PathVariable Integer familyId,
+                        @RequestBody IotStreamingIpRequestDTO request) {
+                iotDeviceService.updateStreamingIp(familyId, request);
                 return RestApiResponse.success(null);
         }
 
