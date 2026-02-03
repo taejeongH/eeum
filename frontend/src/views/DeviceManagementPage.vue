@@ -1,8 +1,9 @@
 <template>
   <div class="bg-[#fcfcfc] min-h-screen pb-20">
-    <!-- <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" /> -->
-    
-    <div class="bg-white/90 backdrop-blur-md sticky top-0 z-[90] border-b border-gray-100 shadow-sm px-6 py-4 flex items-center justify-between transition-all duration-300">
+    <div class="bg-white/90 backdrop-blur-md sticky top-0 z-[90] border-b border-gray-100 shadow-sm px-4 py-4 flex items-center gap-2 transition-all duration-300">
+       <button @click="$router.back()" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+         <IconBack class="text-gray-600" />
+       </button>
        <h1 class="text-xl font-bold text-gray-900 tracking-tight">기기 관리</h1>
     </div>
 
@@ -207,25 +208,18 @@
 </template>
 
 <script setup>
-// // 창민 추가
-// import MainHeader from '@/components/MainHeader.vue';
-// // 창민 추가
 import QRCode from 'qrcode';
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { storeToRefs } from 'pinia';
 import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } from '@/services/api';
+import IconBack from '@/components/icons/IconBack.vue';
 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
-// // 창민추가
-// const isModalOpen = ref(false);
-// const handleModalStateChange = (isOpen) => {
-//   isModalOpen.value = isOpen;
-// };
-// // 창민추가
+
 const { selectedFamily } = storeToRefs(familyStore);
 const familyId = ref(parseInt(route.params.familyId));
 

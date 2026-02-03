@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { MOCK_USER } from '../mocks/data';
+import { useUiStore } from '../stores/ui';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -14,8 +15,14 @@ const apiClient = axios.create({
 // [중요] 모든 요청에 토큰을 자동으로 붙여주는 인터셉터입니다.
 apiClient.interceptors.request.use(
   (config) => {
+    // [NEW] 전역 로딩 시작
+    const uiStore = useUiStore();
+    uiStore.startLoading();
+
     // 1. localStorage 또는 sessionStorage에서 토큰 확인
     let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+    // ... (rest of the code follows)
 
     // 2. [NEW] 모바일 앱: AndroidBridge에서 토큰 가져오기 (fallback)
     if (!token && window.AndroidBridge?.getAccessToken) {
@@ -56,6 +63,9 @@ const processQueue = (error, token = null) => {
 
 apiClient.interceptors.response.use(
   (response) => {
+    // [NEW] 전역 로딩 종료
+    const uiStore = useUiStore();
+    uiStore.finishLoading();
     return response;
   },
   async (error) => {
@@ -138,6 +148,10 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
       }
     }
+
+    // [NEW] 전역 로딩 종료
+    const uiStore = useUiStore();
+    uiStore.finishLoading();
 
     return Promise.reject(error);
   }

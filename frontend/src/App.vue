@@ -8,6 +8,7 @@ import { useNotificationStore } from './stores/notification'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
 import GlobalEmergencyModal from '@/components/common/GlobalEmergencyModal.vue'
 import GlobalNotificationModal from '@/components/common/GlobalNotificationModal.vue'
+import LoadingOverlay from '@/components/common/LoadingOverlay.vue'
 
 const userStore = useUserStore()
 const emergencyStore = useEmergencyStore()
@@ -265,7 +266,7 @@ onMounted(async () => {
               emergencyStore.open({
                   eventId: notificationId,
                   familyId: familyId,
-                  groupName: groupName || currentFamily?.groupName || '가족 그룹',
+                  groupName: groupName || currentFamily?.name || '가족 그룹',
                   // Use message directly if available (e.g. "Grandma fell"), otherwise computed name
                   dependentName: message ? message : (dependent ? (dependent.relationship || dependent.name) : '대상자 정보 없음'), 
                   type: 'FALL',
@@ -279,7 +280,7 @@ onMounted(async () => {
               // [User Request] 활동/외출 알림 시 현재 화면 위에 모달 표시
               notificationStore.openModal({
                   type: type,
-                  groupName: groupName || familyStore.selectedFamily?.groupName || '우리 가족',
+                  groupName: groupName || familyStore.selectedFamily?.name || '우리 가족',
                   dependentName: '피부양자', // 실제 데이터가 있다면 개선 가능
                   message: type === 'OUTING' ? '외출이 감지되었습니다.' : (type === 'RETURN' ? '귀가가 확인되었습니다.' : '활동이 감지되었습니다.')
               });
@@ -366,6 +367,7 @@ onMounted(async () => {
     <GlobalConfirmModal />
     <GlobalEmergencyModal />
     <GlobalNotificationModal />
+    <LoadingOverlay />
   </div>
 </template>
 
