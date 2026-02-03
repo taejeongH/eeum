@@ -1,13 +1,13 @@
 <template>
   <div class="bg-[#fcfcfc] text-slate-800 min-h-screen flex flex-col pb-20">
-    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" />
+    <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
+      <template #actions>
+        <button @click="toggleSearch" class="p-2 -mr-2 text-[#1c140d] hover:bg-gray-100 rounded-full transition-colors">
+          <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
+        </button>
+      </template>
+    </MainHeader>
     <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-2 pb-4 transiton-all duration-300 border-b border-slate-100">
-      <div class="flex items-center justify-end mb-2">
-          <!-- Search Toggle -->
-          <button @click="toggleSearch" class="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-            <span class="material-symbols-outlined">{{ isSearchOpen ? 'close' : 'search' }}</span>
-          </button>
-      </div>
       
       <!-- Search Input -->
       <div v-if="isSearchOpen" class="mb-4 animate-fade-in">
@@ -19,7 +19,7 @@
         <button @click="prevMonth" class="text-slate-400 hover:text-slate-600">
             <span class="material-symbols-outlined">chevron_left</span>
         </button>
-        <h1 class="text-3xl font-bold text-slate-900">{{ month }}월</h1>
+        <h1 @click="resetToToday" class="text-3xl font-bold text-slate-900 cursor-pointer active:scale-95 transition-transform">{{ month }}월</h1>
         <button @click="nextMonth" class="text-slate-400 hover:text-slate-600">
             <span class="material-symbols-outlined">chevron_right</span>
         </button>
@@ -116,7 +116,7 @@
         </div>
       </div>
       <div class="fixed bottom-32 right-6 z-30">
-        <button @click="$router.push({ name: 'CalendarCreate', params: { familyId: familyId } })" class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform">
+        <button @click="$router.push({ name: 'CalendarCreate', params: { familyId: familyId }, query: { date: selectedDate } })" class="bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform">
           <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0, 'wght' 600">add</span>
         </button>
       </div>
@@ -285,6 +285,9 @@ const selectDate = (day) => {
     // Auto-switch month if clicking prev/next days (Optional UX improvement)
     if (day.type === 'prev') prevMonth();
     if (day.type === 'next') nextMonth();
+    
+    // Save state
+    sessionStorage.setItem('calendar_last_date', selectedDate.value);
 };
 
 const toggleSearch = () => {
@@ -306,6 +309,14 @@ const nextMonth = () => {
     currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1);
 };
 
+const resetToToday = () => {
+    const today = new Date();
+    currentDate.value = today;
+    selectedDate.value = toLocalDateString(today);
+    sessionStorage.setItem('calendar_last_date', selectedDate.value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 // Check if a day is today
 const isToday = (day) => {
     const today = new Date();
@@ -318,6 +329,17 @@ onMounted(async () => {
     // 1. Prefer route param if available
     if (route.params.familyId) {
         familyId.value = route.params.familyId;
+    }
+    
+    // Restore state if available
+    const savedDate = sessionStorage.getItem('calendar_last_date');
+    if (savedDate) {
+        // Simple check if it's a valid date string
+        if (/^\d{4}-\d{2}-\d{2}$/.test(savedDate)) {
+            selectedDate.value = savedDate;
+            // Also update view month to match the selected date
+            currentDate.value = new Date(savedDate); 
+        }
     }
     // 2. Fallback: If no route param but store has selection (e.g. direct nav bug?) -> Correct URL
     else if (familyStore.selectedFamily?.id) {
