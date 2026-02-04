@@ -200,7 +200,13 @@ const fetchPhotos = async (forceRefresh = false) => {
         if (cached) {
             allPhotos.value = cached;
             filterPhotos();
-            return;
+            
+            // Stale-while-revalidate:
+            // If cache is very fresh (< 5s), rely on it.
+            // Otherwise, proceed to fetch new data in background.
+            if (albumStore.isFresh(familyId, 5000)) {
+                return;
+            }
         }
     }
     
