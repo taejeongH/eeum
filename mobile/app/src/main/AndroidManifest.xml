@@ -13,6 +13,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 카메라 권한 설정 -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 녹음 권한 설정 (NEW) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- 전화 걸기 권한 설정 -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
 

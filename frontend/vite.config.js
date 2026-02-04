@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig(({ mode }) => {
   // 환경 변수(.env)를 로드합니다.
@@ -8,7 +9,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [vue()],
+    plugins: [vue(), basicSsl()],
     resolve: {
       alias: {
         // @를 src 폴더 주소로 매핑 (아까 발생한 경로 에러 방지용)
