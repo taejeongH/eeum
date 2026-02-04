@@ -414,12 +414,40 @@ const selectedDate = ref(toLocalDateString(new Date())); // Default to today's d
 const isSearchOpen = ref(false);
 const searchQuery = ref('');
 
+// Helper to check if event matches date (Expanded for Recurrence)
+const checkDateMatch = (event, targetDateString) => {
+    const targetDate = new Date(targetDateString);
+    const startDate = new Date(event.startAt);
+    
+    // 1. Check strict match
+    const eventDateStr = toLocalDateString(startDate);
+    if (eventDateStr === targetDateString) return true;
+
+    // 2. Check Recurrence
+    if (event.repeatType === 'YEARLY') {
+        const startOfTarget = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+        const startOfEvent = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+
+        // Must be >= start date
+        if (startOfTarget < startOfEvent) return false;
+
+        // Must be <= recurrence end date (if exists)
+        if (event.recurrenceEndAt) {
+            const endDate = new Date(event.recurrenceEndAt);
+            if (startOfTarget > endDate) return false;
+        }
+
+        // Match Month and Day
+        return startDate.getMonth() === targetDate.getMonth() && 
+               startDate.getDate() === targetDate.getDate();
+    }
+    
+    return false;
+};
+
 // For Grid Indicators (Show all events for that day)
 const getEventsForDay = (dateString) => {
-    return events.value.filter(e => {
-        const eventDateStr = toLocalDateString(new Date(e.startAt));
-        return eventDateStr === dateString;
-    });
+    return events.value.filter(e => checkDateMatch(e, dateString));
 };
 
 // Simplified Indicators: One dot per category presence (MAX 2 dots: Visit + Other)
@@ -450,14 +478,17 @@ const filteredEvents = computed(() => {
 
     // 2. Filter by Selected Date (if no search)
     if (selectedDate.value) {
-        result = result.filter(e => {
-             const eventDateStr = toLocalDateString(new Date(e.startAt));
-             return eventDateStr === selectedDate.value;
-        });
+        result = result.filter(e => checkDateMatch(e, selectedDate.value));
     }
     
-    // Sort by time
-    return result.sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+    // Sort by Time-of-Day (ignoring Year/Month differences due to recurrence)
+    return result.sort((a, b) => {
+        const dateA = new Date(a.startAt);
+        const dateB = new Date(b.startAt);
+        const timeA = dateA.getHours() * 60 + dateA.getMinutes();
+        const timeB = dateB.getHours() * 60 + dateB.getMinutes();
+        return timeA - timeB;
+    });
 });
 
 const selectDate = (day) => {
