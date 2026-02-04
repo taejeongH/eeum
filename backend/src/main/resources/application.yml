@@ -14,7 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
 
@@ -32,6 +32,7 @@ logging:
 
 eeum:
   swagger-url: http://localhost:8080
+  webhook-url: ${eeum.swagger-url}/api/voice/webhook/tts
 
 ---
 # 2. 배포 환경 설정 (프로필 이름: prod)
@@ -45,3 +46,4 @@ server:
 
 eeum:
   swagger-url: https://i14a105.p.ssafy.io
+  webhook-url: ${eeum.swagger-url}/api/voice/webhook/tts

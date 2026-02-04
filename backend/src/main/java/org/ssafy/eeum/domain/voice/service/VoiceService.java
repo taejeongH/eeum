@@ -2,6 +2,7 @@ package org.ssafy.eeum.domain.voice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,6 +97,21 @@ public class VoiceService {
 
         sampleRepository.save(sample);
         log.info("음성 샘플 정보 저장 완료: {}", request.getSamplePath());
+
+        // 사용자의 VoiceModel이 없으면 생성하고 상태를 COMPLETED로 변경 (이제 학습 과정이 없으므로 바로 사용 가능)
+        modelRepository.findByUserId(user.getId())
+                .ifPresentOrElse(
+                        model -> model.updateStatus(VoiceModel.ModelStatus.COMPLETED),
+                        () -> {
+                            VoiceModel newModel = VoiceModel.builder()
+                                    .user(user)
+                                    .status(VoiceModel.ModelStatus.COMPLETED)
+                                    .build();
+                            modelRepository.save(newModel);
+                        });
+
+        // 샘플 등록 후 자동으로 테스트 음성 생성 제안 (동기 방식으로 동작한다고 하셨으므로 바로 실행)
+        generateTestAudio(sample);
     }
 
     // 3-1. 모델 학습 상태 조회
@@ -115,66 +131,34 @@ public class VoiceService {
         return VoiceModelStatusResponseDTO.of(samples.size(), model, sampleDtos);
     }
 
-    // 3-2. 테스트용 음성 샘플 목록 조회
-    public List<VoiceSampleResponseDTO> getTestAudios(Integer userId) {
-        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
-        return samples.stream()
-                .map(sample -> {
-                    String testUrl = null;
-                    if (sample.getTestAudioPath() != null) {
-                        testUrl = s3Service.getPresignedUrl(sample.getTestAudioPath());
-                    }
-                    return VoiceSampleResponseDTO.from(sample, testUrl);
-                })
-                .toList();
-    }
-
-    // 3-2.1 테스트용 음성 일괄 생성 (랜덤 명대사 활용)
     @Transactional
-    public void generateTestAudios(Integer userId) {
-        List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
-        if (samples.isEmpty()) {
-            throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
-        }
+    public void generateTestAudio(VoiceSample sample) {
+        try {
+            String randomQuote = TEST_QUOTES.get((int) (Math.random() * TEST_QUOTES.size()));
+            String refText = sample.getVoiceScript() != null
+                    ? sample.getVoiceScript().getContent()
+                    : sample.getTranscript();
 
-        // 사용자의 학습된 모델이 있는지 확인
-        VoiceModel model = modelRepository.findByUserId(userId).orElse(null);
-        String gptKey = (model != null && model.getStatus() == VoiceModel.ModelStatus.COMPLETED) ? model.getGptPath()
-                : null;
-        String sovitsKey = (model != null && model.getStatus() == VoiceModel.ModelStatus.COMPLETED)
-                ? model.getSovitsPath()
-                : null;
+            PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
+                    .userId(String.valueOf(sample.getUser().getId()))
+                    .refWavKey(sample.getSamplePath())
+                    .refText(refText)
+                    .text(randomQuote)
+                    .build();
 
-        String randomQuote = TEST_QUOTES.get((int) (Math.random() * TEST_QUOTES.size()));
-
-        for (VoiceSample sample : samples) {
-            try {
-                String refText = sample.getVoiceScript() != null
-                        ? sample.getVoiceScript().getContent()
-                        : sample.getTranscript();
-
-                PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
-                        .userId(String.valueOf(userId))
-                        .gptKey(gptKey)
-                        .sovitsKey(sovitsKey)
-                        .refWavKey(sample.getSamplePath())
-                        .refText(refText)
-                        .text(randomQuote)
-                        .build();
-
-                String audioUrl = voiceAiClient.generateTts(requestDto);
-                if (audioUrl != null) {
-                    // S3 URL에서 key만 추출하여 저장
-                    String testAudioKey = extractS3Key(audioUrl);
-                    sample.updateTestAudioPath(testAudioKey);
-                }
-            } catch (Exception e) {
-                log.error("샘플 {}의 테스트 음성 생성 실패: {}", sample.getId(), e.getMessage());
+            String audioUrl = voiceAiClient.generateTts(requestDto, null); // 샘플 생성 시에는 일단 동기 혹은 폴링 없이 처리 (필요시 추후 웹후크
+                                                                           // 적용)
+            if (audioUrl != null && !"PENDING".equals(audioUrl)) {
+                // S3 URL에서 key만 추출하여 저장
+                String testAudioKey = extractS3Key(audioUrl);
+                sample.updateTestAudioPath(testAudioKey);
             }
+        } catch (Exception e) {
+            log.error("샘플 {}의 테스트 음성 생성 실패: {}", sample.getId(), e.getMessage());
         }
     }
 
-    private String extractS3Key(String url) {
+    public String extractS3Key(String url) {
         if (url == null || !url.contains(".com/")) {
             return url;
         }
@@ -254,8 +238,11 @@ public class VoiceService {
     }
 
     // 4. TTS 생성 (URL 반환) - 독립 트랜잭션 설정
+    @Value("${eeum.webhook-url}")
+    private String webhookBaseUrl;
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String createTtsUrl(Integer userId, String text) {
+    public String createTtsUrl(Integer userId, String text, Integer messageId) {
         log.debug("사용자 {}의 목소리 모델 및 대표 샘플을 조회합니다.", userId);
 
         VoiceModel voiceModel = modelRepository.findByUserId(userId)
@@ -264,28 +251,17 @@ public class VoiceService {
                     return new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
                 });
 
-        if (voiceModel.getStatus() != VoiceModel.ModelStatus.COMPLETED) {
-            log.warn("사용자 {}의 모델이 학습 완료 상태가 아닙니다. Status: {}", userId, voiceModel.getStatus());
-            throw new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
-        }
-
-        if (voiceModel.getGptPath() == null || voiceModel.getSovitsPath() == null) {
-            log.warn("사용자 {}의 모델 경로(GptPath/SovitsPath)가 누락되었습니다.", userId);
-            throw new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
-        }
-
-        // 대표 샘플이 지정되어 있으면 사용, 없으면 가장 최근 샘플 사용
-        VoiceSample referenceSample = voiceModel.getRepresentativeSample();
-        if (referenceSample == null) {
+        // 대표 샘플이 지정되어 있는지 확인
+        if (voiceModel.getRepresentativeSample() == null) {
             List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
             if (samples.isEmpty()) {
                 throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
             }
-            referenceSample = samples.get(0);
-            log.debug("대표 샘플이 설정되지 않았거나 삭제되어 가장 최근 샘플(ID: {})을 사용합니다.", referenceSample.getId());
-        } else {
-            log.debug("설정된 대표 샘플(ID: {})을 사용합니다.", referenceSample.getId());
+            voiceModel.updateRepresentativeSample(samples.get(0));
+            log.debug("대표 샘플이 설정되지 않아 가장 최근 샘플(ID: {})을 임시로 사용합니다.", samples.get(0).getId());
         }
+
+        VoiceSample referenceSample = voiceModel.getRepresentativeSample();
 
         String refText = referenceSample.getVoiceScript() != null
                 ? referenceSample.getVoiceScript().getContent()
@@ -293,17 +269,60 @@ public class VoiceService {
 
         PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
                 .userId(String.valueOf(userId))
-                .gptKey(voiceModel.getGptPath())
-                .sovitsKey(voiceModel.getSovitsPath())
                 .refWavKey(referenceSample.getSamplePath())
                 .refText(refText)
                 .text(text)
                 .build();
 
-        String audioUrl = voiceAiClient.generateTts(requestDto);
+        String webhookUrl = (messageId != null) ? (webhookBaseUrl + "?messageId=" + messageId) : null;
+        log.info("[TTS] Webhook URL: {}", webhookUrl);
+
+        String audioUrl = voiceAiClient.generateTts(requestDto, webhookUrl);
         if (audioUrl != null) {
             return audioUrl;
         }
+        throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    public String generateTtsSync(Integer userId, String text) {
+        log.info("[TTS Sync Test] 사용자 {}의 TTS 동기 생성 요청 (텍스트: {})", userId, text);
+
+        // 1. 초기 요청 (웹후크 없이)
+        String initialResult = createTtsUrl(userId, text, null);
+
+        // 2. 즉시 URL이 반환된 경우 (Warm Start)
+        if (initialResult.startsWith("http")) {
+            return initialResult;
+        }
+
+        // 3. Job ID가 반환된 경우 (Cold Start) - 폴링 시작
+        String jobId = initialResult;
+        log.info("[TTS Sync Test] Job ID {} 에 대한 폴링을 시작합니다.", jobId);
+
+        int maxAttempts = 36; // 180초 (5초 * 36)
+        for (int i = 0; i < maxAttempts; i++) {
+            try {
+                Thread.sleep(5000); // 5초 대기
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+
+            String statusOrUrl = voiceAiClient.checkJobStatus(jobId);
+            if (statusOrUrl == null || "FAILED".equals(statusOrUrl) || "ERROR".equals(statusOrUrl)) {
+                log.error("[TTS Sync Test] 음성 생성 실패 (상태: {})", statusOrUrl);
+                throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+
+            if (statusOrUrl.startsWith("http")) {
+                log.info("[TTS Sync Test] 음성 생성 완료: {}", statusOrUrl);
+                return statusOrUrl;
+            }
+
+            log.debug("[TTS Sync Test] 생성 중... (상태: {}, 시도: {}/{})", statusOrUrl, i + 1, maxAttempts);
+        }
+
+        log.warn("[TTS Sync Test] 시간 초과 (Job ID: {})", jobId);
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 }

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.ssafy.eeum.domain.message.service.MessageService;
@@ -11,6 +12,7 @@ import org.ssafy.eeum.domain.voice.dto.TtsRequestDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceModelStatusResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleRequestDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleResponseDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceTestRequestDTO;
 import org.ssafy.eeum.domain.voice.entity.VoiceScript;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
@@ -117,18 +119,12 @@ public class VoiceController {
                 return RestApiResponse.success("음성 샘플이 성공적으로 삭제되었습니다.");
         }
 
-        @SwaggerApiSpec(summary = "샘플별 테스트 음성 목록 조회", description = "생성된 테스트 음성 URL이 포함된 모든 음성 샘플 목록을 조회합니다.", successMessage = "테스트 음성 목록 조회 성공")
-        @GetMapping("/samples/test-audio")
-        public RestApiResponse<List<VoiceSampleResponseDTO>> getTestAudios(
-                        @AuthenticationPrincipal CustomUserDetails userDetails) {
-                return RestApiResponse.success(voiceService.getTestAudios(userDetails.getId()));
-        }
-
-        @SwaggerApiSpec(summary = "샘플별 테스트 음성 일괄 생성", description = "사용자의 모든 음성 샘플에 대해 랜덤 명대사를 활용한 테스트 TTS를 일괄 생성합니다.", successMessage = "테스트 음성 생성 요청 성공")
-        @PostMapping("/samples/test-generate")
-        public RestApiResponse<Void> generateTestAudios(
-                        @AuthenticationPrincipal CustomUserDetails userDetails) {
-                voiceService.generateTestAudios(userDetails.getId());
-                return RestApiResponse.success("테스트 음성 생성이 완료되었습니다.");
+        @SwaggerApiSpec(summary = "TTS 테스트 생성 (URL 반환)", description = "입력한 텍스트를 현재 설정된 대표 목소리로 TTS 변환하여 S3 URL을 즉시 반환합니다. (테스트용, 결과 대기 후 반환)", successMessage = "TTS 생성 성공")
+        @PostMapping("/test-tts")
+        public RestApiResponse<String> testTts(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestBody @Valid VoiceTestRequestDTO request) {
+                String url = voiceService.generateTtsSync(userDetails.getId(), request.getText());
+                return RestApiResponse.success(HttpStatus.OK, "TTS 변환이 완료되었습니다.", url);
         }
 }
