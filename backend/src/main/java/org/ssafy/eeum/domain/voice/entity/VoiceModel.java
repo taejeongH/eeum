@@ -20,24 +20,12 @@ public class VoiceModel extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "gpt_path")
-    private String gptPath;
-
-    @Column(name = "sovits_path")
-    private String sovitsPath;
-
     @Enumerated(EnumType.STRING)
     private ModelStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "representative_sample_id")
     private VoiceSample representativeSample;
-
-    public void updateModel(String gptPath, String sovitsPath) {
-        this.gptPath = gptPath;
-        this.sovitsPath = sovitsPath;
-        this.status = ModelStatus.COMPLETED;
-    }
 
     public void updateStatus(ModelStatus status) {
         this.status = status;
