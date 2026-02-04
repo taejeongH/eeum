@@ -409,8 +409,8 @@ fun WebViewScreen(
 
                 // 배포 서버용
 //              loadUrl("http://10.0.2.2:5173")
-//                loadUrl("https://i14a105.p.ssafy.io")
-              loadUrl("http://70.12.246.148:5173")
+                loadUrl("https://i14a105.p.ssafy.io")
+//            loadUrl("http://70.12.246.148:5173")
             }
         }
     )
