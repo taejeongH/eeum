@@ -63,6 +63,9 @@ public class SecurityConfig {
                                                 // IoT 인증 API - 토큰 불필요
                                                 .requestMatchers("/api/iot/auth/**")
                                                 .permitAll()
+                                                // 보이스 웹후크 - 토큰 불필요
+                                                .requestMatchers("/api/voice/webhook/**")
+                                                .permitAll()
                                                 // IoT 기기 전용 API - ROLE_DEVICE 필수
                                                 .requestMatchers("/api/iot/device/**")
                                                 .hasRole("DEVICE")
