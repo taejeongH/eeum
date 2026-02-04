@@ -16,7 +16,6 @@
       </div>
 
       <!-- Month Navigation -->
-      <!-- Month Navigation -->
       <div v-if="!isSearchOpen" class="mt-0 text-center flex items-center justify-center gap-6 animate-fade-in relative z-20">
         
         <!-- Year Display -->
@@ -216,21 +215,7 @@
                              <div class="picker-item">{{ m }}월</div>
                         </swiper-slide>
                     </swiper>
-
-                    <!-- Day Swiper -->
-                    <swiper 
-                        key="day-swiper"
-                        :direction="'vertical'"
-                        :slides-per-view="5"
-                        :centered-slides="true"
-                        :initial-slide="initialDayIndex"
-                        @slideChange="onDayChange"
-                        class="picker-swiper flex-1"
-                    >
-                        <swiper-slide v-for="d in pickerDays" :key="d">
-                             <div class="picker-item">{{ d }}일</div>
-                        </swiper-slide>
-                    </swiper>
+                    <!-- Day Swiper removed -->
                 </div>
             </div>
         </div>
@@ -259,7 +244,7 @@ const slideDirection = ref('next');
 
 // Wheel Picker State
 const isDatePickerModalOpen = ref(false);
-const pickerSelection = ref({ year: 2025, month: 1, day: 1 });
+const pickerSelection = ref({ year: 2025, month: 1 });
 const pickerYears = Array.from({ length: 100 }, (_, i) => 1950 + i);
 
 // Picker Drag Logic
@@ -305,12 +290,6 @@ const onPickerTouchEnd = () => {
 // Computed indices for Swiper initialSlide
 const initialYearIndex = computed(() => pickerYears.indexOf(pickerSelection.value.year));
 const initialMonthIndex = computed(() => pickerSelection.value.month - 1);
-const initialDayIndex = computed(() => pickerSelection.value.day - 1);
-
-const pickerDays = computed(() => {
-    const lastDay = new Date(pickerSelection.value.year, pickerSelection.value.month, 0).getDate();
-    return Array.from({ length: lastDay }, (_, i) => i + 1);
-});
 
 const onYearChange = (swiper) => {
     pickerSelection.value.year = pickerYears[swiper.activeIndex];
@@ -318,23 +297,13 @@ const onYearChange = (swiper) => {
 const onMonthChange = (swiper) => {
     pickerSelection.value.month = swiper.activeIndex + 1;
 };
-const onDayChange = (swiper) => {
-    // Ensure day is valid for the new month/year (though Swiper idx might be out of bounds visually if day count shrinks, logic handles value)
-    // Actually we pick based on active index.
-    // If days shrink (31 -> 28), swiper might need update.
-    // Simplifying: Just let user pick index. If index > available days, clamp it.
-    // But Swiper `activeIndex` is just an index. We map it to pickerDays.
-    const day = pickerDays.value[swiper.activeIndex] || pickerDays.value[pickerDays.value.length - 1]; // Fallback
-    pickerSelection.value.day = day;
-};
 
 const openDatePicker = () => {
     // Init with current selected date
     const d = new Date(selectedDate.value);
     pickerSelection.value = {
         year: d.getFullYear(),
-        month: d.getMonth() + 1,
-        day: d.getDate()
+        month: d.getMonth() + 1
     };
     isDatePickerModalOpen.value = true;
 };
@@ -344,10 +313,12 @@ const closeDatePicker = () => {
 };
 
 const confirmDate = () => {
-    // Construct Date
-    const newDate = new Date(pickerSelection.value.year, pickerSelection.value.month - 1, pickerSelection.value.day);
+    // Construct Date (1st day of month)
+    const newDate = new Date(pickerSelection.value.year, pickerSelection.value.month - 1, 1);
     currentDate.value = newDate;
-    selectedDate.value = toLocalDateString(newDate);
+    
+    // Logic to select appropriate date (1st or Today)
+    syncSelectedDateWithView(newDate);
     
     closeDatePicker();
 };

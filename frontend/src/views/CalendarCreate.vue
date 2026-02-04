@@ -116,7 +116,15 @@
                 <div class="flex items-center gap-3">
                   <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">시작</span>
                   <div class="flex gap-2 items-center flex-1">
-                    <EeumDatePicker v-model="formData.startAtDate" class="flex-[1.4] min-w-[130px]" />
+                    <EeumDatePicker 
+                      v-model="formData.startAtDate" 
+                      class="flex-[1.4] min-w-[130px]"
+                      is-range
+                      :start-date="formData.startAtDate"
+                      :end-date="formData.endAtDate"
+                      @update:start-date="val => formData.startAtDate = val"
+                      @update:end-date="val => formData.endAtDate = val"
+                    />
                     <input v-model="formData.startAtTime" type="time" class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]" />
                   </div>
                 </div>
@@ -124,7 +132,15 @@
                 <div class="flex items-center gap-3">
                   <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">종료</span>
                   <div class="flex gap-2 items-center flex-1">
-                    <EeumDatePicker v-model="formData.endAtDate" class="flex-[1.4] min-w-[130px]" />
+                    <EeumDatePicker 
+                      v-model="formData.endAtDate" 
+                      class="flex-[1.4] min-w-[130px]"
+                      is-range
+                      :start-date="formData.startAtDate"
+                      :end-date="formData.endAtDate"
+                      @update:start-date="val => formData.startAtDate = val"
+                      @update:end-date="val => formData.endAtDate = val"
+                    />
                     <input v-model="formData.endAtTime" type="time" class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]" />
                   </div>
                 </div>
