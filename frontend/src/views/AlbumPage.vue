@@ -225,6 +225,13 @@ const fetchPhotos = async (forceRefresh = false) => {
             };
         });
         
+        // Sort by createdAt descending (최신순 정렬)
+        processedPhotos.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || 0);
+            return dateB - dateA;
+        });
+
         // Cache the processed photos
         albumStore.setCachedPhotos(familyId, processedPhotos);
         allPhotos.value = processedPhotos;
