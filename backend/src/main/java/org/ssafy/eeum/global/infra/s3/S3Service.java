@@ -22,6 +22,8 @@ import java.io.InputStream;
 import java.net.URL;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -34,6 +36,23 @@ public class S3Service {
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
 
+    // Presigned URL 캐시 (Key: fileKey, Value: CachedUrl)
+    private final Map<String, CachedUrl> urlCache = new ConcurrentHashMap<>();
+
+    private static class CachedUrl {
+        final String url;
+        final long expiryTime;
+
+        CachedUrl(String url, long expiryTime) {
+            this.url = url;
+            this.expiryTime = expiryTime;
+        }
+
+        boolean isValid() {
+            return System.currentTimeMillis() < expiryTime;
+        }
+    }
+    
     public String uploadFile(MultipartFile file, String dirName) {
         if (file == null || file.isEmpty()) {
             return null;
@@ -149,17 +168,30 @@ public class S3Service {
             return null;
         }
 
+        // 1. 캐시 확인
+        CachedUrl cached = urlCache.get(key);
+        if (cached != null && cached.isValid()) {
+            return cached.url;
+        }
+
+        // 2. 캐시 미스 -> Presigned URL 생성
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
                 .build();
 
         GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(10))
+                .signatureDuration(Duration.ofMinutes(10)) // 10분 유효
                 .getObjectRequest(getObjectRequest)
                 .build();
 
         PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest);
-        return presignedGetObjectRequest.url().toString();
+        String newUrl = presignedGetObjectRequest.url().toString();
+
+        // 3. 캐시에 저장 (유효기간을 1분 여유를 두고 9분으로 설정)
+        long expiryTime = System.currentTimeMillis() + Duration.ofMinutes(9).toMillis();
+        urlCache.put(key, new CachedUrl(newUrl, expiryTime));
+
+        return newUrl;
     }
 }

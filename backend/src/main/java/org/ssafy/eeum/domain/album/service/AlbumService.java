@@ -72,7 +72,7 @@ public class AlbumService {
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-    // 2. 가족별 사진 목록 조회
+    // 2. 가족별 사진 목록 조회 (최적화됨)
     public List<AlbumResponseDTO> getPhotos(Integer familyId, Integer userId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
@@ -84,7 +84,10 @@ public class AlbumService {
         supporterRepository.findByUserAndFamily(user, family)
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-        return albumRepository.findAllByFamilyId(familyId).stream()
+        List<MediaAsset> assets = albumRepository.findAllByFamilyId(familyId);
+        
+        // Parallel stream을 사용하여 Presigned URL 생성 병렬 처리
+        return assets.parallelStream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
