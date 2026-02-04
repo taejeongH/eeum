@@ -29,7 +29,7 @@
           </template>
         </EeumDatePicker>
         <button 
-            v-if="isRepresentative"
+            v-if="canManage"
             @click="toggleSelectionMode"
             class="text-primary text-base font-bold leading-normal tracking-[0.015em] shrink-0"
         >
@@ -171,8 +171,17 @@ const albumTitle = computed(() => {
     return uploader ? `${uploader}의 앨범` : `${groupName} 앨범`;
 });
 
-const isRepresentative = computed(() => {
-    return familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
+const canManage = computed(() => {
+    // 1. Check if Representative
+    const isRep = familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
+    
+    // 2. Check if viewing own album (filtered by uploader name)
+    const currentUploaderFilter = route.query.uploader;
+    const myName = userStore.profile?.name;
+    // Assuming uploader name is unique/consistent enough for this view logic
+    const isMyAlbum = currentUploaderFilter && myName && (currentUploaderFilter === myName);
+    
+    return isRep || isMyAlbum;
 });
 
 const fetchPhotos = async (forceRefresh = false) => {

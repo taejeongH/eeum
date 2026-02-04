@@ -23,8 +23,8 @@
 
     <main class="space-y-6">
       <!-- Recently Added (Swiper) -->
-      <section class="recent-photos-section py-6 bg-[#F0EEE9]" @click="navigateToAlbum({ id: 'all' })">
-        <div class="flex items-center justify-between px-6 mb-4">
+      <section class="recent-photos-section py-6 bg-[#F0EEE9]">
+        <div class="flex items-center justify-between px-6 mb-4 cursor-pointer" @click="navigateToAlbum({ id: 'all' })">
             <h2 class="text-lg font-bold text-[#1c140d]">최근 추가된 사진</h2>
             <span class="material-symbols-outlined text-[#9c7349]">chevron_right</span>
         </div>
@@ -53,7 +53,7 @@
           class="recent-swiper"
         >
           <swiper-slide v-for="(photo, index) in recentPhotos" :key="photo.photoId || index">
-            <div @click="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
+            <div @click.stop="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
               <!-- Blurred Background for Fill -->
               <img :src="photo.displayUrl" class="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30" aria-hidden="true" />
               
