@@ -50,8 +50,9 @@ public class AlbumController {
     @SwaggerApiSpec(summary = "사진 목록 조회", description = "해당 가족의 모든 사진 목록을 조회합니다.", successMessage = "사진 목록 조회 성공")
     @GetMapping("/families/{familyId}/album")
     public RestApiResponse<List<AlbumResponseDTO>> getPhotos(
-            @PathVariable Integer familyId) {
-        return RestApiResponse.success(albumService.getPhotos(familyId));
+            @PathVariable Integer familyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return RestApiResponse.success(albumService.getPhotos(familyId, userDetails.getId()));
     }
 
     @SwaggerApiSpec(summary = "사진 수정", description = "사진의 날짜나 설명을 수정합니다.", successMessage = "사진 수정 성공", errors = {

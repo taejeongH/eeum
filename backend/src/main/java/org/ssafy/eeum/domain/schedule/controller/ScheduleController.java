@@ -24,6 +24,7 @@ public class ScheduleController {
         @SwaggerApiSpec(summary = "월간 일정 조회", description = "특정 연도/월의 모든 가족 일정을 조회합니다. 카테고리, 키워드, 대상자, 방문 여부로 필터링할 수 있습니다.", successMessage = "월간 일정 조회 성공")
         @GetMapping
         public RestApiResponse<List<ScheduleResponseDTO>> getMonthlySchedules(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
                         @PathVariable Integer familyId,
                         @RequestParam int year,
                         @RequestParam int month,
@@ -32,18 +33,19 @@ public class ScheduleController {
                         @RequestParam(required = false) String targetPerson,
                         @RequestParam(required = false) Boolean isVisited) {
                 return RestApiResponse
-                                .success(scheduleService.getMonthlySchedules(familyId, year, month, category, keyword,
-                                                targetPerson,
-                                                isVisited));
+                        .success(scheduleService.getMonthlySchedules(userDetails.getId(), familyId, year, month, category, keyword,
+                                targetPerson,
+                                isVisited));
         }
 
         @SwaggerApiSpec(summary = "일정 상세 조회", description = "일정 상세 정보를 조회합니다.", successMessage = "일정 상세 조회 성공", errors = {
                         ErrorCode.SCHEDULE_NOT_FOUND, ErrorCode.ENTITY_NOT_FOUND })
         @GetMapping("/{scheduleId}")
         public RestApiResponse<ScheduleResponseDTO> getSchedule(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
                         @PathVariable Integer familyId,
                         @PathVariable String scheduleId) {
-                return RestApiResponse.success(scheduleService.getSchedule(familyId, scheduleId));
+                return RestApiResponse.success(scheduleService.getSchedule(userDetails.getId(), familyId, scheduleId));
         }
 
         @SwaggerApiSpec(summary = "일정 등록", description = "새로운 가족 일정을 등록합니다.", successMessage = "일정이 성공적으로 등록되었습니다.", errors = {

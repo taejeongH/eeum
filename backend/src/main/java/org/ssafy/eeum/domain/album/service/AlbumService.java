@@ -73,7 +73,17 @@ public class AlbumService {
     }
 
     // 2. 가족별 사진 목록 조회
-    public List<AlbumResponseDTO> getPhotos(Integer familyId) {
+    public List<AlbumResponseDTO> getPhotos(Integer familyId, Integer userId) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 해당 가족 그룹의 멤버인지 확인
+        supporterRepository.findByUserAndFamily(user, family)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+
         return albumRepository.findAllByFamilyId(familyId).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
