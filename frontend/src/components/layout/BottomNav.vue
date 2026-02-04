@@ -109,14 +109,6 @@
       </button>
     </div>
 
-    <!-- Custom Logout Confirmation Modal -->
-    <ConfirmModal 
-      :show="showLogoutModal"
-      title="로그아웃"
-      message="정말로 로그아웃하시겠습니까?"
-      @confirm="performLogout"
-      @cancel="showLogoutModal = false"
-    />
   </div>
 </template>
 
@@ -125,7 +117,6 @@ import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
-import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
@@ -135,7 +126,6 @@ const modalStore = useModalStore();
 const familyStore = useFamilyStore();
 const activeTab = ref('home');
 const showMenu = ref(false);
-const showLogoutModal = ref(false);
 
 const menuContainer = ref(null);
 
@@ -248,22 +238,30 @@ const navigateTo = (type) => {
   }
 };
 
-const handleLogout = () => {
+const handleLogout = async () => {
   showMenu.value = false;
-  showLogoutModal.value = true;
-};
-
-const performLogout = () => {
-  showLogoutModal.value = false;
-  // Clear tokens and profile
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('familyId');
-  localStorage.removeItem('currentFamilyId');
-  sessionStorage.removeItem('accessToken');
   
-  userStore.clearUser();
+  const confirmed = await modalStore.openConfirm(
+    "정말로 로그아웃하시겠습니까?",
+    "로그아웃"
+  );
   
-  // Redirect to login or onboarding
-  router.push('/login');
+  if (confirmed) {
+    // Clear tokens and profile
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('familyId');
+    localStorage.removeItem('currentFamilyId');
+    sessionStorage.removeItem('accessToken');
+    
+    userStore.clearUser();
+    
+    // [NEW] Android Native Logout
+    if (window.AndroidBridge && window.AndroidBridge.logout) {
+      window.AndroidBridge.logout();
+    }
+    
+    // Redirect to login or onboarding
+    router.push('/login');
+  }
 };
 </script>
