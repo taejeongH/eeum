@@ -1,8 +1,17 @@
 <template>
-  <div class="bg-black min-h-screen text-white flex flex-col relative h-screen overflow-hidden">
+  <div 
+    class="bg-black min-h-screen text-white flex flex-col relative h-screen overflow-hidden transition-colors duration-300"
+    :style="{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }"
+    @touchstart="handleTouchStart"
+    @touchmove="handleTouchMove"
+    @touchend="handleTouchEnd"
+  >
     
     <!-- Top Bar -->
-    <div class="absolute top-0 left-0 right-0 z-30 p-4 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+    <div 
+        class="absolute top-0 left-0 right-0 z-30 p-4 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent transition-transform duration-200"
+        :style="{ transform: `translateY(${translateY}px)` }"
+    >
         <button @click="$router.back()" class="p-2 rounded-full hover:bg-white/10 transition-colors">
             <span class="material-symbols-outlined text-white">arrow_back</span>
         </button>
@@ -33,7 +42,10 @@
     </div>
 
     <!-- Main Image Area -->
-    <div class="flex-1 relative w-full h-full bg-black">
+    <div 
+        class="flex-1 relative w-full h-full"
+        :style="{ transform: `translateY(${translateY}px)`, transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' }"
+    >
         <swiper
           v-if="isReady && allPhotos.length > 0"
           :initial-slide="currentIndex"
@@ -56,7 +68,11 @@
     </div>
 
     <!-- Bottom Info Overlay (View Mode) -->
-    <div v-if="photo && !isEditing" class="absolute bottom-0 left-0 right-0 z-30 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-8">
+    <div 
+        v-if="photo && !isEditing" 
+        class="absolute bottom-0 left-0 right-0 z-30 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-8 transition-transform duration-200"
+        :style="{ transform: `translateY(${translateY}px)` }"
+    >
         <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between">
                 <p class="text-white text-lg font-bold">{{ photo.description || '설명 없음' }}</p>
@@ -284,6 +300,46 @@ const saveEdit = async () => {
     } catch (error) {
         console.error(error);
         await modalStore.openAlert('수정 실패');
+    }
+};
+
+// [NEW] Swipe to Close Logic
+const startY = ref(0);
+const currentY = ref(0);
+const isDragging = ref(false);
+const translateY = ref(0);
+const opacity = ref(1);
+
+const handleTouchStart = (e) => {
+    if (isEditing.value) return;
+    startY.value = e.touches[0].clientY;
+    isDragging.value = true;
+};
+
+const handleTouchMove = (e) => {
+    if (!isDragging.value || isEditing.value) return;
+    currentY.value = e.touches[0].clientY;
+    const deltaY = currentY.value - startY.value;
+    
+    // Only allow downward drag
+    if (deltaY > 0) {
+        translateY.value = deltaY;
+        // Fade out as you drag down (1 -> 0.3)
+        opacity.value = Math.max(0.3, 1 - (deltaY / 500));
+    }
+};
+
+const handleTouchEnd = () => {
+    if (!isDragging.value || isEditing.value) return;
+    isDragging.value = false;
+    
+    // Threshold to close: 100px
+    if (translateY.value > 100) {
+        router.back();
+    } else {
+        // Spring back
+        translateY.value = 0;
+        opacity.value = 1;
     }
 };
 

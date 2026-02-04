@@ -148,13 +148,11 @@ const updateActiveTab = () => {
         activeTab.value = 'message';
     } else if (route.path.startsWith('/families') && route.path.includes('/medications')) {
         activeTab.value = 'menu';
-    } else if (route.path === '/health-detail') {
+    } else if (route.path.includes('/health-detail')) {
         activeTab.value = 'health';
-    } else if (route.path === '/health-detail') {
-        activeTab.value = 'health';
-    } else if (route.path === '/health-detail') {
-        activeTab.value = 'health';
-    } else if (route.path === '/voice-register') {
+    } else if (route.path.includes('/voice-register')) {
+        activeTab.value = 'menu';
+    } else if (route.path.includes('/realtime-heart-rate')) {
         activeTab.value = 'menu';
     } else {
         // default or handle other routes
@@ -201,7 +199,12 @@ const setActive = (tab) => {
           modalStore.openAlert("가족 정보를 찾을 수 없습니다.");
       }
   } else if (tab === 'health') {
-      router.push('/health-detail');
+      const familyId = familyStore.selectedFamily?.id;
+      if (familyId) {
+          router.push(`/families/${familyId}/health-detail`);
+      } else {
+          modalStore.openAlert("가족 정보를 찾을 수 없습니다.");
+      }
   } else if (tab !== 'home') {
      // Mock navigation feedback
   }
@@ -216,7 +219,12 @@ const navigateTo = (type) => {
   activeTab.value = 'menu';
   
   if (type === 'voice') {
-    router.push('/voice-register');
+    const familyId = familyStore.selectedFamily?.id;
+    if (familyId) {
+      router.push(`/families/${familyId}/voice-register`);
+    } else {
+      modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
+    }
   } else if (type === 'medication') {
     const familyId = familyStore.selectedFamily?.id;
     
@@ -226,9 +234,19 @@ const navigateTo = (type) => {
       modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
     }
   } else if (type === 'health') {
-    router.push('/health-detail');
+    const familyId = familyStore.selectedFamily?.id;
+    if (familyId) {
+      router.push(`/families/${familyId}/health-detail`);
+    } else {
+      modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
+    }
   } else if (type === 'realtime-hr') {
-    router.push('/realtime-heart-rate');
+    const familyId = familyStore.selectedFamily?.id;
+    if (familyId) {
+      router.push(`/families/${familyId}/realtime-heart-rate`);
+    } else {
+      modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
+    }
   }
 };
 

@@ -76,13 +76,12 @@
           실시간 심박수 측정은 연결된 갤럭시 워치를 통해 가능합니다. 측정이 시작되지 않으면 워치 스크린이 켜져 있는지 확인해주세요.
         </p>
       </div>
-
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import IconBack from '@/components/icons/IconBack.vue';
 
 const heartRate = ref(0);
@@ -120,7 +119,7 @@ const stopMonitoring = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   // Define global function for Native to call
   window.onNativeNotification = (id, type, familyId, title, message, groupName) => {
     console.log("Received Notification from Native:", id, type, title, message);

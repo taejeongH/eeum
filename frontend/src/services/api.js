@@ -10,6 +10,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+  timeout: 5000, // 5초 타임아웃 (서버 응답 없을 시 무한 로딩 방지)
 });
 
 // [중요] 모든 요청에 토큰을 자동으로 붙여주는 인터셉터입니다.
@@ -17,7 +18,9 @@ apiClient.interceptors.request.use(
   (config) => {
     // [NEW] 전역 로딩 시작
     const uiStore = useUiStore();
-    uiStore.startLoading();
+    if (config.skipLoading !== true) {
+      uiStore.startLoading();
+    }
 
     // 1. localStorage 또는 sessionStorage에서 토큰 확인
     let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');

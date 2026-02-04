@@ -152,7 +152,7 @@ const routes = [
     component: VoiceSample,
   },
   {
-    path: '/voice-register',
+    path: '/families/:familyId/voice-register',
     name: 'VoiceRegistration',
     component: VoiceRegistration,
   },
@@ -192,7 +192,7 @@ const routes = [
     component: () => import('../views/DetailSchedule.vue'),
   },
   {
-    path: '/health-detail',
+    path: '/families/:familyId/health-detail',
     name: 'HealthDetail',
     component: HealthDetailView,
   },
@@ -202,7 +202,7 @@ const routes = [
     redirect: '/home',
   },
   {
-    path: '/realtime-heart-rate',
+    path: '/families/:familyId/realtime-heart-rate',
     name: 'RealTimeHeartRate',
     component: () => import('../views/HeartRateView.vue'),
   },

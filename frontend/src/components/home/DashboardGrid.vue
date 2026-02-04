@@ -74,6 +74,9 @@ const handleCardClick = (item) => {
 
   if (item.route === 'medication') {
     router.push(`/families/${familyId}/medications`);
+  } else if (item.route && item.route.startsWith('/')) {
+    // For routes like /health-detail, prepend /families/:familyId
+    router.push(`/families/${familyId}${item.route}`);
   } else if (item.route) {
     router.push(item.route);
   }

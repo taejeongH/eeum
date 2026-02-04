@@ -169,7 +169,8 @@ const handleLogin = async () => {
       email: loginForm.username,
       password: loginForm.password
     }, {
-      withCredentials: false
+      withCredentials: false,
+      skipLoading: true // 버튼에 스피너가 있으므로 전역 오버레이는 생략
     })
 
     const { accessToken, refreshToken } = response.data

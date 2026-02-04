@@ -35,7 +35,8 @@ export const healthService = {
     analyzeDailyReport: async (groupId, date) => {
         try {
             const response = await api.post('/health/analyze', null, {
-                params: { groupId, date }
+                params: { groupId, date },
+                skipLoading: true
             });
             return response.data.data;
         } catch (error) {

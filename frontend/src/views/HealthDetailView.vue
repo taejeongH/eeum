@@ -16,7 +16,7 @@
         </button>
         <h1 class="text-xl font-bold text-white tracking-tight pt-1.5">실시간 건강 정보</h1>
         <div class="flex items-center gap-2">
-            <button @click="fetchAllData" class="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
+            <button v-if="isUserDependent" @click="fetchAllData" class="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
                 <span class="material-symbols-outlined text-base" :class="{'animate-spin': syncLoading}">sync</span>
             </button>
         </div>
@@ -37,7 +37,7 @@
       </div>
     </div>
     
-    <div class="px-5 -mt-10 relative z-40 space-y-6">
+    <div v-if="hasDependent" class="px-5 -mt-10 relative z-40 space-y-6">
       
       <!-- Sync Status -->
       <div v-if="syncMessage" class="w-full p-3 bg-blue-50 text-blue-600 rounded-xl text-center text-sm font-medium animate-pulse shadow-sm">
@@ -176,7 +176,12 @@
       <!-- 2. AI Health Analysis (NOW AT BOTTOM) -->
       <div id="ai-analysis" class="space-y-6 pt-2">
           <div class="flex items-center justify-between px-2">
-             <h3 class="text-lg font-bold text-slate-900">AI 건강 도우미 분석</h3>
+             <div class="flex items-center gap-2">
+                <h3 class="text-lg font-bold text-slate-900">AI 건강 도우미 분석</h3>
+                <button @click="showHelpModal = true" class="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 transition-colors">
+                    <span class="material-symbols-outlined text-[16px]">help_outline</span>
+                </button>
+             </div>
              <button 
                 @click="handleAnalyze" 
                 :disabled="analyzeLoading"
@@ -258,28 +263,96 @@
           </div>
       </div>
     </div>
+
+    <!-- Empty State for Groups without Dependent -->
+    <div v-else class="px-5 -mt-10 relative z-40">
+        <div class="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-50 flex flex-col items-center text-center space-y-6">
+            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center">
+                <span class="material-symbols-outlined text-slate-300 text-5xl">person_off</span>
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-xl font-bold text-slate-800">피부양자가 없습니다</h3>
+                <p class="text-sm text-slate-500 leading-relaxed">
+                    이 그룹에는 건강 정보를 확인할 피부양자(어르신)가 설정되어 있지 않습니다.<br/>
+                    그룹 설정에서 피부양자를 추가해 주세요.
+                </p>
+            </div>
+            <button @click="$router.push('/home')" class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg active:scale-95">
+                홈으로 돌아가기
+            </button>
+        </div>
+    </div>
     
     <BottomNav />
+
+    <!-- Help Modal (GMS Analysis) -->
+    <div v-if="showHelpModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showHelpModal = false"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-fade-in">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-orange-500">live_help</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">도움말</h3>
+            </div>
+            
+            <div class="space-y-6 mb-8 text-slate-600">
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-xs font-bold text-orange-600">1</span>
+                    <p class="text-sm leading-relaxed"><strong>GMS 종합 분석</strong><br/>기기에서 측정된 심박수, 혈압, 활동량 등 다양한 생체 데이터를 통합하여 분석합니다.</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-xs font-bold text-orange-600">2</span>
+                    <p class="text-sm leading-relaxed"><strong>AI 어드바이저 코멘트</strong><br/>의학적 지식을 학습한 AI가 어르신의 일일 건강 패턴을 분석하여 맞춤형 조언을 드립니다.</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-xs font-bold text-orange-600">3</span>
+                    <p class="text-sm leading-relaxed"><strong>주의 및 상담</strong><br/>제공된 정보는 단순 참고용이며, 건강에 이상이 느껴질 경우 반드시 전문 의료진과 상담하시기 바랍니다.</p>
+                </div>
+            </div>
+
+            <button 
+                @click="showHelpModal = false"
+                class="w-full py-4 rounded-2xl bg-slate-900 text-white font-bold text-base hover:bg-slate-800 transition-all">
+                확인했습니다
+            </button>
+        </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive, computed } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
 import { useHealthStore } from '@/stores/health';
+import api from '@/services/api';
 import healthService from '@/services/healthService';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import IconBack from '@/components/icons/IconBack.vue';
 
 const route = useRoute();
-
+const userStore = useUserStore();
 const familyStore = useFamilyStore();
 const healthStore = useHealthStore();
 
 const syncLoading = ref(false);
 const analyzeLoading = ref(false);
+const showHelpModal = ref(false);
 const syncMessage = ref('');
+const members = ref([]);
+
+const isUserDependent = computed(() => {
+    const myId = userStore.profile?.id;
+    if (!myId || !members.value.length) return false;
+    const dependent = members.value.find(m => m.dependent);
+    return dependent && String(dependent.userId) === String(myId);
+});
+
+const hasDependent = computed(() => {
+    return members.value.some(m => m.dependent);
+});
 
 const healthMetrics = computed(() => healthStore.latestMetrics);
 const reportDescription = computed(() => healthStore.currentReport?.description || '');
@@ -343,7 +416,9 @@ const fetchLatestData = async () => {
         ]);
 
         if (healthStore.latestMetrics.recordDate) {
-            currentDate.value = new Date(healthStore.latestMetrics.recordDate);
+            // Update currentDate to the date of the record
+            const recordDate = new Date(healthStore.latestMetrics.recordDate);
+            currentDate.value = recordDate;
         }
     } catch (error) {
         console.error("Failed to fetch health data:", error);
@@ -373,6 +448,7 @@ const fetchAllData = () => {
     if (window.AndroidBridge && window.AndroidBridge.fetchAllHealthMetrics) {
         syncLoading.value = true;
         syncMessage.value = '삼성 헬스 데이터 동기화 중...';
+        currentDate.value = new Date(); // Update to today when starting sync
         window.AndroidBridge.fetchAllHealthMetrics();
     } else {
         console.warn("AndroidBridge not found. Browser mode: No mock data will be stored.");
@@ -399,7 +475,7 @@ window.onReceiveAllHealthData = (dataString) => {
         
         // Map snake_case from Android to camelCase for Backend
         const mappedData = {
-            recordDate: data.record_date ? data.record_date.replace(' ', 'T') : localIso,
+            recordDate: (data.record_date ? data.record_date.replace(' ', 'T') : localIso).split('.')[0],
             steps: data.steps,
             restingHeartRate: data.resting_heart_rate,
             averageHeartRate: data.average_heart_rate,
@@ -418,6 +494,7 @@ window.onReceiveAllHealthData = (dataString) => {
         
 
         healthStore.latestMetrics = mappedData; // Update store immediately for UI feedback
+        currentDate.value = now; // Ensure UI reflects today
         syncMessage.value = '데이터를 서버에 저장 중...';
         uploadToBackend(mappedData);
     } catch (e) {
@@ -432,20 +509,23 @@ const uploadToBackend = async (mappedData) => {
     if (!groupId) return;
 
     try {
+        await healthService.saveHealthMetrics(groupId, [mappedData]);
 
-        const response = await healthService.saveHealthMetrics(groupId, [mappedData]);
+        // Check if some desired data is missing
+        const hasMissingData = !mappedData.steps || !mappedData.activeMinutes || !mappedData.sleepTotalMinutes;
+        
+        if (hasMissingData) {
+            syncMessage.value = '데이터가 저장되었지만, 일부 항목(걸음 수 등)을 가져오지 못했습니다.';
+        } else {
+            syncMessage.value = '모든 데이터가 정상적으로 동기화되었습니다.';
+        }
 
-        syncMessage.value = '정상적으로 동기화되었습니다.';
         fetchLatestData(); // Refresh after upload
-        setTimeout(() => syncMessage.value = '', 3000);
+        setTimeout(() => syncMessage.value = '', 5000);
     } catch (error) {
-        console.error("Upload failed details:", {
-            status: error.response?.status,
-            data: error.response?.data,
-            message: error.message,
-            config: error.config
-        });
+        console.error("Upload failed details:", error);
         syncMessage.value = '서버 저장에 실패했습니다.';
+        setTimeout(() => syncMessage.value = '', 3000);
     }
 };
 
@@ -471,8 +551,39 @@ onMounted(async () => {
     if (!familyStore.selectedFamily) {
         await familyStore.fetchFamilies();
     }
+    
+    // Fetch members to determine role
+    if (familyStore.selectedFamily?.id) {
+        try {
+            const response = await api.get(`/families/${familyStore.selectedFamily.id}/members`);
+            members.value = response.data;
+        } catch (e) {
+            console.error("Failed to fetch members:", e);
+        }
+    }
+
     fetchLatestData();
 });
+
+// Re-fetch data when the selected family group changes
+watch(() => familyStore.selectedFamily?.id, async (newFamilyId) => {
+    if (!newFamilyId) {
+        members.value = [];
+        return;
+    }
+
+    try {
+        // Fetch members for the new family to update permissions
+        const response = await api.get(`/families/${newFamilyId}/members`);
+        members.value = response.data;
+    } catch (e) {
+        console.error("Failed to fetch members for the new group:", e);
+        members.value = [];
+    }
+
+    // Fetch the latest health data for the new group
+    fetchLatestData();
+}, { immediate: false });
 
 onUnmounted(() => {
     delete window.onReceiveAllHealthData;
@@ -492,5 +603,12 @@ onUnmounted(() => {
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 </style>
