@@ -26,6 +26,11 @@ export default defineConfig(({ mode }) => {
           timeout: 300000,
           proxyTimeout: 300000,
         },
+        '/gmsapi': {
+          target: 'https://gms.ssafy.io',
+          changeOrigin: true,
+          secure: false,
+        },
       },
     }
   }

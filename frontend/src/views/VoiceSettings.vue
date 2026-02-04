@@ -73,7 +73,7 @@
 
         <!-- Add Button (Placeholder slot) -->
         <div v-if="samples.length < 6" class="flex flex-col items-center justify-center">
-             <button @click="$router.push('/voice-registration')"
+             <button @click="$router.push('/voice-register')"
                      class="w-24 h-24 rounded-full border-2 border-dashed border-slate-600 text-slate-500 flex items-center justify-center hover:border-primary hover:text-primary transition-all">
                 <span class="material-symbols-outlined text-3xl">add</span>
              </button>
@@ -150,7 +150,6 @@ import * as voiceService from '@/services/voiceService';
 
 const samples = ref([]);
 const representativeId = ref(null);
-const isLoading = ref(true);
 const currentAudio = ref(null);
 const isPlaying = ref(false);
 const audioPlayer = ref(null);
@@ -166,8 +165,6 @@ onMounted(async () => {
 
 const loadData = async () => {
     try {
-        isLoading.value = true;
-        
         // 1. Get Status (includes samples and rep ID)
         const statusData = await voiceService.getVoiceStatus();
         representativeId.value = statusData.representativeSampleId;
@@ -188,8 +185,6 @@ const loadData = async () => {
         samples.value = fetchedSamples;
     } catch (error) {
         console.error("Failed to load voice settings:", error);
-    } finally {
-        isLoading.value = false;
     }
 };
 
