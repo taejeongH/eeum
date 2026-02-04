@@ -1,48 +1,52 @@
 <template>
   <header
-  class="bg-white px-6 pt-[calc(1.25rem+var(--sat))] pb-3 shadow-sm
+  class="bg-white px-6 pt-[calc(0.75rem+var(--sat))] pb-2 shadow-sm
          sticky top-0 z-[100]
          transition-all duration-300">
     <!-- 상단 네비게이션 영역 -->
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-1">
       
-      <!-- Group Selector (Left) -->
-      <div class="flex-shrink-0 w-36 flex justify-start relative z-50">
-        <div class="relative" ref="groupSelectorWrapper">
-          <div 
-            @click="toggleGroupSelector" 
-            class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 transition cursor-pointer group"
-          >
-            <span class="truncate text-sm font-bold text-gray-800 max-w-[80px]">
-              {{ selectedGroup ? selectedGroup.name : '그룹 선택' }}
-            </span>
-            <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-          <GroupSelector ref="groupSelectorRef" @add-group-request="openAddGroupModal" />
-        </div>
-      </div>
-
-      <!-- Title (Center) -->
-      <div class="flex-1 flex flex-col items-center justify-center">
-        <router-link to="/home" class="flex flex-col items-center group">
-          <h1 class="text-2xl font-extrabold text-[var(--text-title)] tracking-tighter leading-none whitespace-nowrap" style="font-family: 'Pretendard', sans-serif;">
+      <!-- Trusted Logo & Wordmark (Left) -->
+      <div class="flex-shrink-0 flex items-center z-50">
+        <router-link to="/home" class="flex items-center gap-1 active:scale-95 transition-transform duration-200 group">
+          <img src="@/assets/eeum_logo2.png" alt="Logo" class="h-6 w-auto object-contain" />
+          <h1 class="text-[1.125rem] font-[950] text-[#1E293B] tracking-[-0.05em]" style="font-family: 'NanumSquareNeo', sans-serif;">
             이음
           </h1>
         </router-link>
       </div>
 
-       <!-- Settings (Right) -->
-       <div class="flex-shrink-0 w-36 flex justify-end items-center relative z-50 gap-1">
+      <!-- Center Spacer (Empty for now) -->
+      <div class="flex-1"></div>
+
+       <!-- Actions & Group Selector & Settings (Right) -->
+       <div class="flex-shrink-0 flex justify-end items-center relative z-50 gap-2">
+         <!-- Group Selector (Moved to Right) -->
+         <div class="relative" ref="groupSelectorWrapper">
+           <div 
+             @click="toggleGroupSelector" 
+             class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gray-100/80 hover:bg-gray-200/80 transition cursor-pointer group whitespace-nowrap"
+           >
+             <span class="truncate text-[13px] font-bold text-gray-800 max-w-[70px]">
+               {{ selectedGroup ? selectedGroup.name : '그룹 선택' }}
+             </span>
+             <svg class="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+             </svg>
+           </div>
+           <GroupSelector ref="groupSelectorRef" @add-group-request="openAddGroupModal" />
+         </div>
+
          <slot name="actions"></slot>
+         
+         <!-- Settings Button -->
          <div v-if="showSettings" class="relative" ref="settingsMenu">
              <button 
                @click="toggleSettings" 
-               class="p-2 rounded-full hover:bg-gray-50/80 active:bg-gray-100 transition text-[var(--text-sub)] hover:text-[var(--text-body)]"
+               class="p-1.5 rounded-full hover:bg-gray-50/80 active:bg-gray-100 transition text-[var(--text-sub)] hover:text-[var(--text-body)]"
              >
                  <!-- 점 3개 (더보기) 아이콘 -->
-                 <svg class="w-6 h-6 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                  </svg>
              </button>
@@ -63,7 +67,7 @@
        :class="isCollapsed ? 'max-h-0 opacity-0' : 'max-h-48 opacity-100'"
      >
        <!-- 가족 프로필 리스트 -->
-       <div class="flex items-end justify-between pt-2 pb-1 gap-2 -mr-6">
+       <div class="flex items-end justify-between pt-1 pb-1 gap-2 -mr-6">
          <!-- 왼쪽: 고정된 피부양자/본인 + 스크롤 가능한 멤버 목록 -->
          <div class="flex items-end gap-2 flex-grow min-w-0">
            
@@ -156,7 +160,7 @@
     </div>
 
     <!-- Toggle Button Container (Integrated with Header) -->
-    <div v-if="showProfiles" class="flex justify-center -mb-3.5 relative z-20">
+    <div v-if="showProfiles" class="flex justify-center -mb-2.5 relative z-20">
       <!-- Collapse Toggle Button -->
       <div class="flex justify-center">
         <button 

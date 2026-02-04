@@ -8,7 +8,7 @@
         </button>
       </template>
     </MainHeader>
-    <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-2 pb-4 transiton-all duration-300 border-b border-slate-100">
+    <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-6 pb-4 transiton-all duration-300 border-b border-slate-100">
       
       <!-- Search Input -->
       <div v-if="isSearchOpen" class="mb-4 animate-fade-in">

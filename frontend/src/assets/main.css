@@ -1,3 +1,6 @@
+@import url('https://hangeul.pstatic.net/hangeul_static/css/nanum-square-neo.css');
+@import url('https://cdn.jsdelivr.net/gh/fonts-archive/HakgyoansimDunggeunmiso/HakgyoansimDunggeunmiso.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
