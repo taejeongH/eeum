@@ -17,6 +17,9 @@
             </button>
             <h1 class="text-xl font-bold text-white tracking-wide">목소리 등록</h1>
         </div>
+        <button @click="showHelpModal = true" class="w-10 h-10 flex items-center justify-center ml-auto rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
+          <span class="material-symbols-outlined text-[20px]">help_outline</span>
+        </button>
       </div>
 
       <!-- Tab Switcher -->
@@ -202,6 +205,44 @@
             </div>
         </div>
     </div>
+
+
+    <!-- Help Modal -->
+    <div v-if="showHelpModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showHelpModal = false"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-fade-in">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary">live_help</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">도움말</h3>
+            </div>
+            
+            <div class="space-y-6 mb-8 text-slate-600">
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">1</span>
+                    <p class="text-sm leading-relaxed"><strong>조용한 장소에서 녹음해 주세요.</strong><br/>주변 소음이 섞이면 고품질의 목소리 생성이 어려울 수 있습니다.</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">2</span>
+                    <p class="text-sm leading-relaxed"><strong>일정한 거리를 유지해 주세요.</strong><br/>마이크와 입 사이의 거리를 약 25cm 정도로 일정하게 유지하는 것이 좋습니다.</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">3</span>
+                    <p class="text-sm leading-relaxed"><strong>또박또박 읽어 주세요.</strong><br/>문장을 평소 대화하듯 자연스럽고 또박또박하게 끝까지 읽어 주세요.</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">4</span>
+                    <p class="text-sm leading-relaxed"><strong>최소 3초 이상 녹음해 주세요.</strong><br/>너무 짧은 녹음은 학습에 활용될 수 없습니다. (3~10초 사이 권장)</p>
+                </div>
+            </div>
+
+            <button 
+                @click="showHelpModal = false"
+                class="w-full py-4 rounded-2xl bg-slate-900 text-white font-bold text-base hover:bg-slate-800 transition-all">
+                확인했습니다
+            </button>
+
     <!-- Limit Reached Modal -->
     <div v-if="showLimitModal" class="fixed inset-0 z-[60] flex items-center justify-center px-6">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showLimitModal = false"></div>
@@ -224,6 +265,7 @@
                     닫기
                 </button>
             </div>
+
         </div>
     </div>
   </div>
@@ -246,6 +288,7 @@ const isInitialSetup = computed(() => route.query.flow === 'initial');
 const currentMode = ref('script'); // 'script' | 'free'
 const voiceSamples = ref([]);
 const selectedSample = ref(null);
+const showHelpModal = ref(false);
 const isRecording = ref(false);
 const isLoading = ref(false);
 const recorder = ref(null);
@@ -676,8 +719,15 @@ const copyText = async () => {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 .word-keep-all {
     word-break: keep-all;
