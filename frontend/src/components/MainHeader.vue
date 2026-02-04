@@ -4,7 +4,7 @@
          sticky top-0 z-[100]
          transition-all duration-300">
     <!-- 상단 네비게이션 영역 -->
-    <div class="flex items-center justify-between mb-1">
+    <div class="flex items-center justify-between mb-1 min-h-[44px]">
       
       <!-- Trusted Logo & Wordmark (Left) -->
       <div class="flex-shrink-0 flex items-center z-50">
