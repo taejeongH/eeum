@@ -20,9 +20,10 @@ export const getScripts = async () => {
  * @param {string} extension - 파일 확장자 (예: wav, webm, mp4 ... default: wav)
  * @returns {Promise<string>} Presigned URL
  */
-export const getPresignedUrl = async (scriptId, extension = 'wav') => {
+export const getPresignedUrl = async (extension = 'wav') => {
+    // New spec: only needs extension
     const response = await apiClient.get('/voice/presigned-url', {
-        params: { scriptId, extension },
+        params: { extension },
     });
     return response.data;
 };
@@ -112,86 +113,83 @@ export const updateNickname = async (sampleId, nickname) => {
  * 2. S3 업로드
  * 3. 메타데이터 저장
  */
-export const uploadVoiceSample = async (file, scriptId, durationSec) => {
+/**
+ * Helper: 전체 업로드 프로세스 진행 (대본/프리토킹 통합)
+ * 1. Presigned URL 발급
+ * 2. S3 업로드
+ * 3. 메타데이터 저장
+ * 
+ * @param {Blob} file - 녹음 파일
+ * @param {number|null} scriptId - 대본 ID (프리토킹인 경우 null)
+ * @param {number} durationSec - 녹음 길이 (초 단위, 3.0 ~ 10.0 필수)
+ * @param {string|null} transcript - 프리토킹인 경우 필수, 대본이면 생략 가능
+ */
+export const uploadVoiceSample = async (file, scriptId, durationSec, transcript = null) => {
     try {
-        console.log(`Starting upload for script ${scriptId}, duration: ${durationSec}`);
+        console.log(`Starting upload. ScriptId: ${scriptId}, Duration: ${durationSec}, Transcript: ${transcript ? transcript.substring(0, 10) + '...' : 'null'}`);
 
-        // Determine extension from MIME type
-        // common mappings: audio/webm -> webm, audio/mp4 -> mp4, audio/wav -> wav
-        let extension = 'wav';
-        if (file.type) {
-            if (file.type.includes('webm')) extension = 'webm';
-            else if (file.type.includes('mp4')) extension = 'mp4';
-            else if (file.type.includes('ogg')) extension = 'ogg';
-            else if (file.type.includes('mpeg') || file.type.includes('mp3')) extension = 'mp3';
-            else if (file.type.includes('wav')) extension = 'wav';
+        // Duration Validation
+        if (durationSec < 3.0 || durationSec > 10.0) {
+            throw new Error(`녹음 길이는 3초 이상 10초 이하여야 합니다. (현재: ${durationSec.toFixed(1)}초)`);
         }
-        console.log(`Detected MIME: ${file.type}, Extension: ${extension}`);
+
+        // Determine extension
+        let extension = 'wav';
+        if (file.type.includes('webm')) extension = 'webm';
+        else if (file.type.includes('mp4')) extension = 'mp4';
+        else if (file.type.includes('ogg')) extension = 'ogg';
+        else if (file.type.includes('mp3')) extension = 'mp3';
+
+        console.log(`Detected MIME: ${file.type}, Target Extension: ${extension}`);
 
         // 1. Get Presigned URL
-        const presignedResponse = await getPresignedUrl(scriptId, extension);
-        console.log("Raw Presigned Response:", presignedResponse);
+        // Script mode: pass scriptId, Free Talk: pass null? No, API spec implies we need extension always.
+        // Spec says /api/voice/presigned-url takes extension.
+        const presignedResponse = await getPresignedUrl(extension);
+        // Wait, spec for presigned says: param extension (query). No scriptId mentioned in new spec text for presigned.
+        // "Name Description extension string (query) Default value : wav" - NO scriptId param listed in snippet.
+        // So I will remove scriptId from getPresignedUrl call or keep if legacy.
 
         let fullPresignedUrl = "";
+        if (typeof presignedResponse === 'string') fullPresignedUrl = presignedResponse;
+        else if (presignedResponse?.data) fullPresignedUrl = presignedResponse.data;
+        else if (presignedResponse?.message && presignedResponse.message.startsWith('http')) fullPresignedUrl = presignedResponse.message;
 
-        // Attempt to extract string URL from various common wrappers
-        if (typeof presignedResponse === 'string') {
-            fullPresignedUrl = presignedResponse;
-        } else if (presignedResponse?.data && typeof presignedResponse.data === 'string') {
-            fullPresignedUrl = presignedResponse.data;
-        } else if (presignedResponse?.url && typeof presignedResponse.url === 'string') {
-            fullPresignedUrl = presignedResponse.url;
-        } else if (presignedResponse?.data?.url && typeof presignedResponse.data.url === 'string') {
-            fullPresignedUrl = presignedResponse.data.url;
-        } else if (presignedResponse?.message && typeof presignedResponse.message === 'string' && presignedResponse.message.startsWith('http')) {
-            // [Hotfix] Backend returns URL in 'message' field
-            fullPresignedUrl = presignedResponse.message;
-        } else {
-            console.warn("Could not find string URL in response, checking if response object IS the wrapper but data is missing or different.");
-        }
+        if (!fullPresignedUrl) throw new Error("유효한 업로드 URL을 받지 못했습니다.");
 
-        console.log("Extracted URL:", fullPresignedUrl);
-
-        if (!fullPresignedUrl || typeof fullPresignedUrl !== 'string') {
-            throw new Error(`Failed to extract valid URL. Response: ${JSON.stringify(presignedResponse)}`);
-        }
-
-        // Validate URL string
+        // Extract key for DB saving
+        let samplePath = "";
         try {
-            new URL(fullPresignedUrl);
+            const urlObj = new URL(fullPresignedUrl);
+            const pathname = urlObj.pathname;
+            samplePath = pathname.startsWith('/') ? pathname.substring(1) : pathname;
         } catch (e) {
-            throw new Error(`Extracted string is not a valid URL: ${fullPresignedUrl}`);
+            throw new Error(`잘못된 URL 형식: ${fullPresignedUrl}`);
         }
 
-        const urlObj = new URL(fullPresignedUrl);
-        const pathname = urlObj.pathname;
-        const samplePath = pathname.startsWith('/') ? pathname.substring(1) : pathname;
-
-        console.log("Uploading to:", fullPresignedUrl);
-        console.log("Extracted samplePath:", samplePath);
+        console.log("Uploading to S3:", fullPresignedUrl);
 
         // 2. Upload to S3
-        // Use the actual file type for Content-Type
         const uploadResponse = await fetch(fullPresignedUrl, {
             method: 'PUT',
-            headers: {
-                'Content-Type': file.type || 'application/octet-stream'
-            },
+            headers: { 'Content-Type': file.type || 'audio/wav' },
             body: file
         });
 
         if (!uploadResponse.ok) {
-            throw new Error(`S3 Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+            throw new Error(`S3 업로드 실패: ${uploadResponse.status}`);
         }
 
         // 3. Save Metadata
         const payload = {
-            scriptId,
-            samplePath,
-            durationSec,
-            nickname: `Sample ${scriptId}` // Default nickname
+            scriptId: scriptId, // can be null
+            samplePath: samplePath,
+            durationSec: parseFloat(durationSec.toFixed(1)),
+            transcript: transcript, // Required for free talk
+            nickname: scriptId ? `Script ${scriptId}` : `Free Talk`
         };
 
+        console.log("Saving Metadata:", payload);
         await saveSample(payload);
 
         return true;
@@ -200,3 +198,52 @@ export const uploadVoiceSample = async (file, scriptId, durationSec) => {
         throw error;
     }
 };
+
+/**
+ * GMS Whisper API를 통한 음성 받아쓰기 (STT)
+ * @param {Blob} file - 오디오 파일 (mp3, wav 등)
+ * @returns {Promise<string>} 변환된 텍스트
+ */
+export const transcribeAudio = async (file) => {
+    try {
+        console.log(`Transcribing file: type=${file.type}, size=${file.size}`);
+
+        const formData = new FormData();
+        // API requires a filename with extension to detect format
+        const ext = file.type.includes('mp4') ? 'mp4' : 'webm';
+        formData.append('file', file, `recording.${ext}`);
+        formData.append('model', 'whisper-1');
+
+        const gmsKey = import.meta.env.VITE_GMS_KEY;
+        if (!gmsKey) {
+            throw new Error("GMS Key is missing in environment variables.");
+        }
+
+        const response = await fetch('/gmsapi/api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${gmsKey}`
+                // Content-Type is set automatically by fetch when using FormData
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Transcription API Error Body:", errorText);
+            let errorMsg = response.statusText;
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMsg = errorData.error?.message || errorMsg;
+            } catch (e) { }
+            throw new Error(`Transcription failed (${response.status}): ${errorMsg}`);
+        }
+
+        const data = await response.json();
+        return data.text;
+    } catch (error) {
+        console.error("Transcription error:", error);
+        throw error;
+    }
+};
+
