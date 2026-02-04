@@ -218,10 +218,10 @@ const fetchPhotoDetail = async () => {
         
         allPhotos.value = rawPhotos;
 
-        // Sort by takenAt descending (to match Gallery order usually)
+        // Sort by createdAt descending (to match Gallery order usually)
         allPhotos.value.sort((a, b) => {
-            const dateA = new Date(a.takenAt || a.createdAt || 0);
-            const dateB = new Date(b.takenAt || b.createdAt || 0);
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || 0);
             return dateB - dateA;
         });
 

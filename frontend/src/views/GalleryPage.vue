@@ -199,8 +199,8 @@ const recentPhotos = computed(() => {
     // Sort by takenAt descending (robust check for various date field formats)
     return [...photos.value]
         .sort((a, b) => {
-            const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
-            const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
@@ -241,8 +241,8 @@ const albums = computed(() => {
     const uploaderAlbums = Object.keys(groups).map((name, index) => {
         // Sort photos by date descending to get the latest one as cover
         const groupPhotos = groups[name].sort((a, b) => {
-            const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
-            const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
@@ -296,7 +296,7 @@ const fetchAlbumPhotos = async () => {
         }
 
         // Process URLs
-        photos.value = rawPhotos.map(photo => {
+        const processed = rawPhotos.map(photo => {
             let url = photo.storageUrl || photo.imageUrl;
             if (url && !url.startsWith('http')) {
                 url = S3_BASE_URL + url;
@@ -306,6 +306,15 @@ const fetchAlbumPhotos = async () => {
                 displayUrl: url
             };
         });
+
+        // Global Sort: Newest First
+        processed.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
+            return dateB - dateA;
+        });
+
+        photos.value = processed;
         
     } catch (error) {
         console.error("Failed to fetch photos:", error);
