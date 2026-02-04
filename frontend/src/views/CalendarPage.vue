@@ -634,6 +634,12 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
 watch([year, month], () => {
     fetchCalendarEvents();
 });
+
+watch(selectedDate, (newVal) => {
+    if (newVal) {
+        sessionStorage.setItem('calendar_last_date', newVal);
+    }
+});
 </script>
 
 <style scoped>
