@@ -194,7 +194,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val permissions = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.CALL_PHONE)
+        val permissions = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.CALL_PHONE, Manifest.permission.RECORD_AUDIO)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -396,6 +396,11 @@ fun WebViewScreen(
                         android.app.AlertDialog.Builder(context).setTitle("확인").setMessage(message).setPositiveButton("확인") { _, _ -> result?.confirm() }.setNegativeButton("취소") { _, _ -> result?.cancel() }.setCancelable(false).show()
                         return true
                     }
+
+                    // [NEW] 웹뷰에서 마이크/카메라 권한 요청 시 자동 허용
+                    override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
+                        request?.grant(request.resources)
+                    }
                 }
 
                 webViewClient = object : WebViewClient() {
@@ -408,6 +413,11 @@ fun WebViewScreen(
                         }
                         return false
                     }
+
+                    override fun onReceivedSslError(view: WebView?, handler: android.webkit.SslErrorHandler?, error: android.net.http.SslError?) {
+                        // [DEV] 로컬 개발 시 SSL 인증서 오류 무시 (HTTPS 테스트용)
+                        handler?.proceed()
+                    }
                 }
 
                 // 로컬 개발 환경용 (2026-02-03 테스트중)
@@ -415,8 +425,8 @@ fun WebViewScreen(
 
                 // 배포 서버용
 //              loadUrl("http://10.0.2.2:5173")
-                loadUrl("https://i14a105.p.ssafy.io")
-//            loadUrl("http://70.12.246.148:5173")
+              loadUrl("https://i14a105.p.ssafy.io")
+//            loadUrl("https://70.12.246.148:5173")
             }
         }
     )

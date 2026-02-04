@@ -132,15 +132,7 @@
           </div>
 
           <!-- Detail Footer (Actions) -->
-          <div v-if="canDelete(selectedMessage)" class="flex-none p-4 border-t border-gray-100 bg-gray-50 rounded-b-3xl">
-            <button 
-              @click="deleteMessage(selectedMessage)"
-              class="w-full flex items-center justify-center gap-2 py-3 text-red-600 font-bold hover:bg-red-50 rounded-xl transition-colors"
-            >
-              <span class="material-symbols-outlined text-xl">delete</span>
-              삭제하기
-            </button>
-          </div>
+
         </div>
       </div>
 
@@ -452,32 +444,7 @@ const closeMessageDetail = () => {
   selectedMessage.value = null
 }
 
-const canDelete = (msg) => {
-  if (!msg || !userStore.profile) return false
-  
-  // 1. 작성자 본인인 경우
-  const isMe = Number(msg.senderUserId) === Number(userStore.profile.id)
-  
-  // 2. 가족 대표인 경우
-  const isRepresentative = familyStore.families.find(f => String(f.id) === String(familyId.value))?.owner || false
-  
-  return isMe || isRepresentative
-}
 
-const deleteMessage = async (msg) => {
-  const confirmed = await modalStore.openConfirm('이 메시지를 삭제하시겠습니까?\n삭제된 메시지는 복구할 수 없습니다.')
-  if (!confirmed) return
-
-  try {
-    await messageService.deleteGroupMessage(familyId.value, msg.id)
-    await modalStore.openAlert('메시지가 삭제되었습니다.')
-    closeMessageDetail()
-    fetchMessages()
-  } catch (error) {
-    console.error('메시지 삭제 실패:', error)
-    await modalStore.openAlert('메시지 삭제 중 오류가 발생했습니다.')
-  }
-}
 
 const goBack = () => {
   router.back()
