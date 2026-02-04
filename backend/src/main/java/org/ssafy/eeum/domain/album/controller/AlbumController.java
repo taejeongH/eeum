@@ -67,8 +67,10 @@ public class AlbumController {
     @SwaggerApiSpec(summary = "사진 삭제", description = "사진을 삭제합니다. (IoT 동기화 알림 포함)", successMessage = "사진 삭제 성공", errors = {
             ErrorCode.ENTITY_NOT_FOUND })
     @DeleteMapping("/album/{photoId}")
-    public RestApiResponse<Void> deletePhoto(@PathVariable Integer photoId) {
-        albumService.deletePhoto(photoId);
+    public RestApiResponse<Void> deletePhoto(
+            @PathVariable Integer photoId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        albumService.deletePhoto(photoId, userDetails.getId());
         return RestApiResponse.success("사진 삭제 성공");
     }
 }

@@ -154,7 +154,7 @@ public class MessageService {
                 User requester = userRepository.findById(requesterUserId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-                supporterRepository.findByUserAndFamily(requester, group)
+                Supporter requesterSupporter = supporterRepository.findByUserAndFamily(requester, group)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
                 Message message = messageRepository.findByIdAndDeletedAtIsNull(messageId)
@@ -164,7 +164,11 @@ public class MessageService {
                         throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
                 }
 
-                if (!message.getSender().getId().equals(requester.getId())) {
+                // 권한 체크: 작성자 본인이거나 가족 대표자인 경우만 삭제 가능
+                boolean isSender = message.getSender().getId().equals(requester.getId());
+                boolean isRepresentative = requesterSupporter.isRepresentativeFlag();
+
+                if (!isSender && !isRepresentative) {
                         throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
                 }
 

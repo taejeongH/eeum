@@ -12,7 +12,7 @@
                  <!-- Hidden for now, simpler UI first? No, requirements ask for edit -->
                 <span class="material-symbols-outlined">edit</span>
             </button>
-            <div class="relative" ref="moreMenu">
+            <div v-if="canManage" class="relative" ref="moreMenu">
                 <button @click="toggleMenu" class="p-2 rounded-full hover:bg-white/10 transition-colors">
                     <span class="material-symbols-outlined text-white">more_vert</span>
                 </button>
@@ -127,6 +127,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto, updatePhoto } from '@/services/albumService';
+import { useUserStore } from '@/stores/user';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -136,6 +137,7 @@ const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
+const userStore = useUserStore();
 
 const photo = ref(null);
 const allPhotos = ref([]);
@@ -148,6 +150,15 @@ const moreMenu = ref(null);
 const editForm = ref({
     description: '',
     takenAt: ''
+});
+
+const canManage = computed(() => {
+    if (!photo.value || !userStore.profile) return false;
+    
+    const isUploader = Number(photo.value.uploaderUserId) === Number(userStore.profile.id);
+    const isRepresentative = familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
+    
+    return isUploader || isRepresentative;
 });
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';

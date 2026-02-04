@@ -70,5 +70,16 @@ export const messageService = {
     async getTTSSettings() {
         const response = await api.get('/settings/tts')
         return response.data
+    },
+
+    /**
+     * 그룹 메시지 삭제
+     * @param {number} groupId - 그룹 ID
+     * @param {number} messageId - 메시지 ID
+     * @returns {Promise}
+     */
+    async deleteGroupMessage(groupId, messageId) {
+        const response = await api.delete(`/groups/${groupId}/messages/${messageId}`)
+        return response.data
     }
 }

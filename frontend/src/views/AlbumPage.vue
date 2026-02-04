@@ -29,6 +29,7 @@
           </template>
         </EeumDatePicker>
         <button 
+            v-if="isRepresentative"
             @click="toggleSelectionMode"
             class="text-primary text-base font-bold leading-normal tracking-[0.015em] shrink-0"
         >
@@ -116,11 +117,13 @@ import { getPhotos, deletePhoto } from '@/services/albumService';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 import ImagePreviewModal from '@/components/gallery/ImagePreviewModal.vue';
 import { usePhotoUpload } from '@/composables/usePhotoUpload';
+import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
+const userStore = useUserStore();
 const allPhotos = ref([]); // Store all fetched photos
 const photos = ref([]); // Store filtered photos
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
@@ -157,6 +160,10 @@ const albumTitle = computed(() => {
     const uploader = route.query.uploader;
     const groupName = familyStore.selectedFamily?.name || '우리 가족';
     return uploader ? `${uploader}의 앨범` : `${groupName} 앨범`;
+});
+
+const isRepresentative = computed(() => {
+    return familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
 });
 
 const fetchPhotos = async () => {
