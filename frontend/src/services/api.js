@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { MOCK_USER } from '../mocks/data';
 import { useUiStore } from '../stores/ui';
+import { useModalStore } from '../stores/modal';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -155,6 +156,12 @@ apiClient.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // [NEW] 전역 에러 핸들링 (404 등)
+    if (error.response?.status === 404) {
+      const modalStore = useModalStore();
+      modalStore.openAlert("요청하신 페이지나 정보를 찾을 수 없습니다. (404 Not Found)", "오류");
     }
 
     // [NEW] 전역 로딩 종료
