@@ -115,11 +115,8 @@ public class FamilyService {
                                 .map(supporter -> {
                                         String presignedUrl = s3Service
                                                         .getPresignedUrl(supporter.getUser().getProfileImage());
-                                        FamilyMemberDto familyMemberDto = FamilyMemberDto.builder()
-                                                        .userId(supporter.getUser().getId())
-                                                        .name(supporter.getUser().getName())
-                                                        .isDependent(supporter.getRole() == Supporter.Role.PATIENT)
-                                                        .build();
+                                        FamilyMemberDto familyMemberDto = FamilyMemberDto.of(supporter);
+
                                         familyMemberDto.setProfileImage(presignedUrl);
                                         return familyMemberDto;
                                 })

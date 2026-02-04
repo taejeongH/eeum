@@ -28,6 +28,7 @@ public class AlbumDTOs {
         private String description;
         private LocalDate takenAt;
         private String uploaderName;
+        private Integer uploaderUserId;
         private String createdAt;
     }
 
@@ -53,6 +54,8 @@ public class AlbumDTOs {
         private String url;
         private String description;
         private LocalDate takenAt;
+        private String uploaderName;
+        private String uploaderProfileImage;
     }
 
     @Getter

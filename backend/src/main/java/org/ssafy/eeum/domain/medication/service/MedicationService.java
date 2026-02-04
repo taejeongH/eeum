@@ -4,11 +4,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.ssafy.eeum.domain.medication.dto.request.MedicationRequest;
 import org.ssafy.eeum.domain.medication.dto.response.MedicationResponse;
 import org.ssafy.eeum.domain.medication.entity.MedicationPlan;
 import org.ssafy.eeum.domain.medication.entity.MedicationPlanTime;
 import org.ssafy.eeum.domain.medication.repository.MedicationRepository;
+import org.ssafy.eeum.domain.family.repository.FamilyRepository;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
+import org.ssafy.eeum.domain.family.repository.SupporterRepository;
+import org.ssafy.eeum.domain.family.entity.Family;
+import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.global.error.exception.CustomException;
+import org.ssafy.eeum.global.error.model.ErrorCode;
 
 import java.time.LocalTime;
 import java.util.List;
@@ -24,16 +33,35 @@ public class MedicationService {
     private final org.ssafy.eeum.domain.iot.repository.IotDeviceRepository iotDeviceRepository;
     private final MedicationRepository medicationRepository;
     private final MedicationAlarmRedisService medicationAlarmRedisService;
+    private final FamilyRepository familyRepository;
+    private final UserRepository userRepository;
+    private final SupporterRepository supporterRepository;
 
-    @jakarta.annotation.PostConstruct
+    private void checkFamilyAccess(Integer userId, Long familyId) {
+        Family family = familyRepository.findById(familyId.intValue())
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        supporterRepository.findByUserAndFamily(user, family)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void bootstrapRedis() {
-        log.info("[MedicationService] Bootstrapping Redis Alarm Cache from DB...");
-        List<MedicationPlan> allPlans = medicationRepository.findAllWithTimes();
-        for (MedicationPlan plan : allPlans) {
-            medicationAlarmRedisService.scheduleAlarm(plan);
+        try {
+            log.info("[MedicationService] Bootstrapping Redis Alarm Cache from DB...");
+            List<MedicationPlan> allPlans = medicationRepository.findAllWithTimes();
+            for (MedicationPlan plan : allPlans) {
+                medicationAlarmRedisService.scheduleAlarm(plan);
+            }
+            log.info("[MedicationService] Redis Bootstrap Complete. Scheduled {} plans.", allPlans.size());
+        } catch (Exception e) {
+            log.error("[MedicationService] CRITICAL Error during Redis bootstrap: {}", e.getMessage());
+            // 애플리케이션 기동은 실패시키지 않되, 에러 로그를 남깁니다.
         }
-        log.info("[MedicationService] Redis Bootstrap Complete. Scheduled {} plans.", allPlans.size());
     }
 
     @org.springframework.scheduling.annotation.Scheduled(cron = "0 * * * * *")
@@ -102,7 +130,8 @@ public class MedicationService {
     }
 
     @Transactional
-    public List<Long> createMedicationPlans(Long familyId, List<MedicationRequest> requests) {
+    public List<Long> createMedicationPlans(Integer userId, Long familyId, List<MedicationRequest> requests) {
+        checkFamilyAccess(userId, familyId);
         return requests.stream().map(request -> {
             MedicationPlan medicationPlan = MedicationPlan.builder()
                     .groupId(familyId)
@@ -130,31 +159,49 @@ public class MedicationService {
         }).collect(Collectors.toList());
     }
 
-    public MedicationResponse getMedicationPlan(Long medicationPlanId) {
+    public MedicationResponse getMedicationPlan(Integer userId, Long familyId, Long medicationPlanId) {
+        checkFamilyAccess(userId, familyId);
         MedicationPlan medicationPlan = medicationRepository.findById(medicationPlanId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 약 정보가 존재하지 않습니다. id=" + medicationPlanId));
+        
+        if (!medicationPlan.getGroupId().equals(familyId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+        
         return MedicationResponse.from(medicationPlan);
     }
 
-    public List<MedicationResponse> getMedicationPlansByGroupId(Long groupId) {
-        return medicationRepository.findByGroupId(groupId).stream()
+    public List<MedicationResponse> getMedicationPlansByGroupId(Integer userId, Long familyId) {
+        checkFamilyAccess(userId, familyId);
+        return medicationRepository.findByGroupId(familyId).stream()
                 .map(MedicationResponse::from)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public void deleteMedicationPlan(Long medicationId) {
+    public void deleteMedicationPlan(Integer userId, Long familyId, Long medicationId) {
+        checkFamilyAccess(userId, familyId);
         MedicationPlan medicationPlan = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 약 정보가 존재하지 않습니다. id=" + medicationId));
+        
+        if (!medicationPlan.getGroupId().equals(familyId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+        
         medicationRepository.delete(medicationPlan);
         medicationAlarmRedisService.cancelAlarms(medicationId);
     }
 
     @Transactional
-    public void updateMedicationPlan(Long medicationId, MedicationRequest request) {
+    public void updateMedicationPlan(Integer userId, Long familyId, Long medicationId, MedicationRequest request) {
+        checkFamilyAccess(userId, familyId);
         MedicationPlan medicationPlan = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 약 정보가 존재하지 않습니다. id=" + medicationId));
 
+        if (!medicationPlan.getGroupId().equals(familyId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+        
         // Update fields
         medicationPlan.update(
                 request.getMedicineName(),

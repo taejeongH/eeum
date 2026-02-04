@@ -376,6 +376,37 @@ onMounted(async () => {
         hs.setSyncStatus(false, '동기화 오류: ' + (e.message || 'Error'));
     }
   };
+
+  // 9. [NEW] Native Back Button Handler (Hierarchy Logic)
+  // Android MainActivity Calls: javascript:if(window.onNativeBackPressed){window.onNativeBackPressed();}else{history.back();}
+  window.onNativeBackPressed = () => {
+    const currentRouteName = router.currentRoute.value.name;
+    const currentPath = router.currentRoute.value.path;
+
+    // 1. Top Level: Home -> Exit App
+    // Check path as well just in case name isn't set or mismatch
+    if (currentRouteName === 'HomePage' || currentPath === '/home' || currentPath === '/') {
+        if (window.AndroidBridge && window.AndroidBridge.finishApp) {
+            window.AndroidBridge.finishApp();
+        } else {
+            console.warn("Back Pressed on Home, but no finishApp method found.");
+        }
+        return;
+    }
+
+    // 2. Middle Level: Message, Gallery, Calendar, AlbumList -> Go Home
+    // These are pages entered from Home, so back should go Home.
+    const middleLevelPages = ['FamilyMessages', 'GalleryPage', 'CalendarPage', 'DeviceManagement', 'HealthDetail'];
+    if (middleLevelPages.includes(currentRouteName)) {
+        router.push({ name: 'HomePage' });
+        return;
+    }
+
+    // 3. Lower Level: Default -> History Back
+    // e.g. AlbumPage -> GalleryPage
+    // e.g. PhotoDetail -> AlbumPage
+    router.back();
+  };
 });
 </script>
 

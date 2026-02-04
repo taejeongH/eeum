@@ -16,8 +16,11 @@
           </div>
         </div>
       </div>
-      <div class="mt-4 text-center">
-        <h1 class="text-3xl font-bold text-slate-900">2월</h1>
+      <div class="mt-4 text-center relative flex justify-center items-center">
+        <span class="absolute left-0 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-900 select-none">
+            {{ headerYear }}년
+        </span>
+        <h1 class="text-2xl font-bold text-slate-900">{{ headerDateText }}</h1>
       </div>
     </header>
     
@@ -62,8 +65,18 @@
         <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="$router.back()"></div> <!-- Backdrop fixed behind card -->
         
         <!-- Card: Natural height, safe from viewport shrinking -->
-        <div class="relative w-full bg-white shadow-2xl animate-slide-up rounded-t-[2.5rem] z-10 overflow-hidden">
-        <div class="flex justify-center pt-4 pb-2">
+        <div 
+          ref="sheet"
+          class="relative w-full bg-white shadow-2xl rounded-t-[2.5rem] z-10 overflow-hidden transition-transform duration-300 ease-out"
+          :class="{ 'animate-slide-up': !isDragging }"
+          :style="sheetStyle"
+        >
+        <div 
+          class="flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing touch-none"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove"
+          @touchend="onTouchEnd"
+        >
           <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
         </div>
         <div class="px-6 pb-12 pt-4">
@@ -103,7 +116,15 @@
                 <div class="flex items-center gap-3">
                   <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">시작</span>
                   <div class="flex gap-2 items-center flex-1">
-                    <EeumDatePicker v-model="formData.startAtDate" class="flex-[1.4] min-w-[130px]" />
+                    <EeumDatePicker 
+                      v-model="formData.startAtDate" 
+                      class="flex-[1.4] min-w-[130px]"
+                      is-range
+                      :start-date="formData.startAtDate"
+                      :end-date="formData.endAtDate"
+                      @update:start-date="val => formData.startAtDate = val"
+                      @update:end-date="val => formData.endAtDate = val"
+                    />
                     <input v-model="formData.startAtTime" type="time" class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]" />
                   </div>
                 </div>
@@ -111,7 +132,15 @@
                 <div class="flex items-center gap-3">
                   <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">종료</span>
                   <div class="flex gap-2 items-center flex-1">
-                    <EeumDatePicker v-model="formData.endAtDate" class="flex-[1.4] min-w-[130px]" />
+                    <EeumDatePicker 
+                      v-model="formData.endAtDate" 
+                      class="flex-[1.4] min-w-[130px]"
+                      is-range
+                      :start-date="formData.startAtDate"
+                      :end-date="formData.endAtDate"
+                      @update:start-date="val => formData.startAtDate = val"
+                      @update:end-date="val => formData.endAtDate = val"
+                    />
                     <input v-model="formData.endAtTime" type="time" class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]" />
                   </div>
                 </div>
@@ -173,8 +202,63 @@ const route = useRoute();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 
+// Drag to Close Logic
+const sheet = ref(null);
+const touchStartY = ref(0);
+const touchCurrentY = ref(0);
+const isDragging = ref(false);
+
+const sheetStyle = computed(() => {
+  if (!isDragging.value) return {};
+  const translateY = Math.max(0, touchCurrentY.value - touchStartY.value);
+  return { 
+      transform: `translateY(${translateY}px)`, 
+      transition: 'none' 
+  };
+});
+
+const onTouchStart = (e) => {
+  touchStartY.value = e.touches[0].clientY;
+  touchCurrentY.value = e.touches[0].clientY; // 초기화 필수 (클릭 시 diff=0 보장)
+  isDragging.value = true;
+};
+
+const onTouchMove = (e) => {
+  if (!isDragging.value) return;
+  touchCurrentY.value = e.touches[0].clientY;
+  // Prevent default scroll behavior only if we are dragging the handle
+  // (Since touch-none is on the handle div, explicit preventDefault might not be needed but safe)
+};
+
+const onTouchEnd = () => {
+  if (!isDragging.value) return;
+  
+  const diff = touchCurrentY.value - touchStartY.value;
+  isDragging.value = false;
+  
+  if (diff > 100) { // Threshold to close (100px)
+    router.back();
+  } else {
+    // Snap back happen automatically due to removing transform and CSS transition
+    touchStartY.value = 0;
+    touchCurrentY.value = 0;
+  }
+};
+
 const isEditMode = computed(() => !!route.query.id);
 const pageTitle = computed(() => isEditMode.value ? '일정 수정' : '일정 추가');
+
+const headerDateText = computed(() => {
+    if (!formData.value.startAtDate) return '';
+    const [y, m] = formData.value.startAtDate.split('-');
+    return `${parseInt(m)}월`;
+});
+
+const headerYear = computed(() => {
+    if (!formData.value.startAtDate) return '';
+    const [y, m] = formData.value.startAtDate.split('-');
+    return y;
+});
 
 const formData = ref({
     title: '',

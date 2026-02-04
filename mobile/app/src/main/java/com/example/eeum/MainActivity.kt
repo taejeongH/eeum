@@ -309,6 +309,10 @@ class HealthJsBridge(
             Log.e("BRIDGE", "Failed to send message", e)
         }
     }
+    @JavascriptInterface
+    fun finishApp() {
+        activity.finish()
+    }
 }
 
 @Composable
@@ -323,11 +327,13 @@ fun WebViewScreen(
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     
     BackHandler(enabled = true) {
-        if (webViewRef?.canGoBack() == true) {
-            webViewRef?.goBack()
-        } else {
-            activity.finish()
-        }
+        // [FIX] Hardware Back Button Delegation
+        // Instead of directly going back in history, we ask the Web App to decide.
+        // If the Web App doesn't define onNativeBackPressed, fallback to history.back()
+        webViewRef?.evaluateJavascript(
+            "javascript:if(window.onNativeBackPressed){window.onNativeBackPressed();}else{history.back();}",
+            null
+        )
     }
     
     LaunchedEffect(Unit) {

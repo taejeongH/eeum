@@ -29,6 +29,7 @@
         v-model="groupName"
         class="eeum-input"
         placeholder="예) 우리 가족, 김○○ 가족"
+        @keyup.enter="goNext"
       />
     </div>
 

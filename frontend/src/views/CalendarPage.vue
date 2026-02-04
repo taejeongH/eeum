@@ -8,7 +8,7 @@
         </button>
       </template>
     </MainHeader>
-    <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-2 pb-4 transiton-all duration-300 border-b border-slate-100">
+    <div class="sticky top-0 z-20 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-6 pb-4 transiton-all duration-300 border-b border-slate-100">
       
       <!-- Search Input -->
       <div v-if="isSearchOpen" class="mb-4 animate-fade-in">
@@ -16,19 +16,47 @@
       </div>
 
       <!-- Month Navigation -->
-      <div v-if="!isSearchOpen" class="mt-0 text-center flex items-center justify-center gap-4 animate-fade-in">
-        <button @click="prevMonth" class="text-slate-400 hover:text-slate-600">
-            <span class="material-symbols-outlined">chevron_left</span>
+      <div v-if="!isSearchOpen" class="mt-0 text-center flex items-center justify-center gap-6 animate-fade-in relative z-20">
+        
+        <!-- Year Display -->
+        <span class="absolute left-0 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-900 select-none">{{ year }}년</span>
+
+        <button @click="prevMonth" class="p-2 text-slate-400 hover:text-slate-600 active:bg-slate-100 rounded-full transition-colors">
+            <span class="material-symbols-outlined text-3xl">chevron_left</span>
         </button>
-        <h1 @click="resetToToday" class="text-3xl font-bold text-slate-900 cursor-pointer active:scale-95 transition-transform">{{ month }}월</h1>
-        <button @click="nextMonth" class="text-slate-400 hover:text-slate-600">
-            <span class="material-symbols-outlined">chevron_right</span>
+        
+        <div @click="openDatePicker" class="flex flex-col items-center cursor-pointer active:scale-95 transition-transform select-none relative group">
+             <div class="flex items-center gap-1">
+                <h1 class="text-3xl font-bold text-slate-900 leading-none tracking-tight">
+                    {{ month }}월
+                </h1>
+             </div>
+        </div>
+
+        <button @click="nextMonth" class="p-2 text-slate-400 hover:text-slate-600 active:bg-slate-100 rounded-full transition-colors">
+            <span class="material-symbols-outlined text-3xl">chevron_right</span>
+        </button>
+
+        <!-- Today Button -->
+        <button 
+            @click="resetToToday" 
+            class="absolute right-0 top-1/2 -translate-y-1/2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
+        >
+            오늘
         </button>
       </div>
     </div>
-    <main class="flex-1 px-4 relative">
-      <div v-if="!isSearchOpen" class="calendar-grid text-center mb-6 select-none">
-        <div class="py-2 text-sm font-semibold text-red-400">일</div>
+    <main class="flex-1 px-4 relative overflow-x-hidden">
+      <div class="relative min-h-[440px] overflow-hidden">
+        <Transition :name="'slide-' + slideDirection">
+        <div 
+            :key="year + '-' + month"
+            v-if="!isSearchOpen" 
+            class="calendar-grid text-center mb-6 select-none touch-pan-y w-full"
+            @touchstart="onTouchStart"
+            @touchend="onTouchEnd"
+        >
+            <div class="py-2 text-sm font-semibold text-red-400">일</div>
         <div class="py-2 text-sm font-semibold text-slate-500">월</div>
         <div class="py-2 text-sm font-semibold text-slate-500">화</div>
         <div class="py-2 text-sm font-semibold text-slate-500">수</div>
@@ -69,6 +97,9 @@
             </div>
         </div>
       </div>
+      </Transition>
+      </div>
+      
       <div class="h-px bg-slate-200 w-full mb-6"></div>
       <div class="space-y-4 px-2 pb-24">
         <div class="flex justify-between items-center mb-2">
@@ -122,25 +153,175 @@
         </button>
       </div>
     </main>
+
     <BottomNav v-if="!isModalOpen" />
+    
+    <!-- Custom Wheel Date Picker Modal (Bottom Sheet Style) -->
+    <div v-if="isDatePickerModalOpen" class="fixed inset-0 z-[100] flex items-end justify-center">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="closeDatePicker"></div>
+        <div 
+            ref="pickerSheet"
+            class="bg-white w-full rounded-t-[2rem] shadow-2xl relative z-10 transition-transform duration-300 ease-out pb-10 overflow-hidden"
+            :class="{ 'animate-slide-up': !isPickerDragging }"
+            :style="pickerSheetStyle"
+        >
+            <!-- Drag Handle Area -->
+            <div 
+                class="flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing touch-none"
+                @touchstart="onPickerTouchStart"
+                @touchmove="onPickerTouchMove"
+                @touchend="onPickerTouchEnd"
+            >
+                <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
+            </div>
+
+            <div class="px-6 pt-2">
+                <div class="flex justify-between items-center mb-6">
+                    <button @click="closeDatePicker" class="text-slate-500 font-medium px-2 py-1">취소</button>
+                    <h3 class="text-lg font-bold text-slate-900">날짜 선택</h3>
+                    <button @click="confirmDate" class="text-primary font-bold px-2 py-1">확인</button>
+                </div>
+            </div>
+            
+            <div class="relative h-[200px] flex justify-center items-center overflow-hidden">
+                <!-- Highlight Bar -->
+                <div class="absolute w-full h-[40px] bg-slate-100/50 border-y border-slate-200 pointer-events-none z-0"></div>
+                
+                <div class="flex w-full z-10">
+                    <!-- Year Swiper -->
+                    <swiper 
+                        :direction="'vertical'"
+                        :slides-per-view="5"
+                        :centered-slides="true"
+                        :initial-slide="initialYearIndex"
+                        @slideChange="onYearChange"
+                        class="picker-swiper flex-1"
+                    >
+                        <swiper-slide v-for="y in pickerYears" :key="y">
+                            <div class="picker-item">{{ y }}년</div>
+                        </swiper-slide>
+                    </swiper>
+
+                    <!-- Month Swiper -->
+                    <swiper 
+                        :direction="'vertical'"
+                        :slides-per-view="5"
+                        :centered-slides="true"
+                        :initial-slide="initialMonthIndex"
+                        @slideChange="onMonthChange"
+                        class="picker-swiper flex-1"
+                    >
+                        <swiper-slide v-for="m in 12" :key="m">
+                             <div class="picker-item">{{ m }}월</div>
+                        </swiper-slide>
+                    </swiper>
+                    <!-- Day Swiper removed -->
+                </div>
+            </div>
+        </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router'; // Added useRoute
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { useRouter, useRoute } from 'vue-router'; 
 import MainHeader from '@/components/MainHeader.vue';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import IconSearch from '@/components/icons/IconSearch.vue';
 import IconClose from '@/components/icons/IconClose.vue';
 import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family'; 
+import { Swiper, SwiperSlide } from 'swiper/vue';
+import 'swiper/css';
 
 const router = useRouter();
 const route = useRoute(); // Instance
 const familyStore = useFamilyStore();
 const familyId = ref(route.params.familyId); // Reactive familyId
 const isModalOpen = ref(false);
+const slideDirection = ref('next');
+
+// Wheel Picker State
+const isDatePickerModalOpen = ref(false);
+const pickerSelection = ref({ year: 2025, month: 1 });
+const pickerYears = Array.from({ length: 100 }, (_, i) => 1950 + i);
+
+// Picker Drag Logic
+const pickerSheet = ref(null);
+const pickerTouchStartY = ref(0);
+const pickerTouchCurrentY = ref(0);
+const isPickerDragging = ref(false);
+
+const pickerSheetStyle = computed(() => {
+  if (!isPickerDragging.value) return {};
+  const translateY = Math.max(0, pickerTouchCurrentY.value - pickerTouchStartY.value);
+  return { 
+      transform: `translateY(${translateY}px)`, 
+      transition: 'none' 
+  };
+});
+
+const onPickerTouchStart = (e) => {
+  pickerTouchStartY.value = e.touches[0].clientY;
+  pickerTouchCurrentY.value = e.touches[0].clientY;
+  isPickerDragging.value = true;
+};
+
+const onPickerTouchMove = (e) => {
+  if (!isPickerDragging.value) return;
+  pickerTouchCurrentY.value = e.touches[0].clientY;
+};
+
+const onPickerTouchEnd = () => {
+  if (!isPickerDragging.value) return;
+  const diff = pickerTouchCurrentY.value - pickerTouchStartY.value;
+  isPickerDragging.value = false;
+  
+  if (diff > 100) { // Threshold 100px
+    closeDatePicker();
+  } else {
+    // Snap back styles will apply (transform removed)
+    pickerTouchStartY.value = 0;
+    pickerTouchCurrentY.value = 0;
+  }
+};
+
+// Computed indices for Swiper initialSlide
+const initialYearIndex = computed(() => pickerYears.indexOf(pickerSelection.value.year));
+const initialMonthIndex = computed(() => pickerSelection.value.month - 1);
+
+const onYearChange = (swiper) => {
+    pickerSelection.value.year = pickerYears[swiper.activeIndex];
+};
+const onMonthChange = (swiper) => {
+    pickerSelection.value.month = swiper.activeIndex + 1;
+};
+
+const openDatePicker = () => {
+    // Init with current selected date
+    const d = new Date(selectedDate.value);
+    pickerSelection.value = {
+        year: d.getFullYear(),
+        month: d.getMonth() + 1
+    };
+    isDatePickerModalOpen.value = true;
+};
+
+const closeDatePicker = () => {
+    isDatePickerModalOpen.value = false;
+};
+
+const confirmDate = () => {
+    // Construct Date (1st day of month)
+    const newDate = new Date(pickerSelection.value.year, pickerSelection.value.month - 1, 1);
+    currentDate.value = newDate;
+    
+    // Logic to select appropriate date (1st or Today)
+    syncSelectedDateWithView(newDate);
+    
+    closeDatePicker();
+};
 
 const handleModalStateChange = (isOpen) => {
   isModalOpen.value = isOpen;
@@ -233,12 +414,40 @@ const selectedDate = ref(toLocalDateString(new Date())); // Default to today's d
 const isSearchOpen = ref(false);
 const searchQuery = ref('');
 
+// Helper to check if event matches date (Expanded for Recurrence)
+const checkDateMatch = (event, targetDateString) => {
+    const targetDate = new Date(targetDateString);
+    const startDate = new Date(event.startAt);
+    
+    // 1. Check strict match
+    const eventDateStr = toLocalDateString(startDate);
+    if (eventDateStr === targetDateString) return true;
+
+    // 2. Check Recurrence
+    if (event.repeatType === 'YEARLY') {
+        const startOfTarget = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+        const startOfEvent = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+
+        // Must be >= start date
+        if (startOfTarget < startOfEvent) return false;
+
+        // Must be <= recurrence end date (if exists)
+        if (event.recurrenceEndAt) {
+            const endDate = new Date(event.recurrenceEndAt);
+            if (startOfTarget > endDate) return false;
+        }
+
+        // Match Month and Day
+        return startDate.getMonth() === targetDate.getMonth() && 
+               startDate.getDate() === targetDate.getDate();
+    }
+    
+    return false;
+};
+
 // For Grid Indicators (Show all events for that day)
 const getEventsForDay = (dateString) => {
-    return events.value.filter(e => {
-        const eventDateStr = toLocalDateString(new Date(e.startAt));
-        return eventDateStr === dateString;
-    });
+    return events.value.filter(e => checkDateMatch(e, dateString));
 };
 
 // Simplified Indicators: One dot per category presence (MAX 2 dots: Visit + Other)
@@ -269,14 +478,17 @@ const filteredEvents = computed(() => {
 
     // 2. Filter by Selected Date (if no search)
     if (selectedDate.value) {
-        result = result.filter(e => {
-             const eventDateStr = toLocalDateString(new Date(e.startAt));
-             return eventDateStr === selectedDate.value;
-        });
+        result = result.filter(e => checkDateMatch(e, selectedDate.value));
     }
     
-    // Sort by time
-    return result.sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+    // Sort by Time-of-Day (ignoring Year/Month differences due to recurrence)
+    return result.sort((a, b) => {
+        const dateA = new Date(a.startAt);
+        const dateB = new Date(b.startAt);
+        const timeA = dateA.getHours() * 60 + dateA.getMinutes();
+        const timeB = dateB.getHours() * 60 + dateB.getMinutes();
+        return timeA - timeB;
+    });
 });
 
 const selectDate = (day) => {
@@ -304,12 +516,30 @@ const getEventDotClass = (matchStr) => {
 };
 
 
+const syncSelectedDateWithView = (newDate) => {
+    // If the new view month is the current real month, select "Today"
+    // Otherwise, select the 1st day of that month.
+    const today = new Date();
+    if (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() === today.getMonth()) {
+        selectedDate.value = toLocalDateString(today);
+    } else {
+        const firstDay = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+        selectedDate.value = toLocalDateString(firstDay);
+    }
+    // Update view reference
+    currentDate.value = newDate;
+};
+
 const prevMonth = () => {
-    currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1);
+    slideDirection.value = 'prev';
+    const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1);
+    syncSelectedDateWithView(newDate);
 };
 
 const nextMonth = () => {
-    currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1);
+    slideDirection.value = 'next';
+    const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1);
+    syncSelectedDateWithView(newDate);
 };
 
 const resetToToday = () => {
@@ -318,6 +548,27 @@ const resetToToday = () => {
     selectedDate.value = toLocalDateString(today);
     sessionStorage.setItem('calendar_last_date', selectedDate.value);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// Swipe Logic
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+
+const onTouchStart = (e) => {
+    touchStartX.value = e.changedTouches[0].screenX;
+};
+
+const onTouchEnd = (e) => {
+    touchEndX.value = e.changedTouches[0].screenX;
+    handleSwipe();
+};
+
+const handleSwipe = () => {
+    const diff = touchStartX.value - touchEndX.value;
+    if (Math.abs(diff) > 50) { // Threshold 50px
+        if (diff > 0) nextMonth(); // Left swipe -> Next Month
+        else prevMonth(); // Right swipe -> Prev Month
+    }
 };
 
 // Check if a day is today
@@ -383,6 +634,12 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
 watch([year, month], () => {
     fetchCalendarEvents();
 });
+
+watch(selectedDate, (newVal) => {
+    if (newVal) {
+        sessionStorage.setItem('calendar_last_date', newVal);
+    }
+});
 </script>
 
 <style scoped>
@@ -405,14 +662,59 @@ watch([year, month], () => {
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
 }
-@keyframes scale-in {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
 .animate-scale-in {
   animation: scale-in 0.15s ease-out;
 }
 .bg-primary-light {
     background-color: #ec856b;
+}
+
+/* Slide Animations - Continuous (Overlapping) */
+.slide-next-enter-active, .slide-next-leave-active,
+.slide-prev-enter-active, .slide-prev-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+/* Ensure outgoing element overlaps for smooth slide */
+.slide-next-leave-active, .slide-prev-leave-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none; /* Prevent clicks on leaving element */
+}
+
+.slide-next-enter-from {
+  transform: translateX(100%);
+}
+.slide-next-leave-to {
+  transform: translateX(-100%);
+}
+
+.slide-prev-enter-from {
+  transform: translateX(-100%);
+}
+.slide-prev-leave-to {
+  transform: translateX(100%);
+}
+
+/* Swiper Picker Styles */
+.picker-swiper {
+  height: 200px;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%; /* 40px */
+  font-size: 16px;
+  color: #94a3b8;
+  transition: all 0.3s;
+}
+.swiper-slide-active .picker-item {
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 18px;
+  transform: scale(1.1);
 }
 </style>

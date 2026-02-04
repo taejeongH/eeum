@@ -29,6 +29,7 @@
           </template>
         </EeumDatePicker>
         <button 
+            v-if="canManage"
             @click="toggleSelectionMode"
             class="text-primary text-base font-bold leading-normal tracking-[0.015em] shrink-0"
         >
@@ -52,8 +53,15 @@
           <div 
             class="w-full h-full bg-center bg-no-repeat bg-cover rounded-sm cursor-pointer border-2 transition-all duration-200" 
             :class="selectedPhotos.includes(photo.photoId || photo.id) ? 'border-primary opacity-80 scale-95' : 'border-transparent hover:border-primary'"
-            :style="{ backgroundImage: `url(${photo.displayUrl})` }"
-          ></div>
+          >
+            <img 
+              :src="photo.displayUrl" 
+              :alt="photo.description || 'Photo'"
+              loading="lazy"
+              class="w-full h-full object-cover rounded-sm"
+              @error="handleImageError"
+            />
+          </div>
           
           <!-- Selection Checkmark -->
           <div v-if="isSelectionMode" class="absolute top-1 right-1 w-5 h-5 rounded-full border border-white flex items-center justify-center"
@@ -116,11 +124,15 @@ import { getPhotos, deletePhoto } from '@/services/albumService';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 import ImagePreviewModal from '@/components/gallery/ImagePreviewModal.vue';
 import { usePhotoUpload } from '@/composables/usePhotoUpload';
+import { useUserStore } from '@/stores/user';
+import { useAlbumStore } from '@/stores/album';
 
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
+const userStore = useUserStore();
+const albumStore = useAlbumStore();
 const allPhotos = ref([]); // Store all fetched photos
 const photos = ref([]); // Store filtered photos
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
@@ -137,7 +149,7 @@ const {
   handleUploadCancel
 } = usePhotoUpload(async () => {
     // Callback on success
-    await fetchPhotos();
+    await fetchPhotos(true);
 });
 
 const filterDateLocal = computed({
@@ -159,15 +171,47 @@ const albumTitle = computed(() => {
     return uploader ? `${uploader}의 앨범` : `${groupName} 앨범`;
 });
 
-const fetchPhotos = async () => {
+const canManage = computed(() => {
+    // 1. Check if Representative
+    const isRep = familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
+    
+    // 2. Check if viewing own album (filtered by uploader name)
+    const currentUploaderFilter = route.query.uploader;
+    const myName = userStore.profile?.name;
+    // Assuming uploader name is unique/consistent enough for this view logic
+    const isMyAlbum = currentUploaderFilter && myName && (currentUploaderFilter === myName);
+    
+    return isRep || isMyAlbum;
+});
+
+const fetchPhotos = async (forceRefresh = false) => {
     // URL의 familyId와 store의 selectedFamily 동기화
     if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
         familyStore.selectFamilyById(route.params.familyId);
     }
 
     if (!familyStore.selectedFamily) return;
+    
+    const familyId = familyStore.selectedFamily.id;
+    
+    // Try to use cached data first
+    if (!forceRefresh) {
+        const cached = albumStore.getCachedPhotos(familyId);
+        if (cached) {
+            allPhotos.value = cached;
+            filterPhotos();
+            
+            // Stale-while-revalidate:
+            // If cache is very fresh (< 5s), rely on it.
+            // Otherwise, proceed to fetch new data in background.
+            if (albumStore.isFresh(familyId, 5000)) {
+                return;
+            }
+        }
+    }
+    
     try {
-        const response = await getPhotos(familyStore.selectedFamily.id);
+        const response = await getPhotos(familyId);
         let data = [];
         if (response.data && Array.isArray(response.data.data)) {
             data = response.data.data;
@@ -176,7 +220,7 @@ const fetchPhotos = async () => {
         }
 
         // Process URLs
-        allPhotos.value = data.map(photo => {
+        const processedPhotos = data.map(photo => {
             let url = photo.storageUrl || photo.imageUrl;
             if (url && !url.startsWith('http')) {
                 url = S3_BASE_URL + url;
@@ -187,10 +231,26 @@ const fetchPhotos = async () => {
             };
         });
         
+        // Sort by createdAt descending (최신순 정렬)
+        processedPhotos.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || 0);
+            return dateB - dateA;
+        });
+
+        // Cache the processed photos
+        albumStore.setCachedPhotos(familyId, processedPhotos);
+        allPhotos.value = processedPhotos;
+        
         filterPhotos(); // Apply filter initially
     } catch (error) {
         console.error("Failed to fetch album photos:", error);
     }
+};
+
+const handleImageError = (event) => {
+    // Fallback for broken images
+    event.target.style.display = 'none';
 };
 
 const filterPhotos = () => {
@@ -258,7 +318,7 @@ const deleteSelectedPhotos = async () => {
         await modalStore.openAlert("사진이 삭제되었습니다.");
         
         // Refresh list
-        await fetchPhotos();
+        await fetchPhotos(true); // Force refresh after deletion
         
         // Exit selection mode
         toggleSelectionMode();

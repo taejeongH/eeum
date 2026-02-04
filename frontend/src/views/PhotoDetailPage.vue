@@ -21,7 +21,7 @@
                  <!-- Hidden for now, simpler UI first? No, requirements ask for edit -->
                 <span class="material-symbols-outlined">edit</span>
             </button>
-            <div class="relative" ref="moreMenu">
+            <div v-if="canManage" class="relative" ref="moreMenu">
                 <button @click="toggleMenu" class="p-2 rounded-full hover:bg-white/10 transition-colors">
                     <span class="material-symbols-outlined text-white">more_vert</span>
                 </button>
@@ -143,6 +143,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto, updatePhoto } from '@/services/albumService';
+import { useUserStore } from '@/stores/user';
+import { useAlbumStore } from '@/stores/album';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -152,6 +154,8 @@ const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
+const userStore = useUserStore();
+const albumStore = useAlbumStore();
 
 const photo = ref(null);
 const allPhotos = ref([]);
@@ -164,6 +168,15 @@ const moreMenu = ref(null);
 const editForm = ref({
     description: '',
     takenAt: ''
+});
+
+const canManage = computed(() => {
+    if (!photo.value || !userStore.profile) return false;
+    
+    const isUploader = Number(photo.value.uploaderUserId) === Number(userStore.profile.id);
+    const isRepresentative = familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
+    
+    return isUploader || isRepresentative;
 });
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
@@ -180,38 +193,54 @@ const fetchPhotoDetail = async () => {
     }
 
     if (!familyStore.selectedFamily) return;
+    
+    const familyId = familyStore.selectedFamily.id;
+    const targetId = parseInt(route.params.photoId);
 
     try {
-        const response = await getPhotos(familyStore.selectedFamily.id);
+        // Try to use cached data first
+        const cached = albumStore.getCachedPhotos(familyId);
         let rawPhotos = [];
         
-        if (Array.isArray(response.data)) {
-            rawPhotos = response.data;
-        } else if (response.data && Array.isArray(response.data.data)) {
-            rawPhotos = response.data.data;
-        } else if (response.data && Array.isArray(response.data.result)) {
-            rawPhotos = response.data.result;
-        } else if (response.data && Array.isArray(response.data.content)) {
-            rawPhotos = response.data.content;
-        }
-
-        // Process URLs for all photos to allow navigation
-        allPhotos.value = rawPhotos.map(p => {
-            let url = p.storageUrl || p.imageUrl;
-            if (url && !url.startsWith('http')) {
-                url = S3_BASE_URL + url;
+        if (cached && cached.length > 0) {
+            // Use cached data - much faster!
+            rawPhotos = cached;
+        } else {
+            // Fetch from API only if no cache
+            const response = await getPhotos(familyId);
+            
+            if (Array.isArray(response.data)) {
+                rawPhotos = response.data;
+            } else if (response.data && Array.isArray(response.data.data)) {
+                rawPhotos = response.data.data;
+            } else if (response.data && Array.isArray(response.data.result)) {
+                rawPhotos = response.data.result;
+            } else if (response.data && Array.isArray(response.data.content)) {
+                rawPhotos = response.data.content;
             }
-            return { ...p, displayUrl: url };
-        });
 
-        // Sort by takenAt descending (to match Gallery order usually)
+            // Process URLs for all photos
+            rawPhotos = rawPhotos.map(p => {
+                let url = p.storageUrl || p.imageUrl;
+                if (url && !url.startsWith('http')) {
+                    url = S3_BASE_URL + url;
+                }
+                return { ...p, displayUrl: url };
+            });
+            
+            // Cache the processed photos for future use
+            albumStore.setCachedPhotos(familyId, rawPhotos);
+        }
+        
+        allPhotos.value = rawPhotos;
+
+        // Sort by createdAt descending (to match Gallery order usually)
         allPhotos.value.sort((a, b) => {
-            const dateA = new Date(a.takenAt || a.createdAt || 0);
-            const dateB = new Date(b.takenAt || b.createdAt || 0);
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || 0);
             return dateB - dateA;
         });
 
-        const targetId = parseInt(route.params.photoId);
         currentIndex.value = allPhotos.value.findIndex(p => (p.photoId || p.id) === targetId);
 
         if (currentIndex.value !== -1) {

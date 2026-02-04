@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div @keyup.enter="handleEnter">
     <h2 class="eeum-title">
       보살핌이 필요한<br />
       <span class="text-[var(--color-primary)]">가족 정보</span>를 입력해주세요
@@ -148,5 +148,11 @@ const goNext = () => {
     name: 'GroupEditStep3',
     params: { familyId: familyId.value },
   })
+}
+
+const handleEnter = () => {
+  if (seniorId.value && bloodType.value) {
+    goNext()
+  }
 }
 </script>

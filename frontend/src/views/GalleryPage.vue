@@ -23,8 +23,8 @@
 
     <main class="space-y-6">
       <!-- Recently Added (Swiper) -->
-      <section class="recent-photos-section py-6 bg-[#F0EEE9]" @click="navigateToAlbum({ id: 'all' })">
-        <div class="flex items-center justify-between px-6 mb-4">
+      <section class="recent-photos-section py-6 bg-[#F0EEE9]">
+        <div class="flex items-center justify-between px-6 mb-4 cursor-pointer" @click="navigateToAlbum({ id: 'all' })">
             <h2 class="text-lg font-bold text-[#1c140d]">최근 추가된 사진</h2>
             <span class="material-symbols-outlined text-[#9c7349]">chevron_right</span>
         </div>
@@ -53,7 +53,7 @@
           class="recent-swiper"
         >
           <swiper-slide v-for="(photo, index) in recentPhotos" :key="photo.photoId || index">
-            <div @click="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
+            <div @click.stop="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
               <!-- Blurred Background for Fill -->
               <img :src="photo.displayUrl" class="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30" aria-hidden="true" />
               
@@ -199,8 +199,8 @@ const recentPhotos = computed(() => {
     // Sort by takenAt descending (robust check for various date field formats)
     return [...photos.value]
         .sort((a, b) => {
-            const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
-            const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
@@ -241,8 +241,8 @@ const albums = computed(() => {
     const uploaderAlbums = Object.keys(groups).map((name, index) => {
         // Sort photos by date descending to get the latest one as cover
         const groupPhotos = groups[name].sort((a, b) => {
-            const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
-            const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
@@ -270,18 +270,16 @@ const albums = computed(() => {
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
+// [FIX] Reactive familyId
+const familyId = ref(null);
 
 const fetchAlbumPhotos = async () => {
-    // URL의 familyId와 store의 selectedFamily 동기화
-    if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
-        familyStore.selectFamilyById(route.params.familyId);
-    }
+    // Prefer reactive familyId
+    if (!familyId.value) return;
 
-    if (!familyStore.selectedFamily) return;
     try {
-        const response = await getPhotos(familyStore.selectedFamily.id);
+        const response = await getPhotos(familyId.value);
 
-        
         let rawPhotos = [];
         // Checking for different possible structures of response
         if (Array.isArray(response.data)) {
@@ -298,7 +296,7 @@ const fetchAlbumPhotos = async () => {
         }
 
         // Process URLs
-        photos.value = rawPhotos.map(photo => {
+        const processed = rawPhotos.map(photo => {
             let url = photo.storageUrl || photo.imageUrl;
             if (url && !url.startsWith('http')) {
                 url = S3_BASE_URL + url;
@@ -308,9 +306,16 @@ const fetchAlbumPhotos = async () => {
                 displayUrl: url
             };
         });
+
+        // Global Sort: Newest First
+        processed.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
+            return dateB - dateA;
+        });
+
+        photos.value = processed;
         
-
-
     } catch (error) {
         console.error("Failed to fetch photos:", error);
     }
@@ -337,14 +342,36 @@ const goToPhotoDetail = (photo) => {
 };
 
 onMounted(() => {
-    if (familyStore.selectedFamily) {
+    // 1. Prefer route param
+    if (route.params.familyId) {
+        familyId.value = route.params.familyId;
+    } 
+    // 2. Fallback to store
+    else if (familyStore.selectedFamily?.id) {
+        familyId.value = familyStore.selectedFamily.id;
+        router.replace({ name: 'GalleryPage', params: { familyId: familyId.value } });
+    }
+
+    if (familyId.value) {
         fetchAlbumPhotos();
     }
 });
 
-watch(() => familyStore.selectedFamily, (newFamily) => {
-    if (newFamily) {
+// React to route changes (e.g. Back button or Redirect)
+watch(() => route.params.familyId, (newId) => {
+    if (newId && newId !== familyId.value) {
+        familyId.value = newId;
         fetchAlbumPhotos();
+    }
+});
+
+// React to store selection changes (Header Dropdown)
+watch(() => familyStore.selectedFamily, (newFamily) => {
+    if (newFamily && newFamily.id) {
+        // If Store changes, redirect to the new URL
+        if (String(newFamily.id) !== String(route.params.familyId)) {
+            router.replace({ name: 'GalleryPage', params: { familyId: newFamily.id } });
+        }
     }
 });
 </script>

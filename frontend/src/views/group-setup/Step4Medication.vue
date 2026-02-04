@@ -86,6 +86,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useGroupSetupStore } from '@/stores/groupSetup'
+import { useFamilyStore } from '@/stores/family'
 import { useModalStore } from '@/stores/modal'
 import { storeToRefs } from 'pinia'
 import MedicationAddModal from './MedicationAddModal.vue'
@@ -131,9 +132,15 @@ const complete = async () => {
   try {
     await setupStore.saveData(familyId)
     
-    // Refresh families to update group name/members
+    // Refresh families to update group name/members (force refresh to bypass cache)
     const familyStore = useFamilyStore();
-    await familyStore.fetchFamilies();
+    await familyStore.fetchFamilies(true);
+    
+    // Re-select the current family to trigger UI updates
+    const updatedFamily = familyStore.families.find(f => f.id == familyId);
+    if (updatedFamily) {
+      familyStore.selectFamily(updatedFamily);
+    }
     
     await modalStore.openAlert('그룹 설정이 저장되었습니다.')
     

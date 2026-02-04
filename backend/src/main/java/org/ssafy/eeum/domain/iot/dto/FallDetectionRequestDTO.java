@@ -27,6 +27,8 @@ public class FallDetectionRequestDTO {
 
         private Integer level;
 
+        private Double confidence;
+
         @JsonProperty("has_person")
         private Boolean hasPerson;
     }

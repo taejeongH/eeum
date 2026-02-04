@@ -26,7 +26,7 @@ let timer = null;
 
 watch(() => uiStore.isLoading, (loading) => {
   if (loading) {
-    // 300ms 지연 후 로딩 화면 표시
+    // 300ms 지연 후 로딩 화면 표시 (너무 빠른 요청은 무시)
     timer = setTimeout(() => {
       shouldShow.value = true;
     }, 300);

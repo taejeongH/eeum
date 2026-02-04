@@ -46,6 +46,7 @@ public class IotSyncService {
     private final RedisService redisService;
     private final FamilyRepository familyRepository;
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public IotSyncDto getSyncData(Integer familyId, String kind, Integer clientLastLogId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
@@ -96,6 +97,7 @@ public class IotSyncService {
                         .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
                         .description(asset.getDescription())
                         .takenAt(asset.getTakenAt().toString())
+                        .userId(asset.getUploader().getId())
                         .build());
                 addedMap.remove(asset.getId());
             }

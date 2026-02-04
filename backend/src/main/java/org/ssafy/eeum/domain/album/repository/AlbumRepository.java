@@ -10,7 +10,9 @@ import java.util.List;
 public interface AlbumRepository extends JpaRepository<MediaAsset, Integer> {
 
     // 앱 사용자용: 모든 사진들 조회 (하드 델리트 적용 시 자동 필터링)
-    List<MediaAsset> findAllByFamilyId(Integer familyId);
+    // 앱 사용자용: 모든 사진들 조회 (하드 델리트 적용 시 자동 필터링)
+    @Query("SELECT m FROM MediaAsset m JOIN FETCH m.uploader WHERE m.family.id = :familyId")
+    List<MediaAsset> findAllByFamilyId(@Param("familyId") Integer familyId);
 
     // IoT 동기화용: 특정 그룹의 미동기화된 모든 사진 조회 (삭제된 것도 포함하여 알림 대상)
     List<MediaAsset> findAllByFamilyIdAndIsSyncedFalse(Integer familyId);

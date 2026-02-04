@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.family.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -51,11 +52,17 @@ public class FamilyMemberDetailResponseDto {
     @Schema(description = "피부양자 여부")
     private boolean isDependent;
 
+    @Schema(description = "대표자 여부")
+    @JsonProperty("representative")
+    private boolean isRepresentative;
+
     @Schema(description = "현재 사용자가 그룹의 대표자인지 여부")
     private boolean isCurrentUserOwner;
 
     public static FamilyMemberDetailResponseDto of(User user, Supporter supporter) {
         boolean isPatient = supporter.getRole() == Supporter.Role.PATIENT;
+        boolean isOwnerLink = supporter.getFamily().getUser() != null &&
+                supporter.getFamily().getUser().getId().equals(supporter.getUser().getId());
 
         return FamilyMemberDetailResponseDto.builder()
                 .userId(user.getId())
@@ -72,6 +79,7 @@ public class FamilyMemberDetailResponseDto {
                 .emergencyPriority(isPatient ? null : supporter.getEmergencyPriority())
                 .relationship(isPatient ? null : supporter.getRelationship())
                 .isDependent(isPatient)
+                .isRepresentative(supporter.isRepresentativeFlag() || isOwnerLink)
                 .build();
     }
 }

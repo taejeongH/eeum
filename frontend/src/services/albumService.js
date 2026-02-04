@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Get list of photos for a family
 export const getPhotos = (familyId) => {
-    return apiClient.get(`/families/${familyId}/album`);
+    return apiClient.get(`/families/${familyId}/album`, { headers: { silent: true } });
 };
 
 // Get presigned URL for S3 upload

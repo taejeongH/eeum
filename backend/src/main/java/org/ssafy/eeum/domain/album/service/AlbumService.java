@@ -14,6 +14,9 @@ import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.iot.entity.ActionType;
 import org.ssafy.eeum.domain.album.entity.MediaLog;
 import org.ssafy.eeum.domain.album.repository.MediaLogRepository;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
+import org.ssafy.eeum.domain.family.repository.SupporterRepository;
+import org.ssafy.eeum.domain.family.entity.Supporter;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.s3.S3Service;
@@ -33,6 +36,8 @@ public class AlbumService {
     private final S3Service s3Service;
     private final IotSyncService iotSyncService;
     private final MediaLogRepository mediaLogRepository;
+    private final UserRepository userRepository;
+    private final SupporterRepository supporterRepository;
 
     // 0. 업로드용 Presigned URL 생성
     public PresignedUrlResponseDTO generateUploadUrl(String fileName, String contentType) {
@@ -60,13 +65,29 @@ public class AlbumService {
 
         albumRepository.save(asset);
 
+        // Log 저장 (ADD)
+        saveLog(familyId, asset.getId(), ActionType.ADD);
+
         // IoT 동기화 알림
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-    // 2. 가족별 사진 목록 조회
-    public List<AlbumResponseDTO> getPhotos(Integer familyId) {
-        return albumRepository.findAllByFamilyId(familyId).stream()
+    // 2. 가족별 사진 목록 조회 (최적화됨)
+    public List<AlbumResponseDTO> getPhotos(Integer familyId, Integer userId) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 해당 가족 그룹의 멤버인지 확인
+        supporterRepository.findByUserAndFamily(user, family)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+
+        List<MediaAsset> assets = albumRepository.findAllByFamilyId(familyId);
+        
+        // Parallel stream을 사용하여 Presigned URL 생성 병렬 처리
+        return assets.parallelStream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
@@ -88,11 +109,32 @@ public class AlbumService {
 
     // 4. 사진 삭제 (Soft Delete)
     @Transactional
-    public void deletePhoto(Integer photoId) {
+    public void deletePhoto(Integer photoId, Integer requesterUserId) {
         MediaAsset asset = albumRepository.findById(photoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-        Integer familyId = asset.getFamily().getId();
+        Family family = asset.getFamily();
+
+        // 요청자 권한 확인
+        Supporter requesterSupporter = supporterRepository.findByUserAndFamily(
+                userRepository.findById(requesterUserId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)),
+                family
+        ).orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+
+        // 권한 체크: 업로더 본인이거나 가족 대표자인 경우만 삭제 가능
+        boolean isUploader = asset.getUploader().getId().equals(requesterUserId);
+        boolean isRepresentative = requesterSupporter.isRepresentativeFlag();
+
+        if (!isUploader && !isRepresentative) {
+            throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
+        }
+
+        Integer familyId = family.getId();
+
+        // Log 저장 (DELETE)
+        saveLog(familyId, asset.getId(), ActionType.DELETE);
+
         albumRepository.delete(asset); // SQLDelete에 의해 isSynced=false 처리됨
 
         // IoT 동기화 알림
@@ -120,6 +162,10 @@ public class AlbumService {
                     .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
                     .description(asset.getDescription())
                     .takenAt(asset.getTakenAt())
+                    .uploaderName(asset.getUploader().getName())
+                    .uploaderProfileImage(asset.getUploader().getProfileImage() != null
+                            ? s3Service.getPresignedUrl(asset.getUploader().getProfileImage())
+                            : null)
                     .build());
             syncedIds.add(asset.getId());
         }
@@ -142,6 +188,7 @@ public class AlbumService {
                 .description(asset.getDescription())
                 .takenAt(asset.getTakenAt())
                 .uploaderName(asset.getUploader().getName())
+                .uploaderUserId(asset.getUploader().getId())
                 .createdAt(asset.getCreatedAt().toString())
                 .build();
     }

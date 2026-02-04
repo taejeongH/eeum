@@ -22,6 +22,7 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import org.ssafy.eeum.global.infra.redis.RedisService;
 import org.ssafy.eeum.global.util.CalendarUtils;
+import org.ssafy.eeum.domain.family.repository.SupporterRepository;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -49,10 +50,24 @@ public class ScheduleService {
     private final IotSyncService iotSyncService;
     private final MqttService mqttService;
     private final IotDeviceRepository iotDeviceRepository;
+    private final SupporterRepository supporterRepository;
+
+    private void checkFamilyAccess(Integer userId, Integer familyId) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        supporterRepository.findByUserAndFamily(user, family)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+    }
 
     // 월간 일정 조회 (캐시 적용)
-    public List<ScheduleResponseDTO> getMonthlySchedules(Integer familyId, int year, int month, String category,
+    public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month, String category,
             String keyword, String targetPerson, Boolean isVisited) {
+
+        checkFamilyAccess(userId, familyId);
 
         YearMonth targetMonth = YearMonth.of(year, month);
 
@@ -78,7 +93,8 @@ public class ScheduleService {
         return result;
     }
 
-    public ScheduleResponseDTO getSchedule(Integer familyId, String scheduleId) {
+    public ScheduleResponseDTO getSchedule(Integer userId, Integer familyId, String scheduleId) {
+        checkFamilyAccess(userId, familyId);
         if (scheduleId.contains("_")) {
             String[] parts = scheduleId.split("_");
             Integer parentId = Integer.parseInt(parts[0]);

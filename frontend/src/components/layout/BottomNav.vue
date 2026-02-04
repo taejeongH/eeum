@@ -40,7 +40,7 @@
     </button>
     
     <!-- Menu Dropdown -->
-    <div class="relative w-1/5 flex flex-col items-center">
+    <div class="relative w-1/5 flex flex-col items-center" ref="menuContainer">
       <transition name="fade">
         <div v-if="showMenu" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-6 w-24 bg-white shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] rounded-3xl border border-gray-100 overflow-hidden z-[60] flex flex-col items-center p-2 py-4 gap-4">
           <button 
@@ -109,23 +109,14 @@
       </button>
     </div>
 
-    <!-- Custom Logout Confirmation Modal -->
-    <ConfirmModal 
-      :show="showLogoutModal"
-      title="로그아웃"
-      message="정말로 로그아웃하시겠습니까?"
-      @confirm="performLogout"
-      @cancel="showLogoutModal = false"
-    />
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
-import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
@@ -135,7 +126,14 @@ const modalStore = useModalStore();
 const familyStore = useFamilyStore();
 const activeTab = ref('home');
 const showMenu = ref(false);
-const showLogoutModal = ref(false);
+
+const menuContainer = ref(null);
+
+const handleOutsideClick = (event) => {
+  if (showMenu.value && menuContainer.value && !menuContainer.value.contains(event.target)) {
+    showMenu.value = false;
+  }
+};
 
 const updateActiveTab = () => {
     if (route.path.startsWith('/families') && route.path.includes('/calendar')) {
@@ -159,7 +157,15 @@ const updateActiveTab = () => {
     }
 };
 
-onMounted(updateActiveTab);
+onMounted(() => {
+  updateActiveTab();
+  window.addEventListener('click', handleOutsideClick);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleOutsideClick);
+});
+
 watch(() => route.path, updateActiveTab);
 
 const setActive = (tab) => {
@@ -250,22 +256,30 @@ const navigateTo = (type) => {
   }
 };
 
-const handleLogout = () => {
+const handleLogout = async () => {
   showMenu.value = false;
-  showLogoutModal.value = true;
-};
-
-const performLogout = () => {
-  showLogoutModal.value = false;
-  // Clear tokens and profile
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('familyId');
-  localStorage.removeItem('currentFamilyId');
-  sessionStorage.removeItem('accessToken');
   
-  userStore.clearUser();
+  const confirmed = await modalStore.openConfirm(
+    "정말로 로그아웃하시겠습니까?",
+    "로그아웃"
+  );
   
-  // Redirect to login or onboarding
-  router.push('/login');
+  if (confirmed) {
+    // Clear tokens and profile
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('familyId');
+    localStorage.removeItem('currentFamilyId');
+    sessionStorage.removeItem('accessToken');
+    
+    userStore.clearUser();
+    
+    // [NEW] Android Native Logout
+    if (window.AndroidBridge && window.AndroidBridge.logout) {
+      window.AndroidBridge.logout();
+    }
+    
+    // Redirect to login or onboarding
+    router.push('/login');
+  }
 };
 </script>

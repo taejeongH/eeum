@@ -31,6 +31,10 @@ public class FamilyMemberDto {
     @JsonProperty("relationship")
     private String relationship;
 
+    @Schema(description = "대표자 여부")
+    @JsonProperty("representative")
+    private boolean isRepresentative;
+
     public static FamilyMemberDto of(Supporter supporter) {
         return FamilyMemberDto.builder()
                 .userId(supporter.getUser().getId())
@@ -39,6 +43,7 @@ public class FamilyMemberDto {
                 .isDependent(supporter.getRole() == Supporter.Role.PATIENT)
                 .emergencyPriority(supporter.getEmergencyPriority())
                 .relationship(supporter.getRelationship())
+                .isRepresentative(supporter.isRepresentativeFlag())
                 .build();
     }
 }

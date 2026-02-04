@@ -65,19 +65,20 @@ const lastSyncTime = computed(() => {
 
 const fetchData = async () => {
     try {
-        await familyStore.fetchFamilies();
+        await familyStore.fetchFamilies(); // Already cached
         const familyId = familyStore.selectedFamily?.id;
         if (!familyId) return;
 
-        // Try to get dependent name from the family store if already populated by backend
+        // Use cached members from store
+        const members = await familyStore.fetchMembers(familyId);
+        
+        // 1. Try to find dependent from family list first (if DTO has it)
         const currentFamily = familyStore.families.find(f => f.id === familyId);
         if (currentFamily?.dependentName) {
             dependentName.value = currentFamily.dependentName;
         } else {
-            // Fallback: Fetch members if not in simple list
-            const membersResponse = await api.get(`/families/${familyId}/members`);
-            const members = membersResponse.data;
-            const dependent = members.find(m => m.isDependent);
+            // 2. Fallback: Find dependent from member list
+            const dependent = members.find(m => m.dependent || m.isDependent);
             if (dependent) {
                 dependentName.value = dependent.name;
             }

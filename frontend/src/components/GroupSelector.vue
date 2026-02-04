@@ -1,9 +1,16 @@
 <template>
   <div class="relative">
+    <!-- 배경 클릭 시 닫히도록 투명 오버레이 추가 (모바일 접근성 강화) -->
+    <div 
+      v-if="isOpen" 
+      class="fixed inset-0 z-[19]" 
+      @click="close"
+    ></div>
+
     <transition name="dropdown">
       <div
         v-if="isOpen"
-        class="eeum-dropdown left-0 origin-top-left"
+        class="eeum-dropdown right-0 origin-top-right z-20"
       >
         <ul class="py-1">
           <li
@@ -84,7 +91,7 @@ onMounted(() => {
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease-out;
-  transform-origin: top left;
+  transform-origin: top right;
 }
 
 .dropdown-enter-from,
@@ -99,4 +106,3 @@ onMounted(() => {
   transform: scale(1);
 }
 </style>
-
