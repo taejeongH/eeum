@@ -35,7 +35,6 @@
     </div>
 
     <main class="flex-1 px-6 -mt-6 relative z-30 pt-4 flex flex-col min-h-0">
-      
       <transition 
         enter-active-class="transition ease-out duration-300 transform"
         enter-from-class="opacity-0 translate-y-4"
@@ -401,27 +400,20 @@ const toggleRecord = async () => {
             recordingDuration.value = 0;
             recordingTimer.value = setInterval(() => { recordingDuration.value += 0.1; }, 100);
         } catch (err) {
-<<<<<<< frontend/src/views/VoiceRegistration.vue
             console.error(err);
             if (err.name === 'NotReadableError') {
-                alert("마이크를 시작할 수 없습니다. (다른 앱이 마이크 사용 중일 수 있음)\n앱을 완전히 종료 후 다시 시도해보세요.");
+                alert("마이크를 시작할 수 없습니다. (다른 앱이 마이크 사용 중일 수 있음)");
             } else if (err.name === 'NotAllowedError') {
-                alert("마이크 권한이 거부되었습니다. 앱 설정에서 권한을 허용해주세요.");
-            } else if (err.name === 'NotFoundError') {
-                alert("마이크 장치를 찾을 수 없습니다.");
+                alert("마이크 권한이 거부되었습니다.");
             } else {
-                alert(`마이크 오류: ${err.name}\n${err.message}`);
+                alert(`마이크 오류: ${err.name}`);
             }
-=======
-            alert("마이크 접근 권한이 필요합니다.");
->>>>>>> frontend/src/views/VoiceRegistration.vue
         }
     }
 };
 
 const saveRecording = async () => {
     if (!recordedBlob.value || !selectedSample.value) return;
-<<<<<<< frontend/src/views/VoiceRegistration.vue
     if (recordingDuration.value < 3 || recordingDuration.value > 10) {
         alert("녹음 길이는 3초 이상 10초 이하여야 합니다.");
         return;
@@ -468,13 +460,12 @@ const toggleFreeTalkRecord = async () => {
                 recordedBlob.value = blob;
                 audioUrl.value = URL.createObjectURL(blob);
                 
-                // Auto Transcribe
                 try {
                     isLoading.value = true;
                     transcribedText.value = await voiceService.transcribeAudio(blob);
                 } catch (e) {
                     console.error("STT Failed:", e);
-                    transcribedText.value = "음성 변환에 실패했습니다. (STT 키 확인 필요)";
+                    transcribedText.value = "음성 변환에 실패했습니다.";
                 } finally {
                     isLoading.value = false;
                 }
@@ -487,15 +478,13 @@ const toggleFreeTalkRecord = async () => {
             recordingTimer.value = setInterval(() => { recordingDuration.value += 0.1; }, 100);
         } catch (err) {
              console.error(err);
-             alert(`마이크 오류: ${err.name}\n${err.message}`);
+             alert(`마이크 오류: ${err.name}`);
         }
     }
 };
 
 const saveFreeTalk = async () => {
     if (!recordedBlob.value || !transcribedText.value) return;
-    
-
 
     if (recordingDuration.value < 3 || recordingDuration.value > 10) {
         alert("녹음 길이는 3초 이상 10초 이하여야 합니다.");
@@ -505,36 +494,21 @@ const saveFreeTalk = async () => {
         isLoading.value = true;
         await voiceService.uploadVoiceSample(
             recordedBlob.value, 
-
             null, 
             parseFloat(recordingDuration.value.toFixed(1)),
             transcribedText.value
         );
         isFreeTalkSaved.value = true;
-        
         const status = await voiceService.getVoiceStatus();
         serverSampleCount.value = status.sampleCount;
-        
         alert("자유 대본이 저장되었습니다.");
     } catch (e) {
         console.error(e);
         alert(`저장 실패: ${e.message}`);
-
-            selectedSample.value.id, 
-            parseFloat(recordingDuration.value.toFixed(1))
-        );
-        selectedSample.value.isRecorded = true;
-        const status = await voiceService.getVoiceStatus();
-        serverSampleCount.value = status.sampleCount;
-        selectedSample.value = null;
-    } catch (error) {
-        console.error(error);
-
     } finally {
         isLoading.value = false;
     }
 };
-
 
 const resetFreeTalk = () => {
     transcribedText.value = '';
@@ -544,8 +518,11 @@ const resetFreeTalk = () => {
     recordingDuration.value = 0;
 };
 
-
 const goToSettings = () => router.push('/settings/voice');
+
+// Initial Setup handlers
+const handleSkip = () => router.push('/home');
+const handleCompleteSetup = () => router.push('/home');
 </script>
 
 <style scoped>
