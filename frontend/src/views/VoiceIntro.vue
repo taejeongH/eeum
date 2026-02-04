@@ -69,8 +69,10 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useFamilyStore } from '@/stores/family';
 
 const router = useRouter();
+const familyStore = useFamilyStore();
 const isRecording = ref(false);
 
 const toggleRecording = () => {
@@ -93,7 +95,12 @@ const startRecording = () => {
 const stopRecording = () => {
     isRecording.value = false;
     // Navigate to actual registration steps
-    router.push('/voice-register');
+    const familyId = familyStore.selectedFamily?.id;
+    if (familyId) {
+        router.push(`/families/${familyId}/voice-register`);
+    } else {
+        router.push('/voice-register');
+    }
 };
 </script>
 

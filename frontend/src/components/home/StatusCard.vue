@@ -92,7 +92,12 @@ onMounted(() => {
 });
 
 const goToReport = () => {
-    router.push({ path: '/health-detail', query: { scrollTo: 'analysis' } });
+    const familyId = familyStore.selectedFamily?.id;
+    if (familyId) {
+        router.push({ path: `/families/${familyId}/health-detail`, query: { scrollTo: 'analysis' } });
+    } else {
+        router.push({ path: '/health-detail', query: { scrollTo: 'analysis' } });
+    }
 };
 </script>
 

@@ -3,7 +3,7 @@
     <!-- Modal Container -->
     <div :class="[
       'bg-white overflow-hidden flex flex-col shadow-2xl relative transition-all duration-300 ease-in-out mx-auto',
-      isFullscreen ? 'w-full h-full max-w-none max-h-none rounded-none bg-black' : (currentView === 'main' ? 'w-full max-w-sm rounded-[32px] min-h-[570px] max-h-[90vh]' : 'w-full max-w-2xl rounded-2xl bg-zinc-950')
+      isFullscreen ? 'w-full h-full max-w-none max-h-none rounded-none bg-black' : (currentView === 'main' ? 'w-full max-w-sm rounded-[32px] min-h-[570px] max-h-[90vh]' : 'w-full max-w-2xl rounded-[32px] bg-zinc-950')
     ]">
       
       <!-- Close Button (Minimalist) - Only visible in Main View -->
