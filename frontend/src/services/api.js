@@ -15,9 +15,15 @@ const apiClient = axios.create({
 // [중요] 모든 요청에 토큰을 자동으로 붙여주는 인터셉터입니다.
 apiClient.interceptors.request.use(
   (config) => {
-    // [NEW] 전역 로딩 시작
+    // [NEW] 전역 로딩 시작 (silent 옵션이 있으면 건너뜀)
     const uiStore = useUiStore();
-    uiStore.startLoading();
+    if (!config.silent && !config.headers?.silent) {
+      uiStore.startLoading();
+    } else {
+      // 헤더에 silent가 있으면 실제 요청 선에서 제거 (서버 전송 방지)
+      if (config.headers?.silent) delete config.headers.silent;
+      config.isSilent = true; // 응답에서도 참조하기 위함
+    }
 
     // 1. localStorage 또는 sessionStorage에서 토큰 확인
     let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -65,7 +71,9 @@ apiClient.interceptors.response.use(
   (response) => {
     // [NEW] 전역 로딩 종료
     const uiStore = useUiStore();
-    uiStore.finishLoading();
+    if (!response.config?.isSilent) {
+      uiStore.finishLoading();
+    }
     return response;
   },
   async (error) => {
@@ -151,7 +159,9 @@ apiClient.interceptors.response.use(
 
     // [NEW] 전역 로딩 종료
     const uiStore = useUiStore();
-    uiStore.finishLoading();
+    if (!error.config?.isSilent) {
+      uiStore.finishLoading();
+    }
 
     return Promise.reject(error);
   }

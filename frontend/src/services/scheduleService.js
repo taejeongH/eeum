@@ -6,7 +6,8 @@ export const scheduleService = {
     async getMonthlySchedules(familyId, year, month) {
         try {
             const response = await apiClient.get(`/families/${familyId}/schedules`, {
-                params: { year, month }
+                params: { year, month },
+                headers: { silent: true }
             });
 
             // API 응답 구조가 { statusCode: ..., data: [...] } 형태임

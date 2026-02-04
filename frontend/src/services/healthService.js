@@ -15,7 +15,8 @@ export const healthService = {
     getLatestMetrics: async (groupId) => {
         try {
             const response = await api.get('/health/latest', {
-                params: { groupId }
+                params: { groupId },
+                headers: { silent: true }
             });
             return response.data.data;
         } catch (error) {

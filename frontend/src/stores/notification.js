@@ -31,14 +31,9 @@ export const useNotificationStore = defineStore('notification', () => {
             return;
         }
 
-        // 가족이 변경되면 즉시 목록 초기화 및 로딩 표시
         if (currentFamilyId.value !== familyId) {
             currentFamilyId.value = familyId;
             notifications.value = [];
-            isLoading.value = true;
-        } else {
-            // 같은 가족이면 백그라운드 갱신 (로딩 표시 선택적, 여기선 유지)
-            isLoading.value = true;
         }
 
         try {
@@ -49,7 +44,7 @@ export const useNotificationStore = defineStore('notification', () => {
                 try {
                     // [Fix] Android WebView 캐싱 방지를 위해 timestamp 추가
                     const timestamp = new Date().getTime();
-                    const response = await api.get(`/notifications/families/${familyId}/history?_t=${timestamp}`);
+                    const response = await api.get(`/notifications/families/${familyId}/history?_t=${timestamp}`, { headers: { silent: true } });
                     notifications.value = response.data;
 
                     // [NEW] expectedId가 있는데 목록에 없다면 (레이스 컨디션), 1초 뒤 한 번 더 시도
@@ -58,7 +53,7 @@ export const useNotificationStore = defineStore('notification', () => {
                         await new Promise(resolve => setTimeout(resolve, 1000));
 
                         const retryTimestamp = new Date().getTime();
-                        const retryResponse = await api.get(`/notifications/families/${familyId}/history?retry=true&_t=${retryTimestamp}`);
+                        const retryResponse = await api.get(`/notifications/families/${familyId}/history?retry=true&_t=${retryTimestamp}`, { headers: { silent: true } });
                         notifications.value = retryResponse.data;
                     }
 

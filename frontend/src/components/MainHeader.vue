@@ -390,29 +390,25 @@ const fetchMembers = async () => {
     return;
   }
   try {
-    // 1. Fetch Members
-    const response = await api.get(`/families/${selectedGroup.value.id}/members`);
-    let fetchedMembers = response.data;
+    // 1. Fetch Members using Store Cache
+    const fetchedMembers = await familyStore.fetchMembers(selectedGroup.value.id);
     
-    // 2. Process and Sort Members
-    // The backend now provides 'isRepresentative' flag for each member
-
+    // 2. Clone and sort members
+    const membersCopy = JSON.parse(JSON.stringify(fetchedMembers));
     
-    // Sort and process members
-    const dependent = fetchedMembers.find(m => m.dependent);
+    const dependent = membersCopy.find(m => m.dependent);
     if (dependent) {
-      fetchedMembers.sort((a, b) => b.dependent - a.dependent);
+      membersCopy.sort((a, b) => b.dependent - a.dependent);
     } else {
-      fetchedMembers.unshift({ userId: 'add-dependent', name: '피부양자 설정', isPlaceholder: true });
+      membersCopy.unshift({ userId: 'add-dependent', name: '피부양자 설정', isPlaceholder: true });
     }
-    members.value = fetchedMembers;
+    members.value = membersCopy;
     
     syncSelectedIdWithRoute();
     
   } catch (error) {
-    console.error(`Failed to fetch members for familyId ${selectedGroup.value.id}:`, error);
+    console.error(`Failed to process members for familyId ${selectedGroup.value.id}:`, error);
     members.value = [];
-    ownerId.value = null;
   }
 };
 

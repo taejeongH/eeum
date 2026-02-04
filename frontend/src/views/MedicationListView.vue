@@ -308,7 +308,7 @@ const activeHours = computed(() => {
 const fetchMedications = async () => {
     if (!familyId.value) return;
     try {
-        const response = await api.get(`/families/${familyId.value}/medications`);
+        const response = await api.get(`/families/${familyId.value}/medications`, { headers: { silent: true } });
         medications.value = response.data;
     } catch (error) {
         console.error('Failed to fetch medications:', error);

@@ -7,10 +7,14 @@ export const useFamilyStore = defineStore('family', () => {
   const selectedFamily = ref(null);
   const isLoading = ref(false);
 
-  async function fetchFamilies() {
+  async function fetchFamilies(force = false) {
+    // [Cache Check] 강제 갱신이 아니고 이미 데이터가 있다면 skip
+    if (!force && families.value.length > 0) return;
+
     isLoading.value = true;
     try {
-      const response = await api.get('/families');
+      // 배경에서 조용히 업데이트 (silent header 사용)
+      const response = await api.get('/families', { headers: { silent: true } });
       families.value = response.data;
 
       // If no family is selected, or the selected family is no longer in the list, default to the first one
@@ -75,7 +79,7 @@ export const useFamilyStore = defineStore('family', () => {
     isLoading.value = true;
     try {
       const response = await api.post('/families', data);
-      await fetchFamilies(); // 리스트 갱신
+      await fetchFamilies(true); // 리스트 강제 갱신
 
       // 방금 만든 가족으로 자동 선택
       if (response.data && response.data.id) {
@@ -100,7 +104,7 @@ export const useFamilyStore = defineStore('family', () => {
         headers: { 'Content-Type': 'text/plain' },
         transformRequest: [(data) => data]
       });
-      await fetchFamilies(); // 리스트 갱신
+      await fetchFamilies(true); // 리스트 강제 갱신
 
       // 방금 가입한 가족으로 자동 선택
       if (response.data && response.data.id) {
@@ -116,11 +120,32 @@ export const useFamilyStore = defineStore('family', () => {
     }
   }
 
+  const membersCache = ref({});
+
+  async function fetchMembers(familyId, force = false) {
+    if (!familyId) return [];
+    // [Cache Check] 강제 갱신이 아니고 이미 해당 가족의 멤버 정보가 있다면 skip
+    if (!force && membersCache.value[familyId]) {
+      return membersCache.value[familyId];
+    }
+
+    try {
+      const response = await api.get(`/families/${familyId}/members`, { headers: { silent: true } });
+      membersCache.value[familyId] = response.data;
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch members for family ${familyId}:`, error);
+      return membersCache.value[familyId] || []; // 에러 시 기존 캐시라도 반환
+    }
+  }
+
   return {
     families,
     selectedFamily,
     isLoading,
+    membersCache,
     fetchFamilies,
+    fetchMembers,
     selectFamily,
     selectFamilyById,
     clearFamily,
