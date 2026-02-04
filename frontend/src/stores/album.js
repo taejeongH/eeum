@@ -35,10 +35,17 @@ export const useAlbumStore = defineStore('album', () => {
         }
     }
 
+    const isFresh = (familyId, duration = 10000) => {
+        const fetchTime = lastFetchTime.value[familyId]
+        if (!fetchTime) return false
+        return (Date.now() - fetchTime) < duration
+    }
+
     return {
         cachedPhotos,
         setCachedPhotos,
         getCachedPhotos,
-        clearCache
+        clearCache,
+        isFresh
     }
 })
