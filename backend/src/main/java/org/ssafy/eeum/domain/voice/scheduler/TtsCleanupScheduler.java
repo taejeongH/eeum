@@ -9,10 +9,11 @@ import org.ssafy.eeum.domain.iot.entity.ActionType;
 import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.message.entity.Message;
 import org.ssafy.eeum.domain.message.repository.MessageRepository;
-import org.ssafy.eeum.domain.voice.entity.VoiceLog;
-import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
+import org.ssafy.eeum.domain.voice.entity.VoiceTask;
+import org.ssafy.eeum.domain.voice.repository.VoiceTaskRepository;
 import org.ssafy.eeum.domain.voice.service.VoiceAiClient;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
+import org.ssafy.eeum.domain.voice.repository.VoiceSampleRepository;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
@@ -26,96 +27,118 @@ public class TtsCleanupScheduler {
     private final MessageRepository messageRepository;
     private final VoiceAiClient voiceAiClient;
     private final VoiceService voiceService;
-    private final VoiceLogRepository voiceLogRepository;
+    private final VoiceTaskRepository taskRepository;
     private final IotSyncService iotSyncService;
+    private final VoiceSampleRepository voiceSampleRepository;
 
     /**
      * TTS 웹후크 대용 폴링 스케줄러 (적응형 백오프 적용)
      */
-    @Scheduled(fixedDelay = 10000) // 10초마다 실행 (초기 응답성 강화)
+    @Scheduled(fixedDelay = 10000)
     @Transactional
     public void cleanupTtsJobs() {
-        List<Message> pendingMessages = messageRepository.findByTtsJobIdIsNotNullAndVoiceUrlIsNull();
+        // IN_QUEUE 거나 IN_PROGRESS 인 작업만 조회
+        List<VoiceTask> pendingTasks = taskRepository.findByStatusInAndJobIdIsNotNull(
+                List.of(VoiceTask.TaskStatus.IN_QUEUE, VoiceTask.TaskStatus.IN_PROGRESS));
 
-        if (pendingMessages.isEmpty()) {
+        if (pendingTasks.isEmpty()) {
             return;
         }
 
         LocalDateTime now = LocalDateTime.now();
 
-        for (Message message : pendingMessages) {
-            if (!shouldPoll(message, now)) {
+        for (VoiceTask task : pendingTasks) {
+            if (!shouldPoll(task, now)) {
                 continue;
             }
 
-            String jobId = message.getTtsJobId();
+            String jobId = task.getJobId();
             try {
-                message.incrementPollCount();
-                messageRepository.save(message);
+                task.incrementPollCount();
+                taskRepository.save(task);
 
                 String resultOrStatus = voiceAiClient.checkJobStatus(jobId);
 
+                // 실패 처리
                 if (resultOrStatus == null || "FAILED".equals(resultOrStatus) || "ERROR".equals(resultOrStatus)) {
-                    log.error("[TTS Cleanup] messageId: {} (Job: {}) 가 실패 상태입니다.", message.getId(), jobId);
-                    if (message.getTtsPollCount() >= 50) {
-                        log.warn("[TTS Cleanup] messageId: {} 폴링 횟수 초과로 포기합니다.", message.getId());
-                        message.updateTtsJobId(null); // 추적 중단
+                    log.error("[Voice Task] Task {} (Job: {}) 가 실패 상태입니다.", task.getId(), jobId);
+                    if (task.getPollCount() >= 100) {
+                        task.fail(VoiceTask.TaskStatus.TIMEOUT);
+                    } else {
+                        task.updateStatus(VoiceTask.TaskStatus.FAILED);
                     }
+                    taskRepository.save(task);
                     continue;
                 }
 
+                // 완료 처리
                 if (resultOrStatus.startsWith("http")) {
-                    log.info("[TTS Cleanup] messageId: {} 완료! (시도 횟수: {})", message.getId(), message.getTtsPollCount());
+                    log.info("[Voice Task] Task {} 완료! (유형: {}, 시도: {})", task.getId(), task.getType(),
+                            task.getPollCount());
 
-                    String voiceKey = voiceService.extractS3Key(resultOrStatus);
-                    message.updateVoiceUrl(voiceKey);
-                    messageRepository.save(message);
+                    String s3Key = resultOrStatus;
+                    if (task.getType() != VoiceTask.TaskType.TRAINING) {
+                        s3Key = voiceService.extractS3Key(resultOrStatus);
+                    }
 
-                    VoiceLog voiceLog = VoiceLog.builder()
-                            .groupId(message.getGroup().getId())
-                            .voiceId(message.getId())
-                            .actionType(ActionType.ADD)
-                            .build();
-                    voiceLogRepository.save(voiceLog);
+                    task.updateResult(s3Key);
+                    taskRepository.save(task);
 
-                    iotSyncService.notifyUpdate(message.getGroup().getId(), "voice");
-                } else if (message.getTtsPollCount() >= 100) {
-                    log.warn("[TTS Cleanup] messageId: {} 가 너무 오래 걸려 추적을 중단합니다.", message.getId());
-                    message.updateTtsJobId(null);
+                    // 연관된 엔티티에 결과 전파 (만약 필요하다면)
+                    handleTaskCompletion(task);
+
+                } else if (task.getPollCount() >= 150) { // 모델 학습 등을 고려하여 넉넉히
+                    log.warn("[Voice Task] Task {} 가 너무 오래 걸려 중단합니다.", task.getId());
+                    task.fail(VoiceTask.TaskStatus.TIMEOUT);
+                    taskRepository.save(task);
+                } else {
+                    // 진행 중 상태 업데이트
+                    if (!resultOrStatus.equals(task.getStatus().name())) {
+                        try {
+                            task.updateStatus(VoiceTask.TaskStatus.valueOf(resultOrStatus));
+                            taskRepository.save(task);
+                        } catch (Exception ignored) {
+                        }
+                    }
                 }
             } catch (Exception e) {
-                log.error("[TTS Cleanup] Job {} 확인 중 에러: {}", jobId, e.getMessage());
+                log.error("[Voice Task] Job {} 확인 중 에러: {}", jobId, e.getMessage());
             }
         }
     }
 
-    /**
-     * 대기 시간에 따른 폴링 여부 결정 (Adaptive Backoff)
-     * - 5회 미만: 매번 (1분)
-     * - 20회 미만: 5분에 한 번
-     * - 50회 미만: 30분에 한 번
-     * - 그 이상: 1시간에 한 번
-     */
-    private boolean shouldPoll(Message message, LocalDateTime now) {
-        if (message.getLastTtsPolledAt() == null)
+    private void handleTaskCompletion(VoiceTask task) {
+        if (task.getType() == VoiceTask.TaskType.MESSAGE) {
+            Message message = messageRepository.findByVoiceTask(task).orElse(null);
+            if (message != null) {
+                message.updateVoiceUrl(task.getResultUrl());
+                messageRepository.save(message);
+                iotSyncService.notifyUpdate(message.getGroup().getId(), "voice");
+            }
+        } else if (task.getType() == VoiceTask.TaskType.SAMPLE) {
+            org.ssafy.eeum.domain.voice.entity.VoiceSample sample = voiceSampleRepository.findByVoiceTask(task)
+                    .orElse(null);
+            if (sample != null) {
+                sample.completeTts(task.getResultUrl());
+                voiceSampleRepository.save(sample);
+            }
+        }
+    }
+
+    private boolean shouldPoll(VoiceTask task, LocalDateTime now) {
+        if (task.getLastPolledAt() == null)
             return true;
 
-        long secondsSinceLastPoll = Duration.between(message.getLastTtsPolledAt(), now).toSeconds();
-        int count = (message.getTtsPollCount() == null) ? 0 : message.getTtsPollCount();
+        long secondsSinceLastPoll = Duration.between(task.getLastPolledAt(), now).toSeconds();
+        int count = (task.getPollCount() == null) ? 0 : task.getPollCount();
 
-        // 1단계: 초기 1분간 (6회) - 매 10초마다 확인
-        if (count < 6)
-            return secondsSinceLastPoll >= 10;
-
-        // 2단계: 이후 4분간 (4회, 누적 5분, 총 10회) - 1분에 한 번 확인
+        // 일원화된 백오프 정책
         if (count < 10)
-            return secondsSinceLastPoll >= 60;
-
-        // 3단계: 5분 ~ 55분 (누적 약 20회) - 5분에 한 번 확인
-        if (count < 20)
-            return secondsSinceLastPoll >= 300;
-
-        // 4단계: 그 이후 - 1시간에 한 번 확인
-        return secondsSinceLastPoll >= 3600;
+            return secondsSinceLastPoll >= 10; // 초기 10회는 10초마다 (약 1.5분)
+        if (count < 30)
+            return secondsSinceLastPoll >= 60; // 이후 20회는 1분마다 (약 20분)
+        if (count < 60)
+            return secondsSinceLastPoll >= 300; // 이후 30회는 5분마다 (약 2.5시간)
+        return secondsSinceLastPoll >= 3600; // 그 이후는 한 시간마다
     }
 }

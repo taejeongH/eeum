@@ -56,15 +56,9 @@ public class Message {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-    @Column(name = "tts_job_id")
-    private String ttsJobId;
-
-    @Builder.Default
-    @Column(name = "tts_poll_count")
-    private Integer ttsPollCount = 0;
-
-    @Column(name = "last_tts_polled_at")
-    private LocalDateTime lastTtsPolledAt;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "voice_task_id")
+    private org.ssafy.eeum.domain.voice.entity.VoiceTask voiceTask;
 
     /**
      * 로직 메서드
@@ -82,18 +76,9 @@ public class Message {
     public void updateVoiceUrl(String voiceUrl) {
         this.voiceUrl = voiceUrl;
         this.isSynced = false;
-        this.ttsJobId = null;
-        this.ttsPollCount = 0;
     }
 
-    public void updateTtsJobId(String ttsJobId) {
-        this.ttsJobId = ttsJobId;
-        this.ttsPollCount = 0;
-        this.lastTtsPolledAt = LocalDateTime.now();
-    }
-
-    public void incrementPollCount() {
-        this.ttsPollCount = (this.ttsPollCount == null) ? 1 : this.ttsPollCount + 1;
-        this.lastTtsPolledAt = LocalDateTime.now();
+    public void updateVoiceTask(org.ssafy.eeum.domain.voice.entity.VoiceTask voiceTask) {
+        this.voiceTask = voiceTask;
     }
 }

@@ -21,5 +21,5 @@ public interface MessageRepository extends JpaRepository<Message, Integer> {
     @org.springframework.data.jpa.repository.Query("UPDATE Message m SET m.isSynced = true WHERE m.id IN :ids")
     void markAsSynced(@org.springframework.data.repository.query.Param("ids") List<Integer> ids);
 
-    List<Message> findByTtsJobIdIsNotNullAndVoiceUrlIsNull();
+    Optional<Message> findByVoiceTask(org.ssafy.eeum.domain.voice.entity.VoiceTask voiceTask);
 }

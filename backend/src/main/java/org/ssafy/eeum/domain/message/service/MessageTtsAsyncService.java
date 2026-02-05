@@ -22,6 +22,7 @@ public class MessageTtsAsyncService {
     private final MessageRepository messageRepository;
     private final VoiceLogRepository voiceLogRepository;
     private final IotSyncService iotSyncService;
+    private final org.ssafy.eeum.domain.voice.repository.VoiceTaskRepository taskRepository;
 
     @Async
     @Transactional
@@ -34,13 +35,16 @@ public class MessageTtsAsyncService {
 
             if (voiceUrl != null) {
                 // 1.5. 즉시 완료되지 않은 경우 (Job ID가 반환된 경우)
-                if (!voiceUrl.startsWith("http")) {
-                    String jobId = voiceUrl;
-                    log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(Job ID: {})로 전환합니다.", messageId, jobId);
+                if (voiceUrl.startsWith("TASK_ID:")) {
+                    Integer taskId = Integer.parseInt(voiceUrl.substring(8));
+                    log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(Task ID: {})로 전환합니다.", messageId,
+                            taskId);
 
-                    messageRepository.findById(messageId).ifPresent(msg -> {
-                        msg.updateTtsJobId(jobId);
-                        messageRepository.save(msg);
+                    taskRepository.findById(taskId).ifPresent(task -> {
+                        messageRepository.findById(messageId).ifPresent(msg -> {
+                            msg.updateVoiceTask(task);
+                            messageRepository.save(msg);
+                        });
                     });
                     return;
                 }

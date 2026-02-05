@@ -84,6 +84,10 @@ public class User {
     @Builder.Default
     private boolean isEmailVerified = false;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "representative_sample_id")
+    private org.ssafy.eeum.domain.voice.entity.VoiceSample representativeSample;
+
     public enum Gender {
         M, F
     }
@@ -147,6 +151,11 @@ public class User {
 
     public void updatePassword(String password) {
         this.password = password;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateRepresentativeSample(org.ssafy.eeum.domain.voice.entity.VoiceSample sample) {
+        this.representativeSample = sample;
         this.updatedAt = LocalDateTime.now();
     }
 }

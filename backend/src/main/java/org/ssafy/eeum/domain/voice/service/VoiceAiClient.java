@@ -74,7 +74,14 @@ public class VoiceAiClient {
 
     public String checkJobStatus(String jobId) {
         try {
-            String statusUrl = AI_SERVER_URL.replace("/run", "/status/") + jobId;
+            // RunPod URL robust handling: /run, /runSync, /run-abc 등을 /status/로 변경
+            String statusUrl;
+            if (AI_SERVER_URL.contains("/run")) {
+                statusUrl = AI_SERVER_URL.substring(0, AI_SERVER_URL.lastIndexOf("/run")) + "/status/" + jobId;
+            } else {
+                statusUrl = AI_SERVER_URL + "/status/" + jobId;
+            }
+            log.debug("[RunPod] Job {} status check URL: {}", jobId, statusUrl);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", AI_SERVER_KEY);
             headers.set("X-API-Key", INTERNAL_KEY);
