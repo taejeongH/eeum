@@ -329,33 +329,41 @@ public class VoiceService {
         return voiceAiClient.generateTts(requestDto, webhookUrl);
     }
 
+    private static final String DEFAULT_SAMPLE_PATH = "samples/5/151567b4-ec88-4625-807f-27d35dd234b6.webm";
+    private static final String DEFAULT_SAMPLE_TRANSCRIPT = "목소리 복원을 위한 기본 샘플입니다.";
+
     private PythonTtsRequestDTO buildPythonTtsRequestDTO(Integer userId, String text) {
         List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
 
-        VoiceSample referenceSample = null;
+        String refWavKey;
+        String refText;
+
         if (samples.isEmpty()) {
-            // Fallback to Default Voice Model
-            String defaultSamplePath = "samples/5/151567b4-ec88-4625-807f-27d35dd234b6.webm";
-            referenceSample = sampleRepository.findBySamplePath(defaultSamplePath)
-                    .orElseThrow(() -> new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND));
-            log.info("User {} has no voice model. Using Default Sample: {}", userId, defaultSamplePath);
+            // Fallback to Default Voice Model (Hardcoded to prevent DB lookup failure)
+            refWavKey = DEFAULT_SAMPLE_PATH;
+            refText = DEFAULT_SAMPLE_TRANSCRIPT;
+            log.info("[TTS] User {} has no voice model. Using Default Sample (Fallback): {}", userId, refWavKey);
         } else {
             User user = samples.get(0).getUser();
+            VoiceSample referenceSample;
 
             if (user.getRepresentativeSample() == null) {
                 user.updateRepresentativeSample(samples.get(0));
                 log.debug("User {}'s representative sample set to ID {}", userId, samples.get(0).getId());
+                referenceSample = samples.get(0);
+            } else {
+                referenceSample = user.getRepresentativeSample();
             }
-            referenceSample = user.getRepresentativeSample();
-        }
 
-        String refText = referenceSample.getVoiceScript() != null
-                ? referenceSample.getVoiceScript().getContent()
-                : referenceSample.getTranscript();
+            refWavKey = referenceSample.getSamplePath();
+            refText = referenceSample.getVoiceScript() != null
+                    ? referenceSample.getVoiceScript().getContent()
+                    : referenceSample.getTranscript();
+        }
 
         return PythonTtsRequestDTO.builder()
                 .userId(String.valueOf(userId))
-                .refWavKey(referenceSample.getSamplePath())
+                .refWavKey(refWavKey)
                 .refText(refText)
                 .text(text)
                 .build();
