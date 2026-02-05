@@ -63,7 +63,7 @@ public class ScheduleService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
     }
 
-    // 월간 일정 조회 (캐시 적용)
+    // 월간 일정 조회
     public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month,
             String category,
             String keyword, String targetPerson, Boolean isVisited) {
@@ -101,7 +101,6 @@ public class ScheduleService {
             Integer parentId = Integer.parseInt(parts[0]);
             LocalDate targetDate = LocalDate.parse(parts[1]);
 
-            // 1. 해당 날짜에 예외(수정/삭제) 일정이 있는지 확인
             Optional<Schedule> exceptionSchedule = scheduleRepository.findAll().stream()
                     .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
                             && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
@@ -111,11 +110,9 @@ public class ScheduleService {
                 return convertToResponse(exceptionSchedule.get(), scheduleId, targetDate, true);
             }
 
-            // 2. 없으면 부모 일정을 기반으로 가상 일정 생성
             Schedule parent = scheduleRepository.findById(parentId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-            // 유효성 검사 (반복 범위 등)
             List<LocalDate> occurrences = calculateOccurrenceDates(parent, targetDate, targetDate);
             if (occurrences.isEmpty()) {
                 throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
@@ -127,28 +124,19 @@ public class ScheduleService {
             Schedule schedule = scheduleRepository.findById(Integer.parseInt(scheduleId))
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-            // 일반 일정인 경우 그대로 반환, 반복 일정의 부모인 경우 첫번째 날짜 등 로직 필요할 수 있으나
-            // 상세 조회는 보통 ID로 특정된 것을 조회하므로 그대로 반환.
-            // 만약 반복 일정의 부모(MASTER)를 조회하는 경우라면?
-            // 기획 상 목록에서 클릭 시 virtualId를 가져오므로, 여기서는 물리적 ID 조회만 처리.
             return convertToResponse(schedule, scheduleId, schedule.getStartAt().toLocalDate(), false);
         }
     }
 
-    // DB 데이터를 읽어 해당 월의 실제 날짜들로 확장
     private List<ScheduleResponseDTO> calculateMonthlySchedules(Integer familyId, YearMonth ym, String category,
             String keyword, String targetPerson, Boolean isVisited) {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
-
-        // LocalDate를 LocalDateTime으로 변환 (하루의 시작과 끝)
         LocalDateTime startDateTime = start.atStartOfDay();
         LocalDateTime endDateTime = end.atTime(LocalTime.MAX);
 
         List<Schedule> candidates = scheduleRepository.findCandidates(familyId, startDateTime, endDateTime);
 
-        // 1차 필터링: 부모 레벨에서 가능한 필터 적용 (카테고리, 제목/내용 등)
-        // 반복 일정의 경우 원본이 매칭되면 자식도 매칭되는 것으로 간주
         if (category != null) {
             candidates = candidates.stream()
                     .filter(s -> s.getCategoryType().name().equalsIgnoreCase(category))
@@ -176,7 +164,7 @@ public class ScheduleService {
             candidates = candidates.stream()
                     .filter(s -> {
                         if (s.getIsVisited() == null)
-                            return !visitFilter; // null이면 false 취급 (안감)
+                            return !visitFilter;
                         return s.getIsVisited() == visitFilter;
                     })
                     .toList();
@@ -190,22 +178,9 @@ public class ScheduleService {
         List<ScheduleResponseDTO> result = new ArrayList<>();
 
         for (Schedule s : candidates) {
-            // EXCLUDED 일정은 결과에 포함하지 않음 (마스킹 용도로만 사용)
             if ("EXCLUDED".equals(s.getTitle())) {
                 continue;
             }
-            // 예외 일정(수정된 자식)은 이미 candidates에 포함되어 있음.
-            // 다만, 부모 일정 처리 시 '수정된 날짜'에 대해서는 가상 일정을 생성하지 말아야 함.
-            //
-            // 주의: 수정된 자식 일정의 parentId를 가진 부모 일정 s에 대해,
-            // calculateOccurrenceDates는 부모의 규칙대로 날짜를 생성함.
-            // 이 중 자식이 존재하는(수정된) 날짜는 modifiedMask에 의해 걸러져야 함.
-            // s가 부모인 경우 -> occurrences 생성 -> mask 체크 -> 결과 추가
-            // s가 자식(수정됨)인 경우 -> occurrences는 단일 날짜 -> mask 체크 불필요(자기 자신이므로) -> 결과 추가
-            // s가 일반 일정인 경우 -> occurrences는 단일 날짜 -> 결과 추가
-
-            // 만약 s가 수정된 자식 일정이라면, getParentId() != null
-            // 이 경우 calculateOccurrenceDates가 해당 날짜 1개만 반환하도록 되어 있어야 함 (RepeatType.NONE 이므로)
 
             List<LocalDate> occurrences = calculateOccurrenceDates(s, start, end);
 
@@ -213,10 +188,6 @@ public class ScheduleService {
                 String virtualId = (s.getRepeatType() == RepeatType.NONE) ? s.getId().toString()
                         : s.getId() + "_" + date;
 
-                // 만약 s가 부모 일정이고, 해당 날짜에 대해 수정된 내역(자식)이 있다면 건너뜀
-                // 마스킹 로직 수정: modifiedMask는 "parentId_date" 형식.
-                // s가 부모인 경우 s.getId() == parentId.
-                // 따라서 s.getId() + "_" + date 가 mask에 있으면, 해당 날짜는 자식(수정본)이 대체하므로 부모꺼는 스킵.
                 if (s.getRepeatType() != RepeatType.NONE && modifiedMask.contains(s.getId() + "_" + date)) {
                     continue;
                 }
@@ -227,7 +198,6 @@ public class ScheduleService {
         return result.stream().sorted(Comparator.comparing(ScheduleResponseDTO::getStartAt)).toList();
     }
 
-    // 반복 규칙과 음력 설정을 고려하여 해당 월 내의 발생 날짜들 계산
     private List<LocalDate> calculateOccurrenceDates(Schedule s, LocalDate start, LocalDate end) {
         List<LocalDate> dates = new ArrayList<>();
         LocalDate baseDate = s.getStartAt().toLocalDate();
@@ -242,21 +212,14 @@ public class ScheduleService {
             }
         } else {
             if (Boolean.TRUE.equals(s.getIsLunar())) {
-                // 음력 반복의 경우, 해당 기간(start~end) 내에 존재하는 양력 날짜를 찾아야 함.
-                // 단순히 baseDate의 연도를 start의 연도로 바꾸는 것만으로는 부족할 수 있음 (연말/연초 등).
-                // 하지만 현재 로직을 유지하면서 확장.
                 targetDate = CalendarUtils.convertLunarToSolar(baseDate.withYear(start.getYear()));
-                // 만약 targetDate가 start/end 범위를 벗어나면? 보정 필요?
-                // 일단 기존 로직 따름.
             } else {
                 targetDate = baseDate.withYear(start.getYear());
             }
         }
 
-        // 반복 없음 (NONE)
+        // 반복 없음
         if (s.getRepeatType() == RepeatType.NONE) {
-            // start, end 범위 내인지 확인
-            // baseDate가 아닌 targetDate(음력변환됨) 기준
             if (!targetDate.isBefore(start) && !targetDate.isAfter(end)) {
                 dates.add(targetDate);
             }
@@ -264,12 +227,9 @@ public class ScheduleService {
 
         // 매년 반복 (YEARLY)
         else if (s.getRepeatType() == RepeatType.YEARLY) {
-            // targetDate는 start의 연도로 설정됨.
-            // 1. targetDate 확인
             if (isValidOccurrence(targetDate, start, end, baseDate, limitDate))
                 dates.add(targetDate);
 
-            // 2. targetDate의 전년도, 다음년도도 확인 (경계 근처일 수 있음 - 특히 음력)
             LocalDate prev = targetDate.minusYears(1);
             if (Boolean.TRUE.equals(s.getIsLunar()))
                 prev = CalendarUtils.convertLunarToSolar(baseDate.withYear(start.getYear() - 1));
@@ -386,12 +346,6 @@ public class ScheduleService {
                         Schedule parent = scheduleRepository.findById(parentId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-                        // [PERMISSION CHECK] Although checking on parent modification, logic for
-                        // virtual specific day
-                        // implies we are modifying "an instance". If we strictly follow "Creator Only",
-                        // creating an exception schedule from a parent created by someone else should
-                        // also be restricted?
-                        // Yes, if I didn't create the parent, I shouldn't edit its instance.
                         if (!parent.getCreator().getId().equals(userId)) {
                             throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
                         }
@@ -627,21 +581,17 @@ public class ScheduleService {
     private void sendScheduleAlarmForDate(LocalDate targetDate, String dayLabel) {
         YearMonth ym = YearMonth.from(targetDate);
 
-        // 모든 가족 그룹 순회
         List<Family> families = familyRepository.findAll();
 
         for (Family family : families) {
             try {
-                // 해당 가족의 대상 날짜 일정 계산
                 List<ScheduleResponseDTO> monthlySchedules = calculateMonthlySchedules(
                         family.getId(), ym, null, null, null, null);
 
-                // 대상 날짜 일정만 필터링
                 List<ScheduleResponseDTO> targetSchedules = monthlySchedules.stream()
                         .filter(s -> s.getStartAt().toLocalDate().equals(targetDate))
                         .toList();
 
-                // 알림 메시지 구성
                 StringBuilder contentBuilder = new StringBuilder();
                 List<Map<String, Object>> scheduleList = new ArrayList<>();
 
@@ -664,7 +614,6 @@ public class ScheduleService {
                 Map<String, Object> data = new HashMap<>();
                 data.put("events_for_today", scheduleList);
 
-                // IoT 기기로 전송
                 List<IotDevice> devices = iotDeviceRepository.findAllByFamilyId(family.getId());
 
                 for (IotDevice device : devices) {

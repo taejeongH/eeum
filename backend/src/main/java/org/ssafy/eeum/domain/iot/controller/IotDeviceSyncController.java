@@ -50,7 +50,6 @@ public class IotDeviceSyncController {
         public RestApiResponse<IotSyncDto> syncAlbumForIot(
                         @AuthenticationPrincipal DeviceDetails deviceDetails,
                         @RequestParam(required = false, defaultValue = "0") Integer lastLogId) {
-                // 기기 인증 정보에서 Group ID 추출 (토큰 subject가 GROUP:ID 형식이므로 serialNumber는 실제 시리얼이 아님)
                 IotSyncDto response = iotSyncService.getSyncData(deviceDetails.getGroupId(), "image", lastLogId);
                 return RestApiResponse.success(response);
         }

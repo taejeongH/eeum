@@ -39,7 +39,7 @@ public class AlbumService {
     private final UserRepository userRepository;
     private final SupporterRepository supporterRepository;
 
-    // 0. 업로드용 Presigned URL 생성
+    // 업로드용 Presigned URL 생성
     public PresignedUrlResponseDTO generateUploadUrl(String fileName, String contentType) {
         String uniqueFileName = "album/" + java.util.UUID.randomUUID() + "-" + fileName;
         String url = s3Service.generatePresignedUrl(uniqueFileName, contentType);
@@ -49,7 +49,7 @@ public class AlbumService {
                 .build();
     }
 
-    // 1. 사진 등록
+    // 사진 등록
     @Transactional
     public void addPhoto(Integer familyId, User user, AlbumRequestDTO request) {
         Family family = familyRepository.findById(familyId)
@@ -64,15 +64,11 @@ public class AlbumService {
                 .build();
 
         albumRepository.save(asset);
-
-        // Log 저장 (ADD)
         saveLog(familyId, asset.getId(), ActionType.ADD);
-
-        // IoT 동기화 알림
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-    // 2. 가족별 사진 목록 조회 (최적화됨)
+    // 가족별 사진 목록 조회
     public List<AlbumResponseDTO> getPhotos(Integer familyId, Integer userId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
@@ -80,34 +76,28 @@ public class AlbumService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 해당 가족 그룹의 멤버인지 확인
         supporterRepository.findByUserAndFamily(user, family)
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
         List<MediaAsset> assets = albumRepository.findAllByFamilyId(familyId);
-        
-        // Parallel stream을 사용하여 Presigned URL 생성 병렬 처리
+
         return assets.parallelStream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
-    // 3. 사진 수정
+    // 사진 수정
     @Transactional
     public void updatePhoto(Integer photoId, AlbumRequestDTO request) {
         MediaAsset asset = albumRepository.findById(photoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
         asset.update(request.getTakenAt(), request.getDescription());
-
-        // Log 저장 (UPDATE)
         saveLog(asset.getFamily().getId(), asset.getId(), ActionType.UPDATE);
-
-        // IoT 동기화 알림
         iotSyncService.notifyUpdate(asset.getFamily().getId(), "image");
     }
 
-    // 4. 사진 삭제 (Soft Delete)
+    // 사진 삭제
     @Transactional
     public void deletePhoto(Integer photoId, Integer requesterUserId) {
         MediaAsset asset = albumRepository.findById(photoId)
@@ -115,14 +105,12 @@ public class AlbumService {
 
         Family family = asset.getFamily();
 
-        // 요청자 권한 확인
         Supporter requesterSupporter = supporterRepository.findByUserAndFamily(
                 userRepository.findById(requesterUserId)
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)),
                 family
         ).orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-        // 권한 체크: 업로더 본인이거나 가족 대표자인 경우만 삭제 가능
         boolean isUploader = asset.getUploader().getId().equals(requesterUserId);
         boolean isRepresentative = requesterSupporter.isRepresentativeFlag();
 
@@ -131,20 +119,12 @@ public class AlbumService {
         }
 
         Integer familyId = family.getId();
-
-        // Log 저장 (DELETE)
         saveLog(familyId, asset.getId(), ActionType.DELETE);
-
-        albumRepository.delete(asset); // SQLDelete에 의해 isSynced=false 처리됨
-
-        // IoT 동기화 알림
+        albumRepository.delete(asset);
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-    /**
-     * IoT 기기용 동기화 데이터 조회 로직
-     * 미동기화된(isSynced=false) 항목들을 찾아 추가/수정용과 삭제용으로 구분하여 반환
-     */
+     // IoT 기기용 동기화 데이터 조회 로직
     @Transactional
     public IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
         List<MediaAsset> unsyncedAssets = albumRepository.findAllByFamilyIdAndIsSyncedFalse(familyId);
@@ -154,9 +134,6 @@ public class AlbumService {
         List<Integer> syncedIds = new ArrayList<>();
 
         for (MediaAsset asset : unsyncedAssets) {
-            // 하드 델리트 환경에서는 unsynced인데 DB에 있으면 추가/수정된 것임.
-            // 삭제된 내역은 별도의 Log를 사용하거나 sync logic을 고도화해야 함.
-            // 현재 요구사항에 맞춰 물리적 삭제로 진행하므로 deletedAt 체크 제거.
             addedItems.add(AlbumSyncItemResponseDTO.builder()
                     .id(asset.getId())
                     .url(s3Service.getPresignedUrl(asset.getStorageUrl()))
@@ -170,7 +147,6 @@ public class AlbumService {
             syncedIds.add(asset.getId());
         }
 
-        // 동기화 완료 처리 (한 번에 업데이트)
         if (!syncedIds.isEmpty()) {
             albumRepository.markAsSynced(syncedIds);
         }

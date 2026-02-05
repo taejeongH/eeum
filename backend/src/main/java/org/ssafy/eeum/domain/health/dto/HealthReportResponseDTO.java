@@ -25,13 +25,13 @@ public class HealthReportResponseDTO {
         try {
             summaryParsed = mapper.readValue(report.getSummary(), Object.class);
         } catch (Exception e) {
-            summaryParsed = report.getSummary(); // Fallback to raw string
+            summaryParsed = report.getSummary();
         }
 
         try {
             descriptionParsed = mapper.readValue(report.getDescription(), Object.class);
         } catch (Exception e) {
-            descriptionParsed = report.getDescription(); // Fallback to raw string
+            descriptionParsed = report.getDescription();
         }
 
         return HealthReportResponseDTO.builder()

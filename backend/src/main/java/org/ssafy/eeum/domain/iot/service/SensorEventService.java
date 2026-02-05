@@ -48,7 +48,6 @@ public class SensorEventService {
 
         // 2. 중복 체크
         if (sensorEventRepository.existsByEventId(eventId)) {
-            log.warn("Duplicate event ignored: {}", eventId);
             return sensorEventRepository.findByEventId(eventId)
                     .orElseThrow();
         }
@@ -77,8 +76,6 @@ public class SensorEventService {
                 .build();
 
         sensorEventRepository.save(sensorEvent);
-        log.info("Saved SensorEvent: eventId={}, type={}, serial={}", eventId, eventType, serialNumber);
-
         // 6. 낙상 이벤트인 경우 FallEvent 생성
         if ("fall_detected".equals(eventType)) {
             createFallEventFromSensor(sensorEvent);
@@ -100,8 +97,7 @@ public class SensorEventService {
         fallEventService.saveFallEvent(fallEvent);
         sensorEvent.markAsProcessed();
 
-        log.info("Created FallEvent from SensorEvent: eventId={}, fallEventId={}",
-                sensorEvent.getEventId(), fallEvent.getId());
+
     }
 
     /**
@@ -122,6 +118,6 @@ public class SensorEventService {
                 sensorEvent.getFamily().getId(),
                 sttContent);
 
-        log.info("Linked voice response to event: eventId={}, stt={}", eventId, sttContent);
+
     }
 }

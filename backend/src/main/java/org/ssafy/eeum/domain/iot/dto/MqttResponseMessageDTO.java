@@ -6,10 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * eeum/response 토픽용 DTO (IoT -> Server)
- * 음성 응답 메시지
- */
 @Getter
 @Builder
 @NoArgsConstructor

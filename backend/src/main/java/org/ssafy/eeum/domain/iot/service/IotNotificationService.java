@@ -39,7 +39,6 @@ public class IotNotificationService {
                 .build();
 
         notificationRepository.save(notification);
-        log.debug("IoT Notification saved: MessageId={}, GroupId={}", messageId, groupId);
     }
 
     /**

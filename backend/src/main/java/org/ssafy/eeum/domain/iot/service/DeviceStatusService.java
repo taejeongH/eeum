@@ -25,9 +25,6 @@ public class DeviceStatusService {
         private final IotDeviceRepository iotDeviceRepository;
         private final FamilyRepository familyRepository;
 
-        /**
-         * Master-Slave 상태 업데이트 (Upsert)
-         */
         @Transactional
         public void updateDeviceStatus(
                         Integer groupId,
@@ -57,70 +54,37 @@ public class DeviceStatusService {
                                                 .lastSyncAt(LocalDateTime.now())
                                                 .build());
 
-                // 상태 변경 감지 (Offline → Online 또는 그 반대)
+                // 상태 변경 감지 (Offline → Online)
                 if (status.getIsAlive() != null && !status.getIsAlive().equals(isAlive)) {
-                        log.warn("Device status changed: Master={}, Slave={}, {} → {}",
-                                        masterSerial, slaveSerial, status.getIsAlive(), isAlive);
 
-                        // Offline 알림
-                        if (!isAlive) {
-                                sendOfflineAlert(family, slave);
-                        }
                 }
 
                 status.updateStatus(isAlive);
                 deviceStatusRepository.save(status);
-
-                log.debug("Updated device status: Master={}, Slave={}, alive={}",
-                                masterSerial, slaveSerial, isAlive);
         }
 
-        /**
-         * Offline 알림 발송 (향후 구현)
-         */
-        private void sendOfflineAlert(Family family, IotDevice device) {
-                log.info("Device went offline: Family={}, Device={}",
-                                family.getId(), device.getSerialNumber());
-                // TODO: FCM Push 알림 또는 MQTT 알림
-        }
-
-        /**
-         * 그룹의 모든 기기 상태 조회
-         */
         @Transactional(readOnly = true)
         public List<DeviceStatus> getGroupDeviceStatus(Integer groupId) {
                 return deviceStatusRepository.findByFamilyId(groupId);
         }
 
-        /**
-         * Offline 상태인 기기 목록 조회
-         */
         @Transactional(readOnly = true)
         public List<DeviceStatus> getOfflineDevices() {
                 return deviceStatusRepository.findByIsAliveFalse();
         }
 
-        /**
-         * 디바이스를 오프라인으로 표시 (LWT 메시지 처리용)
-         * Master 디바이스가 오프라인이 되면 해당 디바이스와 연결된 모든 Slave 상태를 offline으로 변경
-         */
         @Transactional
         public void markDeviceOffline(Integer groupId, String serialNumber) {
                 IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
                                 .orElseThrow(() -> new CustomException(ErrorCode.IOT_DEVICE_NOT_FOUND,
                                                 "기기를 찾을 수 없습니다: " + serialNumber));
 
-                // Master로 등록된 모든 연결 상태를 offline으로 변경
                 List<DeviceStatus> statuses = deviceStatusRepository.findByMasterDeviceId(device.getId());
                 for (DeviceStatus status : statuses) {
                         if (status.getIsAlive() != null && status.getIsAlive()) {
                                 status.updateStatus(false);
                                 deviceStatusRepository.save(status);
-                                log.info("Marked device offline: Master={}, Slave={}",
-                                                serialNumber, status.getSlaveDevice().getSerialNumber());
                         }
                 }
-
-                log.info("Device marked as offline: Family={}, Serial={}", groupId, serialNumber);
         }
 }

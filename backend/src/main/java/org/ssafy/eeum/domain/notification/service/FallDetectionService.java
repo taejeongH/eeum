@@ -34,8 +34,7 @@ public class FallDetectionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
         String groupName = family.getGroupName();
-        
-        // Find PATIENT from supporters
+
         String dependentName = supporterRepository.findAllByFamily(family).stream()
                 .filter(s -> s.getRole() == Supporter.Role.PATIENT)
                 .findFirst()
@@ -44,9 +43,6 @@ public class FallDetectionService {
                 
         String title = groupName + " - " + dependentName;
         String body = dependentName + "님에게 낙상이 감지되었습니다!";
-        
-        log.info("Handling Fall Detection: FamilyID={}, Group={}, Dependent={}", 
-                familyId, groupName, dependentName);
 
         List<CaregiverInfo> caregivers = supporterRepository.findAllByFamily(family).stream()
                 .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
@@ -56,33 +52,27 @@ public class FallDetectionService {
                 .collect(Collectors.toList());
 
         if (caregivers.isEmpty()) {
-            log.warn("No caregivers found for family ID: {}", familyId);
+            log.warn("보호자를 찾을 수 없음 - 가족ID: {}", familyId);
             return;
         }
 
-        // 1. 알림 기록 생성 (한 번만)
         Long notificationId = notificationService.createNotification(familyId, title, body, "EMERGENCY", eventId);
-
-        // 2. 단계적 알림 프로세스 시작
         notifyCaregiver(caregivers, 0, notificationId);
     }
 
     private void notifyCaregiver(List<CaregiverInfo> caregivers, int index, Long notificationId) {
         if (index >= caregivers.size()) {
-            log.info("Finished notifying all caregivers for notification ID: {}", notificationId);
             return;
         }
 
         try {
-            // 이미 누군가 읽었다면 중단 (다음 발송 전 확인)
+            // 이미 누군가 읽었다면 중단
             if (notificationService.isAnyRead(notificationId)) {
-                log.info("Notification ID: {} was read. Stopping escalation.", notificationId);
                 return;
             }
 
             CaregiverInfo currentCaregiver = caregivers.get(index);
-            log.info("Sending Fall Notification to Priority {}: {}", index + 1, currentCaregiver.userName());
-
+            log.info("[알림] {}순위 보호자({})에게 발송", index + 1, currentCaregiver.userName());
             notificationService.sendNotification(notificationId, currentCaregiver.userId());
 
             // 30초 후 다음 보호자 확인/알림 예약
@@ -90,12 +80,12 @@ public class FallDetectionService {
                 try {
                     notifyCaregiver(caregivers, index + 1, notificationId);
                 } catch (Exception e) {
-                    log.error("Error during scheduled fall detection escalation", e);
+
                 }
             }, 30, TimeUnit.SECONDS);
 
         } catch (Exception e) {
-            log.error("Error sending initial notification in escalation loop", e);
+
         }
     }
 

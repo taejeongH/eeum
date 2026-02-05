@@ -43,12 +43,11 @@ public class VoiceService {
             "묻고 더블로 가!",
             "어이가 없네.");
 
-    // 1. 대본 목록 조회
+    // 대본 목록 조회
     public List<VoiceScript> getScripts() {
         return scriptRepository.findAll();
     }
 
-    // 2. 업로드용 URL 발급 (samples/{userId}/{UUID}.{extension})
     public String getUploadUrl(Integer userId, String extension) {
         String uuid = UUID.randomUUID().toString();
         String fileName = String.format("samples/%d/%s.%s", userId, uuid, extension);
@@ -69,7 +68,6 @@ public class VoiceService {
         };
     }
 
-    // 3. 음성 샘플 정보 저장
     @Transactional
     public void saveSample(User user, VoiceSampleRequestDTO request) {
         VoiceScript script = null;
@@ -98,7 +96,6 @@ public class VoiceService {
         sampleRepository.save(sample);
         log.info("음성 샘플 정보 저장 완료: {}", request.getSamplePath());
 
-        // 학습용 VoiceTask가 없으면 생성 (상태 추적용)
         List<VoiceTask> tasks = taskRepository.findByUserId(user.getId());
         boolean hasTrainingTask = tasks.stream().anyMatch(t -> t.getType() == VoiceTask.TaskType.TRAINING);
 
@@ -111,11 +108,9 @@ public class VoiceService {
             taskRepository.save(trainingTask);
         }
 
-        // 샘플 등록 후 자동으로 테스트 음성 생성 제안 (동기 방식으로 동작한다고 하셨으므로 바로 실행)
         generateTestAudio(sample);
     }
 
-    // 3-1. 보이스 작업 상태 조회
     public VoiceTaskStatusResponseDTO getVoiceModelStatus(Integer userId) {
         List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         List<VoiceSampleResponseDTO> sampleDtos = samples.stream()
@@ -159,12 +154,10 @@ public class VoiceService {
 
             if (audioUrl != null) {
                 if (audioUrl.startsWith("http")) {
-                    // 즉시 완료된 경우
                     String testAudioKey = extractS3Key(audioUrl);
                     sample.completeTts(testAudioKey);
                     log.info("[Test Audio] Sample {} created immediately: {}", sample.getId(), testAudioKey);
                 } else {
-                    // 지연되어 Job ID가 반환된 경우 (VoiceTask 생성)
                     log.info("[Test Audio] Sample {} delay, Job ID: {}", sample.getId(), audioUrl);
                     VoiceTask task = VoiceTask.builder()
                             .user(sample.getUser())
@@ -183,13 +176,11 @@ public class VoiceService {
 
     public String extractS3Key(String url) {
         if (url == null || !url.contains(".com/")) {
-            // URL 형식이 아니거나 작업 ID인 경우
             return null;
         }
         return url.substring(url.indexOf(".com/") + 5);
     }
 
-    // 3-2. 대표 샘플 설정
     @Transactional
     public void setRepresentativeSample(Integer userId, Integer sampleId) {
         VoiceSample sample = sampleRepository.findById(sampleId)
@@ -199,7 +190,6 @@ public class VoiceService {
             throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
         }
 
-        // 학습 작업이 없으면 하나 만들어줌 (상태 추적용)
         List<VoiceTask> tasks = taskRepository.findByUserId(userId);
         boolean hasTrainingTask = tasks.stream().anyMatch(t -> t.getType() == VoiceTask.TaskType.TRAINING);
 
@@ -215,13 +205,10 @@ public class VoiceService {
         sample.getUser().updateRepresentativeSample(sample);
     }
 
-    // 3-2.1 대표 샘플 조회
     public VoiceSampleResponseDTO getRepresentativeSample(Integer userId) {
-        VoiceSample sample = sampleRepository.findTopByUserIdOrderByCreatedAtDesc(userId) // 임시 fallback 용이 아니면 User에서
-                                                                                          // 직접
+        VoiceSample sample = sampleRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND));
 
-        // 실제 User 엔티티의 필드를 확인하도록 변경
         User user = sample.getUser();
         if (user.getRepresentativeSample() == null) {
             throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
@@ -235,7 +222,6 @@ public class VoiceService {
         return VoiceSampleResponseDTO.from(sample, testUrl);
     }
 
-    // 3-3. 음성 샘플 별명 수정
     @Transactional
     public void updateSampleNickname(Integer userId, Integer sampleId, String nickname) {
         VoiceSample sample = sampleRepository.findById(sampleId)
@@ -248,7 +234,6 @@ public class VoiceService {
         sample.updateNickname(nickname);
     }
 
-    // 3-4. 음성 샘플 삭제 (Hard Delete)
     @Transactional
     public void deleteSample(Integer userId, Integer sampleId) {
         VoiceSample sample = sampleRepository.findById(sampleId)
@@ -258,16 +243,14 @@ public class VoiceService {
             throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
         }
 
-        // 대표 샘플인지 확인 (User 엔티티 확인)
         if (sample.getUser().getRepresentativeSample() != null &&
                 sample.getUser().getRepresentativeSample().getId().equals(sampleId)) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE); // 대표 샘플은 삭제 불가
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
         sampleRepository.delete(sample);
     }
 
-    // 4. TTS 생성 (URL 반환) - 독립 트랜잭션 설정
     @Value("${eeum.webhook-url}")
     private String webhookBaseUrl;
 
@@ -276,12 +259,7 @@ public class VoiceService {
         log.debug("사용자 {}의 목소리 모델 및 대표 샘플을 조회합니다.", userId);
 
         PythonTtsRequestDTO requestDto = buildPythonTtsRequestDTO(userId, text);
-
-        // 메시지 전송 시에는 웹후크를 사용하지 않고 폴링(TtsCleanupScheduler)으로 처리하도록 수정
-        // String webhookUrl = (messageId != null) ? (webhookBaseUrl + "?messageId=" +
-        // messageId) : null;
         String webhookUrl = null;
-        log.info("[TTS] Webhook URL: {} (Disabled for polling flow)", webhookUrl);
 
         String audioUrl = voiceAiClient.generateTts(requestDto, webhookUrl);
         if (audioUrl == null) {
@@ -293,7 +271,6 @@ public class VoiceService {
             return audioUrl;
         }
 
-        // 지연된 경우 VoiceTask 생성 및 ID 반환
         VoiceTask task = VoiceTask.builder()
                 .user(sampleRepository.findTopByUserIdOrderByCreatedAtDesc(userId).get().getUser()) // userId로 유저 조회
                 .type(VoiceTask.TaskType.MESSAGE)
@@ -307,22 +284,19 @@ public class VoiceService {
     public String generateTtsSync(Integer userId, String text) {
         log.info("[TTS Sync Test] 사용자 {}의 TTS 동기 생성 요청 (텍스트: {})", userId, text);
 
-        // 1. 초기 요청 (웹후크 없이)
         String initialResult = createTtsUrl(userId, text, null);
 
-        // 2. 즉시 URL이 반환된 경우 (Warm Start)
         if (initialResult.startsWith("http")) {
             return initialResult;
         }
 
-        // 3. Job ID가 반환된 경우 (Cold Start) - 폴링 시작
         String jobId = initialResult;
         log.info("[TTS Sync Test] Job ID {} 에 대한 폴링을 시작합니다.", jobId);
 
-        int maxAttempts = 30; // 300초 (10초 * 30)
+        int maxAttempts = 30;
         for (int i = 0; i < maxAttempts; i++) {
             try {
-                Thread.sleep(10000); // 10초 대기 (서버 부하 경감)
+                Thread.sleep(10000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;

@@ -6,10 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * eeum/event 토픽용 DTO (IoT -> Server)
- * 센서 이벤트 메시지 (vision/pir)
- */
 @Getter
 @Builder
 @NoArgsConstructor

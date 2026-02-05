@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 public class ScheduleResponseDTO {
-    private String scheduleId; // 가상 ID
+    private String scheduleId;
     private Integer creatorId;
     private String title;
     private LocalDateTime startAt;

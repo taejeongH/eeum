@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,11 +43,9 @@ public class FallEventService {
     @Transactional
     public Map<String, String> handleFallDetection(String serialNumber, FallDetectionRequestDTO request,
             Integer groupId) {
-        // 1. 기기 조회를 통해 가족 그룹 식별
         IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "등록되지 않은 기기입니다."));
 
-        // 2. 보안 검증: 기기가 속한 그룹과 토큰의 그룹이 일치하는지 확인
         if (!device.getFamily().getId().equals(groupId)) {
             throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS, "해당 기기에 대한 접근 권한이 없습니다.");
         }
@@ -64,15 +63,12 @@ public class FallEventService {
         String fileName = null;
         String presignedUrl = null;
 
-        // 3. 레벨 1인 경우에만 비디오 업로드 경로 및 Presigned URL 생성
         if (Integer.valueOf(1).equals(level)) {
             fileName = "fall/" + family.getId() + "/" + UUID.randomUUID() + ".mp4";
             eventBuilder.videoPath(fileName);
             eventBuilder.videoStatus(FallEvent.VideoStatus.PENDING);
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
-            
-            // [NEW] Trigger Heart Rate Measurement automatically
-            log.info("Fall Detected (Level 1). Triggering Heart Rate Measurement for Group: {}", groupId);
+
             healthService.requestMeasurement(groupId);
         }
 
@@ -82,7 +78,6 @@ public class FallEventService {
                 .build();
         fallEventRepository.save(event);
 
-        // 4. 응답 구성
         Map<String, String> response = new HashMap<>();
         if (presignedUrl != null) {
             response.put("presignedUrl", presignedUrl);
@@ -90,8 +85,7 @@ public class FallEventService {
             response.put("eventId", String.valueOf(event.getId()));
         }
 
-        log.info("Fall Detected: Device={}, Level={}, VideoUploadExpected={}",
-                serialNumber, level, presignedUrl != null);
+
 
         return response;
     }
@@ -113,9 +107,6 @@ public class FallEventService {
         fallEventRepository.save(event);
 
         String url = s3Service.generatePresignedUrl(fileName, "video/mp4");
-
-        // [NEW] Trigger Heart Rate Measurement automatically
-        log.info("Initiating Fall Log (Level 1). Triggering Heart Rate Measurement for Group: {}", familyId);
         healthService.requestMeasurement(familyId);
 
         java.util.Map<String, String> response = new java.util.HashMap<>();
@@ -126,9 +117,6 @@ public class FallEventService {
         return response;
     }
 
-    /**
-     * FallEvent 저장 (SensorEventService에서 호출)
-     */
     @Transactional
     public FallEvent saveFallEvent(FallEvent fallEvent) {
         return fallEventRepository.save(fallEvent);
@@ -141,58 +129,56 @@ public class FallEventService {
                         ErrorCode.ENTITY_NOT_FOUND));
 
         event.updateVideoStatus(FallEvent.VideoStatus.SUCCESS);
-        log.info("Fall Event Video Upload Complete and Status Updated: {}", videoPath);
     }
 
     @Transactional
     public void handleVoiceResponse(Integer familyId, String sttContent) {
-        // 해당 그룹에서 가장 최근에 발생한 '분석 중'인 이벤트를 찾음
+        // 해당 그룹에서 가장 최근에 발생한 분석 중인 이벤트를 찾음
         FallEvent event = fallEventRepository.findTopByFamilyIdAndStatusTypeOrderByCreatedAtDesc(
                 familyId, FallEvent.StatusType.UNDER_REVIEW)
                 .orElseThrow(() -> new CustomException(
                         ErrorCode.ENTITY_NOT_FOUND));
 
-        boolean isSentimentEmergency = gmsService.analyzeSentiment(sttContent);
+
+
+        boolean gmsAnalysisResult = gmsService.analyzeSentiment(sttContent);
+
+
+        boolean isSentimentEmergency = sttContent.contains("EMERGENCY") || sttContent.contains("비상")
+                || gmsAnalysisResult;
         boolean isHeartRateEmergency = healthService.isHeartRateAbnormal(familyId);
-        
-        log.info("Dual Verification Result - Group: {}, TTS Emergency: {}, HR Emergency: {}", 
-            familyId, isSentimentEmergency, isHeartRateEmergency);
+
+        log.info("[검증] 이중 검증 결과 - 가족ID: {}, STT: '{}', 감성분석: {} (GMS: {}), 심박수위급: {}",
+                familyId, sttContent, isSentimentEmergency, gmsAnalysisResult, isHeartRateEmergency);
 
         if (isSentimentEmergency || isHeartRateEmergency) {
             String emergencyReason = sttContent;
             if (isHeartRateEmergency) {
                 emergencyReason += " (심박수 이상 감지됨)";
             }
-            
-            event.updateToEmergency(emergencyReason);
-            log.warn("낙상 위급 상황 판단 (Dual Verification): Group={}, Reason={}", familyId, emergencyReason);
 
-            // 보호자에게 단계적 알림 발송
+            event.updateToEmergency(emergencyReason);
+            log.warn("[결과] 🚨 위급 상황 확정 (EMERGENCY) - 가족ID: {}, 사유: {}", familyId,
+                    emergencyReason);
+
             fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + emergencyReason, event.getId());
         } else {
             event.updateToSafe(sttContent);
-            log.info("낙상 안전 확인 (Dual Verification): Group={}, Text={}", familyId, sttContent);
+            log.info("[결과] ✅ 안전 상황 확정 (SAFE) - 가족ID: {}, 내용: '{}'", familyId, sttContent);
         }
     }
 
-    /**
-     * LLM 테스트용 (DB 이벤트 없이 감성 분석만 수행)
-     */
     public void testSentimentAnalysis(Integer familyId, String sttContent) {
-        log.info("LLM Test Start - Content: {}, FamilyId: {}", sttContent, familyId);
+        log.info("LLM 테스트 시작 - 내용: {}, 가족ID: {}", sttContent, familyId);
         boolean isEmergency = gmsService.analyzeSentiment(sttContent);
-        log.info("LLM Test Results - Is Emergency: {}", isEmergency);
+        log.info("LLM 테스트 결과 - 위급여부: {}", isEmergency);
 
         if (isEmergency) {
-            // 테스트 모드에서도 알림 발송 로직 확인 가능하도록 추가
-            log.info("Triggering Test Notification for Family: {}", familyId);
+            log.info("테스트 알림 발송 - 가족ID: {}", familyId);
             fallDetectionService.handleFallDetection(familyId, "[테스트] 낙상 위험 감지: " + sttContent, null);
         }
     }
 
-    /**
-     * 빈 STT 응답 처리 - 즉시 비상 상태로 전환
-     */
     @Transactional
     public void handleEmptyVoiceResponse(Integer familyId) {
         FallEvent event = fallEventRepository.findTopByFamilyIdAndStatusTypeOrderByCreatedAtDesc(
@@ -201,15 +187,9 @@ public class FallEventService {
                         ErrorCode.ENTITY_NOT_FOUND, "분석 중인 낙상 이벤트를 찾을 수 없습니다."));
 
         event.updateToEmergency("응답 없음 (STT 실패)");
-        log.warn("낙상 비상 처리 (빈 STT 응답): Group={}, EventId={}", familyId, event.getId());
-
-        // 보호자에게 알림 발송
         fallDetectionService.handleFallDetection(familyId, "낙상 감지 후 응답이 없어 비상 상황으로 전환되었습니다.", event.getId());
     }
 
-    /**
-     * 30초마다 체크하여 1분 이상 응답이 없는 이벤트를 비상 처리 (타임아웃)
-     */
     @Scheduled(fixedDelay = 30000)
     @Transactional
     public void checkTimeoutFallEvents() {
@@ -221,10 +201,6 @@ public class FallEventService {
 
         for (FallEvent event : timedOutEvents) {
             event.updateToEmergency("응답 없음 (타임아웃)");
-            log.warn("낙상 이벤트 타임아웃 - 자동 위급 처리: EventId={}, GroupId={}",
-                    event.getId(), event.getFamily().getId());
-
-            // 보호자에게 알림 발송
             fallDetectionService.handleFallDetection(event.getFamily().getId(),
                     "낙상 확인 요청에 1분간 응답이 없어 비상 상황으로 전환되었습니다.", event.getId());
         }
@@ -257,6 +233,6 @@ public class FallEventService {
                     }
                     return FallEventHistoryResponseDTO.of(event, videoUrl);
                 })
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 }

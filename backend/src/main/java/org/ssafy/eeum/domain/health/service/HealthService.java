@@ -46,7 +46,6 @@ public class HealthService {
                     .filter(req -> req.getAverageHeartRate() != null && req.getAverageHeartRate() > 0)
                     .findFirst()
                     .ifPresent(req -> {
-                        log.info("Heart Rate Data Received ({} BPM). Preparing notification...", req.getAverageHeartRate());
                         try {
                             List<String> guardianTokens = supporterRepository.findAllByFamily(family).stream()
                                 .filter(s -> s.getRole() != org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
@@ -58,7 +57,6 @@ public class HealthService {
                                 .toList();
                             
                             if (!guardianTokens.isEmpty()) {
-                                log.info("Sending notification to {} guardians.", guardianTokens.size());
                                 fcmService.sendMulticast(
                                     guardianTokens,
                                     "Heart Rate",
@@ -70,19 +68,16 @@ public class HealthService {
                                 );
                             }
                         } catch (Exception e) {
-                            log.error("Failed to send real-time notification.", e);
                         }
                     });
 
                 // 2. Save to DB in a separate transaction to avoid poisoning the main one
                 try {
-                    log.info("Saving Health Metrics for Group ID: {}. Count: {}", groupId, requests.size());
                     List<HealthMetric> metrics = requests.stream()
                                     .map(dto -> dto.toEntity(family))
                                     .toList();
                     
                     healthMetricPersistenceService.saveAllWithNewTransaction(metrics);
-                    log.info("Metrics saved to DB successfully.");
                 } catch (Exception e) {
                     log.error("Failed to save health metrics to DB (Schema/Constraint Issue). Skipping save.", e);
                 }
@@ -93,7 +88,6 @@ public class HealthService {
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
                                                 "가족 그룹을 찾을 수 없습니다."));
 
-                // Find the PATIENT in the group to verify its existence
                 supporterRepository
                                 .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
@@ -106,8 +100,6 @@ public class HealthService {
 
         @Transactional
         public void requestMeasurement(Integer groupId) {
-                log.info("Requesting Heart Rate Measurement for Group ID: {}", groupId);
-
                 Family family = familyRepository.findById(groupId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
                                                 "가족 그룹을 찾을 수 없습니다."));
@@ -119,11 +111,8 @@ public class HealthService {
 
                 org.ssafy.eeum.domain.auth.entity.User user = patient.getUser();
                 if (user == null || user.getFcmToken() == null) {
-                        log.error("Patient or FCM Token is missing. User: {}, Token: {}", user != null ? user.getId() : "null", user != null ? user.getFcmToken() : "null");
                         throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
                 }
-
-                log.info("Sending FCM Command to Patient (User ID: {}, Token: {}...)", user.getId(), user.getFcmToken().substring(0, Math.min(user.getFcmToken().length(), 10)));
 
                 // Send High Priority FCM to Trigger Measurement
                 // title, body, type, notificationId, route, familyId, groupName, eventId
@@ -138,7 +127,6 @@ public class HealthService {
                                 null,
                                 null); // No Event ID for manual measurement
                 
-                log.info("FCM Command Sent Successfully (Manual). Group ID: {}", groupId);
                 return;
         }
 
@@ -155,8 +143,6 @@ public class HealthService {
         }
 
         public void requestHealthSync(Integer groupId) {
-            log.info("Requesting Health Sync for Group ID: {}", groupId);
-
             Family family = familyRepository.findById(groupId)
                             .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
                                             "가족 그룹을 찾을 수 없습니다."));
@@ -168,13 +154,9 @@ public class HealthService {
 
             org.ssafy.eeum.domain.auth.entity.User user = patient.getUser();
             if (user == null || user.getFcmToken() == null) {
-                    log.error("Patient or FCM Token is missing. User: {}, Token: {}", user != null ? user.getId() : "null", user != null ? user.getFcmToken() : "null");
                     throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
             }
 
-            log.info("Sending Sync FCM Command to Patient (User ID: {}, Token: {}...)", user.getId(), user.getFcmToken().substring(0, Math.min(user.getFcmToken().length(), 10)));
-
-            // Send Sync Command
             fcmService.sendMessageTo(
                             user.getFcmToken(),
                             null,
@@ -186,7 +168,6 @@ public class HealthService {
                             null,
                             null);
             
-            log.info("Sync FCM Command Sent Successfully.");
         }
 
         @Transactional
@@ -210,8 +191,7 @@ public class HealthService {
                 .build();
 
         heartRateRepository.save(heartRate);
-        log.info("Heart Rate Saved. ID: {}, Avg: {} BPM, Family: {}, Related Event: {}", 
-            heartRate.getId(), heartRate.getAvgRate(), family.getId(), fallEvent != null ? fallEvent.getId() : "None");
+
     }
 
     /**
@@ -223,16 +203,10 @@ public class HealthService {
                 .map(hr -> {
                      // Check if data is within last 2 minutes
                      if (hr.getMeasuredAt().isBefore(java.time.LocalDateTime.now().minusMinutes(2))) {
-                         log.info("Latest Heart Rate is too old to be considered for emergency: {}", hr.getMeasuredAt());
                          return false; 
                      }
                      
                      boolean abnormal = hr.getAvgRate() < 50 || hr.getAvgRate() > 120;
-                     if (abnormal) {
-                         log.warn("Abnormal Heart Rate Detected! Avg: {} (Threshold: <50 or >120)", hr.getAvgRate());
-                     } else {
-                         log.info("Heart Rate Normal. Avg: {}", hr.getAvgRate());
-                     }
                      return abnormal;
                 })
                 .orElse(false);
