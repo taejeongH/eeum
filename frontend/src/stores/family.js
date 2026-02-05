@@ -66,8 +66,15 @@ export const useFamilyStore = defineStore('family', () => {
     selectedFamily.value = family;
     if (family && family.id) {
       localStorage.setItem('selectedFamilyId', family.id);
+      // [NEW] Sync to Android SharedPreferences for background workers
+      if (window.AndroidBridge && window.AndroidBridge.saveSelectedFamilyId) {
+        window.AndroidBridge.saveSelectedFamilyId(String(family.id));
+      }
     } else {
       localStorage.removeItem('selectedFamilyId');
+      if (window.AndroidBridge && window.AndroidBridge.saveSelectedFamilyId) {
+        window.AndroidBridge.saveSelectedFamilyId("");
+      }
     }
   }
 

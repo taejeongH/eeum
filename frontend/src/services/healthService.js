@@ -45,6 +45,37 @@ export const healthService = {
             throw error;
         }
     },
+    requestMeasurement: async (groupId) => {
+        try {
+            await api.post('/health/request-measurement', null, {
+                params: { groupId }
+            });
+            // No return value (void)
+        } catch (error) {
+            console.error('Failed to request heart rate measurement:', error);
+            throw error;
+        }
+    },
+    getLatestHeartRate: async (groupId) => {
+        try {
+            const response = await api.get('/health/heart-rate/latest', {
+                params: { groupId }
+            });
+            return response.data.data;
+        } catch (error) {
+            console.error('Failed to fetch latest heart rate:', error);
+            throw error;
+        }
+    },
+    getHeartRateResult: async (eventId) => {
+        try {
+            const response = await api.get(`/health/heart-rate/${eventId}`);
+            return response.data.data;
+        } catch (error) {
+            console.error('Failed to fetch heart rate result:', error);
+            throw error;
+        }
+    },
 };
 
 export default healthService;

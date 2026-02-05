@@ -16,7 +16,7 @@
         </button>
         <h1 class="text-xl font-bold text-white tracking-tight pt-1.5">실시간 건강 정보</h1>
         <div class="flex items-center gap-2">
-            <button v-if="isUserDependent" @click="fetchAllData" class="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
+            <button @click="handleSync" class="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
                 <span class="material-symbols-outlined text-base" :class="{'animate-spin': syncLoading}">sync</span>
             </button>
         </div>
@@ -487,6 +487,40 @@ const handleAnalyze = async () => {
         setTimeout(() => syncMessage.value = '', 3000);
     } finally {
         analyzeLoading.value = false;
+    }
+};
+
+const handleSync = async () => {
+    if (isUserDependent.value) {
+        // 피부양자 본인이면 즉시 로컬 동기화
+        fetchAllData();
+    } else {
+        // 부양자라면 백엔드를 통해 피부양자 기기에 동기화 요청
+        const groupId = familyStore.selectedFamily?.id;
+        if (!groupId) return;
+
+        try {
+            syncLoading.value = true;
+            syncMessage.value = '피부양자 기기에 동기화 요청 중...';
+            
+            await api.post(`/health/request-sync?groupId=${groupId}`);
+            
+            syncMessage.value = '동기화 요청을 보냈습니다. 잠시만 기다려주세요.';
+            
+            // 3초 뒤에 최신 데이터 폴링 (기기가 업로드할 시간 부여)
+            setTimeout(async () => {
+                await fetchLatestData();
+                syncLoading.value = false;
+                syncMessage.value = '최신 데이터를 불러왔습니다.';
+                setTimeout(() => syncMessage.value = '', 3000);
+            }, 5000);
+            
+        } catch (error) {
+            console.error("Sync request failed:", error);
+            syncLoading.value = false;
+            syncMessage.value = '동기화 요청에 실패했습니다.';
+            setTimeout(() => syncMessage.value = '', 3000);
+        }
     }
 };
 

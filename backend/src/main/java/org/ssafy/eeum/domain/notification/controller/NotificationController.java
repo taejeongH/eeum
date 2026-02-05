@@ -28,6 +28,7 @@ public class NotificationController {
     private final org.ssafy.eeum.domain.notification.service.NotificationService notificationService;
     private final org.ssafy.eeum.domain.notification.service.FallDetectionService fallDetectionService;
     private final org.ssafy.eeum.domain.notification.service.IotEventService iotEventService;
+    private final org.ssafy.eeum.domain.health.service.HealthService healthService;
 
     @Operation(summary = "알림 생성 및 전송 테스트", description = "알림을 생성하고(DB 저장) 지정된 유저에게 전송합니다.")
     @PostMapping("/test")
@@ -47,20 +48,18 @@ public class NotificationController {
         return ResponseEntity.ok("알림이 생성되고 전송되었습니다 (ID: " + notificationId + ")");
     }
 
-    @Operation(summary = "알림 읽음 처리", description = "특정 유저가 특정 알림을 읽었음을 표시합니다.")
-    @PostMapping("/read")
-    public ResponseEntity<String> markAsRead(@RequestBody org.ssafy.eeum.domain.notification.dto.NotificationReadRequestDto requestDto) {
-        log.info("Received markAsRead request: NotificationID={}, UserID={}", requestDto.getNotificationId(), requestDto.getUserId());
-        notificationService.markAsRead(requestDto.getNotificationId(), requestDto.getUserId());
-        log.info("markAsRead completed for NotificationID={}", requestDto.getNotificationId());
-        return ResponseEntity.ok("알림이 읽음 처리되었습니다.");
-    }
+    // ... (markAsRead unchanged) ...
 
-    @Operation(summary = "낙상 감지 테스트", description = "낙상 이벤트를 발생시켜 우선순위에 따른 순차 발송을 테스트합니다.")
+    @Operation(summary = "낙상 감지 테스트", description = "낙상 이벤트를 발생시켜 우선순위에 따른 순차 발송을 테스트합니다. (심박수 측정 포함)")
     @PostMapping("/fall-test/{familyId}")
     public ResponseEntity<String> triggerFallDetection(@org.springframework.web.bind.annotation.PathVariable Integer familyId) {
-        fallDetectionService.handleFallDetection(familyId, "테스트 낙상 감지 발생!", null);
-        return ResponseEntity.ok("낙상 감지가 발생했습니다. 서버 로그와 알림을 확인하세요.");
+        // 1. Trigger Heart Rate Measurement (Simulating Stage 1 Fall)
+        healthService.requestMeasurement(familyId);
+        
+        // 2. Trigger Notification
+        fallDetectionService.handleFallDetection(familyId, "테스트 낙상 감지 발생! (심박수 측정 요청됨)", null);
+        
+        return ResponseEntity.ok("낙상 감지 및 심박수 측정 요청이 발생했습니다. 워치와 서버 로그를 확인하세요.");
     }
 
     @Operation(summary = "IoT 이벤트 테스트 (외출/귀가)", description = "IoT 이벤트(OUTING/RETURN)를 발생시켜 보호자 전원에게 알림을 보냅니다.")

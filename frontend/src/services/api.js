@@ -320,3 +320,26 @@ export const deleteIotDevice = async (familyId, deviceId) => {
     throw error;
   }
 };
+
+// Heart Rate APIs
+export const getLatestHeartRate = async (familyId) => {
+  try {
+    const response = await apiClient.get('/health/heart-rate/latest', {
+      params: { groupId: familyId }
+    });
+    return response.data; // { avgRate: 85, minRate: ... }
+  } catch (error) {
+    console.error(`Failed to fetch latest heart rate for family ${familyId}:`, error);
+    throw error;
+  }
+};
+
+export const getHeartRateResult = async (eventId) => {
+  try {
+    const response = await apiClient.get(`/health/heart-rate/${eventId}`);
+    return response.data; // { avgRate: 110, ... }
+  } catch (error) {
+    console.error(`Failed to fetch heart rate result for event ${eventId}:`, error);
+    throw error;
+  }
+};
