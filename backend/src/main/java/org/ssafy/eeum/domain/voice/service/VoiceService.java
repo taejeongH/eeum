@@ -33,6 +33,7 @@ public class VoiceService {
     private final VoiceScriptRepository scriptRepository;
     private final VoiceSampleRepository sampleRepository;
     private final VoiceTaskRepository taskRepository;
+    private final org.ssafy.eeum.domain.auth.repository.UserRepository userRepository; // Inject UserRepository
     private final S3Service s3Service;
     private final VoiceAiClient voiceAiClient;
 
@@ -271,8 +272,11 @@ public class VoiceService {
             return audioUrl;
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         VoiceTask task = VoiceTask.builder()
-                .user(sampleRepository.findTopByUserIdOrderByCreatedAtDesc(userId).get().getUser()) // userId로 유저 조회
+                .user(user)
                 .type(VoiceTask.TaskType.MESSAGE)
                 .status(VoiceTask.TaskStatus.IN_QUEUE)
                 .jobId(audioUrl)
@@ -329,8 +333,8 @@ public class VoiceService {
         return voiceAiClient.generateTts(requestDto, webhookUrl);
     }
 
-    private static final String DEFAULT_SAMPLE_PATH = "samples/5/151567b4-ec88-4625-807f-27d35dd234b6.webm";
-    private static final String DEFAULT_SAMPLE_TRANSCRIPT = "목소리 복원을 위한 기본 샘플입니다.";
+    private static final String DEFAULT_SAMPLE_PATH = "samples/5/13930c43-32ad-4a56-ad35-b18bddf75744.webm";
+    private static final String DEFAULT_SAMPLE_TRANSCRIPT = "지금부터 자유대본 테스트를 하겠습니다. 아무 말이라도 해야 돼서 아무 말이라도 합니다.";
 
     private PythonTtsRequestDTO buildPythonTtsRequestDTO(Integer userId, String text) {
         List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
