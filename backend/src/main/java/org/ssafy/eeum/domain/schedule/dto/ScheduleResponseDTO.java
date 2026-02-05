@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Builder
 public class ScheduleResponseDTO {
     private String scheduleId; // 가상 ID
+    private Integer creatorId;
     private String title;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
