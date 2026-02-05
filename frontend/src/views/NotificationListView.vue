@@ -62,8 +62,6 @@
             class="bg-white rounded-2xl p-5 shadow-sm border-l-4 flex items-start group active:scale-[0.98] transition-all relative overflow-hidden cursor-pointer"
             :class="[getBorderClass(noti.type), getBgClass(noti.type), !noti.isRead ? 'ring-2 ring-gray-100 shadow-md' : 'opacity-80']"
           >
-            <!-- Unread Dot -->
-            <div v-if="!noti.isRead" class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse z-20"></div>
             <!-- Icon Based on Type -->
             <div :class="getIconContainerClass(noti.type)" class="flex-shrink-0 p-3 rounded-xl mr-4 shadow-sm z-10">
               <component :is="getIconComponent(noti.type)" class="h-6 w-6" />

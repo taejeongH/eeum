@@ -2,7 +2,13 @@
   <div v-if="notificationStore.modalVisible" class="fixed inset-0 bg-black/50 backdrop-blur-sm font-display flex flex-col justify-end items-center z-[999999]" @click.self="notificationStore.closeModal">
     <!-- Modal Container -->
     <!-- [FIX] Removed debug border, ensuring simple standard layout -->
-    <div class="bg-white w-full max-w-md rounded-t-[2rem] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl relative animate-[slideUp_0.3s_ease-out]">
+    <div 
+      class="bg-white w-full max-w-md rounded-t-[2rem] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl relative animate-[slideUp_0.3s_ease-out] touch-none"
+      :style="{ transform: `translateY(${currentY}px)`, transition: isSwiping ? 'none' : 'transform 0.3s ease-out' }"
+      @touchstart="onTouchStart"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+    >
       
       <!-- Header -->
       <div class="relative pt-8 pb-6 px-6 overflow-hidden transition-colors duration-300" :class="headerBgClass">
@@ -15,7 +21,6 @@
           <!-- Badge & Time -->
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-1.5 bg-white/60 backdrop-blur-sm px-2.5 py-1 rounded-md shadow-sm">
-              <span class="h-1.5 w-1.5 rounded-full animate-pulse" :class="badgeColorClass"></span>
               <span class="text-[10px] font-black uppercase tracking-wider text-gray-800">{{ eventLabel }}</span>
             </div>
             <div class="flex items-center gap-1.5 bg-white/60 backdrop-blur-sm px-2.5 py-1 rounded-md shadow-sm">
@@ -48,7 +53,7 @@
       </div>
 
       <!-- Content Area -->
-      <div class="flex-1 overflow-y-auto bg-gray-50 pt-4 px-5 space-y-4 min-h-[100px]">
+      <div class="flex-1 overflow-y-auto bg-gray-50 pt-4 px-5 pb-10 space-y-4 min-h-[100px]">
         
         <!-- [NEW] Video Player for Fall Events -->
         <div v-if="(type === 'EMERGENCY' || type === 'FALL') && videoUrl" class="bg-black rounded-2xl overflow-hidden shadow-lg border border-red-100 aspect-video relative group">
@@ -122,13 +127,6 @@
         </div>
       </div>
 
-      <!-- Action Footer (Fixed at Bottom of Modal) -->
-      <div class="p-5 pb-8 bg-gray-50 border-t border-gray-100">
-        <button @click="handleConfirm" class="w-full h-14 bg-gray-900 text-white font-bold rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-            <span>확인했습니다</span>
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-        </button>
-      </div>
     </div>
   </div>
 </template>
@@ -146,7 +144,8 @@ const currentTime = ref('');
 // Watch modal visibility
 watch(() => notificationStore.modalVisible, (visible) => {
   if (visible) {
-    currentTime.value = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    const date = modalData.value.createdAt ? new Date(modalData.value.createdAt) : new Date();
+    currentTime.value = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   }
 });
 
@@ -158,6 +157,8 @@ const messageContent = computed(() => modalData.value.message || '새로운 알�
 const type = computed(() => modalData.value.type || 'INFO');
 const videoUrl = computed(() => modalData.value.videoUrl || null);
 const confidence = computed(() => modalData.value.confidence || null);
+
+const notificationId = computed(() => modalData.value.notificationId || null);
 
 // Simplified computed classes using full strings
 const headerBgClass = computed(() => {
@@ -213,8 +214,41 @@ const infoIconColorClass = computed(() => {
     return 'text-gray-600';
 });
 
-const handleConfirm = () => {
+// Swipe to Dismiss Logic
+const startY = ref(0);
+const currentY = ref(0);
+const isSwiping = ref(false);
+
+const onTouchStart = (e) => {
+    startY.value = e.touches[0].clientY;
+    isSwiping.value = true;
+};
+
+const onTouchMove = (e) => {
+    if (!isSwiping.value) return;
+    const deltaY = e.touches[0].clientY - startY.value;
+    if (deltaY > 0) {
+        currentY.value = deltaY;
+    }
+};
+
+const onTouchEnd = () => {
+    if (currentY.value > 150) {
+        closeAndMarkRead();
+    }
+    currentY.value = 0;
+    isSwiping.value = false;
+};
+
+const closeAndMarkRead = async () => {
+    if (notificationId.value) {
+        await notificationStore.markAsRead(notificationId.value);
+    }
     notificationStore.closeModal();
+};
+
+const handleConfirm = () => {
+    closeAndMarkRead();
 };
 </script>
 

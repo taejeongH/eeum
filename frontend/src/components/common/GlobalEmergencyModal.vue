@@ -1,10 +1,16 @@
 <template>
   <div v-if="emergencyStore.isVisible" :class="['fixed inset-0 font-display flex items-center justify-center z-[9999] transition-all duration-300', isFullscreen ? 'bg-black p-0' : 'bg-black/80 p-4']">
     <!-- Modal Container -->
-    <div :class="[
-      'bg-white overflow-hidden flex flex-col shadow-2xl relative transition-all duration-300 ease-in-out mx-auto',
-      isFullscreen ? 'w-full h-full max-w-none max-h-none rounded-none bg-black' : (currentView === 'main' ? 'w-full max-w-sm rounded-[32px] min-h-[570px] max-h-[90vh]' : 'w-full max-w-2xl rounded-[32px] bg-zinc-950')
-    ]">
+    <div 
+      :class="[
+        'bg-white overflow-hidden flex flex-col shadow-2xl relative transition-all duration-300 ease-in-out mx-auto touch-none',
+        isFullscreen ? 'w-full h-full max-w-none max-h-none rounded-none bg-black' : (currentView === 'main' ? 'w-full max-w-sm rounded-[32px] min-h-[570px] max-h-[90vh]' : 'w-full max-w-2xl rounded-[32px] bg-zinc-950')
+      ]"
+      :style="currentView === 'main' ? { transform: `translateY(${currentY}px)`, transition: isSwiping ? 'none' : 'transform 0.3s ease-out' } : {}"
+      @touchstart="currentView === 'main' ? onTouchStart($event) : null"
+      @touchmove="currentView === 'main' ? onTouchMove($event) : null"
+      @touchend="currentView === 'main' ? onTouchEnd() : null"
+    >
       
       <!-- Close Button (Minimalist) - Only visible in Main View -->
       <button v-if="currentView === 'main'" class="absolute top-4 right-4 z-20 p-2 bg-white/50 backdrop-blur-sm rounded-full hover:bg-white transition-colors animate-[fadeIn_0.3s_ease-out]" @click="handleFalseAlarm">
@@ -260,6 +266,9 @@
 import { ref, computed, watch, onUnmounted, h } from 'vue';
 import { useEmergencyStore } from '@/stores/emergency';
 import { useModalStore } from '@/stores/modal';
+import { useNotificationStore } from '@/stores/notification';
+
+// Icons using render functions
 
 // Icons using render functions
 const IconFall = { render: () => h('svg', { class: 'w-full h-full', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [ h('path', { d: 'M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2l2 2' }) ]) };
@@ -272,6 +281,7 @@ const IconLive = { render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', 
 
 const emergencyStore = useEmergencyStore();
 const modalStore = useModalStore();
+const notificationStore = useNotificationStore();
 
 // View State: 'main', 'history', 'live'
 const currentView = ref('main');
@@ -597,8 +607,46 @@ const handleFalseAlarm = async () => {
   );
 
   if (isConfirmed) {
+    const notificationId = emergencyStore.emergencyData?.notificationId;
+    if (notificationId) {
+        await notificationStore.markAsRead(notificationId);
+    }
     emergencyStore.close();
   }
+};
+
+// Swipe to Dismiss Logic
+const startY = ref(0);
+const currentY = ref(0);
+const isSwiping = ref(false);
+
+const onTouchStart = (e) => {
+    startY.value = e.touches[0].clientY;
+    isSwiping.value = true;
+};
+
+const onTouchMove = (e) => {
+    if (!isSwiping.value) return;
+    const deltaY = e.touches[0].clientY - startY.value;
+    if (deltaY > 0) {
+        currentY.value = deltaY;
+    }
+};
+
+const onTouchEnd = () => {
+    if (currentY.value > 150) {
+        closeAndMarkRead();
+    }
+    currentY.value = 0;
+    isSwiping.value = false;
+};
+
+const closeAndMarkRead = async () => {
+    const notificationId = emergencyStore.emergencyData?.notificationId;
+    if (notificationId) {
+        await notificationStore.markAsRead(notificationId);
+    }
+    emergencyStore.close();
 };
 </script>
 

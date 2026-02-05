@@ -285,6 +285,7 @@ onMounted(async () => {
               }
 
               emergencyStore.open({
+                  notificationId: notificationId,
                   eventId: resolvedEventId,
                   familyId: familyId,
                   groupName: groupName || currentFamily?.name || '가족 그룹',
@@ -300,10 +301,12 @@ onMounted(async () => {
               const targetFamily = familyStore.families.find(f => String(f.id) === String(familyId)) || familyStore.selectedFamily;
               
               notificationStore.openModal({
+                  notificationId: notificationId,
                   type: type,
                   groupName: groupName || targetFamily?.name || '우리 가족',
                   dependentName: targetFamily?.dependentName || '피부양자',
-                  message: type === 'OUTING' ? '외출이 감지되었습니다.' : (type === 'RETURN' ? '귀가가 확인되었습니다.' : '활동이 감지되었습니다.')
+                  message: type === 'OUTING' ? '외출이 감지되었습니다.' : (type === 'RETURN' ? '귀가가 확인되었습니다.' : '활동이 감지되었습니다.'),
+                  createdAt: new Date().toISOString()
               });
           }
           
@@ -318,17 +321,8 @@ onMounted(async () => {
           const currentUserId = userStore.profile?.id;
 
           if (currentUserId) {
-              const { default: api } = await import('@/services/api');
-              
-              // 알림 읽음 처리
-              try {
-                  await api.post('/notifications/read', {
-                      notificationId: Number(notificationId),
-                      userId: currentUserId
-                  });
-              } catch (e) {
-                  console.warn('FCM: Mark as read failed', e.message);
-              }
+              // 알림 읽음 처리 (Store Action 사용)
+              await notificationStore.markAsRead(Number(notificationId));
               
               // 실시간 목록 업데이트 (최신 데이터 보장)
               if (currentFamilyId) {
