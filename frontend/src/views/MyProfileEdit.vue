@@ -338,7 +338,7 @@ const submitProfile = async () => {
     await updateUserProfile(formData);
     
     // 7. Pinia 스토어의 사용자 정보를 최신화 (홈 화면에서 바뀐 이름/사진을 바로 보여주기 위해)
-    await userStore.fetchUser();
+    await userStore.fetchUser(true);
     
     if (isInitialSetup.value) {
       router.push({ name: 'VoiceRegistration', query: { flow: 'initial' } });
