@@ -7,8 +7,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
@@ -161,35 +159,5 @@ public class GmsService {
                         log.error("GMS Analysis Error: {}", e.getMessage());
                 }
                 return false;
-        }
-
-        public String transcribeAudio(MultipartFile file) {
-                try {
-                        MultipartBodyBuilder builder = new MultipartBodyBuilder();
-                        builder.part("file", file.getResource());
-                        builder.part("model", "whisper-1");
-                        builder.part("language", "ko");
-
-                        WebClient webClient = WebClient.builder()
-                                        .baseUrl("https://gms.ssafy.io")
-                                        .defaultHeader("Authorization", "Bearer " + apiKey)
-                                        .build();
-
-                        Map<String, Object> response = webClient.post()
-                                        .uri("/api.openai.com/v1/audio/transcriptions")
-                                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                                        .bodyValue(builder.build())
-                                        .retrieve()
-                                        .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {
-                                        })
-                                        .block();
-
-                        if (response != null && response.containsKey("text")) {
-                                return (String) response.get("text");
-                        }
-                } catch (Exception e) {
-                        log.error("GMS STT Error: {}", e.getMessage());
-                }
-                return "";
         }
 }
