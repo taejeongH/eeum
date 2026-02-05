@@ -133,14 +133,25 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
             throw new Error(`녹음 길이는 3초 이상 10초 이하여야 합니다. (현재: ${durationSec.toFixed(1)}초)`);
         }
 
-        // Determine extension
+        // Determine extension and matching MIME type (Must match Backend's VoiceService.java)
         let extension = 'wav';
-        if (file.type.includes('webm')) extension = 'webm';
-        else if (file.type.includes('mp4')) extension = 'mp4';
-        else if (file.type.includes('ogg')) extension = 'ogg';
-        else if (file.type.includes('mp3')) extension = 'mp3';
+        let contentType = 'audio/wav';
 
-        console.log(`Detected MIME: ${file.type}, Target Extension: ${extension}`);
+        if (file.type.includes('webm')) {
+            extension = 'webm';
+            contentType = 'audio/webm';
+        } else if (file.type.includes('mp4') || file.type.includes('m4a')) {
+            extension = 'm4a';
+            contentType = 'audio/x-m4a';
+        } else if (file.type.includes('mpeg') || file.type.includes('mp3')) {
+            extension = 'mp3';
+            contentType = 'audio/mpeg';
+        } else if (file.type.includes('ogg')) {
+            extension = 'ogg';
+            contentType = 'audio/ogg';
+        }
+
+        console.log(`Detected MIME: ${file.type}, Final Content-Type: ${contentType}, Extension: ${extension}`);
 
         // 1. Get Presigned URL
         // Script mode: pass scriptId, Free Talk: pass null? No, API spec implies we need extension always.
@@ -169,10 +180,10 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
 
         console.log("Uploading to S3:", fullPresignedUrl);
 
-        // 2. Upload to S3
+        // 2. Upload to S3 (MUST use the exact content-type used for Presigned URL)
         const uploadResponse = await fetch(fullPresignedUrl, {
             method: 'PUT',
-            headers: { 'Content-Type': file.type || 'audio/wav' },
+            headers: { 'Content-Type': contentType },
             body: file
         });
 
@@ -209,10 +220,14 @@ export const transcribeAudio = async (file) => {
         console.log(`Transcribing file: type=${file.type}, size=${file.size}`);
 
         const formData = new FormData();
-        // API requires a filename with extension to detect format
-        const ext = file.type.includes('mp4') ? 'mp4' : 'webm';
+        // Determine extension for Whisper API
+        const ext = file.type.includes('webm') ? 'webm' :
+            file.type.includes('mp4') || file.type.includes('m4a') ? 'm4a' :
+                file.type.includes('mpeg') || file.type.includes('mp3') ? 'mp3' : 'wav';
+
         formData.append('file', file, `recording.${ext}`);
         formData.append('model', 'whisper-1');
+        formData.append('language', 'ko'); // Explicitly set language to Korean for better accuracy
 
         const gmsKey = import.meta.env.VITE_GMS_KEY;
         if (!gmsKey) {

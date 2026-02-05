@@ -9,7 +9,18 @@ export const useFamilyStore = defineStore('family', () => {
 
   async function fetchFamilies(force = false) {
     // [Cache Check] 강제 갱신이 아니고 이미 데이터가 있다면 skip
-    if (!force && families.value.length > 0) return;
+    if (!force && families.value.length > 0) {
+      // [IMPORTANT] Even if not fetching, ensure a selection exists
+      if (!selectedFamily.value && families.value.length > 0) {
+        const savedId = localStorage.getItem('selectedFamilyId');
+        if (savedId) {
+          const savedFamily = families.value.find(f => String(f.id) === String(savedId));
+          if (savedFamily) selectedFamily.value = savedFamily;
+        }
+        if (!selectedFamily.value) selectedFamily.value = families.value[0];
+      }
+      return;
+    }
 
     isLoading.value = true;
     try {
