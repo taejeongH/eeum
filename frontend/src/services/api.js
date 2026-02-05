@@ -152,6 +152,11 @@ apiClient.interceptors.response.use(
           if (window.AndroidBridge.logout) window.AndroidBridge.logout();
           if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear token
         }
+
+        // [SAFETY] 에러 발생 시에도 로딩 상태 해제 보장
+        const uiStore = useUiStore();
+        uiStore.finishLoading();
+
         window.location.href = '#/login';
         return Promise.reject(err);
       } finally {
