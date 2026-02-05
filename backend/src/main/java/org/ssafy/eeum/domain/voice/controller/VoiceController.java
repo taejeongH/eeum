@@ -119,12 +119,21 @@ public class VoiceController {
                 return RestApiResponse.success("음성 샘플이 성공적으로 삭제되었습니다.");
         }
 
-        @SwaggerApiSpec(summary = "TTS 테스트 생성 (URL 반환)", description = "입력한 텍스트를 현재 설정된 대표 목소리로 TTS 변환하여 S3 URL을 즉시 반환합니다. (테스트용, 결과 대기 후 반환)", successMessage = "TTS 생성 성공")
-        @PostMapping("/test-tts")
-        public RestApiResponse<String> testTts(
+        @SwaggerApiSpec(summary = "TTS 테스트 - 동기(Polling) 방식", description = "서버 내부에서 직접 결과를 기다렸다가 완료 시 URL을 반환합니다. (10초 주기 폴링)", successMessage = "TTS 생성 성공")
+        @PostMapping("/test-tts/sync")
+        public RestApiResponse<String> testTtsSync(
                         @AuthenticationPrincipal CustomUserDetails userDetails,
                         @RequestBody @Valid VoiceTestRequestDTO request) {
                 String url = voiceService.generateTtsSync(userDetails.getId(), request.getText());
                 return RestApiResponse.success(HttpStatus.OK, "TTS 변환이 완료되었습니다.", url);
+        }
+
+        @SwaggerApiSpec(summary = "TTS 테스트 - 비동기(Webhook) 방식", description = "요청 후 즉시 작업 ID를 반환하며, 결과는 웹후크(/api/voice/webhook/test)를 통해 로그로 남습니다.", successMessage = "TTS 요청 성공")
+        @PostMapping("/test-tts/async")
+        public RestApiResponse<String> testTtsAsync(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestBody @Valid VoiceTestRequestDTO request) {
+                String jobId = voiceService.generateTtsAsync(userDetails.getId(), request.getText());
+                return RestApiResponse.success(HttpStatus.ACCEPTED, "TTS 요청이 접수되었습니다. (Job ID: " + jobId + ")", jobId);
         }
 }

@@ -245,43 +245,20 @@ public class VoiceService {
     public String createTtsUrl(Integer userId, String text, Integer messageId) {
         log.debug("사용자 {}의 목소리 모델 및 대표 샘플을 조회합니다.", userId);
 
-        VoiceModel voiceModel = modelRepository.findByUserId(userId)
-                .orElseThrow(() -> {
-                    log.warn("사용자 {}의 목소리 모델을 찾을 수 없습니다.", userId);
-                    return new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND);
-                });
+        PythonTtsRequestDTO requestDto = buildPythonTtsRequestDTO(userId, text);
 
-        // 대표 샘플이 지정되어 있는지 확인
-        if (voiceModel.getRepresentativeSample() == null) {
-            List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
-            if (samples.isEmpty()) {
-                throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
-            }
-            voiceModel.updateRepresentativeSample(samples.get(0));
-            log.debug("대표 샘플이 설정되지 않아 가장 최근 샘플(ID: {})을 임시로 사용합니다.", samples.get(0).getId());
-        }
-
-        VoiceSample referenceSample = voiceModel.getRepresentativeSample();
-
-        String refText = referenceSample.getVoiceScript() != null
-                ? referenceSample.getVoiceScript().getContent()
-                : referenceSample.getTranscript();
-
-        PythonTtsRequestDTO requestDto = PythonTtsRequestDTO.builder()
-                .userId(String.valueOf(userId))
-                .refWavKey(referenceSample.getSamplePath())
-                .refText(refText)
-                .text(text)
-                .build();
-
-        String webhookUrl = (messageId != null) ? (webhookBaseUrl + "?messageId=" + messageId) : null;
-        log.info("[TTS] Webhook URL: {}", webhookUrl);
+        // 메시지 전송 시에는 웹후크를 사용하지 않고 폴링(TtsCleanupScheduler)으로 처리하도록 수정
+        // String webhookUrl = (messageId != null) ? (webhookBaseUrl + "?messageId=" +
+        // messageId) : null;
+        String webhookUrl = null;
+        log.info("[TTS] Webhook URL: {} (Disabled for polling flow)", webhookUrl);
 
         String audioUrl = voiceAiClient.generateTts(requestDto, webhookUrl);
         if (audioUrl != null) {
             return audioUrl;
         }
-        throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        log.error("[TTS] 생성 요청 실패 (messageId: {})", messageId);
+        return null;
     }
 
     public String generateTtsSync(Integer userId, String text) {
@@ -299,10 +276,10 @@ public class VoiceService {
         String jobId = initialResult;
         log.info("[TTS Sync Test] Job ID {} 에 대한 폴링을 시작합니다.", jobId);
 
-        int maxAttempts = 36; // 180초 (5초 * 36)
+        int maxAttempts = 30; // 300초 (10초 * 30)
         for (int i = 0; i < maxAttempts; i++) {
             try {
-                Thread.sleep(5000); // 5초 대기
+                Thread.sleep(10000); // 10초 대기 (서버 부하 경감)
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -324,5 +301,40 @@ public class VoiceService {
 
         log.warn("[TTS Sync Test] 시간 초과 (Job ID: {})", jobId);
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    public String generateTtsAsync(Integer userId, String text) {
+        log.info("[TTS Async Test] 사용자 {}의 TTS 비동기 생성 요청 (텍스트: {})", userId, text);
+
+        PythonTtsRequestDTO requestDto = buildPythonTtsRequestDTO(userId, text);
+
+        String webhookUrl = webhookBaseUrl + "/test";
+        return voiceAiClient.generateTts(requestDto, webhookUrl);
+    }
+
+    private PythonTtsRequestDTO buildPythonTtsRequestDTO(Integer userId, String text) {
+        VoiceModel voiceModel = modelRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.VOICE_MODEL_NOT_FOUND));
+
+        if (voiceModel.getRepresentativeSample() == null) {
+            List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+            if (samples.isEmpty()) {
+                throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
+            }
+            voiceModel.updateRepresentativeSample(samples.get(0));
+            log.debug("User {}'s representative sample set to ID {}", userId, samples.get(0).getId());
+        }
+
+        VoiceSample referenceSample = voiceModel.getRepresentativeSample();
+        String refText = referenceSample.getVoiceScript() != null
+                ? referenceSample.getVoiceScript().getContent()
+                : referenceSample.getTranscript();
+
+        return PythonTtsRequestDTO.builder()
+                .userId(String.valueOf(userId))
+                .refWavKey(referenceSample.getSamplePath())
+                .refText(refText)
+                .text(text)
+                .build();
     }
 }

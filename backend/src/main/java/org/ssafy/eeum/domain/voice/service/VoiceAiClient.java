@@ -61,8 +61,8 @@ public class VoiceAiClient {
                         return (String) output.get("url");
                     }
                 } else if ("IN_QUEUE".equals(status) || "IN_PROGRESS".equals(status)) {
-                    // 웹후크가 설정되어 있다면 "PENDING", 아니면 Job ID 반환
-                    return (webhookUrl != null) ? "PENDING" : (String) response.get("id");
+                    // 웹후크 여부에 관계없이 Job ID 반환하여 추적 가능하게 함
+                    return (String) response.get("id");
                 }
             }
             return null;

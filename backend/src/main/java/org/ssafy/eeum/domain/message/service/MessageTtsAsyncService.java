@@ -33,8 +33,15 @@ public class MessageTtsAsyncService {
             String voiceUrl = voiceService.createTtsUrl(userId, content, messageId);
 
             if (voiceUrl != null) {
-                if ("PENDING".equals(voiceUrl)) {
-                    log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(RunPod Webhook)로 전환합니다.", messageId);
+                // 1.5. 즉시 완료되지 않은 경우 (Job ID가 반환된 경우)
+                if (!voiceUrl.startsWith("http")) {
+                    String jobId = voiceUrl;
+                    log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(Job ID: {})로 전환합니다.", messageId, jobId);
+
+                    messageRepository.findById(messageId).ifPresent(msg -> {
+                        msg.updateTtsJobId(jobId);
+                        messageRepository.save(msg);
+                    });
                     return;
                 }
 

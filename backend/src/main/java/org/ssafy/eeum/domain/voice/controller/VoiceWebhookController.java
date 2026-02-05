@@ -40,6 +40,19 @@ public class VoiceWebhookController {
         }
     }
 
+    @PostMapping("/test")
+    public void handleTestWebhook(@RequestBody Map<String, Object> payload) {
+        log.info("[RunPod Webhook] Received Test result: {}", payload);
+        String status = (String) payload.get("status");
+        if ("COMPLETED".equals(status)) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> output = (Map<String, Object>) payload.get("output");
+            if (output != null && "success".equals(output.get("status"))) {
+                log.info("[RunPod Webhook) Test Success! URL: {}", output.get("url"));
+            }
+        }
+    }
+
     private void processTtsResult(Integer messageId, String voiceUrl) {
         Message message = messageRepository.findById(messageId).orElse(null);
         if (message != null) {
