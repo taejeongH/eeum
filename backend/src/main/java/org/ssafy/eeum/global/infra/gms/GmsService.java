@@ -132,7 +132,17 @@ public class GmsService {
                                         "model", model,
                                         "messages", List.of(
                                                         Map.of("role", "developer", "content",
-                                                                        "You are an emergency assistant. Analyze the user's text. Return ONLY 'EMERGENCY' for dangerous situations (pain, help needed, negative) or 'SAFE' for safe situations (okay, no problem)."),
+                                                                        "당신은 노인 낙상 사고 대응 전문가입니다. 기기가 사용자에게 '지금은 괜찮으세요? 도와드릴까요?'라고 물어본 상황입니다.\n"
+                                                                                        +
+                                                                                        "사용자의 답변을 분석하여 위급 상황(EMERGENCY)인지 안전한 상황(SAFE)인지 판단하세요.\n\n"
+                                                                                        +
+                                                                                        "- EMERGENCY: 고통 호소(아이고, 으악), 도움 요청(살려줘, 119, 도와줘), 부정적 답변(안괜찮아, 아파, 못 일어나겠어).\n"
+                                                                                        +
+                                                                                        "- SAFE: 괜찮다는 확인(응, 괜찮아, 나 괜찮아), 도움 거절(아니, 괜찮아, 그냥 넘어진 거야), 일상적 대화.\n\n"
+                                                                                        +
+                                                                                        "특히 '아니'라는 답변은 '도와줄까요?'에 대한 거절(괜찮음)일 수도 있고, '괜찮으세요?'에 대한 부정(위급)일 수도 있으니 전체 문맥을 신중히 판단하세요.\n"
+                                                                                        +
+                                                                                        "답변은 반드시 'EMERGENCY' 또는 'SAFE' 중 하나만 출력하세요."),
                                                         Map.of("role", "user", "content", text)));
 
                         Map<String, Object> response = webClient.post()
