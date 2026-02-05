@@ -64,7 +64,8 @@ public class ScheduleService {
     }
 
     // 월간 일정 조회 (캐시 적용)
-    public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month, String category,
+    public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month,
+            String category,
             String keyword, String targetPerson, Boolean isVisited) {
 
         checkFamilyAccess(userId, familyId);
@@ -298,6 +299,7 @@ public class ScheduleService {
 
         return ScheduleResponseDTO.builder()
                 .scheduleId(id)
+                .creatorId(s.getCreator().getId())
                 .title(s.getTitle())
                 .startAt(startDateTime)
                 .endAt(endDateTime)
@@ -383,6 +385,17 @@ public class ScheduleService {
                     .orElseGet(() -> {
                         Schedule parent = scheduleRepository.findById(parentId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+                        // [PERMISSION CHECK] Although checking on parent modification, logic for
+                        // virtual specific day
+                        // implies we are modifying "an instance". If we strictly follow "Creator Only",
+                        // creating an exception schedule from a parent created by someone else should
+                        // also be restricted?
+                        // Yes, if I didn't create the parent, I shouldn't edit its instance.
+                        if (!parent.getCreator().getId().equals(userId)) {
+                            throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+                        }
+
                         LocalTime time = parent.getStartAt().toLocalTime();
                         return Schedule.builder()
                                 .family(parent.getFamily())
@@ -416,6 +429,10 @@ public class ScheduleService {
             Schedule schedule = scheduleRepository.findById(parsedId.dbId())
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
+            if (!schedule.getCreator().getId().equals(userId)) {
+                throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+            }
+
             LocalDateTime oldDate = schedule.getStartAt();
 
             schedule.update(
@@ -447,6 +464,10 @@ public class ScheduleService {
             Schedule schedule = scheduleRepository.findById(targetId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
+            if (!schedule.getCreator().getId().equals(userId)) {
+                throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+            }
+
             scheduleRepository.delete(schedule);
             invalidateCache(familyId, schedule.getStartAt().toLocalDate());
         } else {
@@ -457,6 +478,10 @@ public class ScheduleService {
                 Schedule parent = scheduleRepository.findById(parentId)
                         .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
+                if (!parent.getCreator().getId().equals(userId)) {
+                    throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+                }
+
                 User user = userRepository.findById(userId)
                         .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
@@ -465,6 +490,10 @@ public class ScheduleService {
             } else {
                 Schedule schedule = scheduleRepository.findById(parsedId.dbId())
                         .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+                if (!schedule.getCreator().getId().equals(userId)) {
+                    throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+                }
 
                 if (schedule.getRepeatType() != RepeatType.NONE) {
                     User user = userRepository.findById(userId)
