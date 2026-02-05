@@ -13,7 +13,7 @@ public class MqttAlarmMessageDTO {
     private String msgId;
 
     @JsonProperty("kind")
-    private String kind; // "medication" or "schedule"
+    private String kind;
 
     @JsonProperty("content")
     private String content;

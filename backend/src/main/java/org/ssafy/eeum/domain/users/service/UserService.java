@@ -32,11 +32,9 @@ public class UserService {
         String imageKey = user.getProfileImage();
 
         if (file != null && !file.isEmpty()) {
-            // 기존 이미지 삭제
             if (imageKey != null && !imageKey.isEmpty()) {
                 s3Service.deleteFile(imageKey);
             }
-            // 새 이미지 업로드
             imageKey = s3Service.uploadFile(file, "profile");
         }
 
@@ -48,7 +46,6 @@ public class UserService {
                 profileRequest.getAddress(),
                 imageKey);
 
-        // presigned URL을 생성해서 응답 DTO에 담아 반환
         String presignedUrl = s3Service.getPresignedUrl(imageKey);
         ProfileResponseDto responseDto = ProfileResponseDto.of(user);
         responseDto.setProfileImage(presignedUrl);
@@ -91,9 +88,8 @@ public class UserService {
         try {
             fcmService.sendMessageTo(token, finalTitle, finalBody, finalType, null, null, null, null, null);
         } catch (FcmUnregisteredTokenException e) {
-            log.warn("Test FCM message failed: token unregistered for user {}. Clearing token.", userId);
             user.updateFcmToken(null);
-            return "Failed to send: FCM Token was invalid and has been cleared.";
+            return "전송 실패: FCM 토큰이 유효하지 않거나 삭제되었습니다.";
         }
         return "Message sent to " + user.getName();
     }

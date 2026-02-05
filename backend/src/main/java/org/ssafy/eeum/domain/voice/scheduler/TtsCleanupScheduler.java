@@ -31,13 +31,9 @@ public class TtsCleanupScheduler {
     private final IotSyncService iotSyncService;
     private final VoiceSampleRepository voiceSampleRepository;
 
-    /**
-     * TTS 웹후크 대용 폴링 스케줄러 (적응형 백오프 적용)
-     */
     @Scheduled(fixedDelay = 10000)
     @Transactional
     public void cleanupTtsJobs() {
-        // IN_QUEUE 거나 IN_PROGRESS 인 작업만 조회
         List<VoiceTask> pendingTasks = taskRepository.findByStatusInAndJobIdIsNotNull(
                 List.of(VoiceTask.TaskStatus.IN_QUEUE, VoiceTask.TaskStatus.IN_PROGRESS));
 
@@ -61,7 +57,6 @@ public class TtsCleanupScheduler {
 
                 // 실패 처리
                 if (resultOrStatus == null || "FAILED".equals(resultOrStatus) || "ERROR".equals(resultOrStatus)) {
-                    log.error("[Voice Task] Task {} (Job: {}) 가 실패 상태입니다.", task.getId(), jobId);
                     if (task.getPollCount() >= 100) {
                         task.fail(VoiceTask.TaskStatus.TIMEOUT);
                     } else {
@@ -73,9 +68,6 @@ public class TtsCleanupScheduler {
 
                 // 완료 처리
                 if (resultOrStatus.startsWith("http")) {
-                    log.info("[Voice Task] Task {} 완료! (유형: {}, 시도: {})", task.getId(), task.getType(),
-                            task.getPollCount());
-
                     String s3Key = resultOrStatus;
                     if (task.getType() != VoiceTask.TaskType.TRAINING) {
                         s3Key = voiceService.extractS3Key(resultOrStatus);
@@ -83,16 +75,12 @@ public class TtsCleanupScheduler {
 
                     task.updateResult(s3Key);
                     taskRepository.save(task);
-
-                    // 연관된 엔티티에 결과 전파 (만약 필요하다면)
                     handleTaskCompletion(task);
 
-                } else if (task.getPollCount() >= 150) { // 모델 학습 등을 고려하여 넉넉히
-                    log.warn("[Voice Task] Task {} 가 너무 오래 걸려 중단합니다.", task.getId());
+                } else if (task.getPollCount() >= 150) {
                     task.fail(VoiceTask.TaskStatus.TIMEOUT);
                     taskRepository.save(task);
                 } else {
-                    // 진행 중 상태 업데이트
                     if (!resultOrStatus.equals(task.getStatus().name())) {
                         try {
                             task.updateStatus(VoiceTask.TaskStatus.valueOf(resultOrStatus));
@@ -102,7 +90,7 @@ public class TtsCleanupScheduler {
                     }
                 }
             } catch (Exception e) {
-                log.error("[Voice Task] Job {} 확인 중 에러: {}", jobId, e.getMessage());
+
             }
         }
     }
@@ -132,13 +120,12 @@ public class TtsCleanupScheduler {
         long secondsSinceLastPoll = Duration.between(task.getLastPolledAt(), now).toSeconds();
         int count = (task.getPollCount() == null) ? 0 : task.getPollCount();
 
-        // 일원화된 백오프 정책
         if (count < 10)
-            return secondsSinceLastPoll >= 10; // 초기 10회는 10초마다 (약 1.5분)
+            return secondsSinceLastPoll >= 10; // 초기 10회는 10초마다
         if (count < 30)
-            return secondsSinceLastPoll >= 60; // 이후 20회는 1분마다 (약 20분)
+            return secondsSinceLastPoll >= 60; // 이후 20회는 1분마다
         if (count < 60)
-            return secondsSinceLastPoll >= 300; // 이후 30회는 5분마다 (약 2.5시간)
+            return secondsSinceLastPoll >= 300; // 이후 30회는 5분마다
         return secondsSinceLastPoll >= 3600; // 그 이후는 한 시간마다
     }
 }

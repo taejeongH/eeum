@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 public class IotDeviceEvent {
 
     private final String serialNumber;
-    private final String type; // "UPDATE", "DELETE"
+    private final String type;
     private final String location;
 
     public static IotDeviceEvent updated(String serialNumber, String location) {

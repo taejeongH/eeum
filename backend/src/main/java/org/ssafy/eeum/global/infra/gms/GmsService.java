@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 import java.util.Map;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Slf4j
 @Service
@@ -110,7 +111,7 @@ public class GmsService {
                                 }
                         }
                 } catch (Exception e) {
-                        log.error("GMS Health Report Generation Error: {}", e.getMessage());
+                        log.error("GMS 건강 리포트 생성 오류: {}", e.getMessage());
                 }
 
                 return Map.of(
@@ -130,9 +131,24 @@ public class GmsService {
 
                         Map<String, Object> requestBody = Map.of(
                                         "model", model,
+                                        "response_format", Map.of("type", "json_object"),
                                         "messages", List.of(
                                                         Map.of("role", "developer", "content",
-                                                                        "You are an emergency assistant. Analyze the user's text. Return ONLY 'EMERGENCY' for dangerous situations (pain, help needed, negative) or 'SAFE' for safe situations (okay, no problem)."),
+                                                                        "당신은 노인 낙상 사고 대응 전문가입니다. 기기가 사용자에게 '지금은 괜찮으세요? 도와드릴까요?'라고 물어본 상황입니다.\n"
+                                                                                        +
+                                                                                        "사용자의 답변을 분석하여 위급 상황(EMERGENCY)인지 안전한 상황(SAFE)인지 판단하세요.\n"
+                                                                                        +
+                                                                                        "반드시 아래 JSON 형식으로 응답하세요:\n"
+                                                                                        +
+                                                                                        "{\n"
+                                                                                        +
+                                                                                        "  \"status\": \"EMERGENCY\" 또는 \"SAFE\",\n"
+                                                                                        +
+                                                                                        "  \"reason\": \"판단 이유 (한 문장)\"\n"
+                                                                                        +
+                                                                                        "}\n"
+                                                                                        +
+                                                                                        "특히 '아니'라는 답변은 문맥에 따라 거절(SAFE)일 수도, 부정(EMERGENCY)일 수도 있으니 신중히 판단하세요."),
                                                         Map.of("role", "user", "content", text)));
 
                         Map<String, Object> response = webClient.post()
@@ -151,12 +167,22 @@ public class GmsService {
                                         Map<String, Object> message = (Map<String, Object>) choices.get(0)
                                                         .get("message");
                                         String content = (String) message.get("content");
-                                        log.info("GMS Analysis Result: {}", content);
-                                        return content != null && content.toUpperCase().contains("EMERGENCY");
+
+
+                                        if (content == null)
+                                                return false;
+
+                                        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                                        JsonNode rootNode = mapper.readTree(content);
+                                        String status = rootNode.path("status").asText().toUpperCase();
+
+
+
+                                        return "EMERGENCY".equals(status);
                                 }
                         }
                 } catch (Exception e) {
-                        log.error("GMS Analysis Error: {}", e.getMessage());
+                        log.error("GMS 감성 분석 오류: {}", e.getMessage(), e);
                 }
                 return false;
         }

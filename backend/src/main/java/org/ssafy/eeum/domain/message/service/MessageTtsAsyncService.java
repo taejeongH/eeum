@@ -13,6 +13,9 @@ import org.ssafy.eeum.domain.voice.entity.VoiceLog;
 import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
 
+import org.ssafy.eeum.global.error.exception.CustomException;
+import org.ssafy.eeum.global.error.model.ErrorCode;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -27,53 +30,66 @@ public class MessageTtsAsyncService {
     @Async
     @Transactional
     public void processTtsAsync(Integer messageId, Integer userId, String content, Integer groupId) {
-        log.info("[TTS Async] messageId: {} 에 대한 TTS 생성 및 처리 시작", messageId);
+        String voiceUrl = null;
 
         try {
-            // 1. TTS 생성 요청 (메시지 ID 포함)
-            String voiceUrl = voiceService.createTtsUrl(userId, content, messageId);
-
-            if (voiceUrl != null) {
-                // 1.5. 즉시 완료되지 않은 경우 (Job ID가 반환된 경우)
-                if (voiceUrl.startsWith("TASK_ID:")) {
-                    Integer taskId = Integer.parseInt(voiceUrl.substring(8));
-                    log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(Task ID: {})로 전환합니다.", messageId,
-                            taskId);
-
-                    taskRepository.findById(taskId).ifPresent(task -> {
-                        messageRepository.findById(messageId).ifPresent(msg -> {
-                            msg.updateVoiceTask(task);
-                            messageRepository.save(msg);
-                        });
-                    });
-                    return;
-                }
-
-                // 2. 즉시 완료된 경우 (Warm start)
-                Message message = messageRepository.findById(messageId).orElse(null);
-                if (message != null) {
-                    String voiceKey = voiceService.extractS3Key(voiceUrl);
-                    message.updateVoiceUrl(voiceKey);
-                    messageRepository.save(message); // 명시적 저장이 transactional 안에서 필요할 수 있음
-
-                    // 3. 로그 저장
-                    VoiceLog voiceLog = VoiceLog.builder()
-                            .groupId(groupId)
-                            .voiceId(messageId)
-                            .actionType(ActionType.ADD)
-                            .build();
-                    voiceLogRepository.save(voiceLog);
-
-                    // 4. IoT 동기화 알림 (배치 처리 로직 따름)
-                    iotSyncService.notifyUpdate(groupId, "voice");
-
-                    log.info("[TTS Async] messageId: {} 에 대한 TTS 처리 완료", messageId);
-                } else {
-                    log.error("[TTS Async] 메시지를 찾을 수 없습니다: id={}", messageId);
-                }
+            voiceUrl = voiceService.createTtsUrl(userId, content, messageId);
+        } catch (CustomException e) {
+            if (e.getErrorCode() == ErrorCode.VOICE_SAMPLE_NOT_FOUND) {
+                log.info("[TTS Async] User {} has no voice model. Proceeding with text-only message.", userId);
+            } else {
+                log.error("[TTS Async] TTS creation failed (CustomException): {}", e.getMessage());
+                return;
             }
         } catch (Exception e) {
-            log.error("[TTS Async] TTS 생성 중 에러 발생 (messageId: {}): {}", messageId, e.getMessage());
+            log.error("[TTS Async] TTS creation request failed: {}", e.getMessage());
+            return; // Other errors stop processing
+        }
+
+        try {
+            // Case 1: Deferred processing (Task ID returned)
+            if (voiceUrl != null && voiceUrl.startsWith("TASK_ID:")) {
+                Integer taskId = Integer.parseInt(voiceUrl.substring(8));
+                log.info("[TTS Async] messageId: {} TTS generation delayed. Waiting (Task ID: {}).", messageId, taskId);
+
+                taskRepository.findById(taskId).ifPresent(task -> {
+                    messageRepository.findById(messageId).ifPresent(msg -> {
+                        msg.updateVoiceTask(task);
+                        messageRepository.save(msg);
+                    });
+                });
+                return;
+            }
+
+            // Case 2: Immediate completion or Text-only fallback
+            Message message = messageRepository.findById(messageId).orElse(null);
+            if (message != null) {
+                // If we have a voice URL (success), update the message
+                if (voiceUrl != null) {
+                    String voiceKey = voiceService.extractS3Key(voiceUrl);
+                    message.updateVoiceUrl(voiceKey);
+                    messageRepository.save(message);
+                }
+
+                // Create VoiceLog (Triggers IoT Sync for both Voice and Text messages)
+                VoiceLog voiceLog = VoiceLog.builder()
+                        .groupId(groupId)
+                        .voiceId(messageId)
+                        .actionType(ActionType.ADD)
+                        .build();
+                voiceLogRepository.save(voiceLog);
+
+                // Notify IoT
+                iotSyncService.notifyUpdate(groupId, "voice");
+
+                log.info("[TTS Async] Message processing completed. ID: {}, HasVoice: {}", messageId,
+                        (voiceUrl != null));
+            } else {
+                log.error("[TTS Async] Message not found during post-processing: id={}", messageId);
+            }
+        } catch (Exception e) {
+            log.error("[TTS Async] Error during message post-processing (messageId: {}): {}", messageId,
+                    e.getMessage());
         }
     }
 }

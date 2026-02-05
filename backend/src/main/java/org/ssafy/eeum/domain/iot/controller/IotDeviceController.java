@@ -2,11 +2,13 @@ package org.ssafy.eeum.domain.iot.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceRequestDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceResponseDTO;
 import org.ssafy.eeum.domain.iot.dto.IotDeviceUpdateRequestDTO;
 import org.ssafy.eeum.domain.iot.service.IotDeviceService;
+import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import org.ssafy.eeum.global.common.response.RestApiResponse;
 import org.ssafy.eeum.global.config.swagger.SwaggerApiSpec;
 import org.ssafy.eeum.global.error.model.ErrorCode;
@@ -42,7 +44,7 @@ public class IotDeviceController {
     @PatchMapping("/{deviceId}")
     public RestApiResponse<Void> updateDevice(
             @PathVariable Integer familyId,
-            @org.springframework.security.core.annotation.AuthenticationPrincipal org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Integer deviceId,
             @RequestBody IotDeviceUpdateRequestDTO updateDto) {
         iotDeviceService.updateDevice(userDetails, deviceId, updateDto);
@@ -54,7 +56,7 @@ public class IotDeviceController {
     @DeleteMapping("/{deviceId}")
     public RestApiResponse<Void> deleteDevice(
             @PathVariable Integer familyId,
-            @org.springframework.security.core.annotation.AuthenticationPrincipal org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Integer deviceId) {
         iotDeviceService.deleteDevice(userDetails, deviceId);
         return RestApiResponse.success("기기가 삭제되었습니다.");

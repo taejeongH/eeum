@@ -38,7 +38,7 @@ public class IotDevice extends BaseEntity {
     private String locationType;
 
     @Column(name = "device_type", length = 30)
-    private String deviceType; // RASPBERRY_PI, JETSON_ORIN_NANO 등
+    private String deviceType;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
