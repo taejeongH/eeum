@@ -69,8 +69,6 @@ public class FallEventService {
             eventBuilder.videoStatus(FallEvent.VideoStatus.PENDING);
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
 
-            // [NEW] Trigger Heart Rate Measurement automatically
-            log.info("Fall Detected (Level 1). Triggering Heart Rate Measurement for Group: {}", groupId);
             healthService.requestMeasurement(groupId);
         }
 
@@ -87,8 +85,7 @@ public class FallEventService {
             response.put("eventId", String.valueOf(event.getId()));
         }
 
-        log.info("Fall Detected: Device={}, Level={}, VideoUploadExpected={}",
-                serialNumber, level, presignedUrl != null);
+
 
         return response;
     }
@@ -142,16 +139,16 @@ public class FallEventService {
                 .orElseThrow(() -> new CustomException(
                         ErrorCode.ENTITY_NOT_FOUND));
 
-        log.info("[DEBUG_FALL] Handling Voice Response for Family: {}, STT: {}", familyId, sttContent);
+
 
         boolean gmsAnalysisResult = gmsService.analyzeSentiment(sttContent);
-        log.info("[DEBUG_FALL] GMS Analysis Result: {}", gmsAnalysisResult);
+
 
         boolean isSentimentEmergency = sttContent.contains("EMERGENCY") || sttContent.contains("비상")
                 || gmsAnalysisResult;
         boolean isHeartRateEmergency = healthService.isHeartRateAbnormal(familyId);
 
-        log.info("[DEBUG_FALL] Dual Verification - Group: {}, STT: '{}', Sentiment: {} (GMS: {}), HR: {}",
+        log.info("[검증] 이중 검증 결과 - 가족ID: {}, STT: '{}', 감성분석: {} (GMS: {}), 심박수위급: {}",
                 familyId, sttContent, isSentimentEmergency, gmsAnalysisResult, isHeartRateEmergency);
 
         if (isSentimentEmergency || isHeartRateEmergency) {
@@ -161,23 +158,23 @@ public class FallEventService {
             }
 
             event.updateToEmergency(emergencyReason);
-            log.warn("[DEBUG_FALL] 낙상 위급 상황 판단 (EMERGENCY) - Group: {}, Reason: {}, Final Status: EMERGENCY", familyId,
+            log.warn("[결과] 🚨 위급 상황 확정 (EMERGENCY) - 가족ID: {}, 사유: {}", familyId,
                     emergencyReason);
 
             fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + emergencyReason, event.getId());
         } else {
             event.updateToSafe(sttContent);
-            log.info("[DEBUG_FALL] 낙상 안전 확인 (SAFE) - Group: {}, Text: '{}', Final Status: SAFE", familyId, sttContent);
+            log.info("[결과] ✅ 안전 상황 확정 (SAFE) - 가족ID: {}, 내용: '{}'", familyId, sttContent);
         }
     }
 
     public void testSentimentAnalysis(Integer familyId, String sttContent) {
-        log.info("LLM Test Start - Content: {}, FamilyId: {}", sttContent, familyId);
+        log.info("LLM 테스트 시작 - 내용: {}, 가족ID: {}", sttContent, familyId);
         boolean isEmergency = gmsService.analyzeSentiment(sttContent);
-        log.info("LLM Test Results - Is Emergency: {}", isEmergency);
+        log.info("LLM 테스트 결과 - 위급여부: {}", isEmergency);
 
         if (isEmergency) {
-            log.info("Triggering Test Notification for Family: {}", familyId);
+            log.info("테스트 알림 발송 - 가족ID: {}", familyId);
             fallDetectionService.handleFallDetection(familyId, "[테스트] 낙상 위험 감지: " + sttContent, null);
         }
     }

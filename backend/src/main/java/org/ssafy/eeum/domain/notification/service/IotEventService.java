@@ -55,14 +55,12 @@ public class IotEventService {
                 .toList();
 
         if (caregivers.isEmpty()) {
-            log.warn("No caregivers found for family ID: {}", familyId);
             return;
         }
         
         Long notificationId = notificationService.createNotification(familyId, title, message, "ACTIVITY", null);
 
         for (Supporter caregiver : caregivers) {
-            log.info("Sending IoT Notification to Caregiver: {}", caregiver.getUser().getName());
             notificationService.sendNotification(notificationId, caregiver.getUser().getId());
         }
     }
