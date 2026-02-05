@@ -9,7 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.ssafy.eeum.domain.message.service.MessageService;
 import org.ssafy.eeum.domain.voice.dto.TtsRequestDTO;
-import org.ssafy.eeum.domain.voice.dto.VoiceModelStatusResponseDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceTaskStatusResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleRequestDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceTestRequestDTO;
@@ -75,11 +75,18 @@ public class VoiceController {
                 return RestApiResponse.success("TTS 생성 및 전송 요청이 접수되었습니다. 백그라운드에서 처리됩니다.");
         }
 
-        @SwaggerApiSpec(summary = "음성 모델 학습 상태 조회", description = "자신의 음성 모델 학습 상태와 수집된 샘플 개수, 전체 샘플 목록을 조회합니다.", successMessage = "상태 조회 성공")
+        @SwaggerApiSpec(summary = "보이스 작업 상태 조회", description = """
+                        자신의 보이스 관련 작업(학습, TTS 등) 상태와 수집된 샘플 개수, 전체 샘플 목록을 조회합니다.
+                        각 샘플의 `status` 필드를 통해 테스트용 음성 생성 상태를 확인할 수 있습니다:
+                        - `NOT_STARTED`: 생성 요청 전
+                        - `IN_QUEUE`: 대기 중
+                        - `IN_PROGRESS`: 생성 중
+                        - `COMPLETED`: 완료 (URL 사용 가능)
+                        """, successMessage = "상태 조회 성공")
         @GetMapping("/status")
-        public RestApiResponse<VoiceModelStatusResponseDTO> getStatus(
+        public RestApiResponse<VoiceTaskStatusResponseDTO> getStatus(
                         @AuthenticationPrincipal CustomUserDetails userDetails) {
-                VoiceModelStatusResponseDTO response = voiceService.getVoiceModelStatus(userDetails.getId());
+                VoiceTaskStatusResponseDTO response = voiceService.getVoiceModelStatus(userDetails.getId());
                 return RestApiResponse.success(response);
         }
 

@@ -23,22 +23,33 @@ public class VoiceSampleResponseDTO {
     @Schema(description = "테스트 음성 URL", example = "https://s3...")
     private String testAudioUrl;
 
+    @Schema(description = "테스트 음성 생성 상태", example = "COMPLETED")
+    private String status;
+
     public static VoiceSampleResponseDTO from(VoiceSample sample) {
         return VoiceSampleResponseDTO.builder()
                 .id(sample.getId())
                 .nickname(sample.getNickname())
                 .createdAt(sample.getCreatedAt())
-                .testAudioUrl(sample.getTestAudioPath()) // This will be replaced with actual Presigned URL in service
-                                                         // if needed, but for now DTO stores the data
+                .testAudioUrl(sample.getTestAudioPath())
+                .status(sample.getVoiceTask() != null ? sample.getVoiceTask().getStatus().name() : "COMPLETED")
                 .build();
     }
 
     public static VoiceSampleResponseDTO from(VoiceSample sample, String testAudioUrl) {
+        String status = "COMPLETED";
+        if (sample.getVoiceTask() != null) {
+            status = sample.getVoiceTask().getStatus().name();
+        } else if (sample.getTestAudioPath() == null) {
+            status = "NOT_STARTED";
+        }
+
         return VoiceSampleResponseDTO.builder()
                 .id(sample.getId())
                 .nickname(sample.getNickname())
                 .createdAt(sample.getCreatedAt())
                 .testAudioUrl(testAudioUrl)
+                .status(status)
                 .build();
     }
 }
