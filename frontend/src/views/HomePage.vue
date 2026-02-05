@@ -1,5 +1,34 @@
 <template>
-  <div class="bg-[#fcfcfc] min-h-screen flex flex-col" :class="{ 'pb-20': familyStore.families.length > 0 }">
+  <div 
+    class="bg-[#fcfcfc] min-h-screen flex flex-col relative" 
+    :class="{ 'pb-20': familyStore.families.length > 0 }"
+    @touchstart="handleTouchStart"
+    @touchmove="handleTouchMove"
+    @touchend="handleTouchEnd"
+  >
+    <!-- Modern Pull-to-Refresh Indicator -->
+    <div 
+      class="fixed top-0 left-0 right-0 flex justify-center items-center z-[110] pointer-events-none transition-all duration-300 ease-out"
+      :style="{ 
+        transform: `translateY(${refreshPullDistance > 0 ? Math.min(refreshPullDistance - 40, 80) : -60}px)`,
+        opacity: Math.min(refreshPullDistance / 60, 1)
+      }"
+    >
+      <div class="bg-white rounded-full shadow-2xl border border-gray-100 flex items-center justify-center w-12 h-12 mt-4 relative overflow-hidden">
+        <!-- Modern SVG Spinner -->
+        <svg v-if="isRefreshing" class="animate-spin h-7 w-7 text-[var(--color-primary)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span 
+          v-else 
+          class="material-symbols-outlined text-[var(--color-primary)] text-2xl transition-transform duration-200"
+          :style="{ transform: `rotate(${Math.min(refreshPullDistance * 3, 360)}deg)` }"
+        >
+          refresh
+        </span>
+      </div>
+    </div>
     <!-- 그룹이 있을 때만 정식 헤더 표시 -->
     <MainHeader v-if="familyStore.families.length > 0" @modal-state-change="handleModalStateChange" :show-settings="true" />
     
@@ -20,7 +49,11 @@
       </button>
     </header>
     
-    <main v-if="familyStore.families.length > 0" class="space-y-5 pt-8 pb-12">
+    <main 
+      v-if="familyStore.families.length > 0" 
+      class="space-y-5 pt-8 pb-12 transition-transform duration-300 ease-out"
+      :style="{ transform: `translateY(${isRefreshing ? 60 : refreshPullDistance * 0.4}px)` }"
+    >
       <NoticeBar />
       <StatusCard />
       <LatestSchedule />
@@ -70,6 +103,12 @@ const modalStore = useModalStore();
 const isModalOpen = ref(false);
 const router = useRouter();
 
+// Refresh State
+const isRefreshing = ref(false);
+const startY = ref(0);
+const refreshPullDistance = ref(0);
+const canRefresh = ref(true);
+
 // 공용 모달 상태
 const isHomeAddModalOpen = ref(false);
 const addModalStep = ref(0);
@@ -109,6 +148,59 @@ const handleCreateGroup = async (data) => {
         isHomeAddModalOpen.value = false;
     } catch (e) {
         // 에러 처리
+    }
+};
+
+// Pull-to-Refresh Handlers
+const handleTouchStart = (e) => {
+    if (window.scrollY > 5 || isRefreshing.value) {
+        canRefresh.value = false;
+        return;
+    }
+    canRefresh.value = true;
+    startY.value = e.touches[0].clientY;
+};
+
+const handleTouchMove = (e) => {
+    if (!canRefresh.value || isRefreshing.value) return;
+    
+    const currentY = e.touches[0].clientY;
+    const distance = currentY - startY.value;
+    
+    if (distance > 0) {
+        // Prevent default only at the top to allow the pull action
+        if (e.cancelable) e.preventDefault();
+        // Resistance factor for natural feeling
+        refreshPullDistance.value = Math.min(distance * 0.6, 150);
+    }
+};
+
+const handleTouchEnd = async () => {
+    if (!canRefresh.value || isRefreshing.value) return;
+    
+    if (refreshPullDistance.value > 100) {
+        await executeRefresh();
+    } else {
+        refreshPullDistance.value = 0;
+    }
+};
+
+const executeRefresh = async () => {
+    isRefreshing.value = true;
+    // Don't set distance to 0 immediately to keep space for indicator
+    
+    try {
+        await Promise.all([
+            familyStore.fetchFamilies(),
+            familyStore.selectedFamily?.id ? notificationStore.fetchHistory(familyStore.selectedFamily.id) : Promise.resolve()
+        ]);
+    } catch (error) {
+        console.error("Home refresh failed:", error);
+    } finally {
+        setTimeout(() => {
+            isRefreshing.value = false;
+            refreshPullDistance.value = 0;
+        }, 800); // UI breathing room
     }
 };
 

@@ -37,7 +37,13 @@
       </div>
     </div>
     
-    <div v-if="hasDependent" class="px-5 -mt-10 relative z-40 space-y-6">
+    <!-- 0. Initial Loading State (To prevent "No dependent" flash) -->
+    <div v-if="pageLoading" class="flex flex-col items-center justify-center min-h-[60vh] px-10 text-center space-y-4 animate-fade-in">
+        <div class="w-12 h-12 border-4 border-orange-500/10 border-t-orange-500 rounded-full animate-spin mb-2"></div>
+        <p class="text-slate-400 font-bold animate-pulse text-sm">데이터를 준비하고 있습니다...</p>
+    </div>
+
+    <div v-else-if="hasDependent" class="px-5 -mt-10 relative z-40 space-y-6">
       
       <!-- Sync Status -->
       <div v-if="syncMessage" class="w-full p-3 bg-blue-50 text-blue-600 rounded-xl text-center text-sm font-medium animate-pulse shadow-sm">
@@ -203,51 +209,72 @@
                     </div>
                     <h3 class="text-xl font-bold">AI 어드바이저 코멘트</h3>
                 </div>
+ 
+                <!-- Analysis Summary (New Structure) -->
+                <div v-if="healthStore.currentReport?.summary" class="bg-white/5 rounded-2xl p-5 border border-white/10 animate-fade-in relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">{{ typeof healthStore.currentReport.summary === 'object' ? healthStore.currentReport.summary.emoji : '💡' }}</span>
+                            <span class="text-orange-200 text-sm font-bold tracking-tight">오늘의 핵심 요약</span>
+                        </div>
+                        <div v-if="typeof healthStore.currentReport.summary === 'object' && healthStore.currentReport.summary.score" 
+                             class="px-3 py-1 bg-orange-500/20 rounded-full border border-orange-500/30">
+                            <span class="text-orange-400 text-xs font-black">{{ healthStore.currentReport.summary.score }}점</span>
+                        </div>
+                    </div>
+                    <p class="text-slate-200 text-[13.5px] leading-relaxed font-medium">
+                        {{ typeof healthStore.currentReport.summary === 'object' ? healthStore.currentReport.summary.text : healthStore.currentReport.summary }}
+                    </p>
+                </div>
+ 
                 <div class="space-y-6">
                     <div class="text-slate-200 text-[14px] leading-relaxed font-medium space-y-4">
-                      <template v-for="(item, index) in formattedAdvisorComment" :key="index">
-                        <!-- Ultra-Premium Title -->
-                        <div v-if="item.isTitle" 
-                             class="flex items-center gap-3 mt-8 mb-4">
-                           <div class="relative">
-                              <div class="absolute inset-0 bg-orange-500 blur-md opacity-20 animate-pulse"></div>
-                              <div class="w-1 h-5 bg-gradient-to-b from-orange-400 to-orange-600 rounded-full relative"></div>
-                           </div>
-                           <h4 class="text-[15px] font-black text-white/95 tracking-tight uppercase tracking-[0.05em]">{{ item.text }}</h4>
-                        </div>
-                        
-                        <!-- High-End Insight Card -->
-                        <div v-else 
+                      <!-- Structural Insight Cards -->
+                      <template v-if="formattedAdvisorComment.length > 0">
+                        <div v-for="(item, index) in formattedAdvisorComment" :key="index"
                              class="group relative bg-[#1a1c23]/40 backdrop-blur-3xl rounded-[1.5rem] p-5 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-500 hover:translate-y-[-2px] hover:bg-[#21242e]/60 hover:border-white/20">
-                           <!-- Elegant selection glow -->
                            <div class="absolute -inset-[1px] bg-gradient-to-br from-white/10 to-transparent rounded-[1.5rem] pointer-events-none opacity-50"></div>
                            
                            <div class="flex gap-4 relative z-10">
                               <div class="flex flex-col items-center">
                                  <div :class="[
                                     'w-10 h-10 rounded-2xl flex items-center justify-center transition-colors duration-500 shadow-lg',
-                                    item.text.includes('조심') || item.text.includes('주의') || item.text.includes('위험') 
-                                      ? 'bg-red-500/10 text-red-400 border border-red-500/20 shadow-red-500/5' 
-                                      : 'bg-orange-500/10 text-orange-400 border border-orange-500/20 shadow-orange-500/5'
+                                    item.type === 'WARNING' || item.type === 'URGENT' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                    item.type === 'TREND' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                    item.type === 'ADVICE' || item.type === 'ACTION' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                    'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                                  ]">
                                     <span class="material-symbols-outlined text-[20px] font-light">
-                                        {{ item.text.includes('조심') || item.text.includes('주의') || item.text.includes('위험') ? 'error' : 'auto_awesome' }}
+                                        {{ getIconForType(item.type) }}
                                     </span>
                                  </div>
                                  <div class="w-px flex-grow bg-gradient-to-b from-white/10 to-transparent mt-3 h-4"></div>
                               </div>
                               
                               <div class="flex-grow pt-1.5">
-                                 <p class="text-slate-300 leading-[1.6] text-[14.5px] font-medium tracking-tight">
-                                    {{ item.text.replace(/\.$/, '') }}<!-- remove trailing period for modern look if desired, but keeping content intact -->
+                                 <h4 class="text-white font-bold text-sm mb-1 opacity-90 tracking-tight">{{ item.title || '건강 지표' }}</h4>
+                                 <p class="text-slate-300 leading-[1.6] text-[13.5px] font-medium tracking-tight">
+                                    {{ item.content || item.text }}
                                  </p>
                               </div>
                            </div>
                         </div>
                       </template>
                       
+                      <!-- Local Loader inside the card (No global loader!) -->
+                      <div v-else-if="analyzeLoading" class="flex flex-col items-center justify-center py-20 px-6 animate-fade-in">
+                          <div class="relative mb-6">
+                              <div class="w-16 h-16 border-4 border-orange-500/10 border-t-orange-500 rounded-full animate-spin"></div>
+                              <div class="absolute inset-0 flex items-center justify-center">
+                                  <span class="material-symbols-outlined text-orange-500 text-xl animate-pulse">auto_awesome</span>
+                              </div>
+                          </div>
+                          <p class="text-orange-200 text-sm font-bold tracking-tight mb-1">AI가 어르신의 건강을 분석 중입니다</p>
+                          <p class="text-slate-500 text-[11px]">잠시만 기다려주시면 전문적인 코멘트를 작성할게요.</p>
+                      </div>
+ 
                       <!-- Empty State with Glass Design -->
-                      <div v-if="!reportDescription && !healthStore.currentReport" 
+                      <div v-else-if="!reportDescription && !healthStore.currentReport" 
                            class="flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-dashed border-white/5 rounded-[2.5rem] bg-white/[0.02]">
                          <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 backdrop-blur-md">
                             <span class="material-symbols-outlined text-white/20 text-3xl animate-pulse">clinical_notes</span>
@@ -339,6 +366,7 @@ const healthStore = useHealthStore();
 
 const syncLoading = ref(false);
 const analyzeLoading = ref(false);
+const pageLoading = ref(true); // New Page Loading State
 const showHelpModal = ref(false);
 const syncMessage = ref('');
 const members = ref([]);
@@ -377,30 +405,48 @@ const lastUpdateTime = computed(() => {
 });
 
 const formattedAdvisorComment = computed(() => {
-    const text = reportDescription.value;
-    if (!text) return [];
+    const desc = healthStore.currentReport?.description;
+    if (!desc) return [];
     
-    // Split by newlines and clean up
-    const lines = text.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
+    // 1. If it's already an array (New Backend Structure)
+    if (Array.isArray(desc)) return desc;
     
-    return lines.map(line => {
-        // Remove leading bullets and dashes (•, -, *, 1., 등)
-        let cleanedText = line.replace(/^[•\-\*\d\.]+\s*/, '').trim();
-        
-        // Detect if it's a title (ends with colon or is relatively short and doesn't end with a period)
-        const isTitle = cleanedText.endsWith(':') || (cleanedText.length < 25 && !cleanedText.endsWith('.'));
-        
-        // Remove trailing colon for visual cleaner titles
-        if (isTitle && cleanedText.endsWith(':')) {
-            cleanedText = cleanedText.slice(0, -1);
+    // 2. If it's a string, try to parse or clean
+    if (typeof desc === 'string') {
+        try {
+            const parsed = JSON.parse(desc);
+            if (Array.isArray(parsed)) return parsed;
+            return parsed.description || [parsed];
+        } catch (e) {
+            // Fallback: Custom regex to remove markers like '1) ', '(1) ', '• '
+            const lines = desc.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
+            return lines.map(line => {
+                let cleanedText = line.replace(/^[•\-\*\d\.\(\)]+\s*/, '').trim();
+                const isTitle = cleanedText.endsWith(':') || (cleanedText.length < 25 && !cleanedText.endsWith('.'));
+                if (isTitle && cleanedText.endsWith(':')) cleanedText = cleanedText.slice(0, -1);
+                
+                return {
+                    title: isTitle ? cleanedText : 'AI 분석 결과',
+                    content: cleanedText,
+                    type: (cleanedText.includes('주의') || cleanedText.includes('위험')) ? 'WARNING' : 'ADVICE'
+                };
+            });
         }
-
-        return {
-            text: cleanedText,
-            isTitle: isTitle
-        };
-    });
+    }
+    return [];
 });
+
+const getIconForType = (type) => {
+    switch (type) {
+        case 'TREND': return 'trending_up';
+        case 'METRIC': return 'analytics';
+        case 'WARNING': case 'URGENT': return 'warning';
+        case 'ADVICE': return 'tips_and_updates';
+        case 'SOCIAL': return 'chat';
+        case 'ACTION': return 'task_alt';
+        default: return 'auto_awesome';
+    }
+};
 
 const fetchLatestData = async () => {
     const familyId = familyStore.selectedFamily?.id;
@@ -535,6 +581,8 @@ window.onReceiveSteps = window.onReceiveAllHealthData;
 window.onReceiveSleep = window.onReceiveAllHealthData;
 
 onMounted(async () => {
+    pageLoading.value = true;
+
     if (route.query.scrollTo === 'analysis') {
         const checkElement = setInterval(() => {
             const el = document.getElementById('ai-analysis');
@@ -548,21 +596,27 @@ onMounted(async () => {
         window.scrollTo(0, 0);
     }
 
-    if (!familyStore.selectedFamily) {
+    // 1. Ensure family list is loaded
+    if (familyStore.families.length === 0) {
         await familyStore.fetchFamilies();
     }
     
-    // Fetch members to determine role
+    // 2. Fetch members for the selected group
     if (familyStore.selectedFamily?.id) {
         try {
-            const response = await api.get(`/families/${familyStore.selectedFamily.id}/members`);
-            members.value = response.data;
+            await Promise.all([
+                (async () => {
+                    const response = await api.get(`/families/${familyStore.selectedFamily.id}/members`);
+                    members.value = response.data;
+                })(),
+                fetchLatestData()
+            ]);
         } catch (e) {
-            console.error("Failed to fetch members:", e);
+            console.error("Failed to fetch initial health data:", e);
         }
     }
 
-    fetchLatestData();
+    pageLoading.value = false;
 });
 
 // Re-fetch data when the selected family group changes
