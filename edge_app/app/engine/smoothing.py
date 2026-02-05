@@ -279,16 +279,47 @@ def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
 
         # 이전 값 없으면 초기화
         if kid not in _prev_kp_ema:
-            _prev_kp_ema[kid] = {"x": c["x"], "y": c["y"]}
+            _prev_kp_ema[kid] = {"x": c["x"], "y": c["y"], "jump_cnt": 0}
 
         px = _prev_kp_ema[kid]["x"]
         py = _prev_kp_ema[kid]["y"]
+        p_jump_cnt = _prev_kp_ema[kid].get("jump_cnt", 0)
+
+        # 거리 계산 (Jump 판정용)
+        dist = math.hypot(c["x"] - px, c["y"] - py)
+        
+        # 손/발은 허용 이동량 더 큼
+        thr = (
+            KP_JUMP_RATIO_EXT if kid in JOINT_IDS_EXTENDED_MOVEMENT
+            else KP_JUMP_RATIO
+        ) * diag
+        
+        is_jump = (dist > thr)
+        
+        # [Persistence Counter] 점프가 지속되는지 확인
+        if is_jump:
+            p_jump_cnt += 1
+        else:
+            p_jump_cnt = 0 # 정상 범위 들어오면 리셋
+            
+        # 상태 저장 (다음 프레임을 위해)
+        _prev_kp_ema[kid]["jump_cnt"] = p_jump_cnt
+
+        # ------------------------
+        # 강제 업데이트 조건:
+        # 점프가 4프레임 이상 지속되면 -> "실제 이동"으로 간주하여
+        # Low Confidence나 Jump Gating을 무시하고 업데이트 허용
+        # ------------------------
+        force_update = (p_jump_cnt >= 4)
 
         # ------------------------
         # confidence 낮으면 hold
-        # (이전 프레임 값 유지)
+        # (단, force_update면 스킵)
         # ------------------------
-        if conf < KP_MIN_CONF_FOR_SMOOTH:
+        if conf < KP_MIN_CONF_FOR_SMOOTH and not force_update:
+            # [개선] 완전 Hold 대신 아~~주 조금은 따라가게 할까?
+            # 아니다, 신뢰도 낮은 노이즈가 계속 들어오면 떨림 발생함.
+            # 일단 Hold 유지하되, force_update로 탈출구 마련.
             out_list.append({"id": kid, "x": px, "y": py, "conf": conf})
             continue
 
@@ -300,24 +331,19 @@ def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
         # ------------------------
         # 점프(이상 이동) 게이팅
         # 예상 이동량보다 크면 처리
+        # (단, force_update면 페널티 없이 반영)
         # ------------------------
-        if KP_JUMP_ENABLE:
-            dist = math.hypot(c["x"] - px, c["y"] - py)
-            
-            # 손/발은 허용 이동량 더 큼
-            thr = (
-                KP_JUMP_RATIO_EXT if kid in JOINT_IDS_EXTENDED_MOVEMENT
-                else KP_JUMP_RATIO
-            ) * diag
+        if KP_JUMP_ENABLE and is_jump and not force_update:
+            # conf도 낮으면 아예 hold
+            if KP_JUMP_HOLD_IF_LOWCONF and conf < CONFIDENCE_JUMP_THRESHOLD:
+                out_list.append({"id": kid, "x": px, "y": py, "conf": conf})
+                continue
 
-            if dist > thr:
-                # conf도 낮으면 아예 hold
-                if KP_JUMP_HOLD_IF_LOWCONF and conf < CONFIDENCE_JUMP_THRESHOLD:
-                    out_list.append({"id": kid, "x": px, "y": py, "conf": conf})
-                    continue
-
-                # 아니면 alpha를 키워 더 부드럽게
-                alpha = min(0.99, alpha * KP_JUMP_ALPHA_MUL)
+            # 아니면 alpha를 키워 더 부드럽게 (천천히 따라가기)
+            alpha = min(0.99, alpha * KP_JUMP_ALPHA_MUL)
+        
+        # force_update 상황이면 alpha를 조금 낮춰서(빠르게) 반응할 수도 있지만
+        # 급격한 변화일 수 있으므로 기본 alpha 사용 (안전)
 
         # 점프 게이팅 이후 alpha가 조정될 수 있으므로
         # 최종 안전 범위 클램프
