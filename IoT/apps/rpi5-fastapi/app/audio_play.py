@@ -126,10 +126,13 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0) -> AudioPlayback
     volume = max(0.0, min(volume, 2.0))
     logger.debug("[audio_play] start_mp3_playback path=%s volume=%.2f", path, volume)
 
+    # 앞부분 잘림 방지용 프리롤(무음)
+    preroll_ms = 250
+
     ffmpeg = await asyncio.create_subprocess_exec(
         "ffmpeg", "-loglevel", "error",
         "-i", path,
-        "-filter:a", f"volume={volume:.2f}",
+        "-filter:a", f"adelay={preroll_ms}|{preroll_ms},volume={volume:.2f}",
         "-f", "s16le",
         "-acodec", "pcm_s16le",
         "-ac", "2",

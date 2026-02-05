@@ -4,7 +4,7 @@ import time
 import logging
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional, Callable
+from typing import Optional, Callable, Iterable
 
 from .audio_play import AudioPlayback, start_mp3_playback
 
@@ -209,3 +209,78 @@ class AudioManager:
                         pass
 
         logger.info("[audio] manager stopped")
+    async def cancel(
+        self,
+        *,
+        kind: str | None = None,
+        replace_key: str | None = None,
+    ) -> dict:
+        """
+        kind / replace_key 기준으로:
+        - 큐에서 제거
+        - 현재 재생 중이면 stop_current
+        return: {"removed": int, "stopped_current": bool}
+        """
+        removed = 0
+        stopped_current = False
+
+        # 1) 큐에서 제거는 cv 락 안에서
+        async with self._cv:
+            before = len(self._queue)
+
+            def _match(j: AudioJob) -> bool:
+                if kind is not None and j.kind != kind:
+                    return False
+                if replace_key is not None and j.replace_key != replace_key:
+                    return False
+                return True
+
+            self._queue = [j for j in self._queue if not _match(j)]
+            removed = before - len(self._queue)
+            self._dump(f"cancel kind={kind} rk={replace_key} removed={removed}")
+
+            # 2) 현재 재생 중인 job도 기준에 맞으면 stop 예약
+            cur = self._current
+            if cur and _match(cur):
+                stopped_current = True
+                # cv 락 안에서 await stop_current 하면 데드락/지연 위험 -> task로
+                asyncio.create_task(self.stop_current())
+
+            self._cv.notify_all()
+
+        return {"removed": int(removed), "stopped_current": bool(stopped_current)}
+
+    async def cancel_many(
+        self,
+        *,
+        kinds: Iterable[str] | None = None,
+        replace_keys: Iterable[str] | None = None,
+    ) -> dict:
+        kinds_set = set(kinds or [])
+        rks_set = set(replace_keys or [])
+
+        removed = 0
+        stopped_current = False
+
+        async with self._cv:
+            before = len(self._queue)
+
+            def _match(j: AudioJob) -> bool:
+                if kinds_set and j.kind not in kinds_set:
+                    return False
+                if rks_set and (j.replace_key not in rks_set):
+                    return False
+                return True
+
+            self._queue = [j for j in self._queue if not _match(j)]
+            removed = before - len(self._queue)
+            self._dump(f"cancel_many kinds={list(kinds_set)} rks={list(rks_set)} removed={removed}")
+
+            cur = self._current
+            if cur and _match(cur):
+                stopped_current = True
+                asyncio.create_task(self.stop_current())
+
+            self._cv.notify_all()
+
+        return {"removed": int(removed), "stopped_current": bool(stopped_current)}

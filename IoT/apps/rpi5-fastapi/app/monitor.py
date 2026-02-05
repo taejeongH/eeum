@@ -176,7 +176,6 @@ def handle_vision(state: MonitorState, ev: Event) -> None:
         if state.fall_active:
             logger.info("[FALL] ignored: already active")
             return
-        cancel_task(state, "tts_alarm")  # 알람 TTS 재생/대기 중이면 즉시 취소
         state.audio.block_below_prio = int(AudioPrio.FALL) # fall 중에는 fall만 재생
         state.fall_active = True
         state.fall_stage = "ASK_TTS"

@@ -64,8 +64,9 @@ class FasterWhisperSTT:
         af = (
             "highpass=f=80,lowpass=f=8000,"
             "afftdn=nf=-25,"
-            "acompressor=threshold=-22dB:ratio=3:attack=10:release=200,"
-            "volume=6dB"
+            "acompressor=threshold=-28dB:ratio=6:attack=5:release=300,"
+            "alimiter=limit=0.95,"
+            "volume=12dB"
         )
 
         r = await async_sh(
@@ -138,12 +139,12 @@ async def record_with_vad(
     out_wav: str,
     *,
     device: str | None = None,
-    max_sec: float = 8.0,
+    max_sec: float = 10.0,
     sample_rate: int = 16000,
     frame_ms: int = 30,
     vad_level: int = 1,
     min_speech_sec: float = 0.25,
-    end_silence_sec: float = 0.9,
+    end_silence_sec: float = 1.3,
     discard_head_sec: float = 0.05,
 ) -> tuple[bool, str]:
     """

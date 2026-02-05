@@ -19,10 +19,6 @@ fi
 # GNOME a11y 스키마가 있으므로: OSK 자동 표시 활성화
 gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true || true
 
-# squeekboard가 이미 떠 있으면 재시작 (환경 반영)
-pkill -f squeekboard 2>/dev/null || true
-(squeekboard >/dev/null 2>&1 &)
-
 # "가짜 풀스크린" = fullscreen을 피하고 maximized로
 # --app: 탭/주소창 제거
 # --start-maximized: fullscreen 아님(중요)

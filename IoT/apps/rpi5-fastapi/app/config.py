@@ -73,17 +73,17 @@ WEB_DIST_PATH = _get_env("WEB_DIST_PATH", "./dist")
 ALARM_TTS_DEBOUNCE_SEC = float(_get_env("ALARM_TTS_DEBOUNCE_SEC", "60"))
 
 DEFAULT_TTS_MESSAGE = [
-    "괜찮으세요? 도와드릴까요?",
-    "일정 알림이 있어요",
-    "복약 알림이 있어요",
-    "음성 메시지가 있어요"
+    "지금 괜찮으세요? 도와드릴까요?",
+    "새로운 일정 알림이 있어요",
+    "새로운 복약 알림이 있어요",
+    "새로운 음성 메시지가 있어요"
 ]
 
 DEFAULT_TTS_BY_KIND = {
-    "fall_detected": "괜찮으세요? 도와드릴까요?",
-    "schedule": "일정 알림이 있어요",
-    "medication": "복약 알림이 있어요",
-    "voice": "음성 메시지가 있어요"
+    "fall_detected": "지금 괜찮으세요? 도와드릴까요?",
+    "schedule": "새로운 일정 알림이 있어요",
+    "medication": "새로운 복약 알림이 있어요",
+    "voice": "새로운 음성 메시지가 있어요"
 }
 
 AUDIO_IN_DEVICE = _get_env("AUDIO_IN_DEVICE", "")  # 예: plughw:CARD=Audio,DEV=0
