@@ -217,7 +217,7 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
  */
 export const transcribeAudio = async (file) => {
     try {
-        console.log(`Transcribing file via backend proxy: type=${file.type}, size=${file.size}`);
+        console.log(`Transcribing file directly via GMS: type=${file.type}, size=${file.size}`);
 
         const formData = new FormData();
         const ext = file.type.includes('webm') ? 'webm' :
@@ -225,16 +225,32 @@ export const transcribeAudio = async (file) => {
                 file.type.includes('mpeg') || file.type.includes('mp3') ? 'mp3' : 'wav';
 
         formData.append('file', file, `recording.${ext}`);
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'ko');
 
-        const response = await apiClient.post('/voice/transcribe', formData, {
+        const gmsKey = import.meta.env.VITE_GMS_KEY;
+        if (!gmsKey) {
+            throw new Error("GMS Key is missing in environment variables.");
+        }
+
+        // Use absolute URL to bypass local Nginx proxy issues
+        const response = await fetch('https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
             headers: {
-                'Content-Type': 'multipart/form-data'
-            }
+                'Authorization': `Bearer ${gmsKey}`
+            },
+            body: formData
         });
 
-        return response.data.data;
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Transcription failed (${response.status}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        return data.text;
     } catch (error) {
-        console.error("Transcription error via proxy:", error);
+        console.error("Direct transcription error:", error);
         throw error;
     }
 };

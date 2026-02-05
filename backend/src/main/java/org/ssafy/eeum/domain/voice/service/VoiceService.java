@@ -19,9 +19,7 @@ import org.ssafy.eeum.domain.voice.repository.VoiceScriptRepository;
 import org.ssafy.eeum.domain.voice.repository.VoiceTaskRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
-import org.ssafy.eeum.global.infra.gms.GmsService;
 import org.ssafy.eeum.global.infra.s3.S3Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,7 +35,6 @@ public class VoiceService {
     private final VoiceTaskRepository taskRepository;
     private final S3Service s3Service;
     private final VoiceAiClient voiceAiClient;
-    private final GmsService gmsService;
 
     private static final List<String> TEST_QUOTES = List.of(
             "너나 잘하세요.",
@@ -381,9 +378,5 @@ public class VoiceService {
                 .refText(refText)
                 .text(text)
                 .build();
-    }
-
-    public String transcribeAudio(MultipartFile file) {
-        return gmsService.transcribeAudio(file);
     }
 }
