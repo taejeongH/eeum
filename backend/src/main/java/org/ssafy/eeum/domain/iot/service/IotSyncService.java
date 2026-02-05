@@ -177,10 +177,9 @@ public class IotSyncService {
     }
 
     /**
-     * 데이터 업데이트 알림 요청 (배치 처리)
-     * 1. Redis에 kind별 업데이트 카운트 증가
-     * 2. 해당 kind 카운트가 5 이상이면 즉시 전송
-     * 3. 1시간마다 확인하여 카운트 > 0 이면 전송 (Scheduled)
+     * 데이터 업데이트 알림 요청 (즉시 전송)
+     * 1. Redis에 활성 가족 및 kind 목록 추가
+     * 2. 즉시 MQTT 전송 (1개라도 생기면 바로 보냄)
      */
     public void notifyUpdate(Integer familyId, String kind) {
         String familyIdStr = familyId.toString();
@@ -193,12 +192,10 @@ public class IotSyncService {
         redisService.addToSet(activeKindsKey, kind);
 
         // 2. 카운트 증가
-        Long count = redisService.increment(countKey);
+        redisService.increment(countKey);
 
-        // 3. 5개 이상이면 즉시 전송
-        if (count != null && count >= 5) {
-            sendBatchNotification(familyId, kind);
-        }
+        // 3. 즉시 전송
+        sendBatchNotification(familyId, kind);
     }
 
     private void sendBatchNotification(Integer familyId, String kind) {

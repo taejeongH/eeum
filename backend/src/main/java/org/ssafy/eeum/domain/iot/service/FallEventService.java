@@ -68,7 +68,7 @@ public class FallEventService {
             eventBuilder.videoPath(fileName);
             eventBuilder.videoStatus(FallEvent.VideoStatus.PENDING);
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
-            
+
             // [NEW] Trigger Heart Rate Measurement automatically
             log.info("Fall Detected (Level 1). Triggering Heart Rate Measurement for Group: {}", groupId);
             healthService.requestMeasurement(groupId);
@@ -142,25 +142,32 @@ public class FallEventService {
                 .orElseThrow(() -> new CustomException(
                         ErrorCode.ENTITY_NOT_FOUND));
 
-        boolean isSentimentEmergency = gmsService.analyzeSentiment(sttContent);
+        log.info("[DEBUG_FALL] Handling Voice Response for Family: {}, STT: {}", familyId, sttContent);
+
+        boolean gmsAnalysisResult = gmsService.analyzeSentiment(sttContent);
+        log.info("[DEBUG_FALL] GMS Analysis Result: {}", gmsAnalysisResult);
+
+        boolean isSentimentEmergency = sttContent.contains("EMERGENCY") || sttContent.contains("비상")
+                || gmsAnalysisResult;
         boolean isHeartRateEmergency = healthService.isHeartRateAbnormal(familyId);
-        
-        log.info("Dual Verification Result - Group: {}, TTS Emergency: {}, HR Emergency: {}", 
-            familyId, isSentimentEmergency, isHeartRateEmergency);
+
+        log.info("[DEBUG_FALL] Dual Verification - Group: {}, STT: '{}', Sentiment: {} (GMS: {}), HR: {}",
+                familyId, sttContent, isSentimentEmergency, gmsAnalysisResult, isHeartRateEmergency);
 
         if (isSentimentEmergency || isHeartRateEmergency) {
             String emergencyReason = sttContent;
             if (isHeartRateEmergency) {
                 emergencyReason += " (심박수 이상 감지됨)";
             }
-            
+
             event.updateToEmergency(emergencyReason);
-            log.warn("낙상 위급 상황 판단 (Dual Verification): Group={}, Reason={}", familyId, emergencyReason);
+            log.warn("[DEBUG_FALL] 낙상 위급 상황 판단 (EMERGENCY) - Group: {}, Reason: {}, Final Status: EMERGENCY", familyId,
+                    emergencyReason);
 
             fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + emergencyReason, event.getId());
         } else {
             event.updateToSafe(sttContent);
-            log.info("낙상 안전 확인 (Dual Verification): Group={}, Text={}", familyId, sttContent);
+            log.info("[DEBUG_FALL] 낙상 안전 확인 (SAFE) - Group: {}, Text: '{}', Final Status: SAFE", familyId, sttContent);
         }
     }
 
