@@ -34,7 +34,7 @@ class Level1Params:
 
     # Posture collapse (aspect ratio) signal
     baseline_window_s: float = 3.0
-    aspect_abs_th: float = 1.2
+    aspect_abs_th: float = 1.0     # 1.2 -> 1.0 (앉았을 때 오탐지 방지, 확실히 누운 경우만)
     aspect_ratio_th: float = 0.55
 
     # ⭐ 핵심: Level 0에서 일정 시간 이상 정상 회복 못하면 Level 1 승격
@@ -42,8 +42,9 @@ class Level1Params:
     abnormal_timeout_s: float = 30.0  # Level 0 상태 타임아웃 (10s -> 30s)
 
     # Recovery to NORMAL - 5초에서 3초로 변경 (너무 엄격한 조건은 독거 노인에게 맞지 않음)
-    recover_s: float = 3.0
-    aspect_recover_ratio: float = 1.0  # 정확히 baseline까지 완전 회복
+    # [수정] 3.0초 -> 2.0초로 더 빠르게 복귀 & 임계값 완화
+    recover_s: float = 2.0
+    aspect_recover_ratio: float = 0.9  # baseline의 90% 정도만 회복해도 인정
     recover_center_move_th: float = 0.10  # 매우 큰 움직임만 "회복"으로 인정
 
     # Stillness thresholds
@@ -60,6 +61,10 @@ class Level1Params:
     # Low Posture Persistence (Forced ABNORMAL entry for slow collapse)
     force_abnormal_aspect_th: float = 0.7  # 이 비율보다 낮으면 "매우 낮은 자세"로 간주
     force_abnormal_frames: int = 45        # N프레임(약 2~3초) 이상 유지되면 즉시 위험 진입 (15 -> 45)
+
+    # Ghost Tracking (Occlusion/Exit during Abnormal)
+    ghost_timeout_s: float = 15.0    # 소실 후 이 시간 동안 Level1 진입 대기 (5s -> 15s)
+    screen_edge_margin: float = 0.05 # 화면 가장자리 판정 비율 (5%)
 
 
 class Level1Engine:
@@ -102,6 +107,15 @@ class Level1Engine:
         
         # Head drop continuity counter
         self.head_drop_cnt = 0
+        
+        # Ghost Tracking State
+        self.ghost_start_ts: Optional[float] = None  # 소실 시작 시간
+        self.is_ghost_mode: bool = False           # 고스트 모드 활성화 여부
+        self.last_known_bbox: Optional[List[float]] = None # 소실 직전 좌표
+
+        # [Hysteresis] Ghost flickering 방지용 카운터
+        self.ghost_entry_cnt = 0
+        self.ghost_exit_cnt = 0
 
     def reset_all(self):
         self.state = "NORMAL"
@@ -121,6 +135,10 @@ class Level1Engine:
         self.aspect_hist.clear()
         self.low_posture_cnt = 0
         self.head_drop_cnt = 0
+        
+        self.ghost_start_ts = None
+        self.is_ghost_mode = False
+        self.last_known_bbox = None
 
     def _compute_baseline_aspect(self, ts: float) -> Optional[float]:
         # keep only baseline_window_s
@@ -182,6 +200,71 @@ class Level1Engine:
         
         # 무릎/발목이 거의 다(3개 이상) 없으면 상반신만 있는 것으로 간주
         return visible_lower < 2
+
+    def _check_on_edge(self, bbox: List[float], width: float = 1.0, height: float = 1.0) -> bool:
+        """
+        BBox가 화면 가장자리에 닿았는지 확인 (단순 퇴장 구분용)
+        좌표계는 0.0 ~ 1.0 정규화 가정
+        """
+        if not bbox: return False
+        x1, y1, x2, y2 = bbox
+        m = self.p.screen_edge_margin
+        
+        # 좌, 우, 상, 하 (하단 제외? 낙상은 바닥으로 가니까)
+        # 보통 퇴장은 좌/우/상단(멀어짐)
+        on_left = x1 < m
+        on_right = x2 > (1.0 - m)
+        on_top = y1 < m
+        on_bottom = y2 > (1.0 - m)
+        
+        return on_left or on_right or on_top or on_bottom
+
+    def _is_vertical_torso(self, kps_list: List[Dict[str, Any]]) -> bool:
+        """
+        상체(어깨-골반)가 수직에 가까운지 확인 (앉아있는 자세 판별용)
+        True: 수직에 가까움 (Sitting/Standing)
+        False: 수평에 가깝거나 기울어짐 (Lying/Collapsed/Leaning)
+        """
+        def get_kp(id):
+            return next((k for k in kps_list if int(k.get("id", -1)) == id), None)
+
+        # Shoulders (5, 6), Hips (11, 12)
+        ls, rs = get_kp(5), get_kp(6)
+        lh, rh = get_kp(11), get_kp(12)
+        
+        # 4개 점 중 3개 이상 있어야 판단 가능
+        valid_cnt = sum([1 for k in [ls, rs, lh, rh] if k is not None])
+        if valid_cnt < 3:
+            return False # 정보 부족하면 일단 False (보수적)
+
+        # Mid-Shoulder
+        sx, sy, sc = 0.0, 0.0, 0
+        if ls: sx += float(ls["x"]); sy += float(ls["y"]); sc += 1
+        if rs: sx += float(rs["x"]); sy += float(rs["y"]); sc += 1
+        if sc == 0: return False
+        ms_x, ms_y = sx / sc, sy / sc
+
+        # Mid-Hip
+        hx, hy, hc = 0.0, 0.0, 0
+        if lh: hx += float(lh["x"]); hy += float(lh["y"]); hc += 1
+        if rh: hx += float(rh["x"]); hy += float(rh["y"]); hc += 1
+        if hc == 0: return False
+        mh_x, mh_y = hx / hc, hy / hc
+
+        if mh_y <= ms_y: # 골반이 어깨보다 위에 있거나 같으면? (물구나무 or 누움) -> Not Vertical
+             return False
+
+        dx = abs(ms_x - mh_x)
+        dy = abs(ms_y - mh_y)
+        
+        # 수직이면 dy가 dx보다 훨씬 커야 함
+        # 각도 45도 기준: dy > dx
+        # 각도 30도 기준: dy > 1.73 * dx (더 엄격)
+        # Sitting: 거의 0~20도 -> dy >> dx
+        # Slumped: 45도 이상 기울어짐 -> dy ~ dx or dy < dx
+        
+        # [판단 기준] dy > dx * 1.5 (약 33도 이내)
+        return dy > (dx * 1.5)
 
     def _compute_confidence(self) -> Tuple[float, Dict[str, Any]]:
         """
@@ -295,23 +378,122 @@ class Level1Engine:
     def step(self, obs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         ts = float(obs.get("ts", 0.0))
         frame_index = int(obs.get("frame_index", -1))
-
+        
+        # --- 고스트 트래킹 (객체 소실 대응) ---
         tracks = obs.get("tracks") or []
+        
+        # 트랙이 없거나(소실), 품질이 너무 낮으면(사실상 없는 셈)
+        is_lost = False
         if not tracks:
-            self.reset_all()
-            return None
+            is_lost = True
+        elif not tracks[0].get("has_person", False):
+            is_lost = True
+        elif float(tracks[0].get("quality_score") or 0.0) < self.p.min_quality:
+            is_lost = True
+            
+        if is_lost:
+            # Ghost Entry Hysteresis: 소실이 일정 프레임 이상 유지되어야 진입
+            self.ghost_entry_cnt += 1
+            self.ghost_exit_cnt = 0 # 재등장 카운트 초기화
+
+            # 1. 고스트 모드 진입 조건: 이미 ABNORMAL 상태여야 함
+            if self.state == "ABNORMAL":
+                if not self.is_ghost_mode:
+                    # [Hysteresis] 5프레임 이상 연속 소실 시 진입
+                    if self.ghost_entry_cnt >= 5:
+                        self.is_ghost_mode = True
+                        self.ghost_start_ts = ts
+                        import logging
+                        logging.getLogger(__name__).info(f"[Ghost] Object lost in ABNORMAL state (cnt={self.ghost_entry_cnt}). Tracking started at {ts:.2f}")
+
+                # 2. 고스트 타이머 체크
+                time_in_ghost = ts - self.ghost_start_ts if self.ghost_start_ts else 0.0
+                
+                # 타임아웃 도달 시 -> 최종 낙상(Level1)으로 확정
+                # (장애물 뒤로 넘어져서 안 일어나는 상황으로 간주)
+                if time_in_ghost >= self.p.ghost_timeout_s and not self.level1_fired:
+                    self.level1_fired = True
+                    self.state = "LEVEL1"
+                    
+                    # [Fix] Ghost 타임아웃 시에도 신뢰도 계산 포함
+                    conf_score, conf_detail = self._compute_confidence()
+                    
+                    return {
+                        "type": "level1",
+                        "ts": ts,
+                        "frame_index": frame_index,
+                        "reason": "ghost_timeout_while_abnormal",
+                        "values": {
+                             "time_in_ghost": time_in_ghost,
+                             "last_bbox": self.last_known_bbox,
+                             "confidence_score": conf_score,
+                             "confidence_detail": conf_detail
+                        }
+                    }
+                return None # 계속 대기
+            
+            else:
+                # Normal 상태에서 소실되었지만, 낙상하면서 나간 경우인지 체크 (Boundary Fall)
+                # 1) 마지막 위치가 테두리 근처
+                is_edge_exit = self._check_on_edge(self.last_known_bbox) if self.last_known_bbox else False
+                # 2) 최근 급격한 하강 신호가 있었는지 (drop_hits에 기록이 남아있는지)
+                recent_drop = len(self.drop_hits) > 0
+
+                if is_edge_exit and recent_drop:
+                    # [Boundary Fall Trigger]
+                    # 이건 즉시성 중요하므로 Hysteresis 없이 바로 진입 (이미 나갔으므로 count 의미 없음)
+                    self.state = "ABNORMAL"
+                    self.is_ghost_mode = True
+                    self.ghost_start_ts = ts
+                    self.ghost_entry_cnt = 5 # 강제 설정
+                    self.ghost_start_ts = ts
+                    self.abnormal_start_ts = ts  # ABNORMAL 시작 시간 기록
+                    
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"[Boundary Fall] Object exited at edge with drop signal. Force ABNORMAL & Ghost at {ts:.2f}")
+                    
+                    # [수정] 녹화 시작을 위해 abnormal_enter 이벤트 반환
+                    return {
+                        "type": "abnormal_enter",
+                        "ts": ts,
+                        "frame_index": frame_index,
+                        "reason": "boundary_fall_trigger",
+                        "values": {
+                             "last_bbox": self.last_known_bbox
+                        }
+                    }
+                
+                # 그 외 단순 퇴장 -> 리셋
+                self.reset_all()
+                return None
+
+        # --- 객체/형체 존재 시 로직 진행 ---
+        self.ghost_entry_cnt = 0 # 소실 카운트 초기화
+
+        # 고스트 해제 (다시 나타남) -> Hysteresis 적용
+        if self.is_ghost_mode:
+            self.ghost_exit_cnt += 1
+            if self.ghost_exit_cnt >= 5:
+                # 5프레임 이상 연속 감지되어야 해제
+                self.is_ghost_mode = False
+                self.ghost_start_ts = None
+                self.ghost_exit_cnt = 0
+                import logging
+                logging.getLogger(__name__).info("[Ghost] Object reappeared (cnt>=5). Resume tracking.")
+            else:
+                # 아직 확실치 않으므로 고스트 모드 유지하되, 리턴하지 않고 분석을 시도할지?
+                # 아니, 안전하게 고스트 모드인 척 리턴하는 게 나음 (불안정한 데이터 섞이지 않게)
+                # 단, 여기서는 return None 하면 분석이 끊기므로... 
+                # 일단은 분석을 허용하되 state 탈출은 보류하는 방식이 나음.
+                pass
 
         t0 = tracks[0]
-        if not t0.get("has_person", False):
-            self.reset_all()
-            return None
-
         quality = float(t0.get("quality_score") or 0.0)
-        if quality < self.p.min_quality:
-            self.reset_all()
-            return None
-
+        # (이하 기존 t0 처리 로직) -> 제거 필요 (위에서 이미 체크함)
+        
         bbox = t0.get("bbox")
+        self.last_known_bbox = bbox # 마지막 위치 기억
         aspect = bbox_aspect(bbox)
         cx = bbox_center_x(bbox)
         cy = bbox_center_y(bbox)
@@ -336,63 +518,69 @@ class Level1Engine:
         # 상반신 근접 여부 체크
         is_partial = self._check_partial_body(bbox, kps_list)
 
-        # 머리 위치 하강 여부 (Nose: 0, Shoulders: 5, 6)
+        # 머리 위치 하강 여부 logic with BBox Fallback
         head_down = False
-        if self.prev_kps and kps_list:
-            
-            def get_kp(id):
-                return next((k for k in kps_list if int(k.get("id", -1)) == id), None)
+        
+        # Keypoints Check: 관절이 충분히 잡혀있는가?
+        has_kps = (len(kps_list) > 5)
+        
+        if has_kps:
+            # [기존 로직] 스켈레톤 기반 정밀 분석
+            if self.prev_kps:
+                def get_kp(id):
+                    return next((k for k in kps_list if int(k.get("id", -1)) == id), None)
 
-            curr_nose = get_kp(0)
-            prev_nose = self.prev_kps.get(0)
-            
-            # --- 고개 흔들림/끄덕임 오탐지 방지 로직 ---
-            if curr_nose and prev_nose:
-                ny, py = float(curr_nose["y"]), float(prev_nose[1])
-                nx, px = float(curr_nose["x"]), float(prev_nose[0])
+                curr_nose = get_kp(0)
+                prev_nose = self.prev_kps.get(0)
                 
-                dy = ny - py  # +가 하강
-                dx = abs(nx - px)
-                
-                # 1. X/Y Motion Ratio: 좌우 흔들림(도리도리) 감지
-                # X축 이동이 Y축 이동보다 크면 고개 젓기일 확률 높음
-                is_shaking = dx > abs(dy) * 1.5
-                
-                # 2. Shoulder Consistency: 어깨 동기화 확인
-                # 고개만 숙이는(끄덕) 경우 어깨는 거의 움직이지 않음
-                is_nodding = False
-                curr_ls, curr_rs = get_kp(5), get_kp(6)
-                prev_ls, prev_rs = self.prev_kps.get(5), self.prev_kps.get(6)
-                
-                shoulder_dy_sum = 0.0
-                shoulder_cnt = 0
-                if curr_ls and prev_ls:
-                    shoulder_dy_sum += (float(curr_ls["y"]) - float(prev_ls[1]))
-                    shoulder_cnt += 1
-                if curr_rs and prev_rs:
-                    shoulder_dy_sum += (float(curr_rs["y"]) - float(prev_rs[1]))
-                    shoulder_cnt += 1
-                
-                if shoulder_cnt > 0:
-                    avg_s_dy = shoulder_dy_sum / shoulder_cnt
-                    # 코는 많이 내려가는데(dy > 0.02), 어깨는 제자리(< 0.005)거나 오히려 올라가면 끄덕임
-                    if dy > 0.02 and avg_s_dy < 0.005:
-                        is_nodding = True
+                # --- 고개 흔들림/끄덕임 오탐지 방지 로직 ---
+                # (중략) 기존 로직 유지
+                if curr_nose and prev_nose:
+                    ny, py = float(curr_nose["y"]), float(prev_nose[1])
+                    nx, px = float(curr_nose["x"]), float(prev_nose[0])
+                    dy = ny - py
+                    dx = abs(nx - px)
+                    
+                    is_shaking = dx > abs(dy) * 1.5
+                    is_nodding = False
+                    
+                    curr_ls, curr_rs = get_kp(5), get_kp(6)
+                    prev_ls, prev_rs = self.prev_kps.get(5), self.prev_kps.get(6)
+                    shoulder_dy_sum = 0.0
+                    shoulder_cnt = 0
+                    if curr_ls and prev_ls:
+                        shoulder_dy_sum += (float(curr_ls["y"]) - float(prev_ls[1]))
+                        shoulder_cnt += 1
+                    if curr_rs and prev_rs:
+                        shoulder_dy_sum += (float(curr_rs["y"]) - float(prev_rs[1]))
+                        shoulder_cnt += 1
+                    
+                    if shoulder_cnt > 0:
+                        avg_s_dy = shoulder_dy_sum / shoulder_cnt
+                        if dy > 0.02 and avg_s_dy < 0.005:
+                            is_nodding = True
 
-                # 종합 판정: 하강함 & 흔들림 아님 & 끄덕임 아님
-                # 임계값: 0.03 (기존 강화된 값 유지)
-                valid_drop = (dy > 0.03) and (not is_shaking) and (not is_nodding)
-                
-                # 3. Temporal Continuity: 연속성 확인 (3프레임 이상)
-                if valid_drop:
-                    self.head_drop_cnt += 1
+                    valid_drop = (dy > 0.03) and (not is_shaking) and (not is_nodding)
+                    
+                    if valid_drop:
+                        self.head_drop_cnt += 1
+                    else:
+                        self.head_drop_cnt = max(0, self.head_drop_cnt - 1)
+                    
+                    if self.head_drop_cnt >= 3:
+                        head_down = True
                 else:
-                    self.head_drop_cnt = max(0, self.head_drop_cnt - 1)
-                
-                if self.head_drop_cnt >= 3:
-                    head_down = True
-            else:
-                self.head_drop_cnt = 0
+                    self.head_drop_cnt = 0
+        else:
+            # [BBox Fallback] 관절이 없으면 박스 상단(y1)과 중심(cy)으로 추정
+            # 스켈레톤 없이도 분석을 지속하기 위함 (어두운 곳 등)
+            if drop_signal and posture_signal:
+                 # 박스가 찌그러지고(posture) 하강(drop)했으면 head_down으로 간주
+                 head_down = True
+                 import logging
+                 logging.getLogger(__name__).debug(f"[Fallback] Keypoints missng. Used BBox signals: {aspect:.2f}, {vy:.2f}")
+
+        # stillness (needs prev values; do before updating prev_ts/cx/cy)
 
         # stillness (needs prev values; do before updating prev_ts/cx/cy)
         center_move, kp_move, is_still = self._compute_stillness(cx, cy, kps_list)
@@ -488,20 +676,42 @@ class Level1Engine:
 
             # 조건 1: 정지 누적으로 Level 1
             if self.still_acc_s >= self.p.sustain_s and not self.level1_fired:
-                self.level1_fired = True
-                self.state = "LEVEL1"
-                return {
-                    "type": "level1",
-                    "ts": ts,
-                    "frame_index": frame_index,
-                    "reason": "still_for_sustain_s",
-                    "values": {
-                        "still_acc_s": self.still_acc_s,
-                        "time_since_abnormal": time_since_abnormal,
-                        "confidence_score": self._compute_confidence()[0],
-                        "confidence_detail": self._compute_confidence()[1],
-                    },
-                }
+                
+                # [추가] Sitting vs Slumped/Fallen 구분
+                # aspect가 1.0 이상(애매함)인데 상체가 수직(Vertical)이라면 -> "앉아있는 것"으로 간주하여 발동 막음
+                # 단, baseline 대비 55% 이하로 찌그러졌다면(rotate_rel) 수직이라도 위험할 수 있음
+                is_vertical = self._is_vertical_torso(kps_list)
+                is_low_aspect = (aspect < 1.0) # aspect_abs_th 미만
+                is_severe_rel = (baseline is not None and aspect < baseline * 0.55)
+                
+                # 발동 허용 조건:
+                # 1) 자세가 매우 낮거나 (is_low_aspect)
+                # 2) 상대적으로 매우 많이 무너졌거나 (is_severe_rel - 웅크림)
+                # 3) 상체가 수직이 아니거나 (기울어짐/쓰러짐)
+                should_fire = is_low_aspect or is_severe_rel or (not is_vertical)
+                
+                if should_fire:
+                    self.level1_fired = True
+                    self.state = "LEVEL1"
+                    return {
+                        "type": "level1",
+                        "ts": ts,
+                        "frame_index": frame_index,
+                        "reason": "still_for_sustain_s",
+                        "values": {
+                            "still_acc_s": self.still_acc_s,
+                            "time_since_abnormal": time_since_abnormal,
+                            "confidence_score": self._compute_confidence()[0],
+                            "confidence_detail": self._compute_confidence()[1],
+                            "torso_vertical": is_vertical
+                        },
+                    }
+                else:
+                    # 앉아있는 것으로 판단 -> Level1 발동 안 함 (하지만 Abnormal 상태는 유지? 아니면 회복?)
+                    # log only once every second
+                    if int(ts) % 5 == 0:
+                        import logging
+                        logging.getLogger(__name__).debug(f"[Sitting Detected] Still({self.still_acc_s:.1f}s) but Torso Vertical. suppress Level1.")
 
             # 조건 2: 타임아웃으로 Level 1 (움직여도 10초면 위험)
             if time_since_abnormal >= self.p.abnormal_timeout_s and not self.level1_fired:
@@ -523,18 +733,32 @@ class Level1Engine:
             
             # Level 0에서 벗어나기: 완전히 일어난 상태 확인
             # (매우 엄격한 조건으로 쉽게 나가지 못하도록)
+            
+            # [조건 1] 자세 회복 (Aspect Ratio)
             recovered_posture = (
                 baseline is not None
                 and aspect > baseline * self.p.aspect_recover_ratio
             )
-
+            
+            # [조건 2] 움직임 (Center Move) - 0.10 이상
             recovered_move = (
                 center_move is not None
                 and center_move > self.p.recover_center_move_th
             )
 
-            # AND 조건: 자세도 정상 + 움직임도 명확해야 회복 가능
-            recovered_now = recovered_posture and recovered_move
+            # [조건 3] 상승 속도 (Upward Velocity) - vy가 음수이고 일정 크기 이상일 때
+            # -0.3 (약간 빠른 상승) 정도
+            recovered_upward = (vy is not None and vy < -0.3)
+
+            # AND 조건 개선:
+            # 1) 자세와 움직임이 동시에 충족되거나 (기존)
+            # 2) 자세가 회복되었고, 확실히 일어나고 있는 중(상승 속도)이거나
+            recovered_now = (recovered_posture and recovered_move) or (recovered_posture and recovered_upward)
+            
+            # [추가] 로그: 회복 시도 감지
+            if recovered_now:
+                import logging
+                logging.getLogger(__name__).info(f"[Recovery Signal] aspect={aspect:.2f}, vy={vy if vy else 0:.2f}, acc={self.recover_acc_s:.1f}/{self.p.recover_s}")
 
             if recovered_now:
                 self.recover_acc_s += dt

@@ -2,7 +2,12 @@
   <div class="bg-[#fcfcfc] min-h-screen pb-20">
     <!-- <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false" /> -->
     
-    <div class="bg-white/90 backdrop-blur-md sticky top-0 z-[90] border-b border-gray-100 shadow-sm px-6 py-4 flex items-center justify-between transition-all duration-300">
+    <div class="bg-white/90 backdrop-blur-md sticky top-0 z-[90] border-b border-gray-100 shadow-sm px-4 py-4 flex items-center gap-3 transition-all duration-300">
+       <button @click="router.back()" class="p-2 -ml-1 rounded-full hover:bg-gray-100 transition-colors text-gray-600">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+         </svg>
+       </button>
        <h1 class="text-xl font-bold text-gray-900 tracking-tight">기기 관리</h1>
     </div>
 

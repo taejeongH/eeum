@@ -66,7 +66,7 @@
         </div>
       </div>
     </main>
-    <div class="fixed bottom-0 left-0 right-0 px-6 py-4 flex gap-3 bg-gradient-to-t from-background-light via-background-light/90 to-transparent">
+    <div v-if="isCreator" class="fixed bottom-0 left-0 right-0 px-6 py-4 flex gap-3 bg-gradient-to-t from-background-light via-background-light/90 to-transparent">
       <button @click="confirmDelete" class="flex-1 py-4 bg-slate-200 text-slate-700 font-bold rounded-2xl active:scale-[0.98] transition-all">
         삭제
       </button>
@@ -98,11 +98,13 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { scheduleService } from '@/services/scheduleService';
+import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 
@@ -111,8 +113,14 @@ const showDeleteModal = ref(false);
 
 const scheduleId = route.query.id; 
 
+const isCreator = computed(() => {
+    return schedule.value?.creatorId === userStore.profile?.id;
+});
+
 const fetchSchedule = async () => {
     const familyId = route.params.familyId || familyStore.selectedFamily?.id;
+    if (!userStore.profile) await userStore.fetchUser();
+    
     if (!familyId || !scheduleId) return;
     try {
         schedule.value = await scheduleService.getSchedule(familyId, scheduleId);

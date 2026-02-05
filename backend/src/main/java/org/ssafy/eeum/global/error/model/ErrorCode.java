@@ -28,7 +28,7 @@ public enum ErrorCode {
     SUPPORTER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY003", "가족 구성원 정보를 찾을 수 없습니다."),
     NOT_FAMILY_REPRESENTATIVE(HttpStatus.FORBIDDEN, "FAMILY004", "가족 대표자만 이 작업을 수행할 수 있습니다."),
     INVALID_EMERGENCY_PRIORITY(HttpStatus.BAD_REQUEST, "FAMILY005", "응급 우선순위는 1에서 4 사이여야 합니다."),
-    
+
     // IOT
     VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "IOT001", "비디오가 아직 준비되지 않았거나 처리 중입니다."),
     ALREADY_FAMILY_MEMBER(HttpStatus.BAD_REQUEST, "FAMILY006", "이미 해당 가족 그룹의 멤버입니다."),
@@ -40,6 +40,7 @@ public enum ErrorCode {
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE001", "존재하지 않는 일정입니다."),
     INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "SCHEDULE002", "종료일은 시작일보다 빠를 수 없습니다."),
     RESERVED_TITLE(HttpStatus.BAD_REQUEST, "SCHEDULE003", "'EXCLUDED'는 사용할 수 없는 일정 제목입니다."),
+    NOT_SCHEDULE_CREATOR(HttpStatus.FORBIDDEN, "SCHEDULE004", "일정 등록자만 수정/삭제할 수 있습니다."),
 
     // IoT 관련 에러 코드
     IOT_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT001", "존재하지 않는 IoT 기기입니다."),

@@ -12,7 +12,6 @@ import org.ssafy.eeum.domain.message.repository.MessageRepository;
 import org.ssafy.eeum.domain.voice.entity.VoiceLog;
 import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
-import org.ssafy.eeum.global.infra.mqtt.MqttService;
 
 @Slf4j
 @Service
@@ -23,7 +22,7 @@ public class MessageTtsAsyncService {
     private final MessageRepository messageRepository;
     private final VoiceLogRepository voiceLogRepository;
     private final IotSyncService iotSyncService;
-    private final MqttService mqttService;
+    private final org.ssafy.eeum.domain.voice.repository.VoiceTaskRepository taskRepository;
 
     @Async
     @Transactional
@@ -31,14 +30,30 @@ public class MessageTtsAsyncService {
         log.info("[TTS Async] messageId: {} 에 대한 TTS 생성 및 처리 시작", messageId);
 
         try {
-            // 1. TTS 생성 요청
-            String voiceUrl = voiceService.createTtsUrl(userId, content);
+            // 1. TTS 생성 요청 (메시지 ID 포함)
+            String voiceUrl = voiceService.createTtsUrl(userId, content, messageId);
 
             if (voiceUrl != null) {
-                // 2. 메시지 정보 업데이트
+                // 1.5. 즉시 완료되지 않은 경우 (Job ID가 반환된 경우)
+                if (voiceUrl.startsWith("TASK_ID:")) {
+                    Integer taskId = Integer.parseInt(voiceUrl.substring(8));
+                    log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(Task ID: {})로 전환합니다.", messageId,
+                            taskId);
+
+                    taskRepository.findById(taskId).ifPresent(task -> {
+                        messageRepository.findById(messageId).ifPresent(msg -> {
+                            msg.updateVoiceTask(task);
+                            messageRepository.save(msg);
+                        });
+                    });
+                    return;
+                }
+
+                // 2. 즉시 완료된 경우 (Warm start)
                 Message message = messageRepository.findById(messageId).orElse(null);
                 if (message != null) {
-                    message.updateVoiceUrl(voiceUrl);
+                    String voiceKey = voiceService.extractS3Key(voiceUrl);
+                    message.updateVoiceUrl(voiceKey);
                     messageRepository.save(message); // 명시적 저장이 transactional 안에서 필요할 수 있음
 
                     // 3. 로그 저장
@@ -49,12 +64,8 @@ public class MessageTtsAsyncService {
                             .build();
                     voiceLogRepository.save(voiceLog);
 
-                    // 4. IoT 동기화 알림
+                    // 4. IoT 동기화 알림 (배치 처리 로직 따름)
                     iotSyncService.notifyUpdate(groupId, "voice");
-
-                    // 5. MQTT 직접 전송 (VoiceService의 기존 generateTts 로직 대응)
-                    String jsonPayload = String.format("{\"url\": \"%s\", \"text\": \"%s\"}", voiceUrl, content);
-                    mqttService.sendToIot(groupId, "voice", jsonPayload);
 
                     log.info("[TTS Async] messageId: {} 에 대한 TTS 처리 완료", messageId);
                 } else {

@@ -12,4 +12,7 @@ public class NotificationHistoryResponseDto {
     @JsonProperty("related_id")
     private Integer relatedId;
     private java.time.LocalDateTime createdAt;
+
+    private String videoUrl;
+    private Double confidence;
 }

@@ -37,7 +37,7 @@ export const healthService = {
         try {
             const response = await api.post('/health/analyze', null, {
                 params: { groupId, date },
-                skipLoading: true
+                headers: { silent: true }
             });
             return response.data.data;
         } catch (error) {

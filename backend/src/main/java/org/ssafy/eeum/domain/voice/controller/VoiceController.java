@@ -4,13 +4,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.ssafy.eeum.domain.message.service.MessageService;
 import org.ssafy.eeum.domain.voice.dto.TtsRequestDTO;
-import org.ssafy.eeum.domain.voice.dto.VoiceModelStatusResponseDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceTaskStatusResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleRequestDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleResponseDTO;
+import org.ssafy.eeum.domain.voice.dto.VoiceTestRequestDTO;
 import org.ssafy.eeum.domain.voice.entity.VoiceScript;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
@@ -73,11 +75,18 @@ public class VoiceController {
                 return RestApiResponse.success("TTS 생성 및 전송 요청이 접수되었습니다. 백그라운드에서 처리됩니다.");
         }
 
-        @SwaggerApiSpec(summary = "음성 모델 학습 상태 조회", description = "자신의 음성 모델 학습 상태와 수집된 샘플 개수, 전체 샘플 목록을 조회합니다.", successMessage = "상태 조회 성공")
+        @SwaggerApiSpec(summary = "보이스 작업 상태 조회", description = """
+                        자신의 보이스 관련 작업(학습, TTS 등) 상태와 수집된 샘플 개수, 전체 샘플 목록을 조회합니다.
+                        각 샘플의 `status` 필드를 통해 테스트용 음성 생성 상태를 확인할 수 있습니다:
+                        - `NOT_STARTED`: 생성 요청 전
+                        - `IN_QUEUE`: 대기 중
+                        - `IN_PROGRESS`: 생성 중
+                        - `COMPLETED`: 완료 (URL 사용 가능)
+                        """, successMessage = "상태 조회 성공")
         @GetMapping("/status")
-        public RestApiResponse<VoiceModelStatusResponseDTO> getStatus(
+        public RestApiResponse<VoiceTaskStatusResponseDTO> getStatus(
                         @AuthenticationPrincipal CustomUserDetails userDetails) {
-                VoiceModelStatusResponseDTO response = voiceService.getVoiceModelStatus(userDetails.getId());
+                VoiceTaskStatusResponseDTO response = voiceService.getVoiceModelStatus(userDetails.getId());
                 return RestApiResponse.success(response);
         }
 
@@ -117,18 +126,21 @@ public class VoiceController {
                 return RestApiResponse.success("음성 샘플이 성공적으로 삭제되었습니다.");
         }
 
-        @SwaggerApiSpec(summary = "샘플별 테스트 음성 목록 조회", description = "생성된 테스트 음성 URL이 포함된 모든 음성 샘플 목록을 조회합니다.", successMessage = "테스트 음성 목록 조회 성공")
-        @GetMapping("/samples/test-audio")
-        public RestApiResponse<List<VoiceSampleResponseDTO>> getTestAudios(
-                        @AuthenticationPrincipal CustomUserDetails userDetails) {
-                return RestApiResponse.success(voiceService.getTestAudios(userDetails.getId()));
+        @SwaggerApiSpec(summary = "TTS 테스트 - 동기(Polling) 방식", description = "서버 내부에서 직접 결과를 기다렸다가 완료 시 URL을 반환합니다. (10초 주기 폴링)", successMessage = "TTS 생성 성공")
+        @PostMapping("/test-tts/sync")
+        public RestApiResponse<String> testTtsSync(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestBody @Valid VoiceTestRequestDTO request) {
+                String url = voiceService.generateTtsSync(userDetails.getId(), request.getText());
+                return RestApiResponse.success(HttpStatus.OK, "TTS 변환이 완료되었습니다.", url);
         }
 
-        @SwaggerApiSpec(summary = "샘플별 테스트 음성 일괄 생성", description = "사용자의 모든 음성 샘플에 대해 랜덤 명대사를 활용한 테스트 TTS를 일괄 생성합니다.", successMessage = "테스트 음성 생성 요청 성공")
-        @PostMapping("/samples/test-generate")
-        public RestApiResponse<Void> generateTestAudios(
-                        @AuthenticationPrincipal CustomUserDetails userDetails) {
-                voiceService.generateTestAudios(userDetails.getId());
-                return RestApiResponse.success("테스트 음성 생성이 완료되었습니다.");
+        @SwaggerApiSpec(summary = "TTS 테스트 - 비동기(Webhook) 방식", description = "요청 후 즉시 작업 ID를 반환하며, 결과는 웹후크(/api/voice/webhook/test)를 통해 로그로 남습니다.", successMessage = "TTS 요청 성공")
+        @PostMapping("/test-tts/async")
+        public RestApiResponse<String> testTtsAsync(
+                        @AuthenticationPrincipal CustomUserDetails userDetails,
+                        @RequestBody @Valid VoiceTestRequestDTO request) {
+                String jobId = voiceService.generateTtsAsync(userDetails.getId(), request.getText());
+                return RestApiResponse.success(HttpStatus.ACCEPTED, "TTS 요청이 접수되었습니다. (Job ID: " + jobId + ")", jobId);
         }
 }

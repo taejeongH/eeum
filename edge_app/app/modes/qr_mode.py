@@ -11,7 +11,6 @@ from pyzbar.pyzbar import decode, ZBarSymbol
 import logging
 
 from .base_mode import BaseMode
-from ..auth.device_auth import verify_qr_token, complete_qr_token, get_qr_token
 from ..state.device_state import get_device_state
 from ..api.server_client import ServerClient
 from ..config import FRAME_W, FRAME_H, JPEG_QUALITY, DEVICE_ID

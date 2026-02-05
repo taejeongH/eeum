@@ -15,6 +15,7 @@ import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.domain.iot.dto.FallDetectionRequestDTO;
+import org.ssafy.eeum.domain.iot.dto.FallEventHistoryResponseDTO;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -243,5 +244,19 @@ public class FallEventService {
         response.put("videoUrl", presignedUrl);
 
         return response;
+    }
+
+    public List<FallEventHistoryResponseDTO> getFallHistory(Integer familyId) {
+        List<FallEvent> events = fallEventRepository.findByFamilyIdOrderByCreatedAtDesc(familyId);
+
+        return events.stream()
+                .map(event -> {
+                    String videoUrl = null;
+                    if (event.getVideoStatus() == FallEvent.VideoStatus.SUCCESS && event.getVideoPath() != null) {
+                        videoUrl = s3Service.getPresignedUrl(event.getVideoPath());
+                    }
+                    return FallEventHistoryResponseDTO.of(event, videoUrl);
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 }

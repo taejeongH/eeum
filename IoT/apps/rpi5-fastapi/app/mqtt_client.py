@@ -142,9 +142,10 @@ class MqttClient:
         self._active = True
 
         if not self._started:
-            self.client.connect(self.broker, self.port, self.keepalive)
+            self.client.connect_async(self.broker, self.port, self.keepalive)
             self.client.loop_start()
             self._started = True
+            logger.info("[mqtt] activate: connect_async started broker=%s port=%s", self.broker, self.port)
 
     def deactivate(self) -> None:
         self._active = False
@@ -156,6 +157,8 @@ class MqttClient:
             # loop_stop은 disconnect 이후
             self.client.loop_stop(force=True)  # 필요시 force=True 고려
             self._started = False
+            self._connected = False
+            logger.info("[mqtt] deactivated")
 
     def publish_json(self, topic: str, payload: Dict[str, Any], qos: int = 1, retain: bool = False) -> str:
         """msg_id 없으면 자동 생성해서 publish"""
@@ -184,11 +187,6 @@ class MqttClient:
         payload.setdefault("token", self.token)
         payload.setdefault("serial_number", self.client_id)
         return self.publish_json("eeum/event", payload, qos=1, retain=False)
-
-    def publish_update(self, payload: dict) -> str:
-        payload.setdefault("updated_at", time.time())
-        payload.setdefault("token", self.token)
-        return self.publish_json("eeum/update", payload, qos=1, retain=False)
 
     def publish_response(self, payload: dict) -> str:
         payload.setdefault("detected_at", time.time())

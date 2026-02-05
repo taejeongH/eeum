@@ -1,12 +1,16 @@
 package org.ssafy.eeum.domain.iot.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class IotSimpleDeviceInfoResponseDTO {
     @JsonProperty("serial_number")
     private String serialNumber;

@@ -15,4 +15,6 @@ public interface FallEventRepository extends JpaRepository<FallEvent, Integer> {
     Optional<FallEvent> findTopByFamilyIdAndStatusTypeOrderByCreatedAtDesc(Integer familyId, StatusType statusType);
 
     List<FallEvent> findByStatusTypeAndCreatedAtBefore(StatusType statusType, LocalDateTime createdAt);
+
+    List<FallEvent> findByFamilyIdOrderByCreatedAtDesc(Integer familyId);
 }

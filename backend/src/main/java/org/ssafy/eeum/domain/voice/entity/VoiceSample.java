@@ -39,6 +39,10 @@ public class VoiceSample extends BaseEntity {
     @Column(name = "test_audio_path")
     private String testAudioPath;
 
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "voice_task_id")
+    private VoiceTask voiceTask;
+
     public void updateSamplePath(String newPath) {
         this.samplePath = newPath;
     }
@@ -49,5 +53,13 @@ public class VoiceSample extends BaseEntity {
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void updateVoiceTask(VoiceTask voiceTask) {
+        this.voiceTask = voiceTask;
+    }
+
+    public void completeTts(String s3Key) {
+        this.testAudioPath = s3Key;
     }
 }

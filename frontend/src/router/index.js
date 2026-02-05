@@ -157,7 +157,7 @@ const routes = [
     component: VoiceRegistration,
   },
   {
-    path: '/voice-settings',
+    path: '/settings/voice',
     name: 'VoiceSettings',
     component: () => import('../views/VoiceSettings.vue'),
   },

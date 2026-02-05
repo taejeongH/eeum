@@ -12,6 +12,9 @@ import org.ssafy.eeum.domain.notification.entity.Notification;
 import org.ssafy.eeum.domain.notification.entity.NotificationDelivery;
 import org.ssafy.eeum.domain.notification.repository.NotificationDeliveryRepository;
 import org.ssafy.eeum.domain.notification.repository.NotificationRepository;
+import org.ssafy.eeum.domain.iot.entity.FallEvent;
+import org.ssafy.eeum.domain.iot.repository.FallEventRepository;
+import org.ssafy.eeum.global.infra.s3.S3Service;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.fcm.FcmService;
@@ -33,6 +36,8 @@ public class NotificationService {
         private final FamilyRepository familyRepository;
         private final UserRepository userRepository;
         private final FcmService fcmService;
+        private final FallEventRepository fallEventRepository;
+        private final S3Service s3Service;
 
         @Transactional
         public Long createNotification(Integer familyId, String title, String message, String type, Integer relatedId) {
@@ -125,6 +130,29 @@ public class NotificationService {
 
                 return notifications.stream()
                                 .map(notification -> {
+                                        String videoUrl = null;
+                                        Double confidence = null;
+
+                                        // EMERGENCY 타입이고 relatedId(FallEvent ID)가 있는 경우 추가 데이터 조회
+                                        if ("EMERGENCY".equalsIgnoreCase(notification.getType())
+                                                        && notification.getRelatedId() != null) {
+                                                try {
+                                                        FallEvent event = fallEventRepository.findById(
+                                                                        notification.getRelatedId())
+                                                                        .orElse(null);
+                                                        if (event != null) {
+                                                                confidence = event.getConfidence();
+                                                                if (event.getVideoStatus() == FallEvent.VideoStatus.SUCCESS
+                                                                                && event.getVideoPath() != null) {
+                                                                        videoUrl = s3Service.getPresignedUrl(
+                                                                                        event.getVideoPath());
+                                                                }
+                                                        }
+                                                } catch (Exception e) {
+                                                        log.error("Failed to fetch FallEvent details for notification history (ID: {}): {}",
+                                                                        notification.getId(), e.getMessage());
+                                                }
+                                        }
 
                                         return NotificationHistoryResponseDto.builder()
                                                         .id(notification.getId())
@@ -133,6 +161,8 @@ public class NotificationService {
                                                         .type(notification.getType())
                                                         .relatedId(notification.getRelatedId())
                                                         .createdAt(notification.getCreatedAt())
+                                                        .videoUrl(videoUrl)
+                                                        .confidence(confidence)
                                                         .build();
                                 })
                                 .collect(java.util.stream.Collectors.toList());

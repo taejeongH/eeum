@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-white flex flex-col">
     <!-- Main Content Area (Truly Centered) -->
-    <main class="flex-1 flex flex-col items-center justify-center px-8 text-center pt-52">
+    <main class="flex-1 flex flex-col items-center justify-center px-8 text-center pt-10 pb-32">
       <!-- Success Animation/Icon -->
       <div class="mb-12 relative animate-fade-in">
         <div class="w-32 h-32 bg-orange-50 rounded-full flex items-center justify-center animate-pulse">

@@ -375,7 +375,7 @@ const saveProfile = async () => {
     formData.append('request', new Blob([JSON.stringify(requestDto)], { type: 'application/json' }));
     
     await updateUserProfile(formData);
-    await userStore.fetchUser();
+    await userStore.fetchUser(true);
     
     // Proceed to placeholder voice step
     currentStep.value = 4;

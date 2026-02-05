@@ -93,7 +93,19 @@
                 </div>
                 <div v-else class="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
                     <span class="material-symbols-outlined text-4xl opacity-20">text_fields</span>
-                    <p>녹음 후 변환된 텍스트가 이곳에 표시됩니다.</p>
+                    <p class="text-sm font-medium">녹음 후 변환된 텍스트가 이곳에 표시됩니다.</p>
+                </div>
+
+                <!-- STT Error Overlay -->
+                <div v-if="sttError" class="absolute inset-0 bg-red-50/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl z-10 p-6 text-center">
+                    <div class="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-2xl">error_outline</span>
+                    </div>
+                    <p class="text-red-600 font-bold mb-1">음성 변환에 실패했습니다</p>
+                    <p class="text-red-400 text-xs mb-4">마이크 연동이나 인터넷 연결을 확인한 후<br/>다시 녹음해 주세요.</p>
+                    <button @click="resetFreeTalk" class="px-6 py-2 bg-red-500 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all">
+                        다시 시도
+                    </button>
                 </div>
 
                 <div v-if="isLoading" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl z-10">
@@ -126,7 +138,7 @@
                         <span class="material-symbols-outlined text-4xl relative z-10">{{ isRecording ? 'stop' : 'mic' }}</span>
                 </button>
                 
-                <button v-if="transcribedText && recordedBlob && !isRecording" @click="saveFreeTalk" class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary-dark transition-colors shadow-md">
+                <button v-if="transcribedText && recordedBlob && !isRecording && !sttError" @click="saveFreeTalk" class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary-dark transition-colors shadow-md">
                     <span class="material-symbols-outlined">save</span>
                 </button>
             </div>
@@ -271,6 +283,7 @@ const recordedBlob = ref(null);
 
 // Free Talk State
 const transcribedText = ref('');
+const sttError = ref(false); // New state for STT error
 const isFreeTalkSaved = ref(false);
 const showLimitModal = ref(false);
 const serverSampleCount = ref(0);
@@ -462,10 +475,12 @@ const toggleFreeTalkRecord = async () => {
                 
                 try {
                     isLoading.value = true;
+                    sttError.value = false;
                     transcribedText.value = await voiceService.transcribeAudio(blob);
                 } catch (e) {
                     console.error("STT Failed:", e);
-                    transcribedText.value = "음성 변환에 실패했습니다.";
+                    sttError.value = true;
+                    transcribedText.value = "";
                 } finally {
                     isLoading.value = false;
                 }
@@ -512,6 +527,7 @@ const saveFreeTalk = async () => {
 
 const resetFreeTalk = () => {
     transcribedText.value = '';
+    sttError.value = false;
     recordedBlob.value = null;
     audioUrl.value = null;
     isFreeTalkSaved.value = false;

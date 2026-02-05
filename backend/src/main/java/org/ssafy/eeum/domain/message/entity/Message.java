@@ -56,6 +56,10 @@ public class Message {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "voice_task_id")
+    private org.ssafy.eeum.domain.voice.entity.VoiceTask voiceTask;
+
     /**
      * 로직 메서드
      */
@@ -72,5 +76,9 @@ public class Message {
     public void updateVoiceUrl(String voiceUrl) {
         this.voiceUrl = voiceUrl;
         this.isSynced = false;
+    }
+
+    public void updateVoiceTask(org.ssafy.eeum.domain.voice.entity.VoiceTask voiceTask) {
+        this.voiceTask = voiceTask;
     }
 }

@@ -133,14 +133,25 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
             throw new Error(`녹음 길이는 3초 이상 10초 이하여야 합니다. (현재: ${durationSec.toFixed(1)}초)`);
         }
 
-        // Determine extension
+        // Determine extension and matching MIME type (Must match Backend's VoiceService.java)
         let extension = 'wav';
-        if (file.type.includes('webm')) extension = 'webm';
-        else if (file.type.includes('mp4')) extension = 'mp4';
-        else if (file.type.includes('ogg')) extension = 'ogg';
-        else if (file.type.includes('mp3')) extension = 'mp3';
+        let contentType = 'audio/wav';
 
-        console.log(`Detected MIME: ${file.type}, Target Extension: ${extension}`);
+        if (file.type.includes('webm')) {
+            extension = 'webm';
+            contentType = 'audio/webm';
+        } else if (file.type.includes('mp4') || file.type.includes('m4a')) {
+            extension = 'm4a';
+            contentType = 'audio/x-m4a';
+        } else if (file.type.includes('mpeg') || file.type.includes('mp3')) {
+            extension = 'mp3';
+            contentType = 'audio/mpeg';
+        } else if (file.type.includes('ogg')) {
+            extension = 'ogg';
+            contentType = 'audio/ogg';
+        }
+
+        console.log(`Detected MIME: ${file.type}, Final Content-Type: ${contentType}, Extension: ${extension}`);
 
         // 1. Get Presigned URL
         // Script mode: pass scriptId, Free Talk: pass null? No, API spec implies we need extension always.
@@ -169,10 +180,10 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
 
         console.log("Uploading to S3:", fullPresignedUrl);
 
-        // 2. Upload to S3
+        // 2. Upload to S3 (MUST use the exact content-type used for Presigned URL)
         const uploadResponse = await fetch(fullPresignedUrl, {
             method: 'PUT',
-            headers: { 'Content-Type': file.type || 'audio/wav' },
+            headers: { 'Content-Type': contentType },
             body: file
         });
 
@@ -206,43 +217,40 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
  */
 export const transcribeAudio = async (file) => {
     try {
-        console.log(`Transcribing file: type=${file.type}, size=${file.size}`);
+        console.log(`Transcribing file directly via GMS: type=${file.type}, size=${file.size}`);
 
         const formData = new FormData();
-        // API requires a filename with extension to detect format
-        const ext = file.type.includes('mp4') ? 'mp4' : 'webm';
+        const ext = file.type.includes('webm') ? 'webm' :
+            file.type.includes('mp4') || file.type.includes('m4a') ? 'm4a' :
+                file.type.includes('mpeg') || file.type.includes('mp3') ? 'mp3' : 'wav';
+
         formData.append('file', file, `recording.${ext}`);
         formData.append('model', 'whisper-1');
+        formData.append('language', 'ko');
 
         const gmsKey = import.meta.env.VITE_GMS_KEY;
         if (!gmsKey) {
             throw new Error("GMS Key is missing in environment variables.");
         }
 
-        const response = await fetch('/gmsapi/api.openai.com/v1/audio/transcriptions', {
+        // Use absolute URL to bypass local Nginx proxy issues
+        const response = await fetch('https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/transcriptions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${gmsKey}`
-                // Content-Type is set automatically by fetch when using FormData
             },
             body: formData
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("Transcription API Error Body:", errorText);
-            let errorMsg = response.statusText;
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMsg = errorData.error?.message || errorMsg;
-            } catch (e) { }
-            throw new Error(`Transcription failed (${response.status}): ${errorMsg}`);
+            throw new Error(`Transcription failed (${response.status}): ${errorText}`);
         }
 
         const data = await response.json();
         return data.text;
     } catch (error) {
-        console.error("Transcription error:", error);
+        console.error("Direct transcription error:", error);
         throw error;
     }
 };

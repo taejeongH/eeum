@@ -278,4 +278,6 @@ async def async_provision_connect_wlan0(ssid: str, password: str) -> ProvisionRe
         return ProvisionResult(ok=True, message="connected", new_profile=ssid)
 
     except Exception as e:
-        return ProvisionResult(ok=False, message=_nmcli_err_to_message(e), new_profile=ssid)
+            msg = _nmcli_err_to_message(e)
+            logger.warning("[wifi] provision failed ssid=%s msg=%s", ssid, msg)
+            return ProvisionResult(ok=False, message=msg, new_profile=ssid)

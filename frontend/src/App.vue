@@ -115,6 +115,10 @@ onMounted(async () => {
 
   // 4. [NEW] 네이티브 세션 복구 및 동기화 (Self-Healing)
   const restoreSession = async (retryCount = 0) => {
+      // [SAFETY] 최초 진입 시 로딩 카운트 초기화 (무한 로딩 방지)
+      const uiStore = (await import('./stores/ui')).useUiStore();
+      if (retryCount === 0) uiStore.resetLoading();
+      
       const localToken = localStorage.getItem('accessToken');
       
       // 1) 로컬에 토큰이 있는 경우 -> 네이티브에도 백업(동기화)
