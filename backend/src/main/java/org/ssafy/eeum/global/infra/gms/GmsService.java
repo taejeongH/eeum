@@ -111,7 +111,7 @@ public class GmsService {
                                 }
                         }
                 } catch (Exception e) {
-                        log.error("GMS Health Report Generation Error: {}", e.getMessage());
+                        log.error("GMS 건강 리포트 생성 오류: {}", e.getMessage());
                 }
 
                 return Map.of(
@@ -167,7 +167,7 @@ public class GmsService {
                                         Map<String, Object> message = (Map<String, Object>) choices.get(0)
                                                         .get("message");
                                         String content = (String) message.get("content");
-                                        log.info("GMS Analysis Raw JSON: [{}]", content);
+
 
                                         if (content == null)
                                                 return false;
@@ -176,13 +176,13 @@ public class GmsService {
                                         JsonNode rootNode = mapper.readTree(content);
                                         String status = rootNode.path("status").asText().toUpperCase();
 
-                                        log.info("GMS Parsed Status: {}", status);
+
 
                                         return "EMERGENCY".equals(status);
                                 }
                         }
                 } catch (Exception e) {
-                        log.error("GMS Analysis Error: {}", e.getMessage(), e);
+                        log.error("GMS 감성 분석 오류: {}", e.getMessage(), e);
                 }
                 return false;
         }

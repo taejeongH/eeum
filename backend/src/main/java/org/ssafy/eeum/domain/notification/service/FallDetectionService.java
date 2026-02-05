@@ -52,7 +52,7 @@ public class FallDetectionService {
                 .collect(Collectors.toList());
 
         if (caregivers.isEmpty()) {
-            log.warn("No caregivers found for family ID: {}", familyId);
+            log.warn("보호자를 찾을 수 없음 - 가족ID: {}", familyId);
             return;
         }
 
@@ -72,6 +72,7 @@ public class FallDetectionService {
             }
 
             CaregiverInfo currentCaregiver = caregivers.get(index);
+            log.info("[알림] {}순위 보호자({})에게 발송", index + 1, currentCaregiver.userName());
             notificationService.sendNotification(notificationId, currentCaregiver.userId());
 
             // 30초 후 다음 보호자 확인/알림 예약

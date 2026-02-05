@@ -54,7 +54,6 @@ public class VoiceAiClient {
 
             if (response != null) {
                 String status = (String) response.get("status");
-                log.info("[RunPod] Job {} status: {}", response.get("id"), status);
 
                 if ("COMPLETED".equals(status)) {
                     @SuppressWarnings("unchecked")
