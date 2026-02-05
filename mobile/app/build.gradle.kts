@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -19,6 +21,20 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Load local.properties
+        val localProperties = Properties().apply {
+            val file = rootProject.file("local.properties")
+            if (file.exists()) {
+                load(file.inputStream())
+            }
+        }
+
+        val webviewUrl = localProperties.getProperty("WEBVIEW_URL") ?: "https://i14a105.p.ssafy.io"
+        val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "https://i14a105.p.ssafy.io"
+
+        buildConfigField("String", "WEBVIEW_URL", "\"$webviewUrl\"")
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
@@ -36,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -82,6 +99,8 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-messaging")
     
+    // WorkManager [cite: 1085]
+    implementation(libs.androidx.work.runtime.ktx)
 
 }
 

@@ -11,6 +11,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -46,6 +48,37 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         Log.d(TAG, "Handling data message - Title: $title, Body: $body, Type: $type, Route: $route")
         
+        // 1. 측정 명령 수신 시 처리
+        if (type == "CMD_MEASURE_HR") {
+            Log.d(TAG, "⚡ 심박수 측정 명령 수신: 워치로 신호 전송")
+            
+            // Save state for ListenerService
+            val familyId = data["familyId"]
+            val eventId = data["eventId"] // Fall Event ID (relatedId)
+            
+            if (familyId != null) {
+                val prefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                val editor = prefs.edit()
+                editor.putString("pending_measurement_family_id", familyId)
+                if (eventId != null) {
+                    editor.putString("pending_measurement_related_id", eventId)
+                }
+                editor.apply()
+                Log.d(TAG, "Saved pending familyId: $familyId, relatedId: $eventId")
+            }
+            
+            triggerMeasurement(data)
+            return
+        }
+
+        // 2. 건강 데이터 동기화 명령 수신 시 처리
+        if (type == "CMD_SYNC_HEALTH") {
+            Log.d(TAG, "⚡ 건강 데이터 동기화 명령 수수: 즉시 워커 실행")
+            val familyId = data["familyId"]
+            MainActivity.triggerImmediateHealthSync(applicationContext, familyId)
+            return
+        }
+
         val notificationId = data["notificationId"]
         val familyId = data["familyId"]
         val groupName = data["groupName"] ?: ""
@@ -56,10 +89,39 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
         
         // 앱이 포그라운드 상태가 아닐 때만 시스템 알림 표시
-        if (!MainActivity.isAppInForeground) {
+        if (!MainActivity.isAppInForeground && !type.startsWith("CMD_")) {
             sendNotification(title, body, type, notificationId, route, familyId, groupName)
         } else {
-            Log.d(TAG, "App is in foreground - skipping system notification")
+            Log.d(TAG, "Notification skipped - Foreground: ${MainActivity.isAppInForeground}, Type: $type")
+        }
+    }
+
+    // 워치로 측정 시작 신호 전송
+    private fun triggerMeasurement(data: Map<String, String>) {
+        Log.d(TAG, "Attempting to trigger Watch Measurement via Wearable API...")
+        
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                val context = applicationContext
+                val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(context)
+                val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(context)
+                
+                val nodes = nodeClient.connectedNodes.await()
+                if (nodes.isNotEmpty()) {
+                    nodes.forEach { node ->
+                        // 워치 앱이 듣고 있는 정확한 Path
+                        val path = "/emergency/start"
+                        Log.d(TAG, "Sending trigger to $path on node: ${node.displayName}")
+                        messageClient.sendMessage(node.id, path, "START".toByteArray()).await()
+                        
+                        Log.d(TAG, "Trigger message sent to ${node.displayName}")
+                    }
+                } else {
+                    Log.e(TAG, "No connected watch found via Wearable API")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error triggering measurement on Watch", e)
+            }
         }
     }
 

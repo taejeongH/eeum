@@ -22,9 +22,14 @@ public class FcmService {
         try {
             Message.Builder messageBuilder = Message.builder()
                     .setToken(token)
-                    .putData("title", title)
-                    .putData("body", body)
                     .putData("type", type != null ? type : "DEFAULT");
+
+            if (title != null) {
+                messageBuilder.putData("title", title);
+            }
+            if (body != null) {
+                messageBuilder.putData("body", body);
+            }
 
             if (notificationId != null) {
                 messageBuilder.putData("notificationId", String.valueOf(notificationId));

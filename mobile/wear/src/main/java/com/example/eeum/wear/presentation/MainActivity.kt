@@ -51,18 +51,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        handleIntent(intent) // Check intent on Create
+        handleIntent(intent) 
 
-        // Health Services Client 초기화
         measureClient = HealthServices.getClient(this).measureClient
 
         setContent {
+            // Recomposition을 명확히 트리거하기 위해 UI 구조 최적화
             WearApp(heartRate, statusText)
         }
 
         checkPermissionAndStart()
     }
 
+    // ... (기타 함수들 생략)
     private fun checkPermissionAndStart() {
         val permissions = mutableListOf(Manifest.permission.BODY_SENSORS)
         
@@ -83,22 +84,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun registerHeartRateSensor() {
-        Log.d(TAG, "Registering Heart Rate Sensor...")
+        Log.w(TAG, "Registering Heart Rate Sensor...")
         statusText = "Measuring..."
         
-        lifecycleScope.launchWhenStarted {
+        lifecycleScope.launch {
             try {
-                // 센서 지원 여부 확인 (Capabilities)
                 val capabilities = measureClient.getCapabilitiesAsync().await()
                 if (DataType.HEART_RATE_BPM in capabilities.supportedDataTypesMeasure) {
                     measureClient.registerMeasureCallback(
                         DataType.HEART_RATE_BPM,
                         hrCallback
                     )
-                    Log.d(TAG, "HR Callback registered")
+                    Log.w(TAG, "✅ HR Callback registered successfully")
                 } else {
                     statusText = "HR Not Supported"
-                    Log.d(TAG, "Heart Rate not supported on this device")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error registering sensor", e)
@@ -114,10 +113,16 @@ class MainActivity : ComponentActivity() {
 
         override fun onDataReceived(data: DataPointContainer) {
             val heartRateData = data.getData(DataType.HEART_RATE_BPM)
-            heartRateData.lastOrNull()?.let {
-                heartRate = it.value
-                Log.d(TAG, "HR Received: $heartRate")
-                sendHeartRateToPhone(heartRate)
+            val latestHr = heartRateData.lastOrNull()?.value ?: 0.0
+            
+            if (latestHr > 0) {
+                // UI 스레드에서 상태 업데이트 보장
+                runOnUiThread {
+                    heartRate = latestHr
+                    statusText = "Measuring..."
+                }
+                Log.d(TAG, "HR Updated: $latestHr")
+                sendHeartRateToPhone(latestHr)
             }
         }
     }
@@ -196,12 +201,18 @@ class MainActivity : ComponentActivity() {
             val serviceIntent = Intent(this, HeartRateService::class.java)
             startForegroundService(serviceIntent)
             
-            // 3. Set 1 Hour Timeout
+            // 3. Set 30 Seconds Timeout (Auto Stop)
             lifecycleScope.launch {
-                kotlinx.coroutines.delay(60 * 60 * 1000L) // 1 Hour
-                Log.d(TAG, "1 Hour passed, releasing screen lock")
+                kotlinx.coroutines.delay(30000L) // 30 Seconds
+                Log.d(TAG, "30 Seconds passed, stopping measurement automatically")
                 window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                statusText = "Timeout: Screen releasing"
+                statusText = "Timeout: Stopped"
+                
+                // Stop Service as well to save battery
+                val serviceIntent = Intent(this@MainActivity, HeartRateService::class.java)
+                stopService(serviceIntent)
+                // unregister listener in activity too
+                unregisterHeartRateSensor()
             }
         } else if (action == "stop_service") {
             Log.d(TAG, "Stopping HeartRateService via Activity")

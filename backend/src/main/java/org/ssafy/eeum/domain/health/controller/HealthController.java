@@ -95,4 +95,42 @@ public class HealthController {
                                 provider);
                 return RestApiResponse.success(response);
         }
+
+        @SwaggerApiSpec(summary = "심박수 측정 요청", description = "피부양자 기기에 심박수 측정을 요청하는 FCM을 전송합니다. (이벤트 생성 안 함)", successMessage = "측정 요청 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND })
+        @PostMapping("/request-measurement")
+        public RestApiResponse<Void> requestMeasurement(@RequestParam Integer groupId) {
+                healthService.requestMeasurement(groupId);
+                return RestApiResponse.success(null);
+        }
+
+        @SwaggerApiSpec(summary = "최근 심박수 조회", description = "해당 가족의 가장 최근 측정된 심박수 결과를 조회합니다.", successMessage = "조회 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND })
+        @GetMapping("/heart-rate/latest")
+        public RestApiResponse<org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO> getLatestHeartRate(@RequestParam Integer groupId) {
+                return RestApiResponse.success(healthService.getLatestHeartRate(groupId));
+        }
+
+        @SwaggerApiSpec(summary = "심박수 측정 결과 조회", description = "특정 측정 이벤트(낙상 이벤트 ID)에 대한 심박수 결과를 조회합니다.", successMessage = "조회 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND })
+        @GetMapping("/heart-rate/{eventId}")
+        public RestApiResponse<org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO> getHeartRateResult(@PathVariable Integer eventId) {
+                return RestApiResponse.success(healthService.getHeartRateResult(eventId));
+        }
+
+        @SwaggerApiSpec(summary = "건강 데이터 강제 동기화 요청", description = "피부양자 기기에 건강 데이터를 즉시 동기화하도록 요청하는 FCM을 전송합니다.", successMessage = "동기화 요청 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND })
+        @PostMapping("/request-sync")
+        public RestApiResponse<Void> requestSync(@RequestParam Integer groupId) {
+                healthService.requestHealthSync(groupId);
+                return RestApiResponse.success(null);
+        }
+
+        @SwaggerApiSpec(summary = "심박수 데이터 저장", description = "워치에서 측정된 심박수 데이터를 저장합니다. (낙상 이벤트 연동)", successMessage = "심박수 데이터 저장 성공", errors = {
+                        ErrorCode.ENTITY_NOT_FOUND, ErrorCode.INVALID_INPUT_VALUE })
+        @PostMapping("/heart-rate")
+        public RestApiResponse<Void> saveHeartRate(@Valid @RequestBody org.ssafy.eeum.domain.health.dto.HeartRateRequestDTO request) {
+                healthService.saveHeartRate(request);
+                return RestApiResponse.success(null);
+        }
 }

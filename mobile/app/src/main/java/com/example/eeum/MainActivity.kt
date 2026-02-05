@@ -72,6 +72,23 @@ class MainActivity : ComponentActivity() {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             notificationManager.cancelAll()
         }
+
+        fun triggerImmediateHealthSync(context: Context, familyId: String? = null) {
+            val inputData = androidx.work.Data.Builder()
+            familyId?.let { inputData.putString("family_id", it) }
+
+            val immediateRequest = androidx.work.OneTimeWorkRequestBuilder<HealthSyncWorker>()
+                .setInitialDelay(2, java.util.concurrent.TimeUnit.SECONDS)
+                .setInputData(inputData.build())
+                .build()
+
+            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                "ImmediateHealthSync",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                immediateRequest
+            )
+            Log.i("MainActivity", "🚀 Triggered Immediate Health Sync (Family: $familyId)")
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -199,6 +216,23 @@ class MainActivity : ComponentActivity() {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         requestPermissions(permissions.toTypedArray(), 1001)
+        
+        // 정기 동기화 예약만 수행 (초기 실행 시 강제 동기화 제거)
+        schedulePeriodicHealthSync()
+        // triggerImmediateHealthSync(this) // 사용자가 원할 때만 실행되도록 변경
+    }
+
+    private fun schedulePeriodicHealthSync() {
+        val syncRequest = androidx.work.PeriodicWorkRequestBuilder<HealthSyncWorker>(
+            1, java.util.concurrent.TimeUnit.HOURS
+        ).build()
+
+        androidx.work.WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "HealthSyncWork",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+        Log.i("MainActivity", "✅ Scheduled Periodic Health Sync Worker (1 hour)")
     }
 }
 
@@ -262,6 +296,12 @@ class HealthJsBridge(
 
     @JavascriptInterface
     fun getAccessToken(): String? = prefs.getString("access_token", null)
+
+    @JavascriptInterface
+    fun saveSelectedFamilyId(familyId: String) {
+        prefs.edit().putString("family_id", familyId).apply()
+        Log.d("BRIDGE", "Saved selectedFamilyId: $familyId")
+    }
 
     @JavascriptInterface
     fun setOrientation(orientation: String) {
@@ -421,12 +461,7 @@ fun WebViewScreen(
                 }
 
                 // 로컬 개발 환경용 (2026-02-03 테스트중)
-//                loadUrl("http://70.12.246.146:5174")
-
-                // 배포 서버용
-//              loadUrl("http://10.0.2.2:5173")
-          loadUrl("https://i14a105.p.ssafy.io")
-//          loadUrl("http://70.12.246.148:5173")
+                loadUrl(BuildConfig.WEBVIEW_URL)
             }
         }
     )
