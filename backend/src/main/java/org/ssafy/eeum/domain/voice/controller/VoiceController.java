@@ -18,6 +18,7 @@ import org.ssafy.eeum.domain.voice.service.VoiceService;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import org.ssafy.eeum.global.common.response.RestApiResponse;
 import org.ssafy.eeum.global.config.swagger.SwaggerApiSpec;
+import org.springframework.web.multipart.MultipartFile;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
 import java.util.List;
@@ -142,5 +143,13 @@ public class VoiceController {
                         @RequestBody @Valid VoiceTestRequestDTO request) {
                 String jobId = voiceService.generateTtsAsync(userDetails.getId(), request.getText());
                 return RestApiResponse.success(HttpStatus.ACCEPTED, "TTS 요청이 접수되었습니다. (Job ID: " + jobId + ")", jobId);
+        }
+
+        @SwaggerApiSpec(summary = "음성 받아쓰기 (STT) 프록시", description = "GMS Whisper API를 대신 호출하여 음성 파일을 텍스트로 변환합니다. 배포 환경의 프록시 문제를 해결하기 위해 사용합니다.", successMessage = "변환 성공")
+        @PostMapping("/transcribe")
+        public RestApiResponse<String> transcribe(
+                        @RequestParam("file") MultipartFile file) {
+                String result = voiceService.transcribeAudio(file);
+                return RestApiResponse.success(HttpStatus.OK, "변환 성공", result);
         }
 }

@@ -217,47 +217,24 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
  */
 export const transcribeAudio = async (file) => {
     try {
-        console.log(`Transcribing file: type=${file.type}, size=${file.size}`);
+        console.log(`Transcribing file via backend proxy: type=${file.type}, size=${file.size}`);
 
         const formData = new FormData();
-        // Determine extension for Whisper API
         const ext = file.type.includes('webm') ? 'webm' :
             file.type.includes('mp4') || file.type.includes('m4a') ? 'm4a' :
                 file.type.includes('mpeg') || file.type.includes('mp3') ? 'mp3' : 'wav';
 
         formData.append('file', file, `recording.${ext}`);
-        formData.append('model', 'whisper-1');
-        formData.append('language', 'ko'); // Explicitly set language to Korean for better accuracy
 
-        const gmsKey = import.meta.env.VITE_GMS_KEY;
-        if (!gmsKey) {
-            throw new Error("GMS Key is missing in environment variables.");
-        }
-
-        const response = await fetch('/gmsapi/api.openai.com/v1/audio/transcriptions', {
-            method: 'POST',
+        const response = await apiClient.post('/voice/transcribe', formData, {
             headers: {
-                'Authorization': `Bearer ${gmsKey}`
-                // Content-Type is set automatically by fetch when using FormData
-            },
-            body: formData
+                'Content-Type': 'multipart/form-data'
+            }
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Transcription API Error Body:", errorText);
-            let errorMsg = response.statusText;
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMsg = errorData.error?.message || errorMsg;
-            } catch (e) { }
-            throw new Error(`Transcription failed (${response.status}): ${errorMsg}`);
-        }
-
-        const data = await response.json();
-        return data.text;
+        return response.data.data;
     } catch (error) {
-        console.error("Transcription error:", error);
+        console.error("Transcription error via proxy:", error);
         throw error;
     }
 };
