@@ -18,4 +18,7 @@ public interface HeartRateRepository extends JpaRepository<HeartRate, Long> {
            "CAST(h.avgRate AS double), h.minRate, h.maxRate, 1L) " +
            "FROM HeartRate h WHERE h.family.id = :familyId ORDER BY h.measuredAt DESC LIMIT 1")
     java.util.Optional<org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO> findLatestByFamilyId(@Param("familyId") Integer familyId);
+
+    // Internal Use: Get Entity for timestamp check
+    java.util.Optional<HeartRate> findFirstByFamilyIdOrderByMeasuredAtDesc(Integer familyId);
 }

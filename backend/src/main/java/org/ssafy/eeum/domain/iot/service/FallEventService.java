@@ -8,8 +8,8 @@ import org.ssafy.eeum.domain.iot.entity.FallEvent;
 import org.ssafy.eeum.domain.iot.repository.FallEventRepository;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 import org.ssafy.eeum.global.infra.gms.GmsService;
+import org.ssafy.eeum.domain.health.service.HealthService;
 import org.ssafy.eeum.domain.notification.service.FallDetectionService;
-
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.global.error.exception.CustomException;
@@ -17,7 +17,6 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.domain.iot.dto.FallDetectionRequestDTO;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
-
 import org.springframework.scheduling.annotation.Scheduled;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +36,7 @@ public class FallEventService {
     private final S3Service s3Service;
     private final GmsService gmsService;
     private final FallDetectionService fallDetectionService;
+    private final HealthService healthService;
 
     @Transactional
     public Map<String, String> handleFallDetection(String serialNumber, FallDetectionRequestDTO request,
@@ -69,6 +69,10 @@ public class FallEventService {
             eventBuilder.videoPath(fileName);
             eventBuilder.videoStatus(FallEvent.VideoStatus.PENDING);
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
+            
+            // [NEW] Trigger Heart Rate Measurement automatically
+            log.info("Fall Detected (Level 1). Triggering Heart Rate Measurement for Group: {}", groupId);
+            healthService.requestMeasurement(groupId);
         }
 
         FallEvent event = eventBuilder
@@ -109,6 +113,10 @@ public class FallEventService {
 
         String url = s3Service.generatePresignedUrl(fileName, "video/mp4");
 
+        // [NEW] Trigger Heart Rate Measurement automatically
+        log.info("Initiating Fall Log (Level 1). Triggering Heart Rate Measurement for Group: {}", familyId);
+        healthService.requestMeasurement(familyId);
+
         java.util.Map<String, String> response = new java.util.HashMap<>();
         response.put("presignedUrl", url);
         response.put("videoPath", fileName);
@@ -143,17 +151,26 @@ public class FallEventService {
                 .orElseThrow(() -> new CustomException(
                         ErrorCode.ENTITY_NOT_FOUND));
 
-        boolean isEmergency = gmsService.analyzeSentiment(sttContent);
+        boolean isSentimentEmergency = gmsService.analyzeSentiment(sttContent);
+        boolean isHeartRateEmergency = healthService.isHeartRateAbnormal(familyId);
+        
+        log.info("Dual Verification Result - Group: {}, TTS Emergency: {}, HR Emergency: {}", 
+            familyId, isSentimentEmergency, isHeartRateEmergency);
 
-        if (isEmergency) {
-            event.updateToEmergency(sttContent);
-            log.warn("낙상 위급 상황 판단 (LLM): Group={}, Text={}", familyId, sttContent);
+        if (isSentimentEmergency || isHeartRateEmergency) {
+            String emergencyReason = sttContent;
+            if (isHeartRateEmergency) {
+                emergencyReason += " (심박수 이상 감지됨)";
+            }
+            
+            event.updateToEmergency(emergencyReason);
+            log.warn("낙상 위급 상황 판단 (Dual Verification): Group={}, Reason={}", familyId, emergencyReason);
 
             // 보호자에게 단계적 알림 발송
-            fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + sttContent, event.getId());
+            fallDetectionService.handleFallDetection(familyId, "낙상 위험 상황이 감지되었습니다: " + emergencyReason, event.getId());
         } else {
             event.updateToSafe(sttContent);
-            log.info("낙상 안전 확인 (LLM): Group={}, Text={}", familyId, sttContent);
+            log.info("낙상 안전 확인 (Dual Verification): Group={}, Text={}", familyId, sttContent);
         }
     }
 

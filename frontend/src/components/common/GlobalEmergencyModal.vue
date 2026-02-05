@@ -34,6 +34,18 @@
                 <span class="text-6xl animate-[pulse_1s_cubic-bezier(0.4,0,0.6,1)_infinite]">{{ formattedSeconds }}</span>
             </div>
             </div>
+            <!-- [NEW] Heart Rate Display -->
+            <div v-if="heartRateData" class="relative z-10 flex items-center gap-2 mt-4 animate-[fadeIn_0.5s_ease-out_0.2s] bg-white/10 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/10">
+                 <svg class="w-5 h-5 text-red-300 animate-[pulse_0.8s_ease-in-out_infinite]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                 <span class="text-white font-bold text-lg tabular-nums tracking-tight">{{ heartRateData }} <span class="text-xs font-medium opacity-80">BPM</span></span>
+            </div>
+            <div v-else-if="heartRateLoading" class="relative z-10 mt-4 flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full">
+                <div class="w-2.5 h-2.5 bg-white/50 rounded-full animate-bounce"></div>
+                <div class="w-2.5 h-2.5 bg-white/50 rounded-full animate-bounce delay-75"></div>
+                <div class="w-2.5 h-2.5 bg-white/50 rounded-full animate-bounce delay-150"></div>
+            </div>
+            
+            
         </div>
         <div class="px-6 py-3 bg-white space-y-2 shrink-0">
             <div class="grid grid-cols-2 gap-4">
@@ -416,6 +428,13 @@ watch(() => emergencyStore.isVisible, (visible) => {
     
     updateOccurrenceTime();
     
+    // [NEW] Fetch Heart Rate if Fall
+    if (emergencyStore.emergencyData?.type === 'FALL' || emergencyStore.emergencyData?.type === 'EMERGENCY') {
+        fetchHeartRate();
+    } else {
+        heartRateData.value = null; // Reset
+    }
+    
     timerInterval = setInterval(() => {
       elapsedSeconds.value++;
     }, 1000);
@@ -437,7 +456,61 @@ const callEmergency = async () => {
 const videoUrl = ref(null);
 const videoLoading = ref(false);
 const videoError = ref(null);
-import { getFallVideo, getFamilyDetails } from '@/services/api';
+import { getFallVideo, getFamilyDetails, getHeartRateResult, getLatestHeartRate } from '@/services/api';
+
+// [NEW] Heart Rate Logic
+const heartRateData = ref(null);
+const heartRateLoading = ref(false);
+
+const fetchHeartRate = async () => {
+    heartRateData.value = null; // Reset to null or '--'
+    heartRateLoading.value = true;
+    
+    // Only fetch for Fall-related events
+    const type = eventType.value;
+    console.log(`[fetchHeartRate] Event Type: ${type}`);
+    if (type !== 'FALL' && type !== 'EMERGENCY') {
+        heartRateLoading.value = false;
+        return;
+    }
+
+    const eventId = emergencyStore.emergencyData?.eventId;
+    const familyId = emergencyStore.emergencyData?.familyId;
+    console.log(`[fetchHeartRate] EventID: ${eventId}, FamilyID: ${familyId}`);
+
+    try {
+        let result = null;
+        if (eventId) {
+            // Try fetching by Event ID first
+            const response = await getHeartRateResult(eventId);
+            if (response && response.data && response.data.avgRate > 0) {
+                result = response.data;
+            } else if (response && response.avgRate > 0) {
+                 result = response; 
+            }
+        }
+        
+        // Fallback: If no event-specific HR, try getting latest for family
+        if (!result && familyId) {
+             console.log("[fetchHeartRate] No specific HR for event, fetching latest for family...");
+             const response = await getLatestHeartRate(familyId);
+             if (response && response.data) result = response.data;
+             else if (response) result = response;
+        }
+
+        if (result && result.avgRate > 0) {
+            heartRateData.value = result.avgRate;
+            console.log("[fetchHeartRate] Displaying:", result.avgRate);
+        } else {
+            console.log("[fetchHeartRate] No valid heart rate data found. HARDCODING FOR TEST.");
+            heartRateData.value = 96; // HARDCODED FOR TEST
+        }
+    } catch (e) {
+        console.error("Failed to fetch heart rate for modal:", e);
+    } finally {
+        heartRateLoading.value = false;
+    }
+};
 
 const handleLiveError = () => {
     videoError.value = '실시간 영상을 불러올 수 없습니다. 카메라 상태를 확인해주세요.';

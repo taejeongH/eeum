@@ -213,4 +213,28 @@ public class HealthService {
         log.info("Heart Rate Saved. ID: {}, Avg: {} BPM, Family: {}, Related Event: {}", 
             heartRate.getId(), heartRate.getAvgRate(), family.getId(), fallEvent != null ? fallEvent.getId() : "None");
     }
+
+    /**
+     * Check if the latest heart rate is abnormal
+     * Returns true if abnormal, false if normal or no recent data
+     */
+    public boolean isHeartRateAbnormal(Integer groupId) {
+        return heartRateRepository.findFirstByFamilyIdOrderByMeasuredAtDesc(groupId)
+                .map(hr -> {
+                     // Check if data is within last 2 minutes
+                     if (hr.getMeasuredAt().isBefore(java.time.LocalDateTime.now().minusMinutes(2))) {
+                         log.info("Latest Heart Rate is too old to be considered for emergency: {}", hr.getMeasuredAt());
+                         return false; 
+                     }
+                     
+                     boolean abnormal = hr.getAvgRate() < 50 || hr.getAvgRate() > 120;
+                     if (abnormal) {
+                         log.warn("Abnormal Heart Rate Detected! Avg: {} (Threshold: <50 or >120)", hr.getAvgRate());
+                     } else {
+                         log.info("Heart Rate Normal. Avg: {}", hr.getAvgRate());
+                     }
+                     return abnormal;
+                })
+                .orElse(false);
+    }
 }
