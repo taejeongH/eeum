@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EEUM 시작 중</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, sans-serif;
+      background: #000;
+      color: #fff;
+    }
+    .box {
+      text-align: center;
+    }
+    .sub {
+      margin-top: 8px;
+      opacity: .7;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div style="font-size:22px;">EEUM 시작 중…</div>
+    <div class="sub">서버 준비를 기다리는 중입니다</div>
+  </div>
+
+<script>
+const PING = "http://localhost:8080/ping";
+const TARGET = "http://localhost:8080/";
+const INTERVAL = 1000;
+
+async function check() {
+  try {
+    const r = await fetch(PING, { cache: "no-store" });
+    if (r.ok) {
+      // 같은 창에서 "새로고침 효과"
+      location.replace(TARGET);
+      return;
+    }
+  } catch (e) {}
+  setTimeout(check, INTERVAL);
+}
+check();
+</script>
+</body>
+</html>
+
