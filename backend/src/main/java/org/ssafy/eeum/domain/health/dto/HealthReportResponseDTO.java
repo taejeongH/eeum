@@ -13,14 +13,22 @@ public class HealthReportResponseDTO {
     private Integer id;
     private Integer groupId;
     private LocalDate reportDate;
-    private String summary;
+    private Object summary;
     private Object description;
     private String reportType;
 
     public static HealthReportResponseDTO from(HealthReport report) {
+        Object summaryParsed = null;
         Object descriptionParsed = null;
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            summaryParsed = mapper.readValue(report.getSummary(), Object.class);
+        } catch (Exception e) {
+            summaryParsed = report.getSummary(); // Fallback to raw string
+        }
+
+        try {
             descriptionParsed = mapper.readValue(report.getDescription(), Object.class);
         } catch (Exception e) {
             descriptionParsed = report.getDescription(); // Fallback to raw string
@@ -30,7 +38,7 @@ public class HealthReportResponseDTO {
                 .id(report.getId())
                 .groupId(report.getFamily().getId())
                 .reportDate(report.getReportDate())
-                .summary(report.getSummary())
+                .summary(summaryParsed)
                 .description(descriptionParsed)
                 .reportType(report.getReportType().name())
                 .build();
