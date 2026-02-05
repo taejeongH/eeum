@@ -69,6 +69,7 @@ public class FallEventService {
             eventBuilder.videoStatus(FallEvent.VideoStatus.PENDING);
             presignedUrl = s3Service.generatePresignedUrl(fileName, "video/mp4");
 
+            log.info("[동작] 워치 심박수 측정 요청 전송 - 가족ID: {}", groupId);
             healthService.requestMeasurement(groupId);
         }
 
