@@ -233,8 +233,8 @@ export const transcribeAudio = async (file) => {
             throw new Error("GMS Key is missing in environment variables.");
         }
 
-        // Use absolute URL to bypass local Nginx proxy issues
-        const response = await fetch('https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/transcriptions', {
+        // Use relative URL handled by Nginx proxy to avoid CORS and 405 errors
+        const response = await fetch('/gmsapi/api.openai.com/v1/audio/transcriptions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${gmsKey}`
@@ -250,7 +250,7 @@ export const transcribeAudio = async (file) => {
         const data = await response.json();
         return data.text;
     } catch (error) {
-        console.error("Direct transcription error:", error);
+        console.error("Transcription error via proxy:", error);
         throw error;
     }
 };
