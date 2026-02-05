@@ -27,7 +27,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
     t0 = time.time()
 
     try:
-        await state.audio.cancel_many(kinds=["alarm.schedule.latest", "alarm.medication.latest", "voice.default.latest"])
+        await state.audio.cancel_many(kinds=["schedule", "medication", "voice"])
         state.audio.block_below_prio = int(AudioPrio.FALL)
 
         def remaining():

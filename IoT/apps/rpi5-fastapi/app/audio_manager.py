@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Optional, Callable, Iterable
 
-from .audio_play import AudioPlayback, start_mp3_playback
+from .audio_play import AudioPlayback, start_mp3_playback, ensure_aplay_started, _sink  
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,6 @@ class AudioJob:
     replace_key: Optional[str] = None   # 같은 키는 최신만 유지
     on_done: Optional[Callable[[], None]] = None
     done_event: Optional[asyncio.Event] = None  # 완료 대기용(특히 fall에서 필요)
-
 
 def _now() -> float:
     return time.time()
@@ -89,6 +88,11 @@ class AudioManager:
         async with self._cv:
             self._cv.notify_all()
         await self.stop_current()
+        # 서비스 종료 시 aplay까지 종료
+        try:
+            await _sink.stop()
+        except Exception:
+            pass
 
     async def stop_current(self):
         pb = self._playback
@@ -209,6 +213,7 @@ class AudioManager:
                         pass
 
         logger.info("[audio] manager stopped")
+    
     async def cancel(
         self,
         *,
