@@ -1,9 +1,5 @@
 package org.ssafy.eeum.domain.album.controller;
 
-/**
- * 가족 앨범 관리 컨트롤러
- */
-
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,8 +21,6 @@ import java.util.List;
 public class AlbumController {
 
     private final AlbumService albumService;
-
-    // --- 앱 사용자용 API ---
 
     @SwaggerApiSpec(summary = "업로드용 Presigned URL 발급", description = "S3에 사진을 직접 업로드하기 위한 Presigned URL을 발급받습니다.", successMessage = "Presigned URL 발급 성공")
     @GetMapping("/album/presigned-url")

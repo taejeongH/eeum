@@ -81,7 +81,7 @@ public class MqttService {
             payload = payloadObj.toString();
         }
 
-        log.info("MQTT Message Received - Topic: {}, Payload: {}", topic, payload);
+        log.debug("MQTT Message Received - Topic: {}, Payload: {}", topic, payload);
 
         try {
             if ("eeum/sync".equals(topic)) {
@@ -121,7 +121,7 @@ public class MqttService {
                             groupId, masterSerialNumber, slaveSerial, alive);
                 }
             }
-            log.info("Handled Status Sync for Family: {}", groupId);
+            log.debug("Handled Status Sync for Family: {}", groupId);
         } catch (Exception e) {
             log.warn("Failed to handle sync: {}", e.getMessage());
         }
@@ -371,7 +371,7 @@ public class MqttService {
 
             String jsonPayload = objectMapper.writeValueAsString(payload);
             publish(topic, jsonPayload);
-            log.info("Sent Device Sync Event via MQTT: Serial={}, Type={}", event.getSerialNumber(), type);
+            log.debug("Sent Device Sync Event via MQTT: Serial={}, Type={}", event.getSerialNumber(), type);
         } catch (Exception e) {
             log.error("Failed to send Device Sync Event via MQTT: {}", e.getMessage());
         }

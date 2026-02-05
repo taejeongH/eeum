@@ -92,7 +92,6 @@ public class User {
         M, F
     }
 
-    // 카카오 로그인 정보 업데이트
     public void updateFromKakao(String name, String email, String profileImage) {
         if (name != null && !name.isEmpty()) {
             this.name = name;

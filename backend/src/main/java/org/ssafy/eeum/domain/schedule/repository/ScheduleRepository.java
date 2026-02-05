@@ -32,13 +32,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Integer> {
                         @Param("startDate") java.time.LocalDateTime startDate,
                         @Param("endDate") java.time.LocalDateTime endDate);
 
-        /**
-         * 특정 반복 일정의 특정 날짜에 대한 자식 일정이 존재하는지 확인
-         */
         Optional<Schedule> findByParentIdAndStartAt(Integer parentId, LocalDate startAt);
 
-        /**
-         * 특정 부모 일정에 속한 모든 자식 일정 조회
-         */
         List<Schedule> findByParentId(Integer parentId);
 }

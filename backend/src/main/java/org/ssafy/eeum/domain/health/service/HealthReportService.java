@@ -41,7 +41,6 @@ public class HealthReportService {
                         return HealthReportResponseDTO.from(reportOpt.get());
                 }
 
-                // Create a new report using AI if not exists
                 HealthReport newReport = generateReportWithAI(family, date);
                 HealthReport savedReport = healthReportRepository.save(newReport);
                 return HealthReportResponseDTO.from(savedReport);
@@ -53,8 +52,6 @@ public class HealthReportService {
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
                                                 "가족 그룹을 찾을 수 없습니다."));
 
-                // Find existing report to update or just save a new one (unique constraint
-                // handles it)
                 Optional<HealthReport> existing = healthReportRepository.findByFamilyAndReportDateAndReportType(
                                 family, date, HealthReport.ReportType.DAILY);
 
@@ -62,8 +59,6 @@ public class HealthReportService {
 
                 if (existing.isPresent()) {
                         HealthReport report = existing.get();
-                        // Manual update to bypass repository.save() ambiguity if needed, but builder is
-                        // usually clean
                         healthReportRepository.delete(report);
                         healthReportRepository.flush();
                 }
@@ -79,7 +74,6 @@ public class HealthReportService {
                 List<HealthMetric> metrics = healthMetricRepository.findByFamilyAndRecordDateBetween(family, start,
                                 end);
 
-                // Call GmsService for real AI analysis
                 java.util.Map<String, Object> aiResult = gmsService.generateHealthReport(metrics);
 
                 Object summaryObj = aiResult.get("summary");

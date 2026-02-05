@@ -26,9 +26,9 @@ jwt:
 
 logging:
   level:
-    org.ssafy.eeum: debug
-    org.springframework.security: debug
-    org.springframework.security.oauth2: debug
+    org.ssafy.eeum: info
+    org.springframework.security: info
+    org.springframework.security.oauth2: info
 
 eeum:
   swagger-url: http://localhost:8080

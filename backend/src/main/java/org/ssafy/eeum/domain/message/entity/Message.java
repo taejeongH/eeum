@@ -31,7 +31,6 @@ public class Message {
     @JoinColumn(name = "sender_user_id", nullable = false)
     private User sender;
 
-    // 배포 DB가 TEXT 타입이므로 @Lob 대신 columnDefinition 사용이 더 안전함
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
@@ -60,15 +59,11 @@ public class Message {
     @JoinColumn(name = "voice_task_id")
     private org.ssafy.eeum.domain.voice.entity.VoiceTask voiceTask;
 
-    /**
-     * 로직 메서드
-     */
     public void markRead() {
         this.isRead = true;
         this.readAt = LocalDateTime.now();
     }
 
-    // 논리 삭제
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }

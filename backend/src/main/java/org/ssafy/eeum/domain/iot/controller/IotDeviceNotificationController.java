@@ -42,7 +42,6 @@ public class IotDeviceNotificationController {
             @AuthenticationPrincipal DeviceDetails deviceDetails,
             @PathVariable String messageId) {
 
-        // 기기 권한 검증은 Security와 Service 레벨에서 수행됨
         notificationService.markAsRead(messageId);
         return RestApiResponse.success(null);
     }

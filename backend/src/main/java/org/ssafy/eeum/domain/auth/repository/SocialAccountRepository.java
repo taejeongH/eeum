@@ -7,6 +7,5 @@ import java.util.Optional;
 
 @Repository
 public interface SocialAccountRepository extends JpaRepository<SocialAccount, Integer> {
-    // 카카오 ID로 소셜 계정 찾기
     Optional<SocialAccount> findByProviderAndProviderUserId(String provider, String providerUserId);
 }
