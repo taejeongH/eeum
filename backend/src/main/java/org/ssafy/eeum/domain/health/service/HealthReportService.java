@@ -80,14 +80,25 @@ public class HealthReportService {
                                 end);
 
                 // Call GmsService for real AI analysis
-                java.util.Map<String, String> aiResult = gmsService.generateHealthReport(metrics);
+                java.util.Map<String, Object> aiResult = gmsService.generateHealthReport(metrics);
+
+                String summary = (String) aiResult.get("summary");
+                Object descriptionObj = aiResult.get("description");
+                String descriptionJson = "";
+
+                try {
+                        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                        descriptionJson = mapper.writeValueAsString(descriptionObj);
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                        descriptionJson = "[]"; // Fallback to empty array string
+                }
 
                 return HealthReport.builder()
                                 .family(family)
                                 .reportDate(date)
                                 .reportType(HealthReport.ReportType.DAILY)
-                                .summary(aiResult.get("summary"))
-                                .description(aiResult.get("description"))
+                                .summary(summary)
+                                .description(descriptionJson)
                                 .build();
         }
 }

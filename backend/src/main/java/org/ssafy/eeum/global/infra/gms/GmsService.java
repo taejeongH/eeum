@@ -24,11 +24,12 @@ public class GmsService {
     @Value("${spring.gms.model}")
     private String model;
 
-    public Map<String, String> generateHealthReport(List<org.ssafy.eeum.domain.health.entity.HealthMetric> metrics) {
+    public Map<String, Object> generateHealthReport(List<org.ssafy.eeum.domain.health.entity.HealthMetric> metrics) {
         if (metrics.isEmpty()) {
             return Map.of(
                     "summary", "오늘 수집된 건강 데이터가 없습니다.",
-                    "description", "사용자의 활동이나 생체 신호 데이터가 기록되지 않았습니다. 워치 연결 상태를 확인해주세요.");
+                    "description", List.of(Map.of("title", "데이터 부족", "content",
+                            "사용자의 활동이나 생체 신호 데이터가 기록되지 않았습니다. 워치 연결 상태를 확인해주세요.", "type", "WARNING")));
         }
 
         // Prepare context for AI
@@ -40,7 +41,23 @@ public class GmsService {
                             m.getRecordDate(), m.getSteps(), m.getAverageHeartRate(), m.getSystolicPressure(),
                             m.getDiastolicPressure(), m.getBloodOxygen(), m.getActiveCalories(), m.getActiveMinutes()));
         }
-        context.append("\n응답은 반드시 아래 JSON 형식으로만 해주세요:\n{\"summary\": \"한 줄 요약\", \"description\": \"상세 분석 및 조언\"}");
+        context.append("\n응답은 반드시 아래 JSON 형식으로만 해주세요. 마크다운 기호 없이 순수 JSON만 반환하세요:\n" +
+                "{\n" +
+                "  \"summary\": \"한 줄 요약\",\n" +
+                "  \"description\": [\n" +
+                "    { \"title\": \"어제와 이렇게 달라졌어요\", \"content\": \"어제 데이터와 비교한 변화(평균심박수, 활동량 등) 분석\", \"type\": \"TREND\" },\n"
+                +
+                "    { \"title\": \"오늘의 핵심 지표 해석\", \"content\": \"걸음수, 혈압, 산소포화도 등 주요 지표의 의미 해석\", \"type\": \"METRIC\" },\n"
+                +
+                "    { \"title\": \"주의 깊게 볼 점\", \"content\": \"이상 신호나 데이터 누락 구간에 대한 주의 사항\", \"type\": \"WARNING\" },\n"
+                +
+                "    { \"title\": \"생활 조언\", \"content\": \"활동 강도 조절, 수분 섭취 등 오늘의 행동 가이드\", \"type\": \"ADVICE\" },\n" +
+                "    { \"title\": \"오늘의 대화 주제 추천\", \"content\": \"보호자가 피부양자에게 건넬 따뜻한 질문이나 칭찬\", \"type\": \"SOCIAL\" },\n"
+                +
+                "    { \"title\": \"내일을 위한 건강 미션\", \"content\": \"내일 실천하면 좋은 구체적인 목표나 측정 루틴\", \"type\": \"ACTION\" }\n"
+                +
+                "  ]\n" +
+                "}");
 
         try {
             WebClient webClient = WebClient.builder()
@@ -51,8 +68,9 @@ public class GmsService {
 
             Map<String, Object> requestBody = Map.of(
                     "model", model,
+                    "response_format", Map.of("type", "json_object"),
                     "messages", List.of(
-                            Map.of("role", "developer", "content", "당신은 건강 리포트 생성기입니다. JSON 형식으로만 응답하세요."),
+                            Map.of("role", "developer", "content", "당신은 건강 리포트 생성기입니다. 반드시 구조화된 JSON 형식으로만 응답해야 합니다."),
                             Map.of("role", "user", "content", context.toString())));
 
             Map<String, Object> response = webClient.post()
@@ -79,7 +97,7 @@ public class GmsService {
 
                     com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                     return mapper.readValue(content,
-                            new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, String>>() {
+                            new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {
                             });
                 }
             }
@@ -89,7 +107,8 @@ public class GmsService {
 
         return Map.of(
                 "summary", "리포트 생성 중 오류가 발생했습니다.",
-                "description", "데이터 분석을 일시적으로 완료하지 못했습니다. 잠시 후 다시 시도해주세요.");
+                "description", List.of(Map.of("title", "분석 오류", "content", "데이터 분석을 일시적으로 완료하지 못했습니다. 잠시 후 다시 시도해주세요.",
+                        "type", "WARNING")));
     }
 
     public boolean analyzeSentiment(String text) {
