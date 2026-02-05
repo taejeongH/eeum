@@ -17,4 +17,6 @@ public interface VoiceSampleRepository extends JpaRepository<VoiceSample, Intege
     Optional<VoiceSample> findByVoiceTask(VoiceTask voiceTask);
 
     Optional<VoiceSample> findTopByUserIdOrderByCreatedAtDesc(Integer userId);
+
+    Optional<VoiceSample> findBySamplePath(String samplePath);
 }

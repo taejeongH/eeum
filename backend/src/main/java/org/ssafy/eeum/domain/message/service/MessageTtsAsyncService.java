@@ -34,16 +34,9 @@ public class MessageTtsAsyncService {
 
         try {
             voiceUrl = voiceService.createTtsUrl(userId, content, messageId);
-        } catch (CustomException e) {
-            if (e.getErrorCode() == ErrorCode.VOICE_SAMPLE_NOT_FOUND) {
-                log.info("[TTS Async] User {} has no voice model. Proceeding with text-only message.", userId);
-            } else {
-                log.error("[TTS Async] TTS creation failed (CustomException): {}", e.getMessage());
-                return;
-            }
         } catch (Exception e) {
             log.error("[TTS Async] TTS creation request failed: {}", e.getMessage());
-            return; // Other errors stop processing
+            return;
         }
 
         try {
@@ -58,7 +51,9 @@ public class MessageTtsAsyncService {
                         messageRepository.save(msg);
                     });
                 });
-                return;
+                // REMOVED: return; -> Proceed to Log Creation (VoiceUrl will be null here,
+                // effectively Text-Only for now)
+                voiceUrl = null;
             }
 
             // Case 2: Immediate completion or Text-only fallback

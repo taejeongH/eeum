@@ -331,17 +331,24 @@ public class VoiceService {
 
     private PythonTtsRequestDTO buildPythonTtsRequestDTO(Integer userId, String text) {
         List<VoiceSample> samples = sampleRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+
+        VoiceSample referenceSample = null;
         if (samples.isEmpty()) {
-            throw new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND);
-        }
-        User user = samples.get(0).getUser();
+            // Fallback to Default Voice Model
+            String defaultSamplePath = "samples/5/151567b4-ec88-4625-807f-27d35dd234b6.webm";
+            referenceSample = sampleRepository.findBySamplePath(defaultSamplePath)
+                    .orElseThrow(() -> new CustomException(ErrorCode.VOICE_SAMPLE_NOT_FOUND));
+            log.info("User {} has no voice model. Using Default Sample: {}", userId, defaultSamplePath);
+        } else {
+            User user = samples.get(0).getUser();
 
-        if (user.getRepresentativeSample() == null) {
-            user.updateRepresentativeSample(samples.get(0));
-            log.debug("User {}'s representative sample set to ID {}", userId, samples.get(0).getId());
+            if (user.getRepresentativeSample() == null) {
+                user.updateRepresentativeSample(samples.get(0));
+                log.debug("User {}'s representative sample set to ID {}", userId, samples.get(0).getId());
+            }
+            referenceSample = user.getRepresentativeSample();
         }
 
-        VoiceSample referenceSample = user.getRepresentativeSample();
         String refText = referenceSample.getVoiceScript() != null
                 ? referenceSample.getVoiceScript().getContent()
                 : referenceSample.getTranscript();
