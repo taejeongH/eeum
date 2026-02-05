@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Any, Dict, List, Tuple
 import asyncio
 import time
+import aiohttp
+from .config import CLIENT_ID
+from .audio_manager import AudioManager
 
 @dataclass
 class Event:
@@ -21,6 +24,58 @@ class MonitorState:
         self.alert: bool = False
         self.shutting_down = False
         self.queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=16)
+        self.device_id = CLIENT_ID or ""
+        self.loop = None
+
+        self.stt_engine = None
+        self.stt_cache_missing: bool = False
+        self.stt_cache_attempted: bool = False
+        self.stt_lock = asyncio.Lock()
+        self.stt_busy: bool = False
+        
+        # ---- DB ----
+        self.db = None
+        self.album_repo = None
+        self.album_lock = asyncio.Lock()
+        self.member_repo = None
+        
+        self.member_cache: dict[int, dict[str, Any]] = {}   # user_id -> {user_id,name,profile_image_url,updated_at}
+        self.member_cache_ts: float = 0.0
+        self.member_cache_loaded: bool = False
+        # 메모리 캐시: id -> photo dict
+        self.album_cache: dict[int, dict[str, Any]] = {}
+        self.album_cache_ts = 0.0      # 마지막 갱신 시각 (time.time())
+        self.album_cache_loaded = False
+        self.album_last_sync_ts: float = 0.0
+        self.album_last_sync_ok: bool = False
+
+        # ---- Slideshow ----
+        self.slide_playing: bool = True
+        self.slide_interval_sec: float = 60.0
+        self.slide_mode: str = "sequential"
+
+        self.slide_playlist: list[int] = []   # photo_id list
+        self.slide_index: int = 0
+
+        self.slide_seq: int = 0
+        self.slide_subscribers: set[asyncio.Queue] = set()
+        self.slide_lock = asyncio.Lock()
+        self.slide_timer_task: Optional[asyncio.Task] = None
+        self.slide_tick_event: asyncio.Event = asyncio.Event()
+
+        # ---- shared http session ----
+        self.http_session: Optional[aiohttp.ClientSession] = None
+
+        # ---- audio manager ----
+        self.audio = AudioManager()
+        
+        # ---- voice ----
+        self.voice_subscribers: set[asyncio.Queue] = set()
+        self.voice_repo = None
+
+        # ---- alarm ----
+        self.alert_subscribers: set[asyncio.Queue] = set()
+        self.alarm_last_tts_ts: dict[str, float] = {}
 
         # ---- MQTT ----
         self.cmd_queue: asyncio.Queue[Command] = asyncio.Queue(maxsize=64)
@@ -57,7 +112,8 @@ class MonitorState:
         self.wifi_profiles: List[Dict[str, Any]] = []
 
         self.wifi_active_ts: float = 0.0
-        self.wifi_cache_ts: float = 0.0
+        self.wifi_scan_ts: float = 0.0
+        self.wifi_profiles_ts: float = 0.0
 
         # UI가 wifi 설정 화면을 보고 있는지 판단 (ping 갱신)
         self.wifi_ui_last_ping: float = 0.0
