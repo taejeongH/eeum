@@ -181,7 +181,26 @@ public class IotSyncService {
      * 1. Redis에 활성 가족 및 kind 목록 추가
      * 2. 즉시 MQTT 전송 (1개라도 생기면 바로 보냄)
      */
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    /**
+     * 데이터 업데이트 알림 요청 (이벤트 발행)
+     * 트랜잭션 커밋 후 실제 처리를 위해 이벤트를 발행합니다.
+     */
     public void notifyUpdate(Integer familyId, String kind) {
+        eventPublisher.publishEvent(new org.ssafy.eeum.domain.iot.event.IotSyncEvent(familyId, kind));
+    }
+
+    /**
+     * 트랜잭션 커밋 후 실행되는 알림 처리 핸들러
+     * 1. Redis에 활성 가족 및 kind 목록 추가
+     * 2. 즉시 MQTT 전송
+     */
+    @org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
+    public void handleSyncEvent(org.ssafy.eeum.domain.iot.event.IotSyncEvent event) {
+        Integer familyId = event.getFamilyId();
+        String kind = event.getKind();
+
         String familyIdStr = familyId.toString();
         String countKey = "sync:family:" + familyIdStr + ":" + kind + ":count";
         String activeFamilyKey = "sync:active_families";
