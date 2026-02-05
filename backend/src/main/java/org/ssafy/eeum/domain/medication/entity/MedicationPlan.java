@@ -66,8 +66,7 @@ public class MedicationPlan extends BaseEntity {
         this.medicationPlanTimes.add(medicationPlanTime);
         medicationPlanTime.setMedicationPlan(this);
     }
-    
-    // Convenience method for Service
+
     public void addNotificationTime(java.time.LocalTime time) {
         MedicationPlanTime planTime = MedicationPlanTime.builder()
                 .notificationTime(time)

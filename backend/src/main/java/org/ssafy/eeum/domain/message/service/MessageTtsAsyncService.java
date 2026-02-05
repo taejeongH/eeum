@@ -27,14 +27,12 @@ public class MessageTtsAsyncService {
     @Async
     @Transactional
     public void processTtsAsync(Integer messageId, Integer userId, String content, Integer groupId) {
-        log.info("[TTS Async] messageId: {} 에 대한 TTS 생성 및 처리 시작", messageId);
 
         try {
-            // 1. TTS 생성 요청 (메시지 ID 포함)
             String voiceUrl = voiceService.createTtsUrl(userId, content, messageId);
 
             if (voiceUrl != null) {
-                // 1.5. 즉시 완료되지 않은 경우 (Job ID가 반환된 경우)
+                // 즉시 완료되지 않은 경우
                 if (voiceUrl.startsWith("TASK_ID:")) {
                     Integer taskId = Integer.parseInt(voiceUrl.substring(8));
                     log.info("[TTS Async] messageId: {} 에 대한 TTS 생성이 지연되어 대기 상태(Task ID: {})로 전환합니다.", messageId,
@@ -49,22 +47,20 @@ public class MessageTtsAsyncService {
                     return;
                 }
 
-                // 2. 즉시 완료된 경우 (Warm start)
+                // 즉시 완료된 경우
                 Message message = messageRepository.findById(messageId).orElse(null);
                 if (message != null) {
                     String voiceKey = voiceService.extractS3Key(voiceUrl);
                     message.updateVoiceUrl(voiceKey);
-                    messageRepository.save(message); // 명시적 저장이 transactional 안에서 필요할 수 있음
+                    messageRepository.save(message);
 
-                    // 3. 로그 저장
+                    // 로그 저장
                     VoiceLog voiceLog = VoiceLog.builder()
                             .groupId(groupId)
                             .voiceId(messageId)
                             .actionType(ActionType.ADD)
                             .build();
                     voiceLogRepository.save(voiceLog);
-
-                    // 4. IoT 동기화 알림 (배치 처리 로직 따름)
                     iotSyncService.notifyUpdate(groupId, "voice");
 
                     log.info("[TTS Async] messageId: {} 에 대한 TTS 처리 완료", messageId);

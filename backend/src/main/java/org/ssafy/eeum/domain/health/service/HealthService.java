@@ -93,7 +93,6 @@ public class HealthService {
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
                                                 "가족 그룹을 찾을 수 없습니다."));
 
-                // Find the PATIENT in the group to verify its existence
                 supporterRepository
                                 .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,

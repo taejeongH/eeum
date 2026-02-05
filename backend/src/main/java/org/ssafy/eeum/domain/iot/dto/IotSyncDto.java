@@ -17,8 +17,8 @@ public class IotSyncDto {
     public static class SyncItem {
         private Integer id;
         private String url;
-        private String description; // content for voice
-        private String takenAt; // or createdAt
+        private String description;
+        private String takenAt;
         private Integer userId;
     }
 }

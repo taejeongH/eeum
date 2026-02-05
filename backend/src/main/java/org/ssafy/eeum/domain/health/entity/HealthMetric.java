@@ -67,7 +67,6 @@ public class HealthMetric extends BaseEntity {
     @Column(name = "active_minutes")
     private Integer activeMinutes;
 
-    // 심박수가 위험인지 판단하는 기준
     public boolean isHeartRateWarning() {
         return maxHeartRate != null && maxHeartRate >= 120;
     }

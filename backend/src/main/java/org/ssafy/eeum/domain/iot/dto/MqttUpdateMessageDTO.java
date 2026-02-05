@@ -6,10 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * eeum/update 토픽용 DTO (IoT -> Server)
- * 업데이트 확인 메시지
- */
 @Getter
 @Builder
 @NoArgsConstructor

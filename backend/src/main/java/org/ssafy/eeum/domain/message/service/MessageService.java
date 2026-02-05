@@ -42,7 +42,7 @@ public class MessageService {
 
         @Transactional
         public MessageResponseDto send(Integer groupId, Integer senderUserId, MessageRequestDto requestDto) {
-                // 1. 기본 검증 로직
+                // 기본 검증 로직
                 Family group = familyRepository.findById(groupId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
@@ -52,7 +52,7 @@ public class MessageService {
                 supporterRepository.findByUserAndFamily(sender, group)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-                // 2. 메시지 객체 생성 (일단 DB에 저장하여 ID를 확보)
+                // 메시지 객체 생성
                 Message message = Message.builder()
                                 .group(group)
                                 .sender(sender)
@@ -61,10 +61,10 @@ public class MessageService {
                                 .isSynced(false)
                                 .build();
 
-                // 3. 메시지 먼저 저장
+                // 메시지 먼저 저장
                 Message saved = messageRepository.save(message);
 
-                // 4. 비동기로 TTS 생성 및 후속 처리 요청
+                // 비동기로 TTS 생성 및 후속 처리 요청
                 messageTtsAsyncService.processTtsAsync(saved.getId(), senderUserId, requestDto.getContent(), groupId);
 
                 Supporter senderSupporter = supporterRepository.findByUserAndFamily(sender, group)
@@ -75,13 +75,11 @@ public class MessageService {
 
         @Transactional
         public void generateTts(Integer userId, Integer groupId, String text) {
-                // 1. Family & User 조회 (검증용)
                 Family group = familyRepository.findById(groupId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
                 User sender = userRepository.findById(userId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-                // 2. 메시지 저장
                 Message message = Message.builder()
                                 .group(group)
                                 .sender(sender)
@@ -91,7 +89,6 @@ public class MessageService {
                                 .build();
                 Message saved = messageRepository.save(message);
 
-                // 3. 비동기로 TTS 처리 요청
                 messageTtsAsyncService.processTtsAsync(saved.getId(), userId, text, groupId);
         }
 
@@ -164,7 +161,6 @@ public class MessageService {
                         throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
                 }
 
-                // 권한 체크: 작성자 본인이거나 가족 대표자인 경우만 삭제 가능
                 boolean isSender = message.getSender().getId().equals(requester.getId());
                 boolean isRepresentative = requesterSupporter.isRepresentativeFlag();
 
@@ -173,11 +169,7 @@ public class MessageService {
                 }
 
                 message.softDelete();
-
-                // Log 저장 (DELETE)
                 saveLog(groupId, messageId, ActionType.DELETE);
-
-                // IoT 동기화 알림
                 iotSyncService.notifyUpdate(groupId, "voice");
         }
 
@@ -235,7 +227,7 @@ public class MessageService {
                                 .senderProfileImage(message.getSender().getProfileImage())
                                 .senderRelationship(senderRelationship)
                                 .senderRole(senderRole)
-                                .enableTTS(message.getVoiceUrl() != null) // 실제 URL 유무에 따라 클라이언트에 TTS 가능 여부 전달
+                                .enableTTS(message.getVoiceUrl() != null)
                                 .voiceUrl(message.getVoiceUrl() != null
                                                 ? s3Service.getPresignedUrl(message.getVoiceUrl())
                                                 : null)

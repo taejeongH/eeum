@@ -21,6 +21,7 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -52,32 +53,26 @@ public class MedicationService {
     @Transactional
     public void bootstrapRedis() {
         try {
-            log.info("[MedicationService] Bootstrapping Redis Alarm Cache from DB...");
             List<MedicationPlan> allPlans = medicationRepository.findAllWithTimes();
             for (MedicationPlan plan : allPlans) {
                 medicationAlarmRedisService.scheduleAlarm(plan);
             }
-            log.info("[MedicationService] Redis Bootstrap Complete. Scheduled {} plans.", allPlans.size());
         } catch (Exception e) {
-            log.error("[MedicationService] CRITICAL Error during Redis bootstrap: {}", e.getMessage());
-            // 애플리케이션 기동은 실패시키지 않되, 에러 로그를 남깁니다.
+
         }
     }
 
     @org.springframework.scheduling.annotation.Scheduled(cron = "0 * * * * *")
     public void sendMedicationAlarm() {
         long currentTimestamp = System.currentTimeMillis();
-        java.util.Set<String> dueAlarms = medicationAlarmRedisService.popDueAlarms(currentTimestamp);
+        Set<String> dueAlarms = medicationAlarmRedisService.popDueAlarms(currentTimestamp);
 
         if (dueAlarms.isEmpty()) {
             return;
         }
 
-        log.debug("[MedicationAlarm] Redis found {} due alarms", dueAlarms.size());
-
         for (String alarmMember : dueAlarms) {
             try {
-                // alarmMember 형식: "planId:HH:mm"
                 Long planId = Long.parseLong(alarmMember.split(":")[0]);
                 MedicationPlan plan = medicationRepository.findById(planId).orElse(null);
 
@@ -85,7 +80,6 @@ public class MedicationService {
                     continue;
                 }
 
-                // 기기 조회 및 알림 전송
                 String summaryText = plan.getMedicineName();
                 String content = String.format("복약 시간입니다. %s 약을 드세요.", summaryText);
 
@@ -97,16 +91,14 @@ public class MedicationService {
                         .findAllByFamilyId(plan.getGroupId().intValue());
 
                 for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
-                    log.info("[MedicationAlarm] Sending Redis-based alarm to SN: {}, PlanId: {}",
-                            device.getSerialNumber(), planId);
                     mqttService.sendAlarm(device.getSerialNumber(), "medication", content, data);
                 }
 
-                // 다음 알람 예약 (복약 성공 여부와 상관없이 주기적으로 다시 예약)
+                // 다음 알람 예약
                 medicationAlarmRedisService.scheduleAlarm(plan);
 
             } catch (Exception e) {
-                log.error("[MedicationAlarm] Failed to process Redis alarm {}: {}", alarmMember, e.getMessage());
+
             }
         }
     }

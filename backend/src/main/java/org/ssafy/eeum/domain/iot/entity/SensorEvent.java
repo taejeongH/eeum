@@ -20,7 +20,7 @@ public class SensorEvent extends BaseEntity {
     private Integer id;
 
     @Column(name = "event_id", unique = true, length = 200)
-    private String eventId; // {serial_number}_{device_event_id} 형식
+    private String eventId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id", nullable = false)
@@ -40,10 +40,10 @@ public class SensorEvent extends BaseEntity {
     private String kind; // vision, sensor
 
     @Column(name = "location", length = 50)
-    private String location; // LIVING_ROOM 등
+    private String location;
 
     @Column(name = "event_data", columnDefinition = "TEXT")
-    private String eventData; // JSON 형태의 추가 데이터
+    private String eventData;
 
     @Column(name = "detected_at", nullable = false)
     private LocalDateTime detectedAt;
@@ -53,11 +53,8 @@ public class SensorEvent extends BaseEntity {
 
     @Column(name = "processed", nullable = false)
     @Builder.Default
-    private Boolean processed = false; // FallEvent 생성 여부
+    private Boolean processed = false;
 
-    /**
-     * 기기 시리얼 번호 + 기기 이벤트 ID로 고유 이벤트 ID 생성
-     */
     public static String generateEventId(String serialNumber, String deviceEventId) {
         return serialNumber + "_" + deviceEventId;
     }

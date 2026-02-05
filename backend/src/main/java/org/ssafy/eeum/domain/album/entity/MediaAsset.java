@@ -49,13 +49,13 @@ public class MediaAsset extends BaseEntity {
         this.storageUrl = storageUrl;
         this.takenAt = takenAt;
         this.description = description;
-        this.isSynced = false; // 생성 시에는 미동기화 상태
+        this.isSynced = false;
     }
 
     public void update(LocalDate takenAt, String description) {
         this.takenAt = takenAt;
         this.description = description;
-        this.isSynced = false; // 수정 시 다시 동기화 필요 상태로 변경
+        this.isSynced = false;
     }
 
     public void markSynced() {

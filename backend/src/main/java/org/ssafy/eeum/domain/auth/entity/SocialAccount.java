@@ -22,7 +22,7 @@ public class SocialAccount {
     private User user;
 
     @Column(nullable = false, length = 20)
-    private String provider; // KAKAO, NAVER
+    private String provider; // KAKAO
 
     @Column(name = "provider_user_id", nullable = false, length = 255)
     private String providerUserId;
@@ -30,7 +30,6 @@ public class SocialAccount {
     @Column(name = "connected_at", nullable = false)
     private LocalDateTime connectedAt;
 
-    // 생성 메서드
     public static SocialAccount createKakaoAccount(User user, String providerUserId) {
         return SocialAccount.builder()
                 .user(user)

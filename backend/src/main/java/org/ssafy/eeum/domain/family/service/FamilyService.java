@@ -37,21 +37,18 @@ public class FamilyService {
                 User user = userRepository.findById(Integer.parseInt(userId))
                                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-                // 2. 초대 코드 생성 (중복 확인)
                 String inviteCode;
                 do {
                         inviteCode = generateInviteCode();
                 } while (familyRepository.findByInviteCode(inviteCode).isPresent());
 
-                // 3. 가족 생성 및 저장
                 Family family = Family.builder()
                                 .groupName(createFamilyRequestDto.getName())
                                 .inviteCode(inviteCode)
-                                .user(user) // 가족을 생성한 유저 설정
+                                .user(user)
                                 .build();
                 Family savedFamily = familyRepository.save(family);
 
-                // 4. 가족-유저 연결 (Supporter 생성, 생성자는 CAREGIVER 및 대표자로 설정)
                 Supporter supporter = Supporter.builder()
                                 .user(user)
                                 .family(savedFamily)
@@ -61,7 +58,6 @@ public class FamilyService {
                                 .build();
                 supporterRepository.save(supporter);
 
-                // 5. 응답 DTO 반환
                 return CreateFamilyResponseDto.of(savedFamily);
         }
 
@@ -75,8 +71,7 @@ public class FamilyService {
                 return supporters.stream()
                                 .map(supporter -> {
                                         String rel = supporter.getRelationship();
-                                        // If current user's relationship is null, try to find any relationship in the
-                                        // family
+
                                         if (rel == null || rel.trim().isEmpty()) {
                                                 rel = supporterRepository.findAllByFamily(supporter.getFamily())
                                                                 .stream()
@@ -86,7 +81,6 @@ public class FamilyService {
                                                                 .orElse(null);
                                         }
 
-                                        // Find dependent name in this family
                                         String dependentName = supporterRepository
                                                         .findAllByFamily(supporter.getFamily())
                                                         .stream()
@@ -191,10 +185,7 @@ public class FamilyService {
         @Transactional(readOnly = true)
         public InviteInfoResponseDto getInviteInfo(String inviteCode) {
                 Family family = familyRepository.findByInviteCode(inviteCode)
-                                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INVITE_CODE)); // Or a more
-                                                                                                        // specific
-                                                                                                        // error if
-                                                                                                        // needed
+                                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INVITE_CODE));
 
                 String inviterName = family.getUser().getName();
                 String groupName = family.getGroupName();
@@ -238,12 +229,10 @@ public class FamilyService {
                                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
                 Family family = familyRepository.findById(familyId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
-                // 유저가 가족의 대표자인지 확인
+
                 if (family.getUser().getId().equals(user.getId())) {
-                        // 대표자일 경우, 전체 가족 삭제
                         familyRepository.delete(family);
                 } else {
-                        // 대표자가 아닐 경우, 해당 유저의 서포터 기록 삭제
                         Supporter supporter = supporterRepository.findByUserAndFamily(user, family)
                                         .orElseThrow(() -> new CustomException(ErrorCode.SUPPORTER_NOT_FOUND));
                         supporterRepository.delete(supporter);
@@ -271,62 +260,50 @@ public class FamilyService {
                 Family family = familyRepository.findById(familyId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-                // 인증된 유저가 가족의 대표자인지 확인
                 if (!family.getUser().getId().equals(authenticatedUser.getId())) {
                         throw new CustomException(ErrorCode.NOT_FAMILY_REPRESENTATIVE);
                 }
 
-                // 1. 그룹 이름 수정
                 if (requestDto.getNewGroupName() != null && !requestDto.getNewGroupName().trim().isEmpty()) {
-                        family.updateGroupName(requestDto.getNewGroupName()); // Assuming updateGroupName method in
-                                                                              // Family
+                        family.updateGroupName(requestDto.getNewGroupName());
                         familyRepository.save(family);
                 }
 
-                // 2. 피부양자 설정
-                // 3. 피부양자 건강 상태 정보 설정
                 if (requestDto.getDependentUserId() != null) {
                         User dependentUser = userRepository.findById(requestDto.getDependentUserId())
                                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-                        // 기존 피부양자 Supporter 찾기
                         Optional<Supporter> existingPatientSupporter = supporterRepository.findByFamilyAndRole(family,
                                         Supporter.Role.PATIENT);
 
-                        // 기존 피부양자 삭제 로직
                         if (existingPatientSupporter.isPresent()) {
                                 Supporter currentPatient = existingPatientSupporter.get();
-                                // 기존 피부양자가 새로운 피부양자와 다른 경우 또는 피부양자를 0으로 설정하여 삭제 요청한 경우
                                 if (!currentPatient.getUser().getId().equals(dependentUser.getId())
                                                 || requestDto.getDependentUserId() == 0) {
                                         supporterRepository.delete(currentPatient);
                                 }
                         }
 
-                        // 새로운 피부양자 설정 (0이 아닌 경우)
                         if (requestDto.getDependentUserId() != 0) {
                                 Supporter newPatientSupporter = Supporter.builder()
                                                 .user(dependentUser)
                                                 .family(family)
                                                 .role(Supporter.Role.PATIENT)
-                                                .representativeFlag(false) // 피부양자는 대표자가 아님
-                                                .relationship(null) // 피부양자의 관계는 여기서 설정하지 않음 (대표자와의 관계는 createFamily에서)
+                                                .representativeFlag(false)
+                                                .relationship(null)
                                                 .build();
                                 supporterRepository.save(newPatientSupporter);
 
-                                // 피부양자 건강 정보 업데이트
                                 dependentUser.updateHealthInfo(requestDto.getDependentBloodType(),
                                                 requestDto.getDependentChronicDiseases());
                                 userRepository.save(dependentUser);
                         }
                 } else if (requestDto.getDependentUserId() != null && requestDto.getDependentUserId() == 0) {
-                        // 피부양자 제거 요청
                         Optional<Supporter> existingPatientSupporter = supporterRepository.findByFamilyAndRole(family,
                                         Supporter.Role.PATIENT);
                         existingPatientSupporter.ifPresent(supporterRepository::delete);
                 }
 
-                // 4. 멤버별 응급 우선순위 설정
                 if (requestDto.getMemberPriorities() != null && !requestDto.getMemberPriorities().isEmpty()) {
                         for (FamilyMemberPriorityDto priorityDto : requestDto.getMemberPriorities()) {
                                 User memberUser = userRepository.findById(priorityDto.getUserId())
@@ -335,7 +312,6 @@ public class FamilyService {
                                 Supporter memberSupporter = supporterRepository.findByUserAndFamily(memberUser, family)
                                                 .orElseThrow(() -> new CustomException(ErrorCode.SUPPORTER_NOT_FOUND));
 
-                                // 우선순위 유효성 검사
                                 if (priorityDto.getEmergencyPriority() < 1 || priorityDto.getEmergencyPriority() > 4) {
                                         throw new CustomException(ErrorCode.INVALID_EMERGENCY_PRIORITY);
                                 }
@@ -381,7 +357,7 @@ public class FamilyService {
                         newInviteCode = generateInviteCode();
                 } while (familyRepository.findByInviteCode(newInviteCode).isPresent());
 
-                family.updateInviteCode(newInviteCode); // Assuming updateInviteCode method in Family
+                family.updateInviteCode(newInviteCode);
                 familyRepository.save(family);
 
                 return newInviteCode;
@@ -402,7 +378,7 @@ public class FamilyService {
                 User memberUserToDelete = userRepository.findById(memberUserId.intValue())
                                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-                // 대표자가 자기 자신을 삭제하는 경우 (탈퇴 API 사용 유도)
+                // 대표자가 자기 자신을 삭제하는 경우
                 if (authenticatedUser.getId().equals(memberUserToDelete.getId())) {
                         throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "자기 자신을 삭제하려면 가족 탈퇴 API를 사용해주세요.");
                 }
@@ -435,7 +411,7 @@ public class FamilyService {
                                 .family(family)
                                 .role(Supporter.Role.CAREGIVER)
                                 .representativeFlag(false)
-                                .relationship(null) // 가입하는 경우 관계는 기본적으로 null
+                                .relationship(null)
                                 .build();
                 supporterRepository.save(newSupporter);
 

@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -78,8 +79,6 @@ public class NotificationService {
                         Integer familyId = notification.getFamily().getId();
                         String groupName = notification.getFamily().getGroupName();
 
-                        log.info("FCM Debug: Notification Type from DB: '{}'", notification.getType());
-
                         if ("EMERGENCY".equalsIgnoreCase(notification.getType())) {
                                 route = "/families/" + familyId + "/emergency";
                         } else if ("ACTIVITY".equalsIgnoreCase(notification.getType())) {
@@ -102,6 +101,9 @@ public class NotificationService {
 
         @Transactional
         public void markAsRead(Long notificationId, Integer userId) {
+                if (notificationId == null || userId == null) {
+                        throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "알림 ID 또는 유저 ID가 누락되었습니다.");
+                }
                 log.info("Processing markAsRead: NotificationID={}, UserID={}", notificationId, userId);
                 Notification notification = notificationRepository.findById(notificationId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
@@ -112,11 +114,7 @@ public class NotificationService {
                 NotificationDelivery delivery = notificationDeliveryRepository
                                 .findByUserAndNotification(user, notification)
                                 .orElseThrow(() -> new CustomException(ErrorCode.DELIVERY_NOT_FOUND));
-
-                log.info("Found Delivery: ID={}, Current IsRead={}", delivery.getId(), delivery.isRead());
-
                 delivery.markAsRead();
-                log.info("Updated Delivery IsRead to true");
         }
 
         public boolean isAnyRead(Long notificationId) {
@@ -125,7 +123,7 @@ public class NotificationService {
 
         public List<NotificationHistoryResponseDto> getNotificationHistory(Integer familyId, Integer userId) {
                 LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
-                java.util.List<Notification> notifications = notificationRepository
+                List<Notification> notifications = notificationRepository
                                 .findByFamilyIdAndCreatedAtAfterOrderByCreatedAtDesc(familyId, oneWeekAgo);
 
                 return notifications.stream()
@@ -133,7 +131,6 @@ public class NotificationService {
                                         String videoUrl = null;
                                         Double confidence = null;
 
-                                        // EMERGENCY 타입이고 relatedId(FallEvent ID)가 있는 경우 추가 데이터 조회
                                         if ("EMERGENCY".equalsIgnoreCase(notification.getType())
                                                         && notification.getRelatedId() != null) {
                                                 try {
@@ -149,8 +146,7 @@ public class NotificationService {
                                                                 }
                                                         }
                                                 } catch (Exception e) {
-                                                        log.error("Failed to fetch FallEvent details for notification history (ID: {}): {}",
-                                                                        notification.getId(), e.getMessage());
+
                                                 }
                                         }
 
@@ -165,6 +161,6 @@ public class NotificationService {
                                                         .confidence(confidence)
                                                         .build();
                                 })
-                                .collect(java.util.stream.Collectors.toList());
+                                .collect(Collectors.toList());
         }
 }

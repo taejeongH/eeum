@@ -8,10 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * eeum/status 토픽용 DTO (IoT -> Server)
- * 디바이스 온라인/오프라인 상태 메시지
- */
 @Getter
 @Builder
 @NoArgsConstructor

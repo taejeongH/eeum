@@ -28,7 +28,7 @@ public class NotificationDelivery extends BaseEntity {
     @JoinColumn(name = "notification_id")
     private Notification notification;
 
-    private String channel; // e.g., "FCM"
+    private String channel;
 
     private LocalDateTime sentAt;
 

@@ -4,10 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.ssafy.eeum.domain.voice.dto.PythonTtsRequestDTO;
+
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -44,11 +47,10 @@ public class VoiceAiClient {
                 requestBody.put("webhook", webhookUrl);
             }
 
-            HttpEntity<java.util.Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> response = restTemplate.postForObject(AI_SERVER_URL, entity,
-                    java.util.Map.class);
+            Map<String, Object> response = restTemplate.postForObject(AI_SERVER_URL, entity, Map.class);
 
             if (response != null) {
                 String status = (String) response.get("status");
@@ -56,12 +58,11 @@ public class VoiceAiClient {
 
                 if ("COMPLETED".equals(status)) {
                     @SuppressWarnings("unchecked")
-                    java.util.Map<String, Object> output = (java.util.Map<String, Object>) response.get("output");
+                    Map<String, Object> output = (Map<String, Object>) response.get("output");
                     if (output != null && "success".equals(output.get("status"))) {
                         return (String) output.get("url");
                     }
                 } else if ("IN_QUEUE".equals(status) || "IN_PROGRESS".equals(status)) {
-                    // 웹후크 여부에 관계없이 Job ID 반환하여 추적 가능하게 함
                     return (String) response.get("id");
                 }
             }
@@ -74,7 +75,6 @@ public class VoiceAiClient {
 
     public String checkJobStatus(String jobId) {
         try {
-            // RunPod URL robust handling: /run, /runSync, /run-abc 등을 /status/로 변경
             String statusUrl;
             if (AI_SERVER_URL.contains("/run")) {
                 statusUrl = AI_SERVER_URL.substring(0, AI_SERVER_URL.lastIndexOf("/run")) + "/status/" + jobId;
@@ -88,13 +88,12 @@ public class VoiceAiClient {
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
             @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> response = restTemplate
-                    .exchange(statusUrl, org.springframework.http.HttpMethod.GET, entity, java.util.Map.class)
+            Map<String, Object> response = restTemplate
+                    .exchange(statusUrl, HttpMethod.GET, entity, java.util.Map.class)
                     .getBody();
 
             if (response != null) {
                 String status = (String) response.get("status");
-                log.info("[RunPod] Job {} status check: {}", jobId, status);
                 if ("COMPLETED".equals(status)) {
                     @SuppressWarnings("unchecked")
                     java.util.Map<String, Object> output = (java.util.Map<String, Object>) response.get("output");
@@ -103,10 +102,10 @@ public class VoiceAiClient {
                     }
                     return "FAILED";
                 }
-                return status; // IN_QUEUE, IN_PROGRESS 등
+                return status;
             }
         } catch (Exception e) {
-            log.error("AI 서버 상태 조회 실패 (Job {}): {}", jobId, e.getMessage());
+
         }
         return "ERROR";
     }
