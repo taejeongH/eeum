@@ -191,8 +191,10 @@ const executeRefresh = async () => {
     
     try {
         await Promise.all([
-            familyStore.fetchFamilies(),
-            familyStore.selectedFamily?.id ? notificationStore.fetchHistory(familyStore.selectedFamily.id) : Promise.resolve()
+            familyStore.fetchFamilies(true), // Force refresh
+            familyStore.selectedFamily?.id ? notificationStore.fetchHistory(familyStore.selectedFamily.id) : Promise.resolve(),
+            // [Fix] Header 멤버 리스트도 갱신
+            familyStore.selectedFamily?.id ? familyStore.fetchMembers(familyStore.selectedFamily.id, true) : Promise.resolve()
         ]);
     } catch (error) {
         console.error("Home refresh failed:", error);
