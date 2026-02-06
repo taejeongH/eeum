@@ -557,9 +557,9 @@ const openVideo = async (view) => {
                 
                 videoUrl.value = url;
             } else {
-                // [FALLBACK] Server Direct Access
-                const fallbackIp = 'i14a105.p.ssafy.io';
-                const fallbackUrl = `https://${fallbackIp}/api/iot/device/falls/stream`;
+                // [FALLBACK] Internal WiFi/Direct access (Hotspot)
+                const fallbackIp = '106.101.5.62';
+                const fallbackUrl = `http://${fallbackIp}:8000/api/iot/device/falls/stream`;
                 console.warn("⚠️ No streaming URL found, using fallback:", fallbackUrl);
                 videoUrl.value = fallbackUrl;
             }
