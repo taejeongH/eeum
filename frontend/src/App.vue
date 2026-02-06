@@ -423,5 +423,7 @@ onMounted(async () => {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
+  background-color: white; /* [FIX] Black Screen 대비 강제 흰색 배경 */
+  min-height: 100vh;
 }
 </style>

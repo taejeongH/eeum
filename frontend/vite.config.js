@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         // @를 src 폴더 주소로 매핑 (아까 발생한 경로 에러 방지용)
-        '@': path.resolve(__dirname, './src')
+        '@': path.resolve(__dirname, './src'),
+        'vue': 'vue/dist/vue.esm-bundler.js'
       }
     },
     server: {

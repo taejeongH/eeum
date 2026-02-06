@@ -517,8 +517,11 @@ const fetchHeartRate = async () => {
     }
 };
 
-const handleLiveError = () => {
-    videoError.value = '실시간 영상을 불러올 수 없습니다. 카메라 상태를 확인해주세요.';
+const handleLiveError = (e) => {
+    const errorMsg = "실시간 영상을 로드할 수 없습니다.";
+    console.error("🔴 Live Video Load Error:", e);
+    // alert(`${errorMsg}\nURL: ${videoUrl.value}`);
+    videoError.value = errorMsg;
     videoUrl.value = null;
 };
 
@@ -539,14 +542,31 @@ const openVideo = async (view) => {
 
         try {
             const familyData = await getFamilyDetails(familyId);
+            console.log("🔍 Family Data:", familyData);
+            
             if (familyData && familyData.streamingUrl) {
-                videoUrl.value = familyData.streamingUrl;
+                let url = familyData.streamingUrl.trim();
+                // [FIX] iOS/Android requires explicit protocol
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = `http://${url}`;
+                }
+                
+                // [DEBUG] Show URL on device
+                console.log("▶️ Loading Live Video:", url);
+                // alert(`Streaming URL: ${url}`); // Uncomment for on-screen debug
+                
+                videoUrl.value = url;
             } else {
-                videoError.value = '등록된 실시간 스트리밍 주소가 없습니다.';
+                // [FALLBACK] Server Direct Access
+                const fallbackIp = 'i14a105.p.ssafy.io';
+                const fallbackUrl = `https://${fallbackIp}/api/iot/device/falls/stream`;
+                console.warn("⚠️ No streaming URL found, using fallback:", fallbackUrl);
+                videoUrl.value = fallbackUrl;
             }
         } catch (err) {
             console.error("Failed to fetch streaming URL:", err);
             videoError.value = '실시간 스트리밍 주소를 가져오는데 실패했습니다.';
+            // alert(`Error: ${err.message}`);
         }
         
         videoLoading.value = false;
