@@ -540,14 +540,7 @@ const openVideo = async (view) => {
         try {
             const familyData = await getFamilyDetails(familyId);
             if (familyData && familyData.streamingUrl) {
-                // [FIX] Fake HTTPS 전략: 브라우저 속이기 (Mixed Content 통과용)
-                // MainActivity가 https 요청을 가로채서 http로 변환 후 Proxy 함
-                const safeUrl = familyData.streamingUrl.replace('http:', 'https:');
-                console.log('[DEBUG] Streaming URL (Safe):', safeUrl);
-                
-                // [FIX] 뷰 모드를 명확하게 'live'로 설정해야 <img> 태그가 렌더링됨
-                currentView.value = 'live';
-                videoUrl.value = safeUrl;
+                videoUrl.value = familyData.streamingUrl;
             } else {
                 videoError.value = '등록된 실시간 스트리밍 주소가 없습니다.';
             }
