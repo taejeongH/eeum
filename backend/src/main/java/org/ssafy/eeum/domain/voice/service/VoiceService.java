@@ -260,7 +260,7 @@ public class VoiceService {
         log.debug("사용자 {}의 목소리 모델 및 대표 샘플을 조회합니다.", userId);
 
         PythonTtsRequestDTO requestDto = buildPythonTtsRequestDTO(userId, text);
-        String webhookUrl = null;
+        String webhookUrl = webhookBaseUrl + "/tts?messageId=" + messageId;
 
         String audioUrl = voiceAiClient.generateTts(requestDto, webhookUrl);
         if (audioUrl == null) {
