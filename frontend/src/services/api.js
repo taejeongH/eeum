@@ -81,6 +81,18 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Detailed Error Logging
+    console.error(`🌐 [API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
+    if (error.response) {
+      console.error(`   Status: ${error.response.status}`);
+      console.error(`   Data:`, error.response.data);
+    } else if (error.request) {
+      console.error(`   No response received. Possible network or CORS issue.`);
+    } else {
+      console.error(`   Message: ${error.message}`);
+    }
+
+
 
     // 401 에러이고, 재시도 플래그가 없으며, 재발급 요청 자체가 아닌 경우
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/reissue')) {
