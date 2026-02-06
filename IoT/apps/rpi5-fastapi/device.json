@@ -1,0 +1,17 @@
+{
+  "devices": {
+    "pir": {
+      "EEUM-E105-1": {
+        "last_seen_ts": 1770366311.4379807,
+        "online": true
+      }
+    },
+    "vision": {
+      "EEUM-J105": {
+        "last_seen_ts": 1770366321.0003257,
+        "online": true
+      }
+    }
+  },
+  "updated_at": 1770366321
+}

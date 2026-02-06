@@ -48,11 +48,17 @@ public class MqttConfig {
 
         try {
             SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[]{
+            sslContext.init(null, new TrustManager[] {
                     new X509TrustManager() {
-                        public X509Certificate[] getAcceptedIssuers() { return null; }
-                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
+
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                        }
+
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                        }
                     }
             }, new java.security.SecureRandom());
             options.setSocketFactory(sslContext.getSocketFactory());
@@ -77,7 +83,18 @@ public class MqttConfig {
         String uniqueInboundId = clientId + "-in-" + UUID.randomUUID().toString().substring(0, 5);
 
         Mqttv5PahoMessageDrivenChannelAdapter adapter = new Mqttv5PahoMessageDrivenChannelAdapter(
-                mqttConnectionOptions, uniqueInboundId, "eeum/sensor/data", "eeum/ai/sentiment", "eeum/family/code");
+                mqttConnectionOptions, uniqueInboundId,
+                "eeum/sensor/data",
+                "eeum/ai/sentiment",
+                "eeum/family/code",
+                "eeum/init/device/+/req",
+                "eeum/fall/response",
+                "eeum/init/device/pair/req",
+                "eeum/response",
+                "eeum/event",
+                "eeum/update",
+                "eeum/status",
+                "eeum/responsenull");
 
         adapter.setCompletionTimeout(5000);
         adapter.setQos(1);

@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+**/google-services.json
+
+mobile/app/src/main/assets/index.html
+mobile/app/src/main/assets/assets/

@@ -1,26 +1,25 @@
 package org.ssafy.eeum.global.auth.model;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.ssafy.eeum.domain.auth.entity.User;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
-@Getter
-@RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails, OAuth2User {
 
     private final User user;
     private final Map<String, Object> attributes;
-    private final String role = "ROLE_USER"; // Default role
 
-    // 일반 로그인 생성자
+    public CustomUserDetails(User user, Map<String, Object> attributes) {
+        this.user = user;
+        this.attributes = attributes;
+    }
+
     public CustomUserDetails(User user) {
         this.user = user;
         this.attributes = null;
@@ -28,7 +27,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority(role));
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
     @Override
@@ -38,7 +37,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
 
     @Override
     public String getUsername() {
-        return String.valueOf(user.getId()); // Principal로 ID 사용 (JwtProvider와 일치)
+        return String.valueOf(user.getId());
     }
 
     public String getEmail() {
@@ -49,7 +48,13 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
         return user.getId();
     }
 
-    // --- OAuth2User 구현 ---
+    public User getUser() {
+        return user;
+    }
+
+    public String getRole() {
+        return "ROLE_USER";
+    }
 
     @Override
     public Map<String, Object> getAttributes() {
@@ -61,7 +66,6 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
         return user.getName();
     }
 
-    // --- UserDetails 상태 값 ---
     @Override
     public boolean isAccountNonExpired() {
         return true;

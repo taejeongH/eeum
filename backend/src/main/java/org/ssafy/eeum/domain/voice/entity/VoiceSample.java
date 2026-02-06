@@ -21,8 +21,11 @@ public class VoiceSample extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "script_id", nullable = false)
+    @JoinColumn(name = "script_id", nullable = true)
     private VoiceScript voiceScript;
+
+    @Column(name = "transcript", columnDefinition = "TEXT")
+    private String transcript;
 
     @Column(name = "sample_path", nullable = false, length = 255)
     private String samplePath;
@@ -30,7 +33,33 @@ public class VoiceSample extends BaseEntity {
     @Column(name = "duration_sec", nullable = false)
     private Double durationSec;
 
+    @Column(name = "nickname")
+    private String nickname;
+
+    @Column(name = "test_audio_path")
+    private String testAudioPath;
+
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "voice_task_id")
+    private VoiceTask voiceTask;
+
     public void updateSamplePath(String newPath) {
         this.samplePath = newPath;
+    }
+
+    public void updateTestAudioPath(String path) {
+        this.testAudioPath = path;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void updateVoiceTask(VoiceTask voiceTask) {
+        this.voiceTask = voiceTask;
+    }
+
+    public void completeTts(String s3Key) {
+        this.testAudioPath = s3Key;
     }
 }

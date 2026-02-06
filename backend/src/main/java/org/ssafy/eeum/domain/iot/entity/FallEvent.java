@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.iot.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -19,11 +19,8 @@ public class FallEvent extends BaseEntity {
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @Column(name = "group_id", nullable = false)
-    private Integer groupId;
+    @JoinColumn(name = "group_id", nullable = false)
+    private Family family;
 
     @Column(name = "severity", nullable = false)
     private Integer severity;
@@ -35,14 +32,30 @@ public class FallEvent extends BaseEntity {
     @Column(name = "status_type", nullable = false)
     private StatusType statusType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "video_status", nullable = false)
+    @Builder.Default
+    private VideoStatus videoStatus = VideoStatus.NONE;
+
     @Column(name = "stt_content", columnDefinition = "TEXT")
     private String sttContent;
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    @Column(name = "confidence")
+    private Double confidence;
+
     public enum StatusType {
         UNDER_REVIEW, EMERGENCY, SAFE, RESOLVED
+    }
+
+    public enum VideoStatus {
+        NONE, PENDING, SUCCESS
+    }
+
+    public void updateVideoStatus(VideoStatus videoStatus) {
+        this.videoStatus = videoStatus;
     }
 
     public void updateToEmergency(String sttContent) {

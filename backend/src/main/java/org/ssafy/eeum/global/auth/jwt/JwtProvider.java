@@ -10,7 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
-
+import org.ssafy.eeum.global.auth.model.DeviceDetails;
 import org.ssafy.eeum.domain.auth.entity.User;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -38,34 +38,49 @@ public class JwtProvider {
 
     public String createAccessToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return createAccessToken(userDetails.getId(), userDetails.getUsername(), userDetails.getRole());
+        return createAccessToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
     }
 
     public String createRefreshToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return createRefreshToken(userDetails.getId(), userDetails.getUsername(), userDetails.getRole());
+        return createRefreshToken(userDetails.getId(), userDetails.getName(), userDetails.getRole());
     }
 
     public String createAccessToken(Number userId, String email, String role) {
-        return createToken(userId, email, role, jwtProperties.getAccessTokenExpiration());
+        return createToken(userId, email, role, null, jwtProperties.getAccessTokenExpiration());
     }
 
     public String createRefreshToken(Number userId, String email, String role) {
-        return createToken(userId, email, role, jwtProperties.getRefreshTokenExpiration());
+        return createToken(userId, email, role, null, jwtProperties.getRefreshTokenExpiration());
     }
 
-    private String createToken(Number userId, String email, String role, long expiration) {
+    public String createDeviceAccessToken(Integer groupId) {
+        // 기기는 토큰 갱신 이슈를 최소화하기 위해 1년(365일) 동안 유효하도록 설정
+        long oneYear = 1000L * 60 * 60 * 24 * 365;
+        return createToken(0, "GROUP:" + groupId, "ROLE_DEVICE", groupId, oneYear);
+    }
+
+    public String createDeviceRefreshToken(Integer groupId) {
+        return createToken(0, "GROUP:" + groupId, "ROLE_DEVICE", groupId, jwtProperties.getRefreshTokenExpiration());
+    }
+
+    private String createToken(Number userId, String email, String role, Integer groupId, long expiration) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(email)
                 .claim("id", userId)
                 .claim("auth", role)
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(privateKey, Jwts.SIG.RS256)
-                .compact();
+                .signWith(privateKey, Jwts.SIG.RS256);
+
+        if (groupId != null) {
+            builder.claim("group_id", groupId);
+        }
+
+        return builder.compact();
     }
 
     public Authentication getAuthentication(String token) {
@@ -80,15 +95,21 @@ public class JwtProvider {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        User user = User.builder()
-                .id(claims.get("id", Integer.class))
-                .email(claims.getSubject())
-                .name("Unknown") // 토큰에는 이름 정보가 없으므로 임시 값 혹은 DB 조회 필요. 일단 최소 정보로 구성
-                .build();
+        boolean isDevice = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_DEVICE"));
 
-        CustomUserDetails principal = new CustomUserDetails(user);
-
-        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        if (isDevice) {
+            Integer groupId = claims.get("group_id", Integer.class);
+            DeviceDetails principal = new DeviceDetails(claims.getSubject(), groupId, authorities);
+            return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        } else {
+            User user = User.builder()
+                    .id(claims.get("id", Integer.class))
+                    .email(claims.getSubject())
+                    .name("Unknown")
+                    .build();
+            CustomUserDetails principal = new CustomUserDetails(user);
+            return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+        }
     }
 
     public boolean validateToken(String token) {

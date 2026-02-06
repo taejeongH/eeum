@@ -11,7 +11,7 @@ import lombok.Setter;
 @Schema(description = "가족 탈퇴/삭제 응답 DTO")
 public class LeaveFamilyResponseDto {
     @Schema(description = "유저가 속한 다음 가족 그룹 ID (선택 사항)")
-    private Long nextFamilyId;
+    private Integer nextFamilyId;
 
     @Schema(description = "유저가 속한 다음 가족 그룹 이름 (선택 사항)")
     private String nextFamilyName;

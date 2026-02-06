@@ -1,321 +1,156 @@
+
 import os
+import sys
 import time
+import logging
 import threading
 from typing import Optional, Dict, Any
 
-import cv2
 import torch
 from fastapi import FastAPI, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 from ultralytics import YOLO
 
 from .config import (
-    CAM_INDEX, FRAME_W, FRAME_H, JPEG_QUALITY,
-    DETERMINISTIC, MODEL_PATH, RUNS_DIR, 
-    DEVICE_ID, LOCATION_ID, SERVER_URL, RPI_URL
+    MODEL_PATH, MODEL_IOU, MODEL_DET, DETERMINISTIC, 
+    RUNS_DIR, DEVICE_ID, LOCATION_ID
 )
-from .level1 import Level1Params, Level1Engine, PresenceParams, PresenceEngine
-from .clip_recorder import ClipRecorder
-from .replay import start_replay_thread
-from .live import LivePipeline
-from .notifier import Notifier
+from .core.controller import AppController
 
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = FastAPI()
-
-# ---------- deterministic 옵션 ----------
+# ---------- Deterministic / Seeding ----------
 if DETERMINISTIC:
     torch.manual_seed(0)
     torch.cuda.manual_seed_all(0)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-# ---------- model/camera ----------
-model = YOLO(MODEL_PATH)
+# ---------- Model Factory ----------
+def create_yolo_model():
+    logger.info(f"Loading YOLO model from {MODEL_PATH}")
+    model = YOLO(MODEL_PATH)
+    model.iou = MODEL_IOU
+    model.max_det = MODEL_DET
+    return model
 
-cap = cv2.VideoCapture(CAM_INDEX)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_W)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_H)
+# ---------- Controller ----------
+controller = AppController(model_factory=create_yolo_model)
+app = FastAPI()
 
-live = LivePipeline(model=model, cap=cap, jpeg_quality=JPEG_QUALITY, source_id="cam0")
+# ---------- Lifecycle ----------
+@app.on_event("startup")
+async def startup_event():
+    logger.info("[STARTUP] Starting Application Controller")
+    controller.start()
 
-# ---------- shared state ----------
-state_lock = threading.Lock()
-latest_obs: Optional[Dict[str, Any]] = None
-latest_jpeg: Optional[bytes] = None
-mode = "live"  # live/replay
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("[SHUTDOWN] Stopping Application Controller")
+    controller.stop()
 
-# ---------- jsonl recording ----------
-record_lock = threading.Lock()
-record_fp = None
-record_path = None
+# ---------- API Routes ----------
 
-notifier = Notifier(server_url=SERVER_URL, rpi_url=RPI_URL)
-current_event_id = None
-current_event_detected_at = None
-
-incident_ts = None
-incident_event_id = None
-
-def start_recording():
-    global record_fp, record_path
-    os.makedirs(RUNS_DIR, exist_ok=True)
-    fname = time.strftime("obs_%Y%m%d_%H%M%S.jsonl")
-    record_path = os.path.join(RUNS_DIR, fname)
-    with record_lock:
-        record_fp = open(record_path, "a", encoding="utf-8")
-    return record_path
-
-def stop_recording():
-    global record_fp, record_path
-    with record_lock:
-        if record_fp:
-            record_fp.close()
-        record_fp = None
-        p = record_path
-        record_path = None
-    return p
-
-def write_obs(obs: Dict[str, Any]):
-    with record_lock:
-        if record_fp is None:
-            return
-        import json
-        record_fp.write(json.dumps(obs, ensure_ascii=False) + "\n")
-        record_fp.flush()
-
-# ---------- level1 + clip ----------
-presence_engine = PresenceEngine(PresenceParams(
-    enter_hits=5,
-    exit_hits=10,
-    min_quality=0.10,
-    cool_down_s=0.5,
-))
-level1_engine = Level1Engine(Level1Params())
-clip_recorder = ClipRecorder()
-last_level1_event: Optional[Dict[str, Any]] = None
-
-# ---------- replay ----------
-replay_stop_event = threading.Event()
-replay_thread = None
-replay_running = False
-
-def on_replay_frame(obs: Dict[str, Any], jpg: bytes):
-    global latest_obs, latest_jpeg, mode
-    with state_lock:
-        mode = "replay"
-        latest_obs = obs
-        latest_jpeg = jpg
-
-# ---------------- API ----------------
 @app.get("/health")
 def health():
-    with state_lock:
-        st = clip_recorder.status()
-        return {
-            "status": "ok",
-            "mode": mode,
-            "recording_jsonl": record_fp is not None,
-            "replay_running": replay_running,
-            **st,
-        }
+    return {
+        "status": "ok",
+        **controller.get_status()
+    }
 
 @app.get("/level1/status")
 def level1_status():
-    st = clip_recorder.status()
-    return {"last_level1_event": last_level1_event, **st}
+    # Controller status includes live mode details (clip recorder status etc)
+    # And last_level1_event is exposed specifically if we want
+    st = controller.get_status()
+    # LiveMode.get_status() returns { "last_level1_event": ..., ... }
+    # So we can just return st
+    return st
 
 @app.post("/mode/live")
 def set_mode_live():
-    global mode
-    with state_lock:
-        mode = "live"
-    return {"mode": "live"}
+    # 강제 전환보다는 자동 전환 가이드
+    return {"status": "auto_mode_active", "info": "모드는 자동으로 선택됩니다 (QR 미등록 / Live 등록)"}
 
 @app.post("/mode/replay")
 def set_mode_replay():
-    global mode
-    with state_lock:
-        mode = "replay"
-    return {"mode": "replay"}
+    # Replay 모드는 start/stop으로 제어됨. 
+    # 단순히 태그만 바꾸는건 controller 내부에서 처리.
+    return {"status": "use /replay/start to enter replay mode"}
 
 @app.post("/record/start")
 def record_start():
-    path = start_recording()
+    path = controller.start_recording()
     return {"recording": True, "path": path}
 
 @app.post("/record/stop")
 def record_stop():
-    path = stop_recording()
+    path = controller.stop_recording()
     return {"recording": False, "path": path}
 
 @app.post("/replay/start")
 def replay_start(path: str = Query(...), fps: float = Query(15.0)):
-    global replay_thread, replay_running, mode
-
-    if replay_thread and replay_thread.is_alive():
-        return JSONResponse(status_code=409, content={"error": "replay already running"})
-
     if not os.path.exists(path):
         return JSONResponse(status_code=404, content={"error": "file not found", "path": path})
-
-    replay_stop_event.clear()
-    replay_thread = start_replay_thread(
-        path=path,
-        fps=fps,
-        jpeg_quality=JPEG_QUALITY,
-        stop_event=replay_stop_event,
-        on_frame=on_replay_frame
-    )
-    replay_running = True
-
-    with state_lock:
-        mode = "replay"
-    return {"replay": True, "path": path, "fps": float(fps)}
+    
+    success = controller.start_replay(path, fps)
+    if not success:
+         return JSONResponse(status_code=409, content={"error": "replay already running"})
+         
+    return {"replay": True, "path": path, "fps": fps}
 
 @app.post("/replay/stop")
 def replay_stop():
-    global replay_running
-    replay_stop_event.set()
-    replay_running = False
-    return {"replay": False}
+    stopped = controller.stop_replay()
+    return {"replay": False, "stopped": stopped}
 
 @app.get("/pose")
 def pose():
-    with state_lock:
-        if latest_obs is None:
-            return JSONResponse(status_code=503, content={"error": "no observation yet"})
-        return latest_obs
+    obs = controller.get_latest_obs()
+    if obs is None:
+        return JSONResponse(status_code=503, content={"error": "no observation yet"})
+    return obs
 
-@app.get("/stream")
-def stream(overlay: str = Query("smooth", pattern="^(raw|smooth|both)$")):
+@app.get("/api/iot/device/falls/stream_overlay")
+def stream():
+    boundary = "frame"
+
     def gen():
-        boundary = "frame"
-        global latest_obs, latest_jpeg, mode, last_level1_event
-        global incident_ts, incident_event_id
-
+        last_count = 0
         while True:
-            with state_lock:
-                current_mode = mode
+            # 새로운 프레임이 올 때까지 대기 (최대 1초)
+            jpg, current_count = controller.wait_for_overlay_frame(last_count, timeout=1.0)
+            
+            if jpg is None:
+                continue
+            
+            last_count = current_count
 
-            if current_mode == "live":
-                obs, jpg, frame = live.step(overlay=overlay)
-                if obs is None or jpg is None or frame is None:
-                    time.sleep(0.02)
-                    continue
-
-                ts_now = float(obs["ts"])
-
-                # 사람 등장/사라짐 이벤트 체크
-                pe = presence_engine.step(obs)
-                if pe is not None:
-                    ptype = pe["data"]["event"]  # "enter" | "exit"
-                    event_name = "enter" if ptype == "enter" else "exit"
-
-                    payload = {
-                        "kind": "vision",
-                        "device_id": DEVICE_ID,
-                        "data": {
-                            "location_id": LOCATION_ID,
-                            "event": event_name,
-                        },
-                        "ts": float(ts_now),
-                    }
-                    print(payload) 
-                    notifier.send_event_rpi_only(payload)
-
-                # 링버퍼 업데이트(클립 저장용)
-                clip_recorder.push(ts_now, frame)
-
-                # level1 이벤트 체크
-                ev = level1_engine.step(obs)
-                if ev is not None:
-                    print(
-                        f"[LEVEL EVT] {ev.get('type')} "
-                        f"ts={ev.get('ts'):.2f} "
-                        f"frame={ev.get('frame_index')} "
-                        f"reason={ev.get('reason', '')}"
-                    )
-
-                    et = ev.get("type")
-
-                    # 1) Level0 진입: 사건 시작 시각만 기억 (녹화 X)
-                    if et == "abnormal_enter":
-                        incident_ts = float(ev.get("ts", ts_now))
-                        incident_event_id = f"incident_{time.strftime('%Y%m%d_%H%M%S')}"
-
-                    # 2) 회복: 사건 폐기 (저장 X)
-                    elif et == "abnormal_exit":
-                        incident_ts = None
-                        incident_event_id = None
-
-                    # 3) Level1 확정: 여기서만 저장 + 전송
-                    elif et == "level1":
-                        last_level1_event = ev
-
-                        # event_id 정리
-                        current_event_id = ev.get("event_id") or f"level1_{time.strftime('%Y%m%d_%H%M%S')}"
-                        current_event_detected_at = ts_now
-                        ev["event_id"] = current_event_id
-
-                        # (A) 서버/RPi에 level1 이벤트 JSON 전송
-                        t0 = (obs.get("tracks") or [{}])[0]
-                        payload = {
-                            "kind": "vision",
-                            "device_id": DEVICE_ID,
-                            "data": {
-                                "location_id": LOCATION_ID,
-                                "event": "fall",
-                                "level": 1,
-                                "has_person": bool(t0.get("has_person", False)),
-                            },
-                            "detected_at": float(ts_now),
-                        }
-                        notifier.send_event(payload)
-
-                        # (B) 사건 시작 시각 기준으로 전후 구간만 저장
-                        if incident_ts is not None:
-                            # 원하는 전후 길이
-                            pre_sec = 6.0
-                            post_sec = 7.0
-
-                            clip_path = clip_recorder.save_segment(
-                                incident_ts=incident_ts,
-                                pre_sec=pre_sec,
-                                post_sec=post_sec,
-                                filename_prefix="incident"
-                            )
-
-                            if clip_path:
-                                payload2 = dict(payload)
-                                payload2["clip_status"] = "ready"
-                                notifier.send_clip(event_id=current_event_id, clip_path=clip_path, payload=payload2)
-
-                        # (C) 사건 정보 초기화(선택)
-                        incident_ts = None
-                        incident_event_id = None
-
-                # 최신 상태 업데이트
-                with state_lock:
-                    latest_obs = obs
-                    latest_jpeg = jpg
-
-                # JSONL 기록(옵션)
-                write_obs(obs)
-
-            else:
-                with state_lock:
-                    jpg = latest_jpeg
-                if jpg is None:
-                    time.sleep(0.02)
-                    continue
-
-            data = jpg
             yield (
                 b"--" + boundary.encode() + b"\r\n"
                 b"Content-Type: image/jpeg\r\n"
-                b"Content-Length: " + str(len(data)).encode() + b"\r\n\r\n"
-                + data + b"\r\n"
+                b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+                + jpg + b"\r\n"
             )
 
+    return StreamingResponse(gen(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.get("/api/iot/device/falls/stream")
+def stream_raw():
+    boundary = "frame"
+    def gen():
+        last = 0
+        while True:
+            jpg, last = controller.wait_for_raw_frame(last, timeout=1.0)
+            if jpg is None:
+                continue
+            yield (
+                b"--" + boundary.encode() + b"\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+                + jpg + b"\r\n"
+            )
     return StreamingResponse(gen(), media_type="multipart/x-mixed-replace; boundary=frame")

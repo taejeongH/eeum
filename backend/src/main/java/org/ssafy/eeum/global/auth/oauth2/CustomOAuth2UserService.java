@@ -14,6 +14,7 @@ import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.auth.entity.SocialAccount;
 
 import org.ssafy.eeum.global.auth.model.CustomUserDetails;
+import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -25,6 +26,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
+    private final S3Service s3Service;
 
     @Override
     @Transactional
@@ -59,10 +61,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         String nickname = profile.get("nickname").toString();
-        String profileImage = profile.get("profile_image_url") != null ? profile.get("profile_image_url").toString()
+        String kakaoProfileUrl = profile.get("profile_image_url") != null ? profile.get("profile_image_url").toString()
                 : null;
-
-        log.info("Kakao User - ID: {}, Nickname: {}, Email: {}", kakaoId, nickname, email);
 
         // 기존 소셜 계정 확인
         SocialAccount socialAccount = socialAccountRepository
@@ -71,13 +71,39 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         User user;
         if (socialAccount != null) {
-            // 기존 사용자 - 정보 업데이트
+            // 기존 사용자
             user = socialAccount.getUser();
-            user.updateFromKakao(nickname, email, profileImage);
+
+            // 프로필 이미지가 없거나 외부 URL인 경우 S3 업로드 시도 (마이그레이션 로직)
+            String currentProfileImage = user.getProfileImage();
+            if ((currentProfileImage == null || currentProfileImage.startsWith("http")) && kakaoProfileUrl != null) {
+                log.info("Migrating profile image to S3 for existing user ID: {}", user.getId());
+                String newS3Key = s3Service.uploadImageFromUrl(kakaoProfileUrl, "profile");
+                if (newS3Key != null) {
+                    currentProfileImage = newS3Key;
+                }
+            }
+
+            // 정보 업데이트 (S3 키 또는 null이 전달됨)
+            user.updateFromKakao(nickname, email, currentProfileImage);
             userRepository.save(user);
-            log.info("Existing user updated: {}", user.getId());
+            log.info("Existing user updated and migrated: {}", user.getId());
         } else {
-            // 신규 사용자 생성
+            // 신규 사용자
+            log.info("New User Detected. Processing Kakao profile...");
+            String profileImage = null;
+            if (kakaoProfileUrl != null) {
+                log.info("Kakao Profile URL found: {}", kakaoProfileUrl);
+                profileImage = s3Service.uploadImageFromUrl(kakaoProfileUrl, "profile");
+                if (profileImage != null) {
+                    log.info("Successfully uploaded Kakao image to S3 for new user. Key: {}", profileImage);
+                } else {
+                    log.error("Failed to upload Kakao image to S3 for new user.");
+                }
+            } else {
+                log.info("No Kakao Profile URL found in attributes.");
+            }
+
             user = User.builder()
                     .name(nickname)
                     .email(email)
@@ -90,7 +116,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // 소셜 계정 연동
             socialAccount = SocialAccount.createKakaoAccount(user, kakaoId);
             socialAccountRepository.save(socialAccount);
-            log.info("New user created: {}", user.getId());
+            log.info("New user created with ID: {}", user.getId());
         }
 
         return new CustomUserDetails(user, oAuth2User.getAttributes());

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div @keyup.enter="goNext">
     <h2 class="eeum-title">
       위급 상황 시 연락할<br />
       <span class="text-[var(--color-primary)]">비상 연락망</span>을 설정해주세요

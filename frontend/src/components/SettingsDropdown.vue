@@ -3,13 +3,30 @@
     <div v-if="show" class="absolute right-0 mt-2 w-36 bg-white rounded-md shadow-lg z-20 origin-top-right">
       <div class="py-1">
         <router-link
+          v-if="isRepresentative"
           :to="{ name: 'GroupEditStep1', params: { familyId } }"
           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-center"
         >
           그룹 설정
         </router-link>
 
-        <a href="#" @click.prevent="emit('leave-group')" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 text-center">그룹 탈퇴</a>
+        <router-link
+          v-if="familyId"
+          :to="{ name: 'DeviceManagement', params: { familyId } }"
+          class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-center"
+        >
+          기기 관리
+        </router-link>
+
+
+        <router-link
+          :to="{ name: 'VoiceSettings' }"
+          class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-center"
+        >
+          목소리 설정
+        </router-link>
+
+        <a v-if="familyId" href="#" @click.prevent="emit('leave-group')" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 text-center">그룹 탈퇴</a>
       </div>
     </div>
   </transition>
@@ -25,9 +42,18 @@ const props = defineProps({
     type: Number,
     required: false,
   },
+  isRepresentative: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['leave-group']);
+
+import { watch } from 'vue';
+watch(() => props.isRepresentative, (newVal) => {
+
+}, { immediate: true });
 </script>
 
 <style scoped>

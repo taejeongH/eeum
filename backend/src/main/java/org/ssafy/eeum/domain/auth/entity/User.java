@@ -1,5 +1,6 @@
 package org.ssafy.eeum.domain.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -27,6 +28,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Supporter> supporters = new ArrayList<>();
 
@@ -66,7 +68,7 @@ public class User {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column(name = "fcm_token", length = 255)
+    @Column(name = "fcm_token", length = 1000)
     private String fcmToken;
 
     @Column(name = "chronic_diseases", length = 255)
@@ -78,11 +80,18 @@ public class User {
     @Column(name = "blood_type", length = 255)
     private String bloodType;
 
+    @Column(name = "is_email_verified", nullable = false)
+    @Builder.Default
+    private boolean isEmailVerified = false;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "representative_sample_id")
+    private org.ssafy.eeum.domain.voice.entity.VoiceSample representativeSample;
+
     public enum Gender {
         M, F
     }
 
-    // 카카오 로그인 정보 업데이트
     public void updateFromKakao(String name, String email, String profileImage) {
         if (name != null && !name.isEmpty()) {
             this.name = name;
@@ -95,7 +104,13 @@ public class User {
         }
     }
 
-    public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address, String profileImage) {
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateProfile(String name, String phone, LocalDate birthDate, Gender gender, String address,
+            String profileImage) {
         this.name = name;
         this.phone = phone;
         this.birthDate = birthDate;
@@ -104,6 +119,7 @@ public class User {
         this.profileImage = profileImage;
         this.updatedAt = LocalDateTime.now();
     }
+
     public void updateHealthInfo(String bloodType, List<String> chronicDiseases) { // Changed parameter type
         if (bloodType != null) {
             this.bloodType = bloodType;
@@ -120,10 +136,25 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public List<String> getChronicDiseasesList() {
         if (this.chronicDiseases == null || this.chronicDiseases.trim().isEmpty()) {
             return new ArrayList<>();
         }
         return Arrays.asList(this.chronicDiseases.split(","));
+    }
+
+    public void updatePassword(String password) {
+        this.password = password;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateRepresentativeSample(org.ssafy.eeum.domain.voice.entity.VoiceSample sample) {
+        this.representativeSample = sample;
+        this.updatedAt = LocalDateTime.now();
     }
 }

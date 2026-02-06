@@ -1,7 +1,12 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-parcelize") // sh sdk
+
+    //Firebase
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -16,6 +21,20 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Load local.properties
+        val localProperties = Properties().apply {
+            val file = rootProject.file("local.properties")
+            if (file.exists()) {
+                load(file.inputStream())
+            }
+        }
+
+        val webviewUrl = localProperties.getProperty("WEBVIEW_URL") ?: "https://i14a105.p.ssafy.io"
+        val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "https://i14a105.p.ssafy.io"
+
+        buildConfigField("String", "WEBVIEW_URL", "\"$webviewUrl\"")
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
@@ -33,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -65,6 +85,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // Wearable
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -72,36 +95,43 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    
+    // WorkManager [cite: 1085]
+    implementation(libs.androidx.work.runtime.ktx)
+
 }
 
-// ... (기존 코드들 건드리지 마시고 맨 아래에 추가하세요)
-
-// 1. 프론트엔드 경로 설정
-val frontendDir = file("${project.projectDir}/../../frontend")
-
-// 2. npm run build 실행 작업
-tasks.register<Exec>("buildVueApp") {
-    workingDir = frontendDir
-
-    // 수정된 부분: toLowerCase() 대신 ignoreCase = true 옵션 사용
-    if (System.getProperty("os.name").contains("windows", ignoreCase = true)) {
-        commandLine("npm.cmd", "run", "build")
-    } else {
-        commandLine("npm", "run", "build")
-    }
-}
-
-// 3. 빌드 결과물(dist)을 안드로이드 assets로 복사
-tasks.register<Copy>("copyVueAssets") {
-    dependsOn("buildVueApp")
-    from("$frontendDir/dist")
-    into("${project.projectDir}/src/main/assets")
-
-    // 🔥 항상 새로 복사하도록 설정
-    outputs.upToDateWhen { false }
-}
-// 4. 빌드 전 실행 연결
-tasks.named("preBuild") {
-    dependsOn("copyVueAssets")
-}
+//// ... (기존 코드들 건드리지 마시고 맨 아래에 추가하세요)
+//
+//// 1. 프론트엔드 경로 설정
+//val frontendDir = file("${project.projectDir}/../../frontend")
+//
+//// 2. npm run build 실행 작업
+//tasks.register<Exec>("buildVueApp") {
+//    workingDir = frontendDir
+//
+//    // 수정된 부분: toLowerCase() 대신 ignoreCase = true 옵션 사용
+//    if (System.getProperty("os.name").contains("windows", ignoreCase = true)) {
+//        commandLine("npm.cmd", "run", "build")
+//    } else {
+//        commandLine("npm", "run", "build")
+//    }
+//}
+//
+//// 3. 빌드 결과물(dist)을 안드로이드 assets로 복사
+//tasks.register<Copy>("copyVueAssets") {
+//    dependsOn("buildVueApp")
+//    from("$frontendDir/dist")
+//    into("${project.projectDir}/src/main/assets")
+//
+//    // 🔥 항상 새로 복사하도록 설정
+//    outputs.upToDateWhen { false }
+//}
+//// 4. 빌드 전 실행 연결
+//tasks.named("preBuild") {
+//    dependsOn("copyVueAssets")
+//}
 

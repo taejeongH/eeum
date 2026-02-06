@@ -21,6 +21,9 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
     // Step 4: Medication
     const medications = ref([])
 
+    // Track deleted IDs for backend sync
+    const deletedMedicationIds = ref([])
+
     const reset = () => {
         isInitialized.value = false
         currentFamilyId.value = null
@@ -30,6 +33,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
         diseases.value = []
         contactSlots.value = [null, null, null]
         medications.value = []
+        deletedMedicationIds.value = []
     }
 
     // Actions
@@ -55,7 +59,12 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                 groupName.value = family.name
             }
 
-            // 2. Fetch Members & Details
+        } catch (error) {
+            console.error('Failed to fetch group basic info / members:', error)
+        }
+
+        try {
+            // 2-1. Fetch Members & Details
             const membersRes = await api.get(`/families/${familyId}/members`)
             const members = membersRes.data
 
@@ -74,7 +83,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                     const sourceDiseases = detail.chronicDiseases || detail.diseases
 
                     if (sourceDiseases) {
-                        console.log('Raw diseases data:', sourceDiseases)
+
                         if (Array.isArray(sourceDiseases)) {
                             diseases.value = sourceDiseases
                         } else if (typeof sourceDiseases === 'string') {
@@ -86,28 +95,130 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
                     } else {
                         diseases.value = []
                     }
-
-                    if (detail.medications) medications.value = detail.medications
                 }
             }
 
-            // 3. Emergency Contacts (Likely inside family object if supported, else leave empty or implement logic later)
-            // Existing logic in Step3 was looking at `family.emergencyContacts`.
-            if (family && family.emergencyContacts) {
-                family.emergencyContacts.forEach((contact) => {
-                    const priorityIndex = contact.priority - 1
+            // 3. Emergency Contacts
+            // Fetch Family Details to get memberPriorities
+            const familyDetailRes = await api.get(`/families/${familyId}/details`)
+            const familyDetail = familyDetailRes.data
+
+
+
+            if (familyDetail && familyDetail.memberPriorities) {
+
+                familyDetail.memberPriorities.forEach((p) => {
+                    const priorityIndex = p.emergencyPriority - 1
                     if (priorityIndex >= 0 && priorityIndex < 3) {
-                        const fullMember = members.find(m => m.userId === contact.memberId)
+                        // Find member by userId
+                        const fullMember = members.find(m => (m.userId || m.id) === p.userId)
                         if (fullMember) {
                             contactSlots.value[priorityIndex] = fullMember
                         }
                     }
                 })
+            } else {
+
+            }
+
+            // 4. Fetch Medications (New API)
+            const medRes = await api.get(`/families/${familyId}/medications`)
+            if (medRes.data && medRes.data.length > 0) {
+
+                medications.value = medRes.data.map(m => ({
+                    ...m,
+                    // Ensure format matches what UI expects if needed (e.g. time strings)
+                    // The DTO response has notificationTimes as Array<string>, which matches UI.
+                }))
+            } else {
+
+                medications.value = []
             }
 
         } catch (error) {
             console.error('Failed to init group setup data:', error)
-            reset() // Reset partly faulty state? Or keep simple
+            reset()
+        }
+    }
+
+    const addMedication = (med) => {
+        // Calculate totalDosesDay
+        const totalDosesDay = med.notificationTimes ? med.notificationTimes.length : 0
+        medications.value.push({
+            ...med,
+            totalDosesDay
+        })
+    }
+
+    const removeMedication = (index) => {
+        const target = medications.value[index]
+        if (target.id) {
+            // It's an existing medication (persistently saved), mark for deletion
+            deletedMedicationIds.value.push(target.id)
+        }
+        medications.value.splice(index, 1)
+    }
+
+    const saveData = async (familyId) => {
+        try {
+            // 1. Construct Payload for Group Update
+            const priorities = []
+            contactSlots.value.forEach((member, index) => {
+                if (member) {
+                    priorities.push({
+                        userId: member.userId || member.id,
+                        emergencyPriority: index + 1
+                    })
+                }
+            })
+
+            const payload = {
+                newGroupName: groupName.value,
+                dependentUserId: seniorId.value,
+                dependentBloodType: bloodType.value,
+                dependentChronicDiseases: diseases.value,
+                memberPriorities: priorities
+            }
+
+
+
+            // 2. Call API (Group Info)
+            await api.put(`/families/${familyId}`, payload)
+
+
+            // 3. Handle Medications
+
+            // 3-1. Delete removed medications
+            if (deletedMedicationIds.value.length > 0) {
+
+                await Promise.all(deletedMedicationIds.value.map(id =>
+                    api.delete(`/families/${familyId}/medications/${id}`)
+                ))
+            }
+
+            // 3-2. Create NEW medications only (those without IDs)
+            const newMedications = medications.value.filter(m => !m.id)
+
+            if (newMedications.length > 0) {
+
+                const medPayload = newMedications.map(m => ({
+                    medicineName: m.medicineName,
+                    cycleType: m.cycleType,
+                    totalDosesDay: m.totalDosesDay,
+                    cycleValue: m.cycleValue,
+                    daysOfWeek: m.daysOfWeek,
+                    startDate: m.startDate,
+                    endDate: m.endDate,
+                    notificationTimes: m.notificationTimes
+                }))
+
+                await api.post(`/families/${familyId}/medications`, medPayload)
+
+            }
+
+        } catch (error) {
+            console.error('Failed to save group setup:', error)
+            throw error;
         }
     }
 
@@ -121,6 +232,9 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
         contactSlots,
         medications,
         initData,
+        saveData,
+        addMedication,
+        removeMedication,
         reset
     }
 })

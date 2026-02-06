@@ -1,10 +1,12 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import MyProfileView from '../views/MyProfileView.vue';
+import HomePage from '../views/HomePage.vue';
+import VoiceRegistration from '../views/VoiceRegistration.vue';
 import MyProfileEdit from '../views/MyProfileEdit.vue';
 import VoiceSample from '../views/VoiceSample.vue';
-import HomePage from '../views/HomePage.vue';
+import LoginView from '../views/Login.vue';
+import InitialSetupWizard from '../views/InitialSetupWizard.vue';
 import MemberDetailView from '../views/MemberDetailView.vue';
-import LoginPage from '../views/LoginPage.vue';
 import JoinGroupView from '../views/JoinGroupView.vue';
 import GroupSetupLayout from '../views/group-setup/GroupSetupLayout.vue';
 import GroupSetupStep1 from '../views/group-setup/Step1GroupName.vue';
@@ -12,24 +14,55 @@ import GroupSetupStep2 from '../views/group-setup/Step2HealthInfo.vue';
 import GroupSetupStep3 from '../views/group-setup/Step3EmergencyContact.vue';
 import GroupSetupStep4 from '../views/group-setup/Step4Medication.vue';
 
+import MedicationListView from '../views/MedicationListView.vue';
+import MedicationDetailView from '../views/MedicationDetailView.vue';
+import HealthDetailView from '../views/HealthDetailView.vue';
+import MessageListView from '../views/MessageList.vue';
+
+import OnboardingView from '../views/Onboarding.vue';
 
 import { useUserStore } from '@/stores/user';
-import api from '@/services/api';
 
 const routes = [
   {
     path: '/',
-    redirect: '/home',
+    redirect: () => {
+      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      if (token) return '/home';
+
+      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+      return hasSeenOnboarding ? '/login' : '/onboarding';
+    }
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: OnboardingView
+  },
+  {
+    path: '/login',
+    name: 'login', // 소문자 login으로 통일
+    component: LoginView
+  },
+  {
+    path: '/signup',
+    name: 'signup',
+    component: () => import('../views/SignupView.vue')
+  },
+  {
+    path: '/find-account',
+    name: 'FindAccount',
+    component: () => import('../views/FindAccountPage.vue')
+  },
+  {
+    path: '/logout',
+    name: 'logout',
+    component: () => import('../views/LogoutView.vue')
   },
   {
     path: '/home',
     name: 'HomePage',
     component: HomePage,
-  },
-  {
-    path: '/my-profile-view',
-    name: 'MyProfileView',
-    component: MyProfileView,
   },
   {
     path: '/my-profile-edit',
@@ -41,6 +74,27 @@ const routes = [
     name: 'MemberDetail',
     component: MemberDetailView,
   },
+  {
+    path: '/families/:familyId/medications',
+    name: 'MedicationList',
+    component: MedicationListView,
+  },
+  {
+    path: '/families/:familyId/medications/:medicationId',
+    name: 'MedicationDetail',
+    component: MedicationDetailView,
+  },
+  {
+    path: '/families/:familyId/messages',
+    name: 'FamilyMessages',
+    component: MessageListView,
+  },
+  {
+    path: '/families/:familyId/notifications',
+    name: 'NotificationList',
+    component: () => import('../views/NotificationListView.vue'),
+  },
+
   {
     path: '/groups/:familyId/edit',
     component: GroupSetupLayout,
@@ -69,9 +123,9 @@ const routes = [
     ],
   },
   {
-    path: '/login',
-    name: 'Login',
-    component: LoginPage,
+    path: '/initial-setup',
+    name: 'InitialSetupWizard',
+    component: InitialSetupWizard,
   },
   {
     path: '/join',
@@ -80,37 +134,87 @@ const routes = [
     beforeEnter: async (to, from, next) => {
       const userStore = useUserStore();
       const inviteCode = to.query.code;
-
       if (!inviteCode) {
-        console.warn('No invite code provided for join.');
         next({ name: 'HomePage' });
         return;
       }
-
       sessionStorage.setItem('redirectAfterLogin', to.fullPath);
-
       try {
         await userStore.fetchUser();
-
-        if (userStore.isAuthenticated) {
-          next();
-        } else {
-          next({ name: 'Login' });
-        }
-      } catch (fetchUserError) {
-        console.error("Error fetching user during route guard:", fetchUserError);
-        next({ name: 'Login' });
-      }
+        if (userStore.isAuthenticated) { next(); }
+        else { next({ name: 'login' }); }
+      } catch (e) { next({ name: 'login' }); }
     },
-  },
-  {
-    path: '/api/auth/login/social',
-    redirect: '/my-profile-edit',
   },
   {
     path: '/voice-sample',
     name: 'VoiceSample',
     component: VoiceSample,
+  },
+  {
+    path: '/families/:familyId/voice-register',
+    name: 'VoiceRegistration',
+    component: VoiceRegistration,
+  },
+  {
+    path: '/settings/voice',
+    name: 'VoiceSettings',
+    component: () => import('../views/VoiceSettings.vue'),
+  },
+  {
+    path: '/families/:familyId/calendar',
+    name: 'CalendarPage',
+    component: () => import('../views/CalendarPage.vue'),
+  },
+  {
+    path: '/families/:familyId/calendar/create',
+    name: 'CalendarCreate',
+    component: () => import('../views/CalendarCreate.vue'),
+  },
+  {
+    path: '/families/:familyId/gallery',
+    name: 'GalleryPage',
+    component: () => import('../views/GalleryPage.vue'),
+  },
+  {
+    path: '/families/:familyId/gallery/album/:id',
+    name: 'AlbumPage',
+    component: () => import('../views/AlbumPage.vue')
+  },
+  {
+    path: '/families/:familyId/gallery/photos/:photoId',
+    name: 'PhotoDetail',
+    component: () => import('../views/PhotoDetailPage.vue')
+  },
+  {
+    path: '/families/:familyId/calendar/detail',
+    name: 'DetailSchedule',
+    component: () => import('../views/DetailSchedule.vue'),
+  },
+  {
+    path: '/families/:familyId/health-detail',
+    name: 'HealthDetail',
+    component: HealthDetailView,
+  },
+  {
+    path: '/emergency',
+    name: 'Emergency',
+    redirect: '/home',
+  },
+  {
+    path: '/families/:familyId/realtime-heart-rate',
+    name: 'RealTimeHeartRate',
+    component: () => import('../views/HeartRateView.vue'),
+  },
+  {
+    path: '/families/:familyId/devices',
+    name: 'DeviceManagement',
+    component: () => import('../views/DeviceManagementPage.vue'),
+  },
+  {
+    path: '/setup-complete',
+    name: 'InitialSetupComplete',
+    component: () => import('../views/InitialSetupComplete.vue'),
   },
 ];
 
@@ -119,17 +223,38 @@ const router = createRouter({
   routes,
 });
 
+// 전역 가드 설정
+router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const userStore = useUserStore();
 
-router.beforeEach((to, from, next) => {
-  if (to.name === 'Login') {
-    const redirectPath = sessionStorage.getItem('redirectAfterLogin');
-    if (redirectPath) {
-      console.log("Redirect path stored for login completion:", redirectPath);
+  // 1. 로그인 상태인 경우
+  if (token) {
+    if (to.name === 'login') {
+      return next({ name: 'HomePage' });
     }
-  } else if (to.name === 'JoinGroup' && !to.query.code) {
-    next({ name: 'HomePage' });
-    return;
+
+    // 초기 설정 대상인지 확인 (프로필 이름이 비어있는 경우)
+    // 데이터 로드가 안되어 있으면 시도
+    if (!userStore.profile) {
+      await userStore.fetchUser();
+    }
+
+    const isMissingProfile = userStore.profile && !userStore.profile.phone;
+    const isSetupRoute = ['InitialSetupWizard', 'InitialSetupComplete'].includes(to.name);
+
+    if (isMissingProfile && !isSetupRoute && to.name !== 'logout') {
+      return next({ name: 'InitialSetupWizard' });
+    }
+
+    return next();
   }
+
+  // 2. 비로그인 상태
+  if (to.name !== 'login' && to.name !== 'onboarding' && to.name !== 'signup' && to.name !== 'FindAccount') {
+    return next({ name: 'login' });
+  }
+
   next();
 });
 

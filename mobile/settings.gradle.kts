@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "eeum"
 include(":app")
+include(":wear")
  

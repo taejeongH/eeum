@@ -2,21 +2,32 @@ package org.ssafy.eeum.domain.schedule.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.ssafy.eeum.domain.family.entity.Family;
+import org.ssafy.eeum.domain.family.repository.FamilyRepository;
+import org.ssafy.eeum.domain.iot.entity.IotDevice;
+import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
+import org.ssafy.eeum.domain.iot.service.IotSyncService;
 import org.ssafy.eeum.domain.schedule.dto.ScheduleRequestDTO;
 import org.ssafy.eeum.domain.schedule.dto.ScheduleResponseDTO;
+import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.schedule.entity.RepeatType;
 import org.ssafy.eeum.domain.schedule.entity.Schedule;
 import org.ssafy.eeum.domain.schedule.repository.ScheduleRepository;
-import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import org.ssafy.eeum.global.infra.redis.RedisService;
 import org.ssafy.eeum.global.util.CalendarUtils;
+import org.ssafy.eeum.domain.family.repository.SupporterRepository;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,6 +35,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 @Service
@@ -31,11 +44,31 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ScheduleService {
     private final ScheduleRepository scheduleRepository;
+    private final FamilyRepository familyRepository;
+    private final UserRepository userRepository;
     private final RedisService redisService;
+    private final IotSyncService iotSyncService;
+    private final MqttService mqttService;
+    private final IotDeviceRepository iotDeviceRepository;
+    private final SupporterRepository supporterRepository;
 
-    // 월간 일정 조회 (캐시 적용)
-    public List<ScheduleResponseDTO> getMonthlySchedules(Integer familyId, int year, int month, String category,
+    private void checkFamilyAccess(Integer userId, Integer familyId) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        supporterRepository.findByUserAndFamily(user, family)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
+    }
+
+    // 월간 일정 조회
+    public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month,
+            String category,
             String keyword, String targetPerson, Boolean isVisited) {
+
+        checkFamilyAccess(userId, familyId);
 
         YearMonth targetMonth = YearMonth.of(year, month);
 
@@ -61,25 +94,25 @@ public class ScheduleService {
         return result;
     }
 
-    public ScheduleResponseDTO getSchedule(Integer familyId, String scheduleId) {
+    public ScheduleResponseDTO getSchedule(Integer userId, Integer familyId, String scheduleId) {
+        checkFamilyAccess(userId, familyId);
         if (scheduleId.contains("_")) {
             String[] parts = scheduleId.split("_");
             Integer parentId = Integer.parseInt(parts[0]);
             LocalDate targetDate = LocalDate.parse(parts[1]);
 
-            // 1. 해당 날짜에 예외(수정/삭제) 일정이 있는지 확인
-            Optional<Schedule> exceptionSchedule = scheduleRepository
-                    .findByParentIdAndStartAtAndDeletedAtIsNull(parentId, targetDate);
+            Optional<Schedule> exceptionSchedule = scheduleRepository.findAll().stream()
+                    .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
+                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
+                    .findFirst();
 
             if (exceptionSchedule.isPresent()) {
                 return convertToResponse(exceptionSchedule.get(), scheduleId, targetDate, true);
             }
 
-            // 2. 없으면 부모 일정을 기반으로 가상 일정 생성
             Schedule parent = scheduleRepository.findById(parentId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-            // 유효성 검사 (반복 범위 등)
             List<LocalDate> occurrences = calculateOccurrenceDates(parent, targetDate, targetDate);
             if (occurrences.isEmpty()) {
                 throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
@@ -91,24 +124,19 @@ public class ScheduleService {
             Schedule schedule = scheduleRepository.findById(Integer.parseInt(scheduleId))
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-            // 일반 일정인 경우 그대로 반환, 반복 일정의 부모인 경우 첫번째 날짜 등 로직 필요할 수 있으나
-            // 상세 조회는 보통 ID로 특정된 것을 조회하므로 그대로 반환.
-            // 만약 반복 일정의 부모(MASTER)를 조회하는 경우라면?
-            // 기획 상 목록에서 클릭 시 virtualId를 가져오므로, 여기서는 물리적 ID 조회만 처리.
-            return convertToResponse(schedule, scheduleId, schedule.getStartAt(), false);
+            return convertToResponse(schedule, scheduleId, schedule.getStartAt().toLocalDate(), false);
         }
     }
 
-    // DB 데이터를 읽어 해당 월의 실제 날짜들로 확장
     private List<ScheduleResponseDTO> calculateMonthlySchedules(Integer familyId, YearMonth ym, String category,
             String keyword, String targetPerson, Boolean isVisited) {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
+        LocalDateTime startDateTime = start.atStartOfDay();
+        LocalDateTime endDateTime = end.atTime(LocalTime.MAX);
 
-        List<Schedule> candidates = scheduleRepository.findCandidates(familyId, start, end);
+        List<Schedule> candidates = scheduleRepository.findCandidates(familyId, startDateTime, endDateTime);
 
-        // 1차 필터링: 부모 레벨에서 가능한 필터 적용 (카테고리, 제목/내용 등)
-        // 반복 일정의 경우 원본이 매칭되면 자식도 매칭되는 것으로 간주
         if (category != null) {
             candidates = candidates.stream()
                     .filter(s -> s.getCategoryType().name().equalsIgnoreCase(category))
@@ -136,17 +164,13 @@ public class ScheduleService {
             candidates = candidates.stream()
                     .filter(s -> {
                         if (s.getIsVisited() == null)
-                            return !visitFilter; // null이면 false 취급 (안감)
+                            return !visitFilter;
                         return s.getIsVisited() == visitFilter;
                     })
                     .toList();
         }
 
-        Set<String> modifiedMask = scheduleRepository.findCandidates(familyId, start, end).stream() // 전체에서 mask 계산해야 함?
-                // 주의: 필터링 된 candidates만으로 mask를 계산하면,
-                // 수정된 일정이 필터에 걸리지 않아 제외되었을 때, 원본 일정(반복)이 살아나는 문제가 발생할 수 있음.
-                // 따라서 mask 계산용 candidates는 필터링 전 전체 목록을 사용하거나, 별도로 로직 구성 필요.
-                // 안전하게: 마스킹 데이터는 전체 범위에서 조회하여 확보.
+        Set<String> modifiedMask = scheduleRepository.findCandidates(familyId, startDateTime, endDateTime).stream()
                 .filter(s -> s.getParentId() != null)
                 .map(s -> s.getParentId() + "_" + s.getStartAt())
                 .collect(Collectors.toSet());
@@ -154,12 +178,9 @@ public class ScheduleService {
         List<ScheduleResponseDTO> result = new ArrayList<>();
 
         for (Schedule s : candidates) {
-            // EXCLUDED 일정은 결과에 포함하지 않음 (마스킹 용도로만 사용)
             if ("EXCLUDED".equals(s.getTitle())) {
                 continue;
             }
-            // 예외 일정(수정된 자식)은 이미 candidates에 포함되어 있음.
-            // 다만, 부모 일정 처리 시 '수정된 날짜'에 대해서는 가상 일정을 생성하지 말아야 함.
 
             List<LocalDate> occurrences = calculateOccurrenceDates(s, start, end);
 
@@ -167,19 +188,20 @@ public class ScheduleService {
                 String virtualId = (s.getRepeatType() == RepeatType.NONE) ? s.getId().toString()
                         : s.getId() + "_" + date;
 
-                if (!modifiedMask.contains(s.getId() + "_" + date)) {
-                    result.add(convertToResponse(s, virtualId, date, s.getParentId() != null));
+                if (s.getRepeatType() != RepeatType.NONE && modifiedMask.contains(s.getId() + "_" + date)) {
+                    continue;
                 }
+
+                result.add(convertToResponse(s, virtualId, date, s.getParentId() != null));
             }
         }
         return result.stream().sorted(Comparator.comparing(ScheduleResponseDTO::getStartAt)).toList();
     }
 
-    // 반복 규칙과 음력 설정을 고려하여 해당 월 내의 발생 날짜들 계산
     private List<LocalDate> calculateOccurrenceDates(Schedule s, LocalDate start, LocalDate end) {
         List<LocalDate> dates = new ArrayList<>();
-        LocalDate baseDate = s.getStartAt();
-        LocalDate limitDate = s.getRecurrenceEndAt();
+        LocalDate baseDate = s.getStartAt().toLocalDate();
+        LocalDate limitDate = s.getRecurrenceEndAt() != null ? s.getRecurrenceEndAt().toLocalDate() : null;
         LocalDate targetDate;
 
         if (s.getRepeatType() == RepeatType.NONE) {
@@ -190,21 +212,14 @@ public class ScheduleService {
             }
         } else {
             if (Boolean.TRUE.equals(s.getIsLunar())) {
-                // 음력 반복의 경우, 해당 기간(start~end) 내에 존재하는 양력 날짜를 찾아야 함.
-                // 단순히 baseDate의 연도를 start의 연도로 바꾸는 것만으로는 부족할 수 있음 (연말/연초 등).
-                // 하지만 현재 로직을 유지하면서 확장.
                 targetDate = CalendarUtils.convertLunarToSolar(baseDate.withYear(start.getYear()));
-                // 만약 targetDate가 start/end 범위를 벗어나면? 보정 필요?
-                // 일단 기존 로직 따름.
             } else {
                 targetDate = baseDate.withYear(start.getYear());
             }
         }
 
-        // 반복 없음 (NONE)
+        // 반복 없음
         if (s.getRepeatType() == RepeatType.NONE) {
-            // start, end 범위 내인지 확인
-            // baseDate가 아닌 targetDate(음력변환됨) 기준
             if (!targetDate.isBefore(start) && !targetDate.isAfter(end)) {
                 dates.add(targetDate);
             }
@@ -212,12 +227,9 @@ public class ScheduleService {
 
         // 매년 반복 (YEARLY)
         else if (s.getRepeatType() == RepeatType.YEARLY) {
-            // targetDate는 start의 연도로 설정됨.
-            // 1. targetDate 확인
             if (isValidOccurrence(targetDate, start, end, baseDate, limitDate))
                 dates.add(targetDate);
 
-            // 2. targetDate의 전년도, 다음년도도 확인 (경계 근처일 수 있음 - 특히 음력)
             LocalDate prev = targetDate.minusYears(1);
             if (Boolean.TRUE.equals(s.getIsLunar()))
                 prev = CalendarUtils.convertLunarToSolar(baseDate.withYear(start.getYear() - 1));
@@ -240,11 +252,17 @@ public class ScheduleService {
     }
 
     private ScheduleResponseDTO convertToResponse(Schedule s, String id, LocalDate date, boolean isModified) {
+        // 원본 일정의 시간 정보 추출
+        LocalTime time = s.getStartAt().toLocalTime();
+        LocalDateTime startDateTime = date.atTime(time);
+        LocalDateTime endDateTime = date.atTime(s.getEndAt().toLocalTime());
+
         return ScheduleResponseDTO.builder()
                 .scheduleId(id)
+                .creatorId(s.getCreator().getId())
                 .title(s.getTitle())
-                .startAt(date)
-                .endAt(date)
+                .startAt(startDateTime)
+                .endAt(endDateTime)
                 .categoryType(s.getCategoryType())
                 .description(s.getDescription())
                 .visitorName(s.getVisitorName())
@@ -259,7 +277,7 @@ public class ScheduleService {
 
     // 일정 등록
     @Transactional
-    public void createSchedule(Integer familyId, User creator, ScheduleRequestDTO dto) {
+    public void createSchedule(Integer userId, Integer familyId, ScheduleRequestDTO dto) {
         if (dto.getStartAt().isAfter(dto.getEndAt())) {
             throw new CustomException(ErrorCode.INVALID_DATE_RANGE);
         }
@@ -267,9 +285,15 @@ public class ScheduleService {
             throw new CustomException(ErrorCode.RESERVED_TITLE);
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "가족 그룹을 찾을 수 없습니다."));
+
         Schedule schedule = Schedule.builder()
-                .groupId(familyId)
-                .creator(creator)
+                .family(family)
+                .creator(user)
                 .title(dto.getTitle())
                 .startAt(dto.getStartAt())
                 .endAt(dto.getEndAt())
@@ -285,12 +309,13 @@ public class ScheduleService {
                 .build();
 
         scheduleRepository.save(schedule);
-        invalidateCache(familyId, dto.getStartAt());
+        invalidateCache(familyId, dto.getStartAt().toLocalDate());
+        iotSyncService.notifyUpdate(familyId, "schedule");
     }
 
     // 일정 수정
     @Transactional
-    public void updateSchedule(Integer familyId, String scheduleId, ScheduleRequestDTO dto) {
+    public void updateSchedule(Integer userId, Integer familyId, String scheduleId, ScheduleRequestDTO dto) {
         if (dto.getStartAt().isAfter(dto.getEndAt())) {
             throw new CustomException(ErrorCode.INVALID_DATE_RANGE);
         }
@@ -298,30 +323,42 @@ public class ScheduleService {
             throw new CustomException(ErrorCode.RESERVED_TITLE);
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
 
         if (parsedId.isVirtual()) {
             Integer parentId = parsedId.parentId();
             LocalDate targetDate = parsedId.date();
 
-            if (!targetDate.equals(dto.getStartAt())) {
+            if (!targetDate.equals(dto.getStartAt().toLocalDate())) {
                 Schedule parent = scheduleRepository.findById(parentId)
                         .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
-                createAndSaveExclusion(familyId, parent, targetDate);
+                createAndSaveExclusion(user, familyId, parent, targetDate);
             }
 
-            Schedule schedule = scheduleRepository.findByParentIdAndStartAtAndDeletedAtIsNull(parentId, targetDate)
+            Schedule schedule = scheduleRepository.findAll().stream()
+                    .filter(s -> s.getParentId() != null && s.getParentId().equals(parentId)
+                            && s.getStartAt() != null && s.getStartAt().toLocalDate().equals(targetDate))
+                    .findFirst()
                     .orElseGet(() -> {
                         Schedule parent = scheduleRepository.findById(parentId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+                        if (!parent.getCreator().getId().equals(userId)) {
+                            throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+                        }
+
+                        LocalTime time = parent.getStartAt().toLocalTime();
                         return Schedule.builder()
-                                .groupId(parent.getGroupId())
-                                .creator(parent.getCreator())
+                                .family(parent.getFamily())
+                                .creator(user)
                                 .parentId(parentId)
                                 .categoryType(parent.getCategoryType())
                                 .title(parent.getTitle())
-                                .startAt(targetDate)
-                                .endAt(targetDate)
+                                .startAt(targetDate.atTime(time))
+                                .endAt(targetDate.atTime(parent.getEndAt().toLocalTime()))
                                 .build();
                     });
 
@@ -339,13 +376,18 @@ public class ScheduleService {
 
             scheduleRepository.save(schedule);
             invalidateCache(familyId, targetDate);
-            invalidateCache(familyId, dto.getStartAt());
+            invalidateCache(familyId, dto.getStartAt().toLocalDate());
+            iotSyncService.notifyUpdate(familyId, "schedule");
 
         } else {
             Schedule schedule = scheduleRepository.findById(parsedId.dbId())
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-            LocalDate oldDate = schedule.getStartAt();
+            if (!schedule.getCreator().getId().equals(userId)) {
+                throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+            }
+
+            LocalDateTime oldDate = schedule.getStartAt();
 
             schedule.update(
                     dto.getTitle(),
@@ -359,14 +401,15 @@ public class ScheduleService {
                     dto.getIsLunar(),
                     dto.getTargetPerson());
 
-            invalidateCache(familyId, oldDate);
-            invalidateCache(familyId, dto.getStartAt());
+            invalidateCache(familyId, oldDate.toLocalDate());
+            invalidateCache(familyId, dto.getStartAt().toLocalDate());
+            iotSyncService.notifyUpdate(familyId, "schedule");
         }
     }
 
     // 일정 삭제
     @Transactional
-    public void deleteSchedule(Integer familyId, String scheduleId, boolean deleteAll) {
+    public void deleteSchedule(Integer userId, Integer familyId, String scheduleId, boolean deleteAll) {
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
 
         if (deleteAll) {
@@ -375,8 +418,12 @@ public class ScheduleService {
             Schedule schedule = scheduleRepository.findById(targetId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
+            if (!schedule.getCreator().getId().equals(userId)) {
+                throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+            }
+
             scheduleRepository.delete(schedule);
-            invalidateCache(familyId, schedule.getStartAt());
+            invalidateCache(familyId, schedule.getStartAt().toLocalDate());
         } else {
             if (parsedId.isVirtual()) {
                 Integer parentId = parsedId.parentId();
@@ -385,27 +432,44 @@ public class ScheduleService {
                 Schedule parent = scheduleRepository.findById(parentId)
                         .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-                createAndSaveExclusion(familyId, parent, targetDate);
+                if (!parent.getCreator().getId().equals(userId)) {
+                    throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+                }
+
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+                createAndSaveExclusion(user, familyId, parent, targetDate);
                 invalidateCache(familyId, targetDate);
             } else {
                 Schedule schedule = scheduleRepository.findById(parsedId.dbId())
                         .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
+                if (!schedule.getCreator().getId().equals(userId)) {
+                    throw new CustomException(ErrorCode.NOT_SCHEDULE_CREATOR);
+                }
+
                 if (schedule.getRepeatType() != RepeatType.NONE) {
-                    createAndSaveExclusion(familyId, schedule, schedule.getStartAt());
-                    invalidateCache(familyId, schedule.getStartAt());
+                    User user = userRepository.findById(userId)
+                            .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+                    createAndSaveExclusion(user, familyId, schedule, schedule.getStartAt().toLocalDate());
+                    invalidateCache(familyId, schedule.getStartAt().toLocalDate());
                 } else {
                     scheduleRepository.delete(schedule);
-                    invalidateCache(familyId, schedule.getStartAt());
+                    invalidateCache(familyId, schedule.getStartAt().toLocalDate());
                 }
+                iotSyncService.notifyUpdate(familyId, "schedule");
             }
         }
     }
 
     // 방문 상태 변경
     @Transactional
-    public void updateVisitStatus(Integer familyId, String scheduleId, boolean visited) {
+    public void updateVisitStatus(Integer userId, Integer familyId, String scheduleId, boolean visited) {
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
         if (parsedId.isVirtual()) {
             Integer parentId = parsedId.parentId();
@@ -414,8 +478,8 @@ public class ScheduleService {
             Schedule parent = scheduleRepository.findById(parentId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-            createAndSaveExclusion(familyId, parent, targetDate);
-            createIndependentSchedule(familyId, parent, targetDate, visited);
+            createAndSaveExclusion(user, familyId, parent, targetDate);
+            createIndependentSchedule(user, familyId, parent, targetDate, visited);
 
             invalidateCache(familyId, targetDate);
 
@@ -424,10 +488,10 @@ public class ScheduleService {
                     .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
             if (schedule.getRepeatType() != RepeatType.NONE) {
-                createAndSaveExclusion(familyId, schedule, schedule.getStartAt());
-                createIndependentSchedule(familyId, schedule, schedule.getStartAt(), visited);
+                createAndSaveExclusion(user, familyId, schedule, schedule.getStartAt().toLocalDate());
+                createIndependentSchedule(user, familyId, schedule, schedule.getStartAt().toLocalDate(), visited);
 
-                invalidateCache(familyId, schedule.getStartAt());
+                invalidateCache(familyId, schedule.getStartAt().toLocalDate());
 
             } else {
                 schedule.updateVisitStatus(visited);
@@ -435,32 +499,44 @@ public class ScheduleService {
         }
     }
 
-    private void invalidateCache(Integer familyId, LocalDate date) {
+    public void invalidateCache(Integer familyId, LocalDate date) {
         String key = "family:" + familyId + ":schedule:" + YearMonth.from(date);
         redisService.deleteData(key);
     }
 
-    private void createAndSaveExclusion(Integer familyId, Schedule parent, LocalDate targetDate) {
+    public Schedule createAndSaveExclusion(User creator, Integer familyId, Schedule parent, LocalDate targetDate) {
+
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+        LocalTime time = parent.getStartAt().toLocalTime();
         Schedule exclusion = Schedule.builder()
-                .groupId(familyId)
-                .creator(parent.getCreator())
+                .family(family)
+                .creator(creator)
                 .parentId(parent.getParentId() != null ? parent.getParentId() : parent.getId())
-                .startAt(targetDate)
-                .endAt(targetDate)
+                .startAt(targetDate.atTime(time))
+                .endAt(targetDate.atTime(parent.getEndAt().toLocalTime()))
                 .categoryType(parent.getCategoryType())
                 .repeatType(RepeatType.NONE)
                 .title("EXCLUDED")
                 .build();
         scheduleRepository.save(exclusion);
+        return exclusion;
     }
 
-    private void createIndependentSchedule(Integer familyId, Schedule source, LocalDate targetDate, boolean visited) {
+    private void createIndependentSchedule(User creator, Integer familyId, Schedule source, LocalDate targetDate,
+            boolean visited) {
+
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
+
+        LocalTime time = source.getStartAt().toLocalTime();
         Schedule newSchedule = Schedule.builder()
-                .groupId(familyId)
-                .creator(source.getCreator())
+                .family(family)
+                .creator(creator)
                 .title(source.getTitle())
-                .startAt(targetDate)
-                .endAt(targetDate)
+                .startAt(targetDate.atTime(time))
+                .endAt(targetDate.atTime(source.getEndAt().toLocalTime()))
                 .categoryType(source.getCategoryType())
                 .description(source.getDescription())
                 .repeatType(RepeatType.NONE)
@@ -487,6 +563,67 @@ public class ScheduleService {
             if (!isVirtual)
                 throw new IllegalStateException("Not a virtual ID");
             return dbId;
+        }
+    }
+
+    @Transactional
+    @Scheduled(cron = "0 0 8 * * *")
+    public void sendDailyScheduleAlarm() {
+        sendScheduleAlarmForDate(LocalDate.now(), "오늘");
+    }
+
+    @Transactional
+    @Scheduled(cron = "0 0 20 * * *")
+    public void sendNextDayScheduleAlarm() {
+        sendScheduleAlarmForDate(LocalDate.now().plusDays(1), "내일");
+    }
+
+    private void sendScheduleAlarmForDate(LocalDate targetDate, String dayLabel) {
+        YearMonth ym = YearMonth.from(targetDate);
+
+        List<Family> families = familyRepository.findAll();
+
+        for (Family family : families) {
+            try {
+                List<ScheduleResponseDTO> monthlySchedules = calculateMonthlySchedules(
+                        family.getId(), ym, null, null, null, null);
+
+                List<ScheduleResponseDTO> targetSchedules = monthlySchedules.stream()
+                        .filter(s -> s.getStartAt().toLocalDate().equals(targetDate))
+                        .toList();
+
+                StringBuilder contentBuilder = new StringBuilder();
+                List<Map<String, Object>> scheduleList = new ArrayList<>();
+
+                if (targetSchedules.isEmpty()) {
+                    contentBuilder.append(String.format("%s 예정된 일정이 없습니다.", dayLabel));
+                } else {
+                    contentBuilder.append(String.format("%s 총 %d개의 일정이 있습니다. ", dayLabel, targetSchedules.size()));
+
+                    for (ScheduleResponseDTO s : targetSchedules) {
+                        contentBuilder.append(String.format("%s, %s. ",
+                                s.getStartAt().toLocalTime().toString(), s.getTitle()));
+
+                        Map<String, Object> sMap = new HashMap<>();
+                        sMap.put("title", s.getTitle());
+                        sMap.put("time", s.getStartAt().toLocalTime().toString());
+                        scheduleList.add(sMap);
+                    }
+                }
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("events_for_today", scheduleList);
+
+                List<IotDevice> devices = iotDeviceRepository.findAllByFamilyId(family.getId());
+
+                for (IotDevice device : devices) {
+                    mqttService.sendAlarm(device.getSerialNumber(), "schedule", contentBuilder.toString(), data);
+                }
+
+            } catch (Exception e) {
+                log.error("Failed to send {} schedule alarm for family {}: {}", dayLabel, family.getId(),
+                        e.getMessage());
+            }
         }
     }
 }

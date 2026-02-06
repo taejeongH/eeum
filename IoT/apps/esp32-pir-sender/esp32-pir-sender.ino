@@ -9,17 +9,17 @@ static const char* AP_PASS = "A1051234";
 // ====== 서버 ======
 static const char* SERVER_HOST = "192.168.4.1";
 static const uint16_t SERVER_PORT = 8080;
-static const char* EVENT_ENDPOINT = "/api/event";
+static const char* EVENT_ENDPOINT = "/eeum/event";
 
 // ====== 디바이스 ======
-static const char* DEVICE_NAME = "E-00000000";
+static const char* DEVICE_NAME = "EEUM-E105-1";
 
 // ====== PIR ======
 static const int PIR_PIN = 27;
-
+static const int DEBUG_DIV = 20;
 // ====== 정책 ======
 static const uint32_t WARMUP_MS = 60 * 1000UL;              // 초기 60초 무시
-static const uint32_t MIN_POST_INTERVAL_MS = 10 * 60 * 1000UL; // 최소 간격 10분
+static const uint32_t MIN_POST_INTERVAL_MS = 10 * 60 * 1000UL / DEBUG_DIV; // 최소 간격 10분
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
 
 // ====== ISR 플래그 ======
@@ -61,7 +61,7 @@ static bool postPir1() {
   String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + EVENT_ENDPOINT;
   String body = "{";
   body += "\"kind\":\"pir\",";
-  body += "\"device\":\"" + String(DEVICE_NAME) + "\",";
+  body += "\"device_id\":\"" + String(DEVICE_NAME) + "\",";
   body += "\"data\":{";
   body += "\"event\":\"motion\",";
   body += "\"value\":1";

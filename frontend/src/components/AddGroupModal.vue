@@ -11,7 +11,7 @@
     <div
       v-if="show"
       ref="sheet"
-      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y"
+      class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl px-5 pt-3 pb-6 touch-pan-y min-h-[300px] max-h-[90vh] overflow-y-auto"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -113,7 +113,7 @@
         <div class="relative flex items-center justify-center mb-6">
           <button 
             class="absolute left-0 p-1 text-gray-500 hover:text-gray-800 transition" 
-            @click="step = 0"
+            @click="handleBack"
           >
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -137,7 +137,7 @@
         <div class="relative flex items-center justify-center mb-6">
           <button 
             class="absolute left-0 p-1 text-gray-500 hover:text-gray-800 transition" 
-            @click="step = 0"
+            @click="handleBack"
           >
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -171,15 +171,35 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import IconCircle from './IconCircle.vue'
 import RadioDot from './RadioDot.vue'
+import { useModalStore } from '@/stores/modal'
 
-defineProps({ show: Boolean })
+const modalStore = useModalStore()
+
+const props = defineProps({ 
+  show: Boolean,
+  initialStep: {
+    type: Number,
+    default: 0
+  }
+})
 const emit = defineEmits(['close', 'join-group', 'create-group-request'])
 
-const step = ref(0)
+const step = ref(props.initialStep)
 const selected = ref(null)
+
+// 모달이 열릴 때 초기 스텝 설정 (NoGroupView 등에서 직접 접근 시)
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    step.value = props.initialStep
+    // 스텝에 따라 선택 상태 초기화
+    if (props.initialStep === 1) selected.value = 'join'
+    else if (props.initialStep === 2) selected.value = 'create'
+    else selected.value = null
+  }
+})
 
 /* step1 */
 const inviteCode = ref('')
@@ -206,6 +226,14 @@ const onTouchEnd = () => {
 }
 
 /* actions */
+const handleBack = () => {
+  if (props.initialStep !== 0) {
+    close();
+  } else {
+    step.value = 0;
+  }
+};
+
 const goNext = () => {
   step.value = selected.value === 'join' ? 1 : 2
 }
@@ -223,7 +251,7 @@ const submitJoin = () => {
   }
 
   if (!code) {
-      alert('초대 코드를 입력해주세요.');
+      modalStore.openAlert('초대 코드를 입력해주세요.');
       return;
   }
 
@@ -239,6 +267,9 @@ const submitCreate = () => {
 const close = () => {
   step.value = 0
   selected.value = null
+  inviteCode.value = ''
+  groupName.value = ''
+  relation.value = ''
   emit('close')
 }
 

@@ -2,7 +2,7 @@ package org.ssafy.eeum.domain.health.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -21,15 +21,12 @@ public class HealthMetric extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)
-    private User user;
+    private Family family;
 
     @Column(name = "record_date", nullable = false)
     private LocalDateTime recordDate;
 
     private Integer steps;
-
-    @Column(name = "floors_climbed")
-    private Integer floorsClimbed;
 
     @Column(name = "resting_heart_rate")
     private Integer restingHeartRate;
@@ -64,10 +61,12 @@ public class HealthMetric extends BaseEntity {
     @Column(name = "diastolic_pressure")
     private Integer diastolicPressure;
 
-    @Column(name = "body_temperature")
-    private Double bodyTemperature;
+    @Column(name = "active_calories")
+    private Integer activeCalories;
 
-    // 심박수가 위험인지 판단하는 기준
+    @Column(name = "active_minutes")
+    private Integer activeMinutes;
+
     public boolean isHeartRateWarning() {
         return maxHeartRate != null && maxHeartRate >= 120;
     }

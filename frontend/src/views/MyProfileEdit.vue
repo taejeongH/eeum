@@ -14,8 +14,8 @@
         <!-- Navigation Bar -->
         <div class="relative z-10 flex justify-between items-center p-5 pt-6">
           <button @click="router.back()" class="p-2 -ml-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <h1 class="text-white text-lg font-bold tracking-tight opacity-90">프로필 수정</h1>
@@ -127,17 +127,12 @@
 
       <!-- Address Modal -->
       <Teleport to="body">
-        <div v-if="showAddressModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <!-- Backdrop -->
-          <div 
-            class="absolute inset-0 bg-black/60 backdrop-blur-sm" 
-            @click="showAddressModal = false" 
-            @touchmove.prevent
-          ></div>
-
+        <div v-if="showAddressModal" class="fixed inset-0 z-[9999] overflow-y-auto bg-black/60 backdrop-blur-sm" @click="showAddressModal = false">
+          
+          <div class="flex min-h-full items-center justify-center p-4">
           <!-- Modal Panel -->
           <div 
-            class="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] pointer-events-auto" 
+            class="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col min-h-[500px] pointer-events-auto" 
             role="dialog" 
             aria-modal="true"
             @click.stop
@@ -159,6 +154,7 @@
               <!-- Daum Postcode will be embedded here -->
             </div>
           </div>
+          </div>
         </div>
       </Teleport>
 
@@ -170,12 +166,16 @@
 import { ref, onMounted, watch, nextTick, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '../stores/user';
+import { useFamilyStore } from '../stores/family';
 import { updateUserProfile } from '../services/api';
 import { useRouter, useRoute } from 'vue-router';
+import { useModalStore } from '@/stores/modal';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const familyStore = useFamilyStore(); // Initialize familyStore
+const modalStore = useModalStore();
 const { profile: userProfile } = storeToRefs(userStore);
 
 const profile = ref({ name: '', phone: '', gender: 'M', address: '' });
@@ -274,7 +274,7 @@ watch(showAddressModal, (isShown) => {
       const container = document.getElementById('postcode-layer');
       
       if (!window.daum || !window.daum.Postcode) {
-          alert('주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
+          modalStore.openAlert('주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
           showAddressModal.value = false;
           return;
       }
@@ -303,11 +303,12 @@ watch(showAddressModal, (isShown) => {
 
 
 const submitProfile = async () => {
+  // 1. 저장 중 중복 클릭 방지
   if (isLoading.value) return;
   isLoading.value = true;
   errorMessage.value = '';
 
-  const formData = new FormData();
+  // 2. 생년월일 데이터 포맷팅
   let birthDate = null;
   if (birthYear.value && birthMonth.value && birthDay.value) {
     const month = String(birthMonth.value).padStart(2, '0');
@@ -315,30 +316,48 @@ const submitProfile = async () => {
     birthDate = `${birthYear.value}-${month}-${day}`;
   }
 
+  // 3. 전체 주소 문자열 생성
   const fullAddress = profile.value.address + (detailAddress.value ? ` ${detailAddress.value}` : '');
 
+  // 4. API 전송용 객체 생성
   const requestDto = {
-      name: profile.value.name,
-      phone: profile.value.phone,
-      birthDate: birthDate,
-      gender: profile.value.gender,
-      address: fullAddress,
+    name: profile.value.name,
+    phone: profile.value.phone,
+    birthDate: birthDate,
+    gender: profile.value.gender,
+    address: fullAddress,
   };
-  
+
+  // 5. FormData 생성 (이미지 포함 전송을 위함)
+  const formData = new FormData();
   formData.append('request', new Blob([JSON.stringify(requestDto)], { type: 'application/json' }));
   if (profileFile.value) formData.append('file', profileFile.value);
 
   try {
+    // 6. 서버에 프로필 업데이트 요청
     await updateUserProfile(formData);
-    await userStore.fetchUser();
+    
+    // 7. Pinia 스토어의 사용자 정보를 최신화 (홈 화면에서 바뀐 이름/사진을 바로 보여주기 위해)
+    await userStore.fetchUser(true);
+    
+    // [Fix] 현재 선택된 가족의 멤버 리스트도 강제 갱신하여 헤더에 즉시 반영
+    if (familyStore.selectedFamily && familyStore.selectedFamily.id) {
+        await familyStore.fetchMembers(familyStore.selectedFamily.id, true);
+    }
     
     if (isInitialSetup.value) {
-      router.push('/voice-sample');
+      router.push({ name: 'VoiceRegistration', query: { flow: 'initial' } });
     } else {
-      router.push('/my-profile-view');
+      // Redirect to Member Detail Page (e.g., /members/4/7)
+      const familyId = familyStore.selectedFamily?.id;
+      const userId = userStore.profile?.id;
+      
+      router.back();
     }
 
   } catch (error) {
+    // 에러 발생 시 처리
+    console.error(error);
     errorMessage.value = error.response?.data?.message || '프로필 업데이트에 실패했습니다.';
   } finally {
     isLoading.value = false;

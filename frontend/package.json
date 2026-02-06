@@ -4,17 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@iconify/vue": "^5.0.0",
     "axios": "^1.13.2",
     "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "qrcode": "^1.5.4",
+    "swiper": "^12.1.0",
     "vue": "^3.5.24",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.1.4",
     "@vitejs/plugin-vue": "^6.0.1",
     "autoprefixer": "^10.4.23",
     "postcss": "^8.5.6",

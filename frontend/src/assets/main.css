@@ -1,3 +1,6 @@
+@import url('https://hangeul.pstatic.net/hangeul_static/css/nanum-square-neo.css');
+@import url('https://cdn.jsdelivr.net/gh/fonts-archive/HakgyoansimDunggeunmiso/HakgyoansimDunggeunmiso.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,26 +11,46 @@
 
 :root {
   /* Primary Color */
+  /* --color-primary: #e76f51; */
   --color-primary: #e76f51;
-  --color-primary-light: #f3a08b;
+  --color-primary-light: #ec856b;
   --color-primary-soft: #fde8e3;
 
+  /* Safe Area Insets */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
+
+  /* Emergency Color */
+  --color-emergency: #dc2626;
+  --color-emergency-dark: #b91c1c;
+  --color-emergency-light: #ef4444;
+  --color-emergency-soft: #fee2e2;
+  --color-emergency-bg: #fef2f2;
+
   /* Text */
-  --text-title: #111827;   /* gray-900 */
-  --text-body: #374151;    /* gray-700 */
-  --text-sub: #6b7280;     /* gray-500 */
+  --text-title: #111827;
+  /* gray-900 */
+  --text-body: #374151;
+  /* gray-700 */
+  --text-sub: #6b7280;
+  /* gray-500 */
 
   /* Border / Background */
-  --border-default: #e5e7eb; /* gray-200 */
+  --border-default: #e5e7eb;
+  /* gray-200 */
   --bg-page: #ffffff;
 
   /* Radius */
-  --radius-lg: 0.75rem;   /* 12px */
-  --radius-xl: 1rem;      /* 16px */
+  --radius-lg: 0.75rem;
+  /* 12px */
+  --radius-xl: 1rem;
+  /* 16px */
 
   /* Font */
   --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont,
-               'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
 /* ===============================
@@ -58,6 +81,75 @@
   .eeum-sub {
     @apply text-sm leading-relaxed;
     color: var(--text-sub);
+  }
+
+  .eeum-input {
+    @apply w-full px-4 py-3 text-sm border focus:outline-none;
+    border-radius: var(--radius-xl);
+    border-color: var(--border-default);
+  }
+
+  .eeum-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
+  }
+
+  /* Date/Time Input Improvements */
+  input[type="date"].eeum-input,
+  input[type="time"].eeum-input {
+    min-height: 52px;
+    background-color: #fff;
+    cursor: pointer;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
+  .eeum-btn-primary {
+    @apply w-full h-14 font-semibold text-white transition;
+    border-radius: var(--radius-xl);
+    background-color: var(--color-primary);
+  }
+
+  .eeum-btn-primary:disabled {
+    background-color: var(--color-primary-light);
+  }
+
+  .eeum-dropdown {
+    @apply absolute mt-2 w-52 bg-white shadow-lg z-20;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-item {
+    @apply px-4 py-2 text-sm cursor-pointer truncate transition;
+    color: var(--text-body);
+  }
+
+  .eeum-dropdown-item:hover {
+    background-color: var(--color-primary-soft);
+  }
+
+  .eeum-dropdown-divider {
+    border-top: 1px solid var(--border-default);
+  }
+
+  .eeum-dropdown-action {
+    @apply px-4 py-2 text-sm font-semibold cursor-pointer transition;
+    color: var(--color-primary);
+  }
+
+  .eeum-dropdown-action:hover {
+    background-color: var(--color-primary-soft);
   }
 
   .eeum-input {
@@ -132,4 +224,30 @@
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
 }

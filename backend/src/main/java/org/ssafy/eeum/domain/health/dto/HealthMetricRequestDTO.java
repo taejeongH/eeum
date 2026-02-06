@@ -3,16 +3,17 @@ package org.ssafy.eeum.domain.health.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.health.entity.HealthMetric;
-import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.family.entity.Family;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor
 public class HealthMetricRequestDTO {
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]")
     private LocalDateTime recordDate;
     private Integer steps;
-    private Integer floorsClimbed;
     private Integer restingHeartRate;
     private Integer averageHeartRate;
     private Integer maxHeartRate;
@@ -24,14 +25,15 @@ public class HealthMetricRequestDTO {
     private Integer bloodGlucose;
     private Integer systolicPressure;
     private Integer diastolicPressure;
-    private Double bodyTemperature;
 
-    public HealthMetric toEntity(User user) {
+    private Integer activeCalories;
+    private Integer activeMinutes;
+
+    public HealthMetric toEntity(Family family) {
         return HealthMetric.builder()
-                .user(user)
+                .family(family)
                 .recordDate(this.recordDate)
                 .steps(this.steps)
-                .floorsClimbed(this.floorsClimbed)
                 .restingHeartRate(this.restingHeartRate)
                 .averageHeartRate(this.averageHeartRate)
                 .maxHeartRate(this.maxHeartRate)
@@ -43,7 +45,9 @@ public class HealthMetricRequestDTO {
                 .bloodGlucose(this.bloodGlucose)
                 .systolicPressure(this.systolicPressure)
                 .diastolicPressure(this.diastolicPressure)
-                .bodyTemperature(this.bodyTemperature)
+
+                .activeCalories(this.activeCalories)
+                .activeMinutes(this.activeMinutes)
                 .build();
     }
 }

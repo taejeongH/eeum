@@ -13,8 +13,8 @@
       <!-- Navigation Bar -->
       <div class="relative z-30 flex justify-between items-start p-5 pt-6">
         <button @click="goBack" class="p-2 -ml-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition text-white border border-white/20 shadow-sm">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
@@ -84,8 +84,15 @@
         <!-- New Profile Card Design -->
         <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-gray-200/60 p-6 flex flex-col items-center relative overflow-hidden mb-6 border border-white/50">
           <!-- Profile Image -->
-          <div class="w-28 h-28 rounded-full p-1 bg-white shadow-xl mb-3 ring-4 ring-orange-100/50">
+          <div 
+            class="relative w-28 h-28 rounded-full p-1 bg-white shadow-xl mb-3 ring-4 ring-orange-100/50 transition-all duration-300"
+          >
             <img class="w-full h-full object-cover rounded-full" :src="member.profileImage || '/default-profile.png'" alt="Profile">
+            
+            <!-- Crown for representative -->
+            <div v-if="member.representative" class="absolute -bottom-1 -right-1 w-8 h-8 z-10 filter drop-shadow-lg">
+                <IconCrown class="text-amber-400 w-full h-full" />
+            </div>
           </div>
           
           <div class="text-center w-full">
@@ -93,6 +100,7 @@
             <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 text-[var(--color-primary)] rounded-full mb-2">
                 <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]"></span>
                 <span class="text-xs font-bold tracking-wide">{{ member.dependent ? '피부양자' : (member.relationship || '부양자') }}</span>
+                <span v-if="member.representative" class="ml-1 text-[10px] font-black text-amber-500 bg-amber-50 px-1 rounded uppercase">대표</span>
             </div>
             
             <!-- Name -->
@@ -169,11 +177,15 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 import api from '@/services/api';
+import IconCrown from '@/components/icons/IconCrown.vue';
+
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const modalStore = useModalStore();
 
 const member = ref(null);
 const loading = ref(false);
@@ -220,29 +232,29 @@ const goToEditProfile = () => {
 };
 
 const leaveGroup = async () => {
-  if (confirm('정말로 그룹을 탈퇴하시겠습니까?')) {
+  if (await modalStore.openConfirm('정말로 그룹을 탈퇴하시겠습니까?')) {
     const { familyId } = route.params;
     try {
       await api.delete(`/families/${familyId}/members/me`); 
-      alert('그룹에서 탈퇴했습니다.');
+      await modalStore.openAlert('그룹에서 탈퇴했습니다.');
       router.push('/home');
     } catch (err) {
       console.error('Failed to leave group:', err);
-      alert('그룹 탈퇴에 실패했습니다.');
+      await modalStore.openAlert('그룹 탈퇴에 실패했습니다.');
     }
   }
 };
 
 const kickMember = async () => {
-  if (confirm(`정말로 '${member.value.name}'님을 그룹에서 강퇴하시겠습니까?`)) {
+  if (await modalStore.openConfirm(`정말로 '${member.value.name}'님을 그룹에서 강퇴하시겠습니까?`)) {
     const { familyId, userId } = route.params;
     try {
       await api.delete(`/families/${familyId}/members/${userId}`);
-      alert('멤버를 성공적으로 강퇴했습니다.');
+      await modalStore.openAlert('멤버를 성공적으로 강퇴했습니다.');
       router.go(-1);
     } catch (err) {
       console.error('Failed to kick member:', err);
-      alert('멤버 강퇴에 실패했습니다.');
+      await modalStore.openAlert('멤버 강퇴에 실패했습니다.');
     }
   }
 };

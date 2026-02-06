@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -66,7 +67,8 @@ public class FamilyController {
 
     @Operation(summary = "가족 그룹 상세 정보 조회", description = "특정 가족 그룹의 이름, 피부양자, 멤버, 우선순위 등 상세 정보를 조회합니다.")
     @GetMapping("/{familyId}/details")
-    public ResponseEntity<org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto> getFamilyDetails(@PathVariable Long familyId) {
+    public ResponseEntity<org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto> getFamilyDetails(
+            @PathVariable Integer familyId) {
         org.ssafy.eeum.domain.family.dto.FamilyDetailResponseDto responseDto = familyService.getFamilyDetails(familyId);
         return ResponseEntity.ok(responseDto);
     }
@@ -75,7 +77,7 @@ public class FamilyController {
     @GetMapping("/{familyId}/members")
     public ResponseEntity<List<FamilyMemberDto>> getFamilyMembers(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId) {
+            @PathVariable Integer familyId) {
         String userId = userDetails.getUsername();
         List<FamilyMemberDto> responseDto = familyService.getFamilyMembers(userId, familyId);
         return ResponseEntity.ok(responseDto);
@@ -85,10 +87,11 @@ public class FamilyController {
     @GetMapping("/{familyId}/members/{memberUserId}")
     public ResponseEntity<FamilyMemberDetailResponseDto> getFamilyMemberDetails(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId,
-            @PathVariable Long memberUserId) {
+            @PathVariable Integer familyId,
+            @PathVariable Integer memberUserId) {
         String userId = userDetails.getUsername();
-        FamilyMemberDetailResponseDto responseDto = familyService.getFamilyMemberDetails(userId, familyId, memberUserId);
+        FamilyMemberDetailResponseDto responseDto = familyService.getFamilyMemberDetails(userId, familyId,
+                memberUserId);
         return ResponseEntity.ok(responseDto);
     }
 
@@ -96,7 +99,7 @@ public class FamilyController {
     @GetMapping("/{familyId}/invite")
     public ResponseEntity<String> getInviteCode(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId) {
+            @PathVariable Integer familyId) {
         String userId = userDetails.getUsername();
         String inviteCode = familyService.getInviteCode(userId, familyId);
         return ResponseEntity.ok(inviteCode);
@@ -106,7 +109,7 @@ public class FamilyController {
     @PutMapping("/{familyId}/invite")
     public ResponseEntity<String> regenerateInviteCode(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId) {
+            @PathVariable Integer familyId) {
         String userId = userDetails.getUsername();
         String newInviteCode = familyService.regenerateInviteCode(userId, familyId);
         return ResponseEntity.ok(newInviteCode);
@@ -127,7 +130,7 @@ public class FamilyController {
     @DeleteMapping("/{familyId}/leave")
     public ResponseEntity<LeaveFamilyResponseDto> leaveFamily(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId) {
+            @PathVariable Integer familyId) {
         String userId = userDetails.getUsername();
         LeaveFamilyResponseDto responseDto = familyService.leaveFamily(userId, familyId);
         return ResponseEntity.ok(responseDto);
@@ -137,7 +140,7 @@ public class FamilyController {
     @PutMapping("/{familyId}")
     public ResponseEntity<UpdateFamilyResponseDto> updateFamily(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId,
+            @PathVariable Integer familyId,
             @RequestBody UpdateFamilyRequestDto requestDto) {
         String userId = userDetails.getUsername();
         UpdateFamilyResponseDto responseDto = familyService.updateFamily(userId, familyId, requestDto);
@@ -148,8 +151,8 @@ public class FamilyController {
     @DeleteMapping("/{familyId}/members/{memberUserId}")
     public ResponseEntity<Void> deleteFamilyMember(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId,
-            @PathVariable Long memberUserId) {
+            @PathVariable Integer familyId,
+            @PathVariable Integer memberUserId) {
         String authenticatedUserId = userDetails.getUsername();
         familyService.deleteFamilyMember(authenticatedUserId, familyId, memberUserId);
         return ResponseEntity.noContent().build();
@@ -159,7 +162,7 @@ public class FamilyController {
     @PutMapping("/{familyId}/members/me/relationship")
     public ResponseEntity<Void> updateMyRelationship(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long familyId,
+            @PathVariable Integer familyId,
             @RequestBody UpdateMemberRelationshipRequestDto requestDto) {
         String authenticatedUserId = userDetails.getUsername();
         familyService.updateMyRelationship(authenticatedUserId, familyId, requestDto);

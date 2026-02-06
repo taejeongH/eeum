@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===============================
+   테마 (Theme)
+================================ */
+
+:root {
+    /* Primary Color */
+    --color-primary: #e76f51;
+    --color-primary-light: #ec856b;
+    --color-primary-soft: #fde8e3;
+
+    /* Emergency Color */
+    --color-emergency: #dc2626;
+    --color-emergency-dark: #b91c1c;
+    --color-emergency-light: #ef4444;
+    --color-emergency-soft: #fee2e2;
+    --color-emergency-bg: #fef2f2;
+
+    /* Text */
+    --text-title: #111827;
+    --text-body: #374151;
+    --text-sub: #6b7280;
+
+    /* Border / Background */
+    --border-default: #e5e7eb;
+    --bg-page: #ffffff;
+
+    /* Radius */
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+
+    /* Font */
+    --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont,
+        'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+
+    /* Device Resolution */
+    --device-width: 2140px;
+    --device-height: 1440px;
+}
+
+/* ===============================
+   기본 스타일 (Base Styles)
+================================ */
+
+@layer base {
+    html {
+        font-family: var(--font-main);
+        color: var(--text-body);
+    }
+
+    body {
+        background-color: var(--bg-page);
+        margin: 0;
+
+        /* Enforce Device Resolution */
+        width: var(--device-width);
+        height: var(--device-height);
+        min-width: var(--device-width);
+        min-height: var(--device-height);
+        overflow: hidden;
+        /* Fixed screen app */
+    }
+
+    #app {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+/* ===============================
+   유틸리티 클래스 (Basic Utilities)
+================================ */
+
+@layer components {
+    .eeum-title {
+        @apply text-xl font-bold leading-snug;
+        color: var(--text-title);
+    }
+
+    .eeum-sub {
+        @apply text-sm leading-relaxed;
+        color: var(--text-sub);
+    }
+}

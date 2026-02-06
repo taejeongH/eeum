@@ -11,7 +11,7 @@ import lombok.Setter;
 @Schema(description = "가족 그룹 설정(수정) 응답 DTO")
 public class UpdateFamilyResponseDto {
     @Schema(description = "가족 ID")
-    private Long familyId;
+    private Integer familyId;
 
     @Schema(description = "가족 이름")
     private String familyName;

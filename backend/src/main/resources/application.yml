@@ -14,11 +14,9 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: none
     properties:
       hibernate:
-        format_sql: true
 
 jwt:
   private-key-path: certs/private_key_pkcs8.pem
@@ -28,12 +26,13 @@ jwt:
 
 logging:
   level:
-    org.ssafy.eeum: debug
-    org.springframework.security: debug
-    org.springframework.security.oauth2: debug
+    org.ssafy.eeum: info
+    org.springframework.security: info
+    org.springframework.security.oauth2: info
 
 eeum:
   swagger-url: http://localhost:8080
+  webhook-url: https://i14a105.p.ssafy.io/api/voice/webhook/tts
 
 ---
 # 2. 배포 환경 설정 (프로필 이름: prod)
@@ -47,3 +46,4 @@ server:
 
 eeum:
   swagger-url: https://i14a105.p.ssafy.io
+  webhook-url: https://i14a105.p.ssafy.io/api/voice/webhook/tts
