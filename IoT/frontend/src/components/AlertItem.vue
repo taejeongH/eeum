@@ -113,6 +113,15 @@ const onMouseMove = (e) => moveSwipe(e.clientX);
 const onMouseUp = () => endSwipe();
 const onMouseLeave = () => endSwipe();
 
+// SVG Paths mapping for icons
+const iconPaths = {
+  medication: "M6 3h12v2H6zm11 3H7c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 9h-2.5v2.5h-3V15H8v-3h2.5V9.5h3V12H16v3z",
+  calendar_today: "M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z",
+  record_voice_over: "M9 9c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm0 2.25c-2.33 0-7 1.17-7 3.5V18h14v-3.25c0-2.33-4.67-3.5-7-3.5z M16.76 5.36l-1.68 1.69c.84 1.18.84 2.71 0 3.89l1.68 1.69c2.02-2.02 2.02-5.07 0-7.27zM20.07 2l-1.63 1.63c2.77 3.02 2.77 7.56 0 10.74L20.07 16c3.9-4.07 3.9-10.09 0-14z",
+  chat: "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z",
+  image: "M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z",
+  notifications: "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+};
 </script>
 
 <template>
@@ -130,7 +139,10 @@ const onMouseLeave = () => endSwipe();
     <div class="flex items-start gap-8 pointer-events-none">
       <div class="flex-shrink-0 w-28 h-28 rounded-full flex items-center justify-center text-white shadow-lg mt-1"
            :class="styles.iconBg">
-        <span class="material-symbols-outlined text-6xl">{{ styles.icon }}</span>
+        <svg v-if="iconPaths[styles.icon]" xmlns="http://www.w3.org/2000/svg" class="w-16 h-16" viewBox="0 0 24 24" fill="currentColor">
+          <path :d="iconPaths[styles.icon]" />
+        </svg>
+        <span v-else class="text-4xl">!</span>
       </div>
 
       <div class="flex-1 min-w-0 py-2">
