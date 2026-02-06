@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WAIT_HTML="/home/a105/eeum/wait.html"
+WAIT_HTML="${WAIT_HTML:-/home/a105/eeum/wait.html}"
+USER_DATA_DIR="${USER_DATA_DIR:-/tmp/eeum-chrome}"
 
-# 브라우저 찾기
+# ----- find browser -----
 BROWSER=""
 for c in chromium chromium-browser; do
   if command -v "$c" >/dev/null 2>&1; then
@@ -16,17 +17,26 @@ if [[ -z "${BROWSER}" ]]; then
   exit 1
 fi
 
-# GNOME a11y 스키마가 있으므로: OSK 자동 표시 활성화
-gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true || true
+# ----- URL 결정 -----
+if [[ -f "$WAIT_HTML" ]]; then
+  WAIT_URL="file://${WAIT_HTML}"
+else
+  echo "[kiosk] WARN: WAIT_HTML not found: $WAIT_HTML (fallback to about:blank)"
+  WAIT_URL="about:blank"
+fi
 
-# "가짜 풀스크린" = fullscreen을 피하고 maximized로
-# --app: 탭/주소창 제거
-# --start-maximized: fullscreen 아님(중요)
+# ----- OSK 힌트 -----
+gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true >/dev/null 2>&1 || true
+
+# ----- Chromium: Wayland + OSK 반응성 핵심 옵션 -----
 exec "$BROWSER" \
   --ozone-platform=wayland \
   --enable-features=UseOzonePlatform \
-  --app="file://${WAIT_HTML}" \
+  --enable-wayland-ime \
+  --wayland-text-input-version=3 \
+  --app="$WAIT_URL" \
   --start-maximized \
+  --user-data-dir="$USER_DATA_DIR" \
   --incognito \
   --password-store=basic \
   --use-mock-keychain \
@@ -34,12 +44,10 @@ exec "$BROWSER" \
   --no-default-browser-check \
   --disable-infobars \
   --disable-session-crashed-bubble \
-  --disable-features=TranslateUI \
+  --disable-translate \
+  --disable-features=TranslateUI,CloudMessaging,TouchpadOverscrollHistoryNavigation,UseX11Platform \
   --overscroll-history-navigation=0 \
   --disable-pinch \
   --disable-background-networking \
   --disable-sync \
-  --disable-features=CloudMessaging \
-  --disable-component-update \
-  --disable-features=TouchpadOverscrollHistoryNavigation
-
+  --disable-component-update
