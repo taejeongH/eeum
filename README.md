@@ -27,7 +27,7 @@
 
 ### ❤️ 헬스케어 & 스마트 라이프
 - **갤럭시 워치 건강 모니터링**: **Samsung Health SDK**를 연동하여 부모님의 실시간 심박수와 활동량을 정밀하게 체크합니다.
-- **스마트 일정 브리핑**: 매일 아침, 가족의 목소리로 오늘의 일정, 날씨, 복약 시간을 브리핑해 드립니다.
+- **스마트 일정 브리핑**: 매일 아침, 가족의 목소리로 오늘의 일정, 복약 시간을 브리핑해 드립니다.
 
 ---
 
@@ -213,11 +213,11 @@ npm run dev
 ## 6. 화면 구성 및 API 주소
 
 ### 화면 구성 예시 (Screen Configuration)
-| 메인 화면 | 로그인 | 메인화면 | 일정 관리 | 기기 관리 |
+| 인보딩 | 메시지 전송 | 메인화면 | 일정 관리 | 기기 관리 |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/img/screen_01.png" width="200"> | <img src="docs/img/screen_02.png" width="200"> | <img src="docs/img/screen_03.png" width="200"> | <img src="docs/img/screen_04.png" width="200"> | <img src="docs/img/screen_05.png" width="200"> |
-| **목소리 학습** | **(알림 온 화면으로 수정하면 좋을듯)** | **심박수 측정** | **복약 관리** | **알림 조회** |
-| <img src="docs/img/screen_06.png" width="200"> | <img src="docs/img/screen_07.png" width="200"> | <img src="docs/img/screen_08.png" width="200"> | <img src="docs/img/screen_09.png" width="200"> | <img src="docs/img/screen_10.png" width="200"> |
+| <img src="docs/img/screen_01.png" width="200"> | <img src="docs/img/screen_11.png" width="200"> | <img src="docs/img/screen_03.png" width="200"> | <img src="docs/img/screen_04.png" width="200"> | <img src="docs/img/screen_05.png" width="200"> |
+| **목소리 학습** | **샘플 목소리** | **심박수 측정** | **복약 관리** | **알림 조회** |
+| <img src="docs/img/screen_06.png" width="200"> | <img src="docs/img/screen_12.png" width="200"> | <img src="docs/img/screen_08.png" width="200"> | <img src="docs/img/screen_09.png" width="200"> | <img src="docs/img/screen_10.png" width="200"> |
 <br>
 
 ### API Documentation
@@ -273,7 +273,7 @@ npm run dev
 
 | <img src="https://secure.gravatar.com/avatar/4e36b5ac6fedc982b90143b2a5eae7518f834da2a9c9787173d8ce24cb673b94?s=1600&d=identicon" width="100" height="100"> | <img src="https://secure.gravatar.com/avatar/b227fa440cf69a27829c010da991d580f69e5744e4a56b577b47a270f825eb14?s=1600&d=identicon" width="100" height="100"> | <img src="https://secure.gravatar.com/avatar/52cb8d969343c95cce967477f5a5a1ad020137948cc5c82c6becf21c673d6f95?s=1600&d=identicon" width="100" height="100"> | <img src="https://secure.gravatar.com/avatar/9b586d0ecfcc697ce0fd3f81aac5a1214f969798587df6b655c7754b64106e52?s=1600&d=identicon" width="100" height="100"> | <img src="https://secure.gravatar.com/avatar/7158cc2f61188a86b8c3902ee9eb1b1ec5a68c93e451c46d0821f2a6d9ebdb6f?s=1600&d=identicon" width="100" height="100"> | <img src="https://secure.gravatar.com/avatar/e9e3ffe6843a55942be54d713fe4b55bb14603514939ed6b350a468f684a3589?s=1600&d=identicon" width="100" height="100"> |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| **[이창민](https://lab.ssafy.com/htj7613)**(팀장) | **[김선교](https://lab.ssafy.com/kimsk3568)** | **[손홍헌](https://lab.ssafy.com/hh001204)** | **[신재웅](https://lab.ssafy.com/sju22)** | **[허태정](https://lab.ssafy.com/htj7613)** | **[황가연](https://lab.ssafy.com/ghkdrkdus1)** |
+| **[이창민](https://lab.ssafy.com/tdj5654)**(팀장) | **[김선교](https://lab.ssafy.com/kimsk3568)** | **[손홍헌](https://lab.ssafy.com/hh001204)** | **[신재웅](https://lab.ssafy.com/sju22)** | **[허태정](https://lab.ssafy.com/htj7613)** | **[황가연](https://lab.ssafy.com/ghkdrkdus1)** |
 | IoT | IoT | Backend | IoT | Backend | Backend |
 | Frontend | AI | AI | Backend | Frontend | Frontend |
 
