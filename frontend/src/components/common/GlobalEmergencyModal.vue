@@ -540,7 +540,9 @@ const openVideo = async (view) => {
         try {
             const familyData = await getFamilyDetails(familyId);
             if (familyData && familyData.streamingUrl) {
-                const safeUrl = familyData.streamingUrl.replace('http:', 'x-stream:');
+                // [FIX] Fake HTTPS 전략: 브라우저 속이기 (Mixed Content 통과용)
+                // MainActivity가 https 요청을 가로채서 http로 변환 후 Proxy 함
+                const safeUrl = familyData.streamingUrl.replace('http:', 'https:');
                 console.log('[DEBUG] Streaming URL (Safe):', safeUrl);
                 videoUrl.value = safeUrl;
             } else {
