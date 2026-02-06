@@ -540,8 +540,6 @@ const openVideo = async (view) => {
         try {
             const familyData = await getFamilyDetails(familyId);
             if (familyData && familyData.streamingUrl) {
-                // [FIX] Mixed Content 우회를 위해 프로토콜 변경 (http -> x-stream)
-                // MainActivity에서 x-stream을 다시 http로 변환해서 Proxy 처리함
                 const safeUrl = familyData.streamingUrl.replace('http:', 'x-stream:');
                 console.log('[DEBUG] Streaming URL (Safe):', safeUrl);
                 videoUrl.value = safeUrl;
