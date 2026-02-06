@@ -352,11 +352,7 @@ const submitProfile = async () => {
       const familyId = familyStore.selectedFamily?.id;
       const userId = userStore.profile?.id;
       
-      if (familyId && userId) {
-          router.push({ name: 'MemberDetail', params: { familyId, userId } });
-      } else {
-          router.push('/');
-      }
+      router.back();
     }
 
   } catch (error) {
