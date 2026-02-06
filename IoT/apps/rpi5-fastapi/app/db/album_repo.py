@@ -56,19 +56,30 @@ class AlbumRepo:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def list_pending_downloads(self, limit: int = 50, now: float | None = None) -> List[Dict[str, Any]]:
+    def list_pending_downloads(
+        self,
+        limit: int = 50,
+        now: float | None = None,
+        *,
+        rescue_sec: float = 600.0,   # stuck downloading rescue (10min)
+    ) -> List[Dict[str, Any]]:
         if now is None:
             now = time.time()
 
+        rescue_before = float(now) - float(rescue_sec)
+
         rows = self.conn.execute(
-            "SELECT p.id, p.url, p.user_id, d.status, d.retry_count, d.last_error, d.next_try_at "
+            "SELECT p.id, p.url, p.user_id, d.status, d.retry_count, d.last_error, d.next_try_at, d.updated_at "
             "FROM album_photos p "
             "JOIN album_downloads d ON d.photo_id = p.id "
-            "WHERE d.status IN ('pending','failed') "
+            "WHERE ("
+            "  d.status IN ('pending','failed') "
+            "  OR (d.status='downloading' AND d.updated_at <= ?) "
+            ") "
             "AND (d.next_try_at IS NULL OR d.next_try_at <= ?) "
             "ORDER BY d.updated_at ASC, p.id ASC "
             "LIMIT ?",
-            (float(now), int(limit)),
+            (rescue_before, float(now), int(limit)),
         ).fetchall()
         return [dict(r) for r in rows]
 

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from typing import Optional, Any
+from typing import Optional
 from dataclasses import dataclass
 import uuid
 from .state import MonitorState, Event, Command
@@ -18,6 +18,7 @@ from .config import ALARM_TTS_DEBOUNCE_SEC
 from .audio_manager import AudioJob, AudioPrio
 from .voice_player import download_then_emit_new
 from .profile_cache import ensure_profile_cached
+from .sse_fanout import fanout_nowait
 
 logger = logging.getLogger(__name__)
 
@@ -212,13 +213,16 @@ async def _handle_update_voice(state: MonitorState, payload: dict, info: DeviceC
     res = await async_sync_voice_once(state)
     logger.info("[voice] sync result=%s", res)
 
-    if not (res.get("ok") and int(res.get("added") or 0) > 0):
+    if not res.get("ok"):
         return
 
-    added_ids = res.get("added_ids") or []
+    inserted_ids = res.get("inserted_ids") or []
+    if not inserted_ids:
+        # 진짜 신규가 없으면: 다운로드/emit/TTS 모두 스킵
+        return
 
-    # SSE 보내는 즈음에 다운로드
-    for vid in added_ids:
+    # 신규만 다운로드+emit
+    for vid in inserted_ids:
         try:
             v = state.voice_repo.get(int(vid))
             if not v:
@@ -234,34 +238,22 @@ async def _handle_update_voice(state: MonitorState, payload: dict, info: DeviceC
 
             name = ""
             profile_url = ""
-
             if uid is not None and state.member_repo:
                 m = state.member_repo.get(uid) or {}
                 name = str(m.get("name") or "")
                 profile_url = str(m.get("profile_image_url") or "")
 
-            # 프로필 캐시 (실패하면 원본 유지)
             if profile_url and state.http_session and not state.http_session.closed:
-                profile_url = await ensure_profile_cached(
-                    state.http_session,
-                    profile_url,
-                    timeout_sec=8.0,
-                )
+                profile_url = await ensure_profile_cached(state.http_session, profile_url, timeout_sec=8.0)
 
-            sender = {
-                "user_id": uid,
-                "name": name,
-                "profile_image_url": profile_url,
-            }
-
+            sender = {"user_id": uid, "name": name, "profile_image_url": profile_url}
             await download_then_emit_new(state, int(vid), url, desc, sender)
         except Exception as e:
             logger.warning("[voice] download/emit failed id=%s err=%s", vid, e)
 
-    # added가 있을 때만 default TTS 1회(디바운스)
-    kind = "voice"
-    if _should_play_alarm_tts(state, kind):
-        path = get_default_tts_path(kind)
+    # TTS도 "신규(inserted)" 있을 때만
+    if _should_play_alarm_tts(state, "voice"):
+        path = get_default_tts_path("voice")
         if path:
             await state.audio.enqueue(AudioJob(
                 prio=int(AudioPrio.VOICE),
@@ -271,20 +263,24 @@ async def _handle_update_voice(state: MonitorState, payload: dict, info: DeviceC
                 replace_key="voice.default.latest",
             ))
             logger.debug("[voice_default] play path=%s", path)
-        else:
-            logger.info("[voice_default] skip missing_default")
 
 async def _handle_alarm(state: MonitorState, payload: dict) -> None:
     env = _normalize_alert_envelope(payload)
     if env is None:
         logger.warning("[alarm] invalid payload (no kind/unsupported) payload=%s", payload)
+        fanout_nowait(state.alert_subscribers, {
+            "_event": "error",
+            "data": {"code": "ALERT_PARSE_ERROR", "message": "invalid payload"},
+        })
         return
 
-    for q in list(state.alert_subscribers):
-        try:
-            q.put_nowait(env)
-        except Exception:
-            state.alert_subscribers.discard(q)
+    # alerts SSE는 event/data를 그대로 내보내기 위해 envelope 형태로 push
+    delivered = fanout_nowait(state.alert_subscribers, {"_event": "alert", "data": env})
+    try:
+        logger.debug("[sse_alert] delivered=%d kind=%s msg_id=%s",
+                     int(delivered), str(env.get("kind")), str(env.get("msg_id")))
+    except Exception:
+        pass
 
     logger.info("[alarm] emitted kind=%s msg_id=%s", env.get("kind"), env.get("msg_id"))
 

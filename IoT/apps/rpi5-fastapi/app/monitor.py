@@ -330,12 +330,12 @@ async def refresh_wifi_active(state: MonitorState) -> None:
         logger.exception("[refresh_wifi_active] unexpected error")
         pass
 
-async def refresh_wifi_scan(state: MonitorState) -> List[Dict[str, Any]]:
+async def refresh_wifi_scan(state: MonitorState, *, force_rescan: bool = False) -> List[Dict[str, Any]]:
     # scan 캐시 갱신
     async with state.wifi_cache_lock:
         if state.wifi_busy:
             return state.wifi_scan
-        aps = await async_scan_wifi_wlan0()
+        aps = await async_scan_wifi_wlan0(force_rescan=force_rescan)
         state.wifi_scan = aps
         state.wifi_scan_ts = time.time()
         return aps
@@ -406,19 +406,42 @@ async def wifi_scan_loop(
                 logger.info("[wifi_ui] UI active (scan enabled)")
                 # UI가 새로 켜짐: profiles 즉시 1회
                 last_profiles_ts = 0.0
+                # UI 켜질 때만 1회 rescan (무거운 작업은 여기서만)
+                try:
+                    await refresh_wifi_scan(state, force_rescan=True)
+                except Exception:
+                    logger.exception("[wifi] force_rescan on ui enter failed")
             elif not ui_on and prev_ui_on:
                 logger.info("[wifi_ui] UI inactive (scan paused)")
                 
             prev_ui_on = ui_on
-            if ui_on and not state.wifi_busy:
-                # scan은 매 tick
-                await refresh_wifi_scan(state)
+            # ---- heavy ops gate ----
+            # 정책 변경:
+            # - 평상시(TTS/VOICE/알림)는 nmcli/wifi scan을 막지 않는다.
+            # - FALL 파이프라인 중에만(= block_below_prio가 FALL이거나 fall_active) 무거운 작업을 쉰다.
+            is_fall_mode = False
+            try:
+                is_fall_mode = bool(getattr(state, "fall_active", False)) or \
+                               (int(getattr(state.audio, "block_below_prio", 0) or 0) >= int(AudioPrio.FALL))
+            except Exception:
+                is_fall_mode = bool(getattr(state, "fall_active", False))
+            stt_busy = bool(getattr(state, "stt_busy", False))
+            paused = bool(getattr(state, "heavy_ops_pause", False))
+
+            if ui_on and (not state.wifi_busy) and (not is_fall_mode) and (not stt_busy) and (not paused):
+                await refresh_wifi_scan(state, force_rescan=False)
 
                 # profiles는 더 긴 주기
                 if (now - last_profiles_ts) >= profiles_interval_sec:
                     await refresh_wifi_profiles(state)
                     last_profiles_ts = now
-
+            elif ui_on:
+                # UI는 켜져있는데 지금은 무거운 작업을 쉬는 중 -> 로그만 (너무 시끄럽지 않게 debug)
+                logger.debug(
+                    "[wifi_scan_loop] skip scan ui_on=1 wifi_busy=%s fall_mode=%s stt_busy=%s paused=%s",
+                    state.wifi_busy, is_fall_mode, stt_busy, paused
+                )
+            
             await asyncio.sleep(scan_interval_sec)
     except asyncio.CancelledError:
         logger.info("[wifi_scan_loop] cancelled")

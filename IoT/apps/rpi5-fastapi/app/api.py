@@ -1,5 +1,4 @@
 import os
-from fastapi.staticfiles import StaticFiles
 import asyncio
 import subprocess
 import time
@@ -10,8 +9,9 @@ from fastapi import FastAPI, Query
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
-from .config import AP_IFACE, STA_IFACE, ALBUM_PATH, PROFILE_PATH, WEB_DIST_PATH
+from .config import AP_IFACE, STA_IFACE, ALBUM_PATH, PROFILE_PATH, WEB_DIST_PATH, OFFLINE_AFTER_SEC, OFFLINE_CHECK_INTERVAL_SEC
 from .ap_manager import async_get_ipv4_addr
 from .state import MonitorState, Event, Command
 from typing import Any, Dict, Optional, List, Literal
@@ -22,8 +22,9 @@ from .wifi_manager import (
         async_delete_profile,
         )
 from .mqtt_client import MqttClient
-from .monitor import refresh_wifi_scan, refresh_wifi_profiles
-from .slideshow import emit_slide, next_slide, prev_slide, set_playing, get_current_item, build_album_item
+from .consumer import consume_events, consume_mqtt_inbound, consume_commands
+from .monitor import refresh_wifi_scan, refresh_wifi_profiles, refresh_wifi_active, wifi_scan_loop, wifi_active_loop, device_offline_loop
+from .slideshow import emit_slide, next_slide, prev_slide, set_playing, get_current_item, build_album_item, slideshow_timer_loop
 from .audio_manager import AudioJob, AudioPrio
 from .voice_player import (
     voice_path,
@@ -32,6 +33,7 @@ from .voice_player import (
 from .voice_duration import get_mp3_duration_sec
 from .profile_cache import ensure_profile_cached
 from .sync_gate import schedule_initial_sync
+from .album_downloader import download_album_loop
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +68,13 @@ def ok(data: Any = None):
 def fail(reason: str, data: Any = None):
     return {"ok": False, "reason": reason, "data": data}
 
+def ok_voice(action: str, vid: int, *, duration_sec: float | None = None):
+        d = {"target": {"type": "voice", "id": int(vid)}, "action": action}
+        # duration_sec는 제공 가능할 때만 포함(명세)
+        if duration_sec is not None and duration_sec > 0:
+            d["duration_sec"] = float(duration_sec)
+        return {"ok": True, "reason": None, "data": d}
+
 class AckTarget(BaseModel):
     type: Literal["voice"]
     id: int
@@ -99,18 +108,174 @@ class DebugAlarmReq(BaseModel):
     sent_at:float |None =None
     msg_id:str |None =None
     
-EEUM_DEBUG = "1"
+EEUM_DEBUG = os.getenv("EEUM_DEBUG", "0") == "1"
 
 def create_app(state: MonitorState) -> FastAPI:
-    app = FastAPI()
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # ----- startup (서버 뜬 직후) -----
+        state.loop = asyncio.get_running_loop()
 
+        # 가벼운 태스크 먼저
+        audio_task = state.audio.start()
+        state.slide_timer_task = asyncio.create_task(slideshow_timer_loop(state))
+        consumer_task = asyncio.create_task(consume_events(state))
+        mqtt_in_task = asyncio.create_task(consume_mqtt_inbound(state))
+        cmd_task = asyncio.create_task(consume_commands(state))
+
+        # 무거운 것들은 지연/순차 시작(부팅 피크 분산)
+        async def delayed_start():
+            # 1) 오디오/네트워크/USB 쪽 (AP up / volume)
+            try:
+                await asyncio.sleep(0.2)
+                from .audio_utils import ensure_master_volume_100
+                await ensure_master_volume_100()
+            except Exception:
+                logger.exception("[BOOT] ensure_master_volume_100 failed (non-fatal)")
+
+            try:
+                await asyncio.sleep(0.2)
+                from .ap_manager import async_ap_up
+                last_err = None
+                for i in range(3):
+                    try:
+                        await async_ap_up()
+                        last_err = None
+                        break
+                    except Exception as e:
+                        last_err = e
+                        logger.warning("[AP] ap_up failed (try %d/3): %s", i + 1, e)
+                        await asyncio.sleep(1.0)
+                if last_err is not None:
+                    logger.error("[AP] ap_up ultimately failed: %s", last_err)
+            except Exception:
+                logger.exception("[AP] ap_up worker unexpected error")
+
+            # 2) MQTT (token 있으면) + initial sync 예약
+            try:
+                token = state.device_store.get_token() if state.device_store else None
+                if token:
+                    from .mqtt_client import MqttClient
+                    if state.mqtt is None:
+                        state.mqtt = MqttClient(
+                            inbound_queue=state.mqtt_inbound,
+                            loop=state.loop,
+                            token=token,
+                            link_getter=state.device_store.build_pir_link,
+                        )
+                    else:
+                        state.mqtt.set_token(token)
+                    state.mqtt.activate()
+                    scheduled = schedule_initial_sync(state, timeout_sec=60.0)
+                    logger.info("[BOOT] initial_sync scheduled=%s", scheduled)
+                else:
+                    logger.info("[MQTT] disabled (token_present=False)")
+            except Exception:
+                logger.exception("[MQTT] init failed (non-fatal)")
+
+            # 3) wifi 캐시 루프 / 오프라인 루프
+            try:
+                await asyncio.sleep(0.2)
+                await refresh_wifi_active(state)
+                await refresh_wifi_scan(state, force_rescan=False)
+            except Exception:
+                logger.exception("[wifi] initial refresh failed (non-fatal)")
+
+            wifi_active_task = asyncio.create_task(wifi_active_loop(state, interval_sec=5.0))
+            wifi_scan_task = asyncio.create_task(
+                wifi_scan_loop(state, scan_interval_sec=10.0, profiles_interval_sec=30.0, ui_recent_sec=15.0)
+            )
+
+            state.offline_after_sec = OFFLINE_AFTER_SEC
+            device_offline_task = asyncio.create_task(
+                device_offline_loop(state, interval_sec=OFFLINE_CHECK_INTERVAL_SEC)
+            )
+
+            # 4) 다운로드는 더 느리고 더 적게
+            album_dl_task = asyncio.create_task(download_album_loop(state, interval_sec=3.0, batch_limit=5))
+
+            # 태스크 핸들 저장(종료에서 cancel/gather 위해)
+            state._bg_tasks = [wifi_active_task, wifi_scan_task, device_offline_task, album_dl_task]
+
+        delayed_task = asyncio.create_task(delayed_start())
+
+        try:
+            yield
+        finally:
+            # ----- shutdown -----
+            logger.info("[SHUTDOWN] begin")
+            state.shutting_down = True
+
+            # shared session close
+            try:
+                if state.http_session:
+                    await state.http_session.close()
+            except Exception:
+                pass
+
+            if state.mqtt:
+                try:
+                    state.mqtt.deactivate()
+                except Exception:
+                    pass
+
+            # DB close
+            try:
+                if state.db:
+                    state.db.close()
+            except Exception:
+                pass
+
+            # queues stop
+            try:
+                await state.queue.put(None)
+            except Exception:
+                pass
+            try:
+                await state.mqtt_inbound.put(None)
+            except Exception:
+                pass
+            try:
+                await state.cmd_queue.put(None)
+            except Exception:
+                pass
+
+            # 오디오 stop
+            try:
+                await state.audio.stop()
+            except Exception:
+                pass
+
+            # cancel tasks
+            for t in getattr(state, "_bg_tasks", []):
+                t.cancel()
+            for t in (audio_task, delayed_task, consumer_task, mqtt_in_task, cmd_task, state.slide_timer_task):
+                t.cancel()
+
+            await asyncio.gather(
+                audio_task, delayed_task, consumer_task, mqtt_in_task, cmd_task, state.slide_timer_task,
+                *getattr(state, "_bg_tasks", []),
+                return_exceptions=True
+            )
+
+            tasks = list(state.tasks.values())
+            for t in tasks:
+                t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            state.tasks.clear()
+            logger.info("[SHUTDOWN] done")
+
+    app = FastAPI(lifespan=lifespan)
+
+     # ---- CORS (open) ----
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
+        allow_origins=["*"],          # 완전 오픈
+        allow_credentials=False,      # "*"일 때는 False 권장
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["*"],  # SSE/기타 헤더 노출 필요할 때 대비
+        expose_headers=["*"],
+        max_age=600,
     )
 
     # ---- static: album ----
@@ -274,7 +439,7 @@ def create_app(state: MonitorState) -> FastAPI:
                     "message": "wifi busy",
                 }
             try:
-                await refresh_wifi_scan(state)
+                await refresh_wifi_scan(state, force_rescan=True)
             except Exception as e:
                 logger.exception("[API] wifi scan failed")
                 return {
@@ -482,25 +647,20 @@ def create_app(state: MonitorState) -> FastAPI:
             try:
                 last_ping = time.time()
                 while True:
-                    # 1) alert가 오면 즉시 전송
-                    try:
-                        ev = q.get_nowait()
-                        yield f"event: alert\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n"
-                        continue
-                    except asyncio.QueueEmpty:
-                        pass
-
-                    # 2) ping 주기 체크 (이벤트가 없을 때만)
+                    # 1) ping 주기 체크 (명세: event: ping + {"ts":...})
                     now = time.time()
                     if (now - last_ping) >= 25.0:
                         last_ping = now
-                        yield f": ping {now}\n\n"   # comment ping (버퍼 깨기)
+                        yield f"event: ping\ndata: {json.dumps({'ts': now}, ensure_ascii=False)}\n\n"
 
-                    # 3) 너무 바쁘게 돌지 않게 잠깐 대기
-                    #    (여기 sleep은 "이벤트 도착 지연"을 만들 수 있으니 짧게)
+
+                    # 2) 이벤트 대기 (짧은 timeout으로 heartbeat 유지)
                     try:
-                        ev = await asyncio.wait_for(q.get(), timeout=0.5)
-                        yield f"event: alert\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n"
+                        env = await asyncio.wait_for(q.get(), timeout=0.5)
+                        # env = {"_event":"alert|error", "data": {...}}
+                        et = (env or {}).get("_event") or "alert"
+                        data = (env or {}).get("data") or {}
+                        yield f"event: {et}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
                     except asyncio.TimeoutError:
                         pass
             finally:
@@ -566,7 +726,7 @@ def create_app(state: MonitorState) -> FastAPI:
     
     @app.get("/api/slideshow/stream")
     async def slideshow_stream():
-        q: asyncio.Queue = asyncio.Queue(maxsize=16)
+        q: asyncio.Queue = asyncio.Queue(maxsize=32)
         state.slide_subscribers.add(q)
 
         # boot 이벤트도 emit_slide와 동일 스키마로 통일: {ts, seq, item, reason}
@@ -613,8 +773,28 @@ def create_app(state: MonitorState) -> FastAPI:
         - play: enqueue + duration_sec 반환
         - skip: 즉시 done(skipped) emit + 정리
         """
+        # 안전 가드: 예상 밖 action 차단 (명세: play|skip)
+        if action not in ("play", "skip"):
+            return fail("bad_request", None)
+
+        # ---- vid 단위 직렬화 락: 중복 ACK로 인한 레이스 방지 ----
+        try:
+            lock = state.voice_ack_locks.get(int(vid))
+            if lock is None:
+                lock = asyncio.Lock()
+                state.voice_ack_locks[int(vid)] = lock
+        except Exception:
+            lock = None
+
+        if lock:
+            async with lock:
+                return await _handle_ack_voice_inner(vid, action)
+        return await _handle_ack_voice_inner(vid, action)
+    
+    async def _handle_ack_voice_inner(vid: int, action: str) -> dict:
         if not state.voice_repo:
-            return fail("not_found", None)
+            # 명세상 형식 오류가 아니라 "대상 없음"에 가깝게 처리
+            return {"ok": True, "reason": "not_found", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
 
         # DB 존재 확인: pending/playing 상관없이 id가 있으면 유효로
         v = None
@@ -623,7 +803,6 @@ def create_app(state: MonitorState) -> FastAPI:
         except Exception:
             v = None
         if not v:
-            # 명세: 최상위 reason에 not_found
             return {"ok": True, "reason": "not_found", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
 
         # ---- (옵션) 멱등성: 이미 playing이면 already_done ----
@@ -642,7 +821,7 @@ def create_app(state: MonitorState) -> FastAPI:
         exists = os.path.exists(path) and os.path.getsize(path) > 0
         if not exists:
             # “SSE 즈음에 다운로드”가 실패했거나 아직 안 된 케이스
-            return {"ok": True, "reason": "not_found", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
+            return {"ok": True, "reason": "not_ready", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
  
         if action == "skip":
             # 파일/DB 정리 + SSE voice_done(skipped)
@@ -658,15 +837,29 @@ def create_app(state: MonitorState) -> FastAPI:
                 await emit_voice_done(state, int(vid), "skipped")
             except Exception:
                 pass
-            return ok({"target": {"type": "voice", "id": int(vid)}, "action": "skip"})
+           # 명세: 성공이면 reason=null
+            return ok_voice("skip", int(vid))
 
         # action == "play"
-        # duration 계산(이미 로컬 파일이므로 다운로드 없음)
+        # duration은 ffprobe가 무거움 -> 다운로드 시 계산한 캐시 우선 사용
         dur = None
         try:
-            dur = float(await get_mp3_duration_sec(path))
+            dur = (state.voice_duration_cache or {}).get(int(vid))
+            if dur is not None:
+                dur = float(dur)
         except Exception:
             dur = None
+
+        # 캐시가 없을 때만(선택) ffprobe fallback
+        if dur is None:
+            try:
+                dur = float(await get_mp3_duration_sec(path))
+                try:
+                    state.voice_duration_cache[int(vid)] = float(dur)
+                except Exception:
+                    pass
+            except Exception:
+                dur = None
 
         # DB 상태 반영(선택): pending -> playing
         try:
@@ -676,7 +869,7 @@ def create_app(state: MonitorState) -> FastAPI:
 
         # 재생 완료 훅: voice_done(done) emit + DB 삭제 + 파일 삭제
         def _cleanup():
-            # AudioManager 콜백 컨텍스트에서 안전하게 main loop에 스케줄
+            # 1) SSE done emit (best-effort)
             try:
                 loop = getattr(state, "loop", None)
                 if loop and loop.is_running():
@@ -686,12 +879,23 @@ def create_app(state: MonitorState) -> FastAPI:
                     )
             except Exception:
                 pass
+            # 2) DB 정리: voice_messages 삭제(→ FK로 voice_downloads 자동 삭제)
             try:
-                state.voice_repo.delete(int(vid))
+                if state.voice_repo:
+                    state.voice_repo.delete(int(vid))
             except Exception:
                 pass
+            
+            # 3) 파일 정리 (없어도 OK)
             try:
-                os.remove(path)
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
+
+            # 4) 메모리 캐시 정리
+            try:
+                state.voice_duration_cache.pop(int(vid), None)
             except Exception:
                 pass
 
@@ -704,11 +908,11 @@ def create_app(state: MonitorState) -> FastAPI:
             on_done=_cleanup,
         ))
 
-        payload = {"target": {"type": "voice", "id": int(vid)}, "action": "play"}
+        # duration_sec는 제공 가능할 때만 포함(명세)
         if dur is not None and dur > 0:
-            delay_s = 0.25
-            payload["duration_sec"] = dur + delay_s
-        return ok(payload)
+            delay_s = 0.5
+            return ok_voice("play", int(vid), duration_sec=(dur + delay_s))
+        return ok_voice("play", int(vid))
     
     @app.post("/api/ack")
     async def ack(req: AckReq):
@@ -727,21 +931,32 @@ def create_app(state: MonitorState) -> FastAPI:
         results = []
         for it in req.items:
             act = it.action or req.default_action
+            # 안전 가드: batch item action도 명세(play|skip)만 허용
+            if act not in ("play", "skip"):
+                results.append({
+                    "target": {"type": "voice", "id": int(it.target.id)},
+                    "ok": False,
+                    "reason": "bad_request",
+                })
+                continue
             try:
                 r = await _handle_ack_voice(it.target.id, act)
                 # results item 포맷: 스펙에서 ok/reason/duration_sec 등
                 # 여기서는 공통응답 data를 results에 맞게 변환
-                if r.get("ok"):
+                if r.get("ok") is True:
                     d = r.get("data") or {}
                     item_out = {
                         "target": d.get("target") or {"type": "voice", "id": int(it.target.id)},
                         "ok": True,
+                        # item reason: null(성공) / not_found / already_done 등
                         "reason": r.get("reason"),
                     }
-                    if "duration_sec" in d:
-                        item_out["duration_sec"] = d["duration_sec"]
+                    # duration_sec는 play에서만, 가능할 때만 포함
+                    if act == "play" and isinstance(d.get("duration_sec"), (int, float)) and d["duration_sec"] > 0:
+                        item_out["duration_sec"] = float(d["duration_sec"])
                     results.append(item_out)
                 else:
+                    # 형식 오류/내부 오류는 item ok=false
                     results.append({
                         "target": {"type": "voice", "id": int(it.target.id)},
                         "ok": False,
@@ -754,14 +969,15 @@ def create_app(state: MonitorState) -> FastAPI:
                     "ok": False,
                     "reason": "bad_request",
                 })
-        return ok({"mode": "sequential", "default_action": req.default_action, "results": results})
+        # 명세: top-level success는 reason=null
+        return {"ok": True, "reason": None, "data": {"mode": "sequential", "default_action": req.default_action, "results": results}}
 
     @app.post("/api/playback/skip_current")
     async def skip_current():
         # audio manager에 current 노출이 없으므로: 그냥 stop_current 시도
         try:
             await state.audio.stop_current()
-            return ok({"skipped": True})
+            return {"ok": True, "reason": None, "data": {"skipped": True}}
         except Exception:
             return {"ok": True, "reason": "no_current", "data": {"skipped": False}}
 
@@ -774,19 +990,39 @@ def create_app(state: MonitorState) -> FastAPI:
 
         out = []
         for v in items:
+            vid = int(v["id"])
             sender = await _build_sender(v.get("user_id"))
+
+            # ready 판단: download_status == done && local_path 파일 존재
+            dl_status = v.get("download_status")
+            local_path = v.get("local_path")
+            ready = False
+            try:
+                if dl_status == "done" and local_path and os.path.exists(str(local_path)) and os.path.getsize(str(local_path)) > 0:
+                    ready = True
+            except Exception:
+                ready = False
+
             out.append({
-                "id": v["id"],
+                "id": vid,
                 "description": v.get("description") or "",
                 "created_at": v.get("created_at"),
                 "sender": sender if (sender["user_id"] or sender["name"] or sender["profile_image_url"]) else None,
+                "download": {
+                    "status": dl_status or "pending",
+                    "ready": bool(ready),
+                    "retry_count": v.get("retry_count") or 0,
+                    "next_try_at": v.get("next_try_at"),
+                    "last_error": v.get("last_error") or "",
+                    "updated_at": v.get("dl_updated_at"),
+                }
             })
         return ok({"items": out, "limit": limit, "offset": offset})
 
 
     @app.get("/api/voice/stream")
     async def voice_stream():
-        q = asyncio.Queue(maxsize=8)
+        q = asyncio.Queue(maxsize=16)
         state.voice_subscribers.add(q)
 
         async def gen():

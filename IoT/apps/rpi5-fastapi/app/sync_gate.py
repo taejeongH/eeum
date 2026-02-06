@@ -7,6 +7,11 @@ from .monitor import refresh_wifi_active
 from .album_sync import async_sync_album_once
 from .voice_sync import async_sync_voice_once
 from .slideshow import rebuild_playlist, emit_slide
+from .profile_cache import ensure_profile_cached
+from .voice_player import download_then_emit_new
+from .tts_service import get_default_tts_path
+from .audio_manager import AudioJob, AudioPrio
+from .config import ALARM_TTS_DEBOUNCE_SEC
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +52,40 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
         res_album = await async_sync_album_once(state)
         res_voice = await async_sync_voice_once(state)
 
+        # 최초 sync에서도 voice는 "신규(inserted)"만 다운로드 후 SSE 1회 emit
+        try:
+            inserted_ids = res_voice.get("inserted_ids") or []
+            for vid in inserted_ids:
+                v = state.voice_repo.get(int(vid)) if state.voice_repo else None
+                if not v:
+                    continue
+
+                url = str(v.get("url") or "")
+                desc = str(v.get("description") or "")
+
+                uid = v.get("user_id")
+                try:
+                    uid = int(uid) if uid is not None else None
+                except Exception:
+                    uid = None
+
+                name = ""
+                profile_url = ""
+                if uid is not None and getattr(state, "member_repo", None):
+                    m = state.member_repo.get(uid) or {}
+                    name = str(m.get("name") or "")
+                    profile_url = str(m.get("profile_image_url") or "")
+
+                if profile_url and getattr(state, "http_session", None) and (not state.http_session.closed):
+                    profile_url = await ensure_profile_cached(
+                        state.http_session, profile_url, timeout_sec=8.0
+                    )
+
+                sender = {"user_id": uid, "name": name, "profile_image_url": profile_url}
+                await download_then_emit_new(state, int(vid), url, desc, sender)
+        except Exception:
+            logger.exception("[initial_sync] voice download/emit failed (non-fatal)")
+
         # album sync 성공이면 playlist 갱신 + 현재 슬라이드 emit (원래 부팅/토큰 로직과 동일 의도)
         if res_album.get("ok"):
             rebuild_playlist(state)
@@ -54,6 +93,31 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
                 await emit_slide(state, reason="sync_update")
             except Exception:
                 logger.exception("[initial_sync] emit_slide failed")
+
+        # 최초 sync에서도 voice added가 있으면 default TTS 1회(디바운스)
+        try:
+            # inserted_ids 기준으로 "진짜 신규"가 있을 때만
+            inserted_ids = res_voice.get("inserted_ids") or []
+            if inserted_ids:
+                kind = "voice"
+                now = time.time()
+                last = state.alarm_last_tts_ts.get(kind, 0.0)
+                if (now - last) >= float(ALARM_TTS_DEBOUNCE_SEC or 0):
+                    state.alarm_last_tts_ts[kind] = now
+                    path = get_default_tts_path(kind)
+                    if path:
+                        await state.audio.enqueue(AudioJob(
+                            prio=int(AudioPrio.VOICE),
+                            kind="voice",
+                            path=path,
+                            ttl_sec=300.0,
+                            replace_key="voice.default.latest",
+                        ))
+                        logger.debug("[voice_default] (initial_sync) play path=%s", path)
+                    else:
+                        logger.info("[voice_default] (initial_sync) skip missing_default")
+        except Exception:
+            logger.exception("[initial_sync] voice default TTS failed (non-fatal)")
 
         logger.info("[initial_sync] done album=%s voice=%s", res_album, res_voice)
 
@@ -64,6 +128,12 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
     finally:
         # 1회 작업 종료 표시
         state.initial_sync_done = True
+        # 재시도 가능하게 플래그 해제
+        # (정책: 필요하면 '성공했을 때만' 재시도 막도록 조정 가능)
+        try:
+            state.initial_sync_started = False
+        except Exception:
+            pass
 
 def schedule_initial_sync(state, *, timeout_sec: float = 60.0) -> bool:
     if getattr(state, "initial_sync_started", False):

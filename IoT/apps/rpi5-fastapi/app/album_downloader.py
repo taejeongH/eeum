@@ -32,11 +32,48 @@ def _ext_from_url(url: str) -> str:
         pass
     return ".jpg"
 
+async def _download_one_album_item(state, it, tmp_path, final_path, url, pid):
+    repo = state.album_repo
+    s = state.http_session
+
+    t0 = time.time()
+    async with s.get(url, timeout=aiohttp.ClientTimeout(total=20.0)) as r:
+        r.raise_for_status()
+        h = hashlib.sha256()
+        size = 0
+        with open(tmp_path, "wb") as f:
+            async for chunk in r.content.iter_chunked(64 * 1024):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                size += len(chunk)
+                h.update(chunk)
+
+    os.replace(tmp_path, final_path)
+
+    repo.set_download_status(
+        pid, "done",
+        local_path=final_path,
+        bytes_=size,
+        sha256=h.hexdigest(),
+        last_error=None,
+        inc_retry=False,
+        next_try_at=0.0,
+    )
+
+    # 캐시 반영
+    c = state.album_cache.get(pid)
+    if c is not None:
+        c["local_path"] = final_path
+
+    logger.info("[album_dl] done id=%s bytes=%s dt=%.2fs", pid, size, time.time() - t0)
+
 async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int = 10):
     """
     album_downloads:
-      - pending/failed 항목을 가져와서 파일 저장
-      - status: pending/failed -> downloading -> done or failed
+      - pending/failed(+stuck downloading) 항목을 가져와서 파일 저장
+      - status: pending/failed/downloading(stuck) -> downloading -> done or failed
+      - 동시 다운로드는 state.download_sem(DL_CONCURRENCY)로 제한
     """
     root = ALBUM_PATH or "./album"
     os.makedirs(root, exist_ok=True)
@@ -61,7 +98,9 @@ async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int
                 logger.error("[album_dl] http_session missing/closed (skip tick)")
                 continue
 
-            for it in items:
+            sem = getattr(state, "download_sem", None)
+
+            async def _handle_one(it):
                 pid = int(it["id"])
                 url = str(it["url"])
 
@@ -69,64 +108,25 @@ async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int
                 tmp_path = os.path.join(root, f"{pid}{ext}.tmp")
                 final_path = os.path.join(root, f"{pid}{ext}")
 
-                # downloading 마크 (삭제 레이스 방어)
                 try:
-                    repo.set_download_status(
-                        pid,
-                        "downloading",
-                        local_path=final_path,
-                        last_error=None,
-                        inc_retry=False,
-                        next_try_at=0.0,   # COALESCE 때문에 0.0이면 덮어써짐. (NULL로 하고 싶으면 UPDATE를 별도로 짜야 함)
-                    )
-                except KeyError:
-                    # sync가 이미 사진을 지운 케이스: 조용히 스킵
-                    continue
-
-                try:
-                    t0 = time.time()
-                    async with s.get(url, timeout=aiohttp.ClientTimeout(total=20.0)) as r:
-                        r.raise_for_status()
-                        h = hashlib.sha256()
-                        size = 0
-
-                        with open(tmp_path, "wb") as f:
-                            async for chunk in r.content.iter_chunked(64 * 1024):
-                                if not chunk:
-                                    continue
-                                f.write(chunk)
-                                size += len(chunk)
-                                h.update(chunk)
-
-                    os.replace(tmp_path, final_path)
-
+                    # 시작 시점에 downloading 마크
                     try:
                         repo.set_download_status(
-                            pid,
-                            "done",
+                            pid, "downloading",
                             local_path=final_path,
-                            bytes_=size,
-                            sha256=h.hexdigest(),
                             last_error=None,
                             inc_retry=False,
-                            next_try_at=0.0,
+                            next_try_at=None,
                         )
-                    except KeyError:
-                        # done 마크 전에 sync가 지운 케이스: 파일만 정리하고 스킵
-                        try:
-                            os.remove(final_path)
-                        except Exception:
-                            pass
-                        continue
-
-                    # 실행 중 캐시에도 즉시 반영하면 UI가 바로 local_path를 씀
-                    try:
-                        c = state.album_cache.get(pid)
-                        if c is not None:
-                            c["local_path"] = final_path
                     except Exception:
                         pass
-                    logger.info("[album_dl] done id=%s bytes=%s dt=%.2fs", pid, size, time.time() - t0)
+
+                    # 실제 동시성은 sem이 제한
+                    if sem:
+                        async with sem:
+                            await _download_one_album_item(state, it, tmp_path, final_path, url, pid)
+                    else:
+                        await _download_one_album_item(state, it, tmp_path, final_path, url, pid)
 
                 except Exception as e:
                     try:
@@ -147,9 +147,12 @@ async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int
                             next_try_at=next_try,
                         )
                     except KeyError:
-                        # 이미 삭제된 경우면 상태 업데이트 불필요
                         pass
                     logger.warning("[album_dl] failed id=%s err=%s", pid, e)
+
+            # 병렬 태스크 생성 (batch_limit만큼), sem이 동시 다운로드 제한
+            tasks = [asyncio.create_task(_handle_one(it)) for it in items]
+            await asyncio.gather(*tasks, return_exceptions=True)
 
         except asyncio.CancelledError:
             raise

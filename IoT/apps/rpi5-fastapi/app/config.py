@@ -70,7 +70,7 @@ DEFAULT_TTS_PATH = _get_env("DEFAULT_TTS_PATH", "./tts_voice")
 PROFILE_PATH = _get_env("PROFILE_PATH", "./profile")
 WEB_DIST_PATH = _get_env("WEB_DIST_PATH", "./dist")
 
-ALARM_TTS_DEBOUNCE_SEC = float(_get_env("ALARM_TTS_DEBOUNCE_SEC", "60"))
+ALARM_TTS_DEBOUNCE_SEC = float(_get_env("ALARM_TTS_DEBOUNCE_SEC", "8"))
 
 DEFAULT_TTS_MESSAGE = [
     "지금 괜찮으세요? 도와드릴까요?",

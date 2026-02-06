@@ -66,7 +66,7 @@ class FasterWhisperSTT:
             "afftdn=nf=-25,"
             "acompressor=threshold=-28dB:ratio=6:attack=5:release=300,"
             "alimiter=limit=0.95,"
-            "volume=12dB"
+            "volume=6dB"
         )
 
         r = await async_sh(
@@ -139,14 +139,15 @@ async def record_with_vad(
     out_wav: str,
     *,
     device: str | None = None,
-    max_sec: float = 10.0,
+    max_sec: float = 14.0,
     sample_rate: int = 16000,
-    frame_ms: int = 30,
+    frame_ms: int = 20,
     vad_level: int = 1,
-    min_speech_sec: float = 0.25,
-    end_silence_sec: float = 1.3,
-    discard_head_sec: float = 0.05,
-) -> tuple[bool, str]:
+    gain_db: float = 6.0,          # 기본 +6dB (환경에 따라 자동 조절 권장)
+    min_speech_sec: float = 0.2,
+    end_silence_sec: float = 1.5,
+    discard_head_sec: float = 0.15,
+) -> tuple[bool, str, dict]:
     """
     - arecord로 PCM을 실시간으로 받고
     - webrtcvad로 speech 탐지
@@ -164,6 +165,18 @@ async def record_with_vad(
     bytes_per_sample = 2  # s16le
     frame_bytes = int(sample_rate * (frame_ms / 1000.0) * bytes_per_sample)
 
+    # 입력 증폭: 약한 마이크 수음 보완
+    # - VAD 판정도 증폭된 신호로 수행(중요)
+    # - 너무 과하면 clipping → 6~18dB 사이
+    try:
+        _gain_mul = float(10 ** (float(gain_db) / 20.0))
+    except Exception:
+        _gain_mul = 1.0
+    if _gain_mul < 1.0:
+        _gain_mul = 1.0
+    if _gain_mul > 8.0:
+        _gain_mul = 8.0  # 과도한 증폭 방지(클리핑/왜곡)
+
     cmd = ["arecord"]
     if device:
         cmd += ["-D", device]
@@ -171,11 +184,13 @@ async def record_with_vad(
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
     )
 
     speech_started = False
     speech_bytes = bytearray()
+    preroll = bytearray()
+    preroll_max = int(sample_rate * 0.5) * bytes_per_sample  # 0.5초 분량
     t0 = time.time()
     last_voice_ts = None
     voice_frames = 0
@@ -200,14 +215,46 @@ async def record_with_vad(
                     continue
             except asyncio.TimeoutError:
                 continue
-            is_speech = vad.is_speech(chunk, sample_rate)
+            
+            # 증폭(PCM) 후 VAD 수행 (판정용)
+            # audioop.mul은 내부적으로 클리핑 처리됨(16-bit)
+            if _gain_mul != 1.0:
+                try:
+                    chunk_amp = audioop.mul(chunk, 2, _gain_mul)
+                except Exception:
+                    chunk_amp = chunk
+            else:
+                chunk_amp = chunk
+
+            is_speech = vad.is_speech(chunk_amp, sample_rate)
+            # 보조 게이트(멀리서 VAD 미스 방지): RMS 기반 speech 보완
+            # 일반 가정 + 노약자 발성 기준
+            try:
+                if not is_speech:
+                    r = audioop.rms(chunk_amp, 2)
+                    if r >= 180:   # ← 220 → 180
+                        is_speech = True
+            except Exception:
+                pass
+
 
             now = time.time()
+            # speech 시작 전엔 프리롤만 쌓아둔다
+            if not speech_started:
+                preroll.extend(chunk)
+                if len(preroll) > preroll_max:
+                    preroll = preroll[-preroll_max:]
+
             if is_speech:
                 voice_frames += 1
                 if not speech_started:
                     speech_started = True
+                    # speech 시작 순간 프리롤을 먼저 붙임(첫 단어 보존)
+                    if preroll:
+                        speech_bytes.extend(preroll)
+                        preroll.clear()
                 last_voice_ts = now
+                # 저장은 원본(클리핑 방지)
                 speech_bytes.extend(chunk)
             else:
                 # speech 시작 후엔 무성도 조금은 붙여줘야 자연스러움
@@ -227,7 +274,7 @@ async def record_with_vad(
         # 최소 발화량 체크
         min_frames = int((min_speech_sec * 1000) / frame_ms)
         if voice_frames < min_frames:
-            return (False, "no_speech")
+            return (False, "no_speech", {"voice_frames": int(voice_frames)})
 
         # wav 저장
         with wave.open(out_wav, "wb") as wf:
@@ -244,15 +291,21 @@ async def record_with_vad(
         total_frames = frames_seen - discard_frames if frames_seen > discard_frames else frames_seen
         logger.info("[stt_rec] vad ratio voice_frames=%d total_frames=%d ratio=%.2f",
                     voice_frames, total_frames, (voice_frames / max(1, total_frames)))
-        return (True, "ok")
+        meta = {
+            "rms": int(rms),
+            "peak": int(peak),
+            "bytes": int(len(pcm)),
+            "voice_frames": int(voice_frames),
+            "total_frames": int(total_frames),
+            "vad_ratio": float(voice_frames / max(1, total_frames)),
+            "gain_db": float(gain_db),
+        }
+        return (True, "ok", meta)
 
+    except asyncio.CancelledError:
+        # wait_for timeout 등으로 캔슬되는 정상 케이스
+        return (False, "cancelled", {},)
     except asyncio.IncompleteReadError:
-        err = ""
-        try:
-            if proc.stderr:
-                err = (await proc.stderr.read()).decode(errors="replace").strip()
-        except Exception:
-            pass
         rc = None
         try:
             rc = proc.returncode
@@ -260,18 +313,30 @@ async def record_with_vad(
                 rc = await proc.wait()
         except Exception:
             pass
-        return (False, f"audio_incomplete(rc={rc}): {err}" if err else f"audio_incomplete(rc={rc})")
-    
+        return (False, f"audio_incomplete(rc={rc})", {"rc": rc})
     except Exception as e:
         logger.warning("[stt] record_with_vad failed err=%s", e)
-        return (False, str(e))
+        return (False, str(e), {"err": str(e)})
     
     finally:
+        # 1) 먼저 정상 종료 시도
         try:
-            proc.terminate()
+            if proc.returncode is None:
+                proc.terminate()
         except Exception:
             pass
+
+        # 2) 짧게 기다렸다가
         try:
-            await proc.wait()
+            await asyncio.wait_for(proc.wait(), timeout=1.5)
         except Exception:
-            pass
+            # 3) 안 끝나면 kill
+            try:
+                if proc.returncode is None:
+                    proc.kill()
+            except Exception:
+                pass
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=1.0)
+            except Exception:
+                pass

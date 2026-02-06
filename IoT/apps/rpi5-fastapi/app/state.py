@@ -33,6 +33,12 @@ class MonitorState:
         self.stt_lock = asyncio.Lock()
         self.stt_busy: bool = False
         
+        # ---- STT adaptive gain (낙상/응답용) ----
+        # 환경(마이크 거리/볼륨) 편차가 커서, 녹음 결과(rms/peak) 기반으로 gain_db를 자동 조절
+        self.stt_gain_db: float = 3.0          # 기본 +6dB 권장
+        self.stt_gain_db_min: float = 0.0
+        self.stt_gain_db_max: float = 12.0
+
         # ---- DB ----
         self.db = None
         self.album_repo = None
@@ -69,9 +75,20 @@ class MonitorState:
         # ---- audio manager ----
         self.audio = AudioManager()
         
+        # ---- heavy ops gate (nmcli/scan 등) ----
+        # 오디오 재생/ STT 중에는 nmcli 같은 무거운 작업을 쉬게 해서 프리즈/OOM 확률을 낮춤
+        self.heavy_ops_pause: bool = False  # 필요 시 강제 pause 토글(디버그용)
+        self.heavy_ops_lock = asyncio.Lock()
+
         # ---- voice ----
         self.voice_subscribers: set[asyncio.Queue] = set()
         self.voice_repo = None
+        # duration은 ffprobe가 무거우므로 "다운로드 시 1회" 계산해서 캐시 재사용
+        self.voice_duration_cache: dict[int, float] = {}   # vid -> sec
+        # ACK 레이스(중복 enqueue/삭제) 방지: vid 단위 락
+        self.voice_ack_locks: dict[int, asyncio.Lock] = {}
+        # download 레이스(consumer vs downloader) 방지: vid 단위 락
+        self.voice_dl_locks: dict[int, asyncio.Lock] = {}
 
         # ---- alarm ----
         self.alert_subscribers: set[asyncio.Queue] = set()

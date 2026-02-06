@@ -2,11 +2,12 @@
 import asyncio
 import time
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Optional, Callable, Iterable
 
-from .audio_play import AudioPlayback, start_mp3_playback, ensure_aplay_started, _sink  
+from .audio_play import AudioPlayback, start_mp3_playback
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,19 @@ class AudioManager:
         self._playback: Optional[AudioPlayback] = None
         self._task: Optional[asyncio.Task] = None
         self._stopping = False
+        self._supervisor_task: Optional[asyncio.Task] = None
 
         # 예: FALL 진행 중에는 FALL만 재생
         self.block_below_prio: Optional[int] = None
+        # 외부에서 "재생 중이냐"를 가볍게 볼 수 있게(스캔/다운로드 게이트용)
+        self.is_playing: bool = False
+        self.current_prio: int = 0
+
+        # FALL만 강제 프리엠션(그 외는 순차 재생)
+        try:
+            self._preempt_only_fall = (os.getenv("AUDIO_PREEMPT_ONLY_FALL", "1").strip() != "0")
+        except Exception:
+            self._preempt_only_fall = True
 
     def _dump(self, reason: str) -> None:
         if not logger.isEnabledFor(logging.DEBUG):
@@ -78,21 +89,32 @@ class AudioManager:
         )
 
     def start(self) -> asyncio.Task:
-        if self._task and not self._task.done():
-            return self._task
-        self._task = asyncio.create_task(self._run_loop())
-        return self._task
+        # supervisor가 이미 있으면 그대로
+        if self._supervisor_task and not self._supervisor_task.done():
+            return self._supervisor_task
+        self._supervisor_task = asyncio.create_task(self._supervise_loop())
+        return self._supervisor_task
+    
+    async def _supervise_loop(self):
+        logger.info("[audio] supervisor started")
+        while not self._stopping:
+            try:
+                # 기존 run loop를 여기서 관리
+                self._task = asyncio.create_task(self._run_loop())
+                await self._task
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # ★여기 찍히면 “두 번째부터 무음” 원인 99% 잡힘
+                logger.exception("[audio] manager crashed -> restarting")
+                await asyncio.sleep(0.2)  # 짧게 쉬고 재시작
+        logger.info("[audio] supervisor stopped")
 
     async def stop(self):
         self._stopping = True
         async with self._cv:
             self._cv.notify_all()
         await self.stop_current()
-        # 서비스 종료 시 aplay까지 종료
-        try:
-            await _sink.stop()
-        except Exception:
-            pass
 
     async def stop_current(self):
         pb = self._playback
@@ -107,6 +129,18 @@ class AudioManager:
         if job.ttl_sec > 0 and (_now() - job.created_at) > job.ttl_sec:
             return
 
+        # FALL 보호: FALL 파이프라인 중(block_below_prio=FALL)에는
+        # FALL 이외의 job은 재생 경쟁/끊김 유발하므로 큐에도 넣지 않고 드랍
+        try:
+            if self.block_below_prio is not None and int(self.block_below_prio) >= int(AudioPrio.FALL):
+                if int(job.prio) < int(AudioPrio.FALL):
+                    logger.info("[audio] drop enqueue during FALL kind=%s prio=%s", job.kind, int(job.prio))
+                    if job.done_event:
+                        job.done_event.set()
+                    return
+        except Exception:
+            pass
+
         async with self._cv:
             # replace_key 정책(최신만 유지)
             if job.replace_key:
@@ -115,15 +149,36 @@ class AudioManager:
             self._queue.append(job)
             self._dump(f"enqueue kind={job.kind} prio={int(job.prio)}")
 
-            # 프리엠션: 현재 재생 중인데 더 높은 prio가 들어오면 중단
-            if self._current and int(job.prio) > int(self._current.prio):
-                logger.info(
-                    "[audio] preempt cur=%s(%s) -> new=%s(%s)",
-                    self._current.kind, self._current.prio, job.kind, job.prio,
-                )
-                asyncio.create_task(self.stop_current())
+            # 프리엠션 정책:
+            # - 기본: "FALL만" 현재 재생을 끊고 들어온다 (나머지는 큐에 쌓여 순서대로)
+            # - FALL 파이프라인에서 block_below_prio=FALL로 설정하므로,
+            #   FALL이 들어오면 즉시 재생되도록 현재를 stop 한다.
+            if self._current:
+                cur_p = int(self._current.prio)
+                new_p = int(job.prio)
+                if self._preempt_only_fall:
+                    if new_p >= int(AudioPrio.FALL) and cur_p < int(AudioPrio.FALL):
+                        logger.info("[audio] preempt(FALL) cur=%s(%s) -> new=%s(%s)",
+                                    self._current.kind, cur_p, job.kind, new_p)
+                        asyncio.create_task(self.stop_current())
+                else:
+                    # (옵션) 예전 동작: 높은 prio가 오면 프리엠션
+                    if new_p > cur_p:
+                        logger.info("[audio] preempt cur=%s(%s) -> new=%s(%s)",
+                                    self._current.kind, cur_p, job.kind, new_p)
+                        asyncio.create_task(self.stop_current())
 
             self._cv.notify_all()
+
+            # 디버그: manager task 생존 확인
+            try:
+                t = self._task
+                if t is None:
+                    logger.warning("[audio] enqueue but manager task is None (not started?)")
+                elif t.done():
+                    logger.warning("[audio] enqueue but manager task is DONE (crashed/stopped?)")
+            except Exception:
+                pass
 
     def _pop_next(self) -> Optional[AudioJob]:
         if not self._queue:
@@ -155,64 +210,82 @@ class AudioManager:
 
     async def _run_loop(self):
         logger.info("[audio] manager started")
-        while not self._stopping:
-            # 다음 job 대기
-            async with self._cv:
-                while not self._stopping:
-                    nxt = self._pop_next()
-                    if nxt:
-                        self._current = nxt
-                        self._dump(f"pop_next -> {nxt.kind}:{int(nxt.prio)}")
-                        break
-                    # block_below_prio 때문에 계속 못 꺼내는 상태 추적
-                    self._dump("wait_no_playable_job")
-                    await self._cv.wait()
+        try:
+            while not self._stopping:
+                # 다음 job 대기
+                async with self._cv:
+                    while not self._stopping:
+                        nxt = self._pop_next()
+                        if nxt:
+                            self._current = nxt
+                            self._dump(f"pop_next -> {nxt.kind}:{int(nxt.prio)}")
+                            break
+                        # block_below_prio 때문에 계속 못 꺼내는 상태 추적
+                        self._dump("wait_no_playable_job")
+                        await self._cv.wait()
 
-            if self._stopping:
-                break
+                if self._stopping:
+                    break
 
-            job = self._current
-            if not job:
-                continue
+                job = self._current
+                if not job:
+                    continue
 
-            # 실행 직전 TTL 재확인
-            if job.ttl_sec > 0 and (_now() - job.created_at) > job.ttl_sec:
-                logger.info("[audio] drop expired kind=%s", job.kind)
-                if job.done_event:
-                    job.done_event.set()
-                self._current = None
-                continue
-
-            try:
-                volume = float(VOLUME_BY_KIND.get(job.kind, 1.0))
-                logger.debug(
-                    "[audio] start kind=%s prio=%s path=%s volume=%.2f",
-                    job.kind, int(job.prio), job.path, volume
-                )
-
-                self._playback = await start_mp3_playback(job.path, volume=volume)
-                await self._playback.wait()
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.warning("[audio] play failed kind=%s err=%s", job.kind, e)
-            finally:
-                logger.debug("[audio] done kind=%s prio=%s", job.kind, int(job.prio))
-                self._playback = None
-                self._current = None
-
-                if job.on_done:
-                    try:
-                        job.on_done()
-                    except Exception:
-                        pass
-                if job.done_event:
-                    try:
+                # 실행 직전 TTL 재확인
+                if job.ttl_sec > 0 and (_now() - job.created_at) > job.ttl_sec:
+                    logger.info("[audio] drop expired kind=%s", job.kind)
+                    if job.done_event:
                         job.done_event.set()
-                    except Exception:
-                        pass
+                    self._current = None
+                    continue
 
-        logger.info("[audio] manager stopped")
+                try:
+                    self.is_playing = True
+                    self.current_prio = int(job.prio)
+                    volume = float(VOLUME_BY_KIND.get(job.kind, 1.0))
+                    logger.debug(
+                        "[audio] start kind=%s prio=%s path=%s volume=%.2f",
+                        job.kind, int(job.prio), job.path, volume
+                    )
+
+                    t0 = time.time()
+                    logger.info("[audio_timing] start_call kind=%s path=%s", job.kind, job.path)
+
+                    self._playback = await start_mp3_playback(job.path, volume=volume)
+
+                    logger.info("[audio_timing] started dt=%.3fs kind=%s", time.time() - t0, job.kind)
+
+                    await self._playback.wait()
+
+                    logger.info("[audio_timing] finished total_dt=%.3fs kind=%s", time.time() - t0, job.kind)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.warning("[audio] play failed kind=%s err=%s", job.kind, e)
+                finally:
+                    logger.debug("[audio] done kind=%s prio=%s", job.kind, int(job.prio))
+                    self._playback = None
+                    self._current = None
+                    self.is_playing = False
+                    self.current_prio = 0
+
+                    if job.on_done:
+                        try:
+                            job.on_done()
+                        except Exception:
+                            pass
+                    if job.done_event:
+                        try:
+                            job.done_event.set()
+                        except Exception:
+                            pass
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("[audio] manager fatal error")
+            raise
+        finally:
+            logger.info("[audio] manager stopped")
     
     async def cancel(
         self,
