@@ -113,7 +113,7 @@ def pose():
         return JSONResponse(status_code=503, content={"error": "no observation yet"})
     return obs
 
-@app.get("/api/iot/device/falls/stream")
+@app.get("/api/iot/device/falls/stream_overlay")
 def stream():
     boundary = "frame"
 
@@ -121,7 +121,7 @@ def stream():
         last_count = 0
         while True:
             # 새로운 프레임이 올 때까지 대기 (최대 1초)
-            jpg, current_count = controller.wait_for_frame(last_count, timeout=1.0)
+            jpg, current_count = controller.wait_for_overlay_frame(last_count, timeout=1.0)
             
             if jpg is None:
                 continue
@@ -135,4 +135,22 @@ def stream():
                 + jpg + b"\r\n"
             )
 
+    return StreamingResponse(gen(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.get("/api/iot/device/falls/stream")
+def stream_raw():
+    boundary = "frame"
+    def gen():
+        last = 0
+        while True:
+            jpg, last = controller.wait_for_raw_frame(last, timeout=1.0)
+            if jpg is None:
+                continue
+            yield (
+                b"--" + boundary.encode() + b"\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                b"Content-Length: " + str(len(jpg)).encode() + b"\r\n\r\n"
+                + jpg + b"\r\n"
+            )
     return StreamingResponse(gen(), media_type="multipart/x-mixed-replace; boundary=frame")
