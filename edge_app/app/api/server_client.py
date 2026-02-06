@@ -85,10 +85,10 @@ class ServerClient:
             }
             resp = requests.post(url, json=payload, timeout=self.timeout)
             resp.raise_for_status()
-            logger.info("Refresh token sent to RPI")
+            logger.info("Access token sent to RPI")
             return True
         except Exception as e:
-            logger.error(f"Refresh token send to RPI failed: {e}")
+            logger.error(f"Access token send to RPI failed: {e}")
             return False
 
     # ===== 토큰 갱신 =====
@@ -180,7 +180,7 @@ class ServerClient:
             return presignedUrl, videoPath
         except Exception as e:
             logger.error(f"Event send failed: {e}")
-            return None
+            return (None, None)
     
     # ===== 영상 서버 업로드 =====
     def upload_clip_via_presigned_put(self, presigned_url: str, clip_path: str, timeout: float = 120.0):

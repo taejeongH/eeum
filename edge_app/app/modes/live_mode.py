@@ -38,10 +38,14 @@ class LiveMode(BaseMode):
         self.pipeline: Optional[LivePipeline] = None
         
         # Engines
+        from ..config import ABNORMAL_TIMEOUT_S
         self.presence_engine = PresenceEngine(PresenceParams(
             enter_hits=5, exit_hits=10, min_quality=0.10, cool_down_s=0.5
         ))
-        self.level1_engine = Level1Engine(Level1Params())
+        self.level1_engine = Level1Engine(Level1Params(
+            abnormal_timeout_s=ABNORMAL_TIMEOUT_S,
+            ghost_timeout_s=10.0  # 테스트용: abnormal_timeout과 동일하게 설정
+        ))
         self.clip_recorder = ClipRecorder()
         
         # Clients
@@ -91,33 +95,39 @@ class LiveMode(BaseMode):
             **st
         }
 
-    def step(self) -> Tuple[Optional[Dict[str, Any]], Optional[bytes], Optional[Any]]:
+    def step(self) -> Tuple[Optional[Dict[str, Any]], Optional[bytes], Optional[Any], Optional[Any]]:
         if self.pipeline is None:
-            return None, None, None
-        
-        # 1. Pipeline Execution
-        obs, jpg, frame = self.pipeline.step(overlay="smooth")
-        
+            return None, None, None, None
+
+        # 변경: raw_frame을 같이 받는다
+        obs, overlay_jpg, raw_frame = self.pipeline.step(overlay="smooth")
+
         if obs is None:
-            return None, jpg, frame
+            return None, overlay_jpg, raw_frame, None
 
         ts_now = float(obs["ts"])
-        
-        # 2. Presence Logic
+
         pe = self.presence_engine.step(obs)
         if pe is not None:
             self._handle_presence_event(pe, ts_now)
 
-        # 3. Clip Recording (Buffer push)
-        if frame is not None:
-             self.clip_recorder.push(ts_now, frame)
+        # Clip은 "원본"으로 저장하는 게 보통 더 좋다 (서버/디버깅 관점)
+        if raw_frame is not None:
+            meta = {
+                "frame_index": int(obs.get("frame_index", -1)),
+                "state": self.level1_engine.state,
+                "ghost": self.level1_engine.is_ghost_mode,
+                "bbox": obs.get("tracks")[0].get("bbox") if obs.get("tracks") else None,
+                "quality": obs.get("tracks")[0].get("quality_score") if obs.get("tracks") else None,
+            }
+            self.clip_recorder.push(ts_now, raw_frame, meta=meta)
 
-        # 4. Fall Detection Logic
         ev = self.level1_engine.step(obs)
         if ev is not None:
             self._handle_fall_event(ev, obs, ts_now)
 
-        return obs, jpg, frame
+        # raw_frame을 컨트롤러가 raw_jpg로 인코딩해서 /stream_raw로 뿌리게 된다
+        return obs, overlay_jpg, raw_frame, None
 
     def _handle_presence_event(self, pe: Dict[str, Any], ts_now: float):
         """재실 이벤트 처리"""
@@ -183,36 +193,57 @@ class LiveMode(BaseMode):
                 logger.error(f"Failed to send to RPI: {e}")
 
             # 2. Server 전송 (Presigned URL 획득)
-            presigned_url, video_path = "", ""
+            presigned_url, video_path = None, None
             if access_token:
                 try:
-                    presigned_url, video_path = self.server_client.send_event_server(payload, access_token=access_token)
+                    res = self.server_client.send_event_server(payload, access_token=access_token)
+                    # [방어 로직] 반환값이 튜플/리스트이고 길이가 2인지 확인하여 Unpacking Error 방지
+                    if res and isinstance(res, (tuple, list)) and len(res) == 2:
+                        presigned_url, video_path = res
+                    else:
+                        logger.error(f"Unexpected response from send_event_server: {res}")
                 except Exception as e:
                     logger.error(f"Failed to send to Server: {e}")
 
             # 3. Clip 저장 및 업로드
             if self.local_incident_ts is not None:
-                clip_path = self.clip_recorder.save_segment(
-                    incident_ts=self.local_incident_ts,
-                    pre_sec=7.0,
-                    post_sec=4.0,
+                from ..config import CLIP_PRE_SEC, CLIP_POST_SEC
+
+                level1_ts = float(ev.get("ts", ts_now))
+                abn_ts = float(self.local_incident_ts)  # 이미 None 아님
+
+                t_start = abn_ts - float(CLIP_PRE_SEC)
+                t_end = abn_ts + float(CLIP_POST_SEC)
+
+                clip_path = self.clip_recorder.save_range(
+                    t_start=t_start,
+                    t_end=t_end,
                     filename_prefix="incident"
                 )
-                
-                if clip_path and presigned_url:
-                     logger.info(f"Uploading clip: {clip_path} -> {video_path}")
-                     try:
-                         self.server_client.upload_clip_via_presigned_put(
-                             presigned_url=presigned_url, 
-                             clip_path=clip_path, 
-                             timeout=120.0
-                         )
-                         
-                         # 업로드 성공 알림
-                         self.server_client.send_video_upload_success(video_path=video_path, access_token=access_token)
-                         logger.info("Clip upload complete")
-                         
-                     except Exception as e:
-                         logger.error(f"Failed to upload clip: {e}")
+
+                if not clip_path:
+                    logger.warning("Clip save skipped/failed (cooldown or no frames in range)")
+                    return  # 또는 그냥 넘어가도 됨
+
+                if clip_path and presigned_url and video_path:
+                    logger.info(f"Uploading clip: {clip_path} -> {video_path}")
+                    try:
+                        self.server_client.upload_clip_via_presigned_put(
+                            presigned_url=presigned_url,
+                            clip_path=clip_path,
+                            timeout=120.0
+                        )
+
+                        # 업로드 성공 알림(토큰 있을 때만)
+                        if access_token:
+                            self.server_client.send_video_upload_success(
+                                video_path=video_path,
+                                access_token=access_token
+                            )
+
+                        logger.info("Clip upload complete")
+
+                    except Exception as e:
+                        logger.error(f"Failed to upload clip: {e}")
 
             self.local_incident_ts = None

@@ -104,6 +104,34 @@ class CameraManager:
         if aw != width or ah != height:
             logger.warning(f"Camera config mismatch: req({width}x{height}) != actual({aw}x{ah})")
     
+    def try_autofocus(self):
+        """
+        카메라 오토포커스 시도 (QR 모드용)
+        
+        V4L2 카메라가 지원하는 경우에만 작동.
+        """
+        if self.cap is None or not self.cap.isOpened():
+            return
+        
+        try:
+            # 1. 오토포커스 활성화 시도
+            af_supported = self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+            if af_supported:
+                logger.info("[Camera] Autofocus enabled")
+            else:
+                logger.debug("[Camera] Autofocus not supported")
+            
+            # 2. 수동 초점 거리를 중간값(근거리)으로 설정 시도
+            # 일반적으로 0(무한대)~255(최근거리) 범위
+            focus_set = self.cap.set(cv2.CAP_PROP_FOCUS, 180)
+            if focus_set:
+                logger.info("[Camera] Manual focus set to 180 (close range)")
+            else:
+                logger.debug("[Camera] Manual focus control not supported")
+                
+        except Exception as e:
+            logger.warning(f"[Camera] Focus control failed: {e}")
+    
     def release(self):
         """카메라 자원 해제"""
         if self.cap is not None:

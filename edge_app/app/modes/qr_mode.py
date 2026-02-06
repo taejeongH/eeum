@@ -6,9 +6,27 @@ QR 페어링 모드
 
 import cv2
 import time
+import numpy as np
 from typing import Optional, Tuple, Dict, Any
-from pyzbar.pyzbar import decode, ZBarSymbol
+import sys
+try:
+    if sys.platform == "win32":
+        # Windows에서는 libzbar DLL 의존성 문제로 인해 비활성화 (요구사항)
+        PYZBAR_AVAILABLE = False
+    else:
+        from pyzbar.pyzbar import decode, ZBarSymbol
+        PYZBAR_AVAILABLE = True
+except (ImportError, OSError):
+    PYZBAR_AVAILABLE = False
+    decode = None
+    ZBarSymbol = None
 import logging
+try:
+    from scipy.signal import convolve2d
+    from scipy.ndimage import gaussian_filter
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
 
 from .base_mode import BaseMode
 from ..state.device_state import get_device_state
@@ -68,11 +86,11 @@ class QRMode(BaseMode):
         if not ok:
             return None, None, None
         
-        # JPEG 인코딩
-        jpg = self._encode_jpeg(frame)
-        
-        # QR 감지
+        # QR 감지 (프레임에 박스 그리기 포함)
         qr_data = self._detect_qr(frame)
+        
+        # JPEG 인코딩 (박스가 그려진 후 인코딩해야 화면에 보임)
+        jpg = self._encode_jpeg(frame)
         
         if qr_data:
             self._handle_qr(qr_data)
@@ -84,32 +102,159 @@ class QRMode(BaseMode):
     
     def _encode_jpeg(self, frame) -> Optional[bytes]:
         """프레임을 JPEG으로 인코딩"""
-        ok, jpg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality])
+        ok, jpg = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
         return jpg.tobytes() if ok else None
     
     def _detect_qr(self, frame):
+        """
+        [ULTRAHIGH] QR 코드 감지 (극심한 초점 불량 대응)
+        
+        디블러링, 샤프닝, 스케일 확장 등 모든 기법 총동원.
+        """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # 전처리 후보들 생성
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        gray_enhanced = clahe.apply(gray)
+        
+        # 1. 초강력 선명화 (더 공격적인 계수)
+        blur = cv2.GaussianBlur(gray_enhanced, (0, 0), 2)
+        sharpened = cv2.addWeighted(gray_enhanced, 2.5, blur, -1.5, 0)
+        
+        # 2. Richardson-Lucy Deblurring (scipy 있을 때만)
+        deblurred = self._richardson_lucy_deblur(gray_enhanced) if SCIPY_AVAILABLE else sharpened
+        
+        # 3. 노출 감소
+        darkened = cv2.convertScaleAbs(gray_enhanced, alpha=0.6, beta=0)
+        
+        # 4. Bilateral Filter (노이즈 제거 + 엣지 보존)
+        bilateral = cv2.bilateralFilter(gray_enhanced, 9, 75, 75)
+        
+        # 조합 리스트: (이름, 이미지)
+        candidates = [
+            ("Deblur", deblurred),  # 최우선: 디블러링
+            ("Sharpen", sharpened),
+            ("Base", gray_enhanced),
+            ("Darkened", darkened),
+            ("Bilateral", bilateral),
+        ]
+        
+        # 스케일 후보 (극단 케이스 추가: 아주 가깝거나 먼 경우)
+        scales = [1.0, 0.7, 0.85, 1.15, 1.3, 1.5]
+        
+        qrs = []
+        found_method = ""
+        
+        # 공통 모폴로지 커널
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        
+        # 모든 조합 시도
+        for name, img in candidates:
+            # 기본 + 스케일 시도
+            for scale in scales:
+                work_img = img
+                if scale != 1.0:
+                    h, w = img.shape
+                    work_img = cv2.resize(img, (int(w*scale), int(h*scale)))
+                
+                if PYZBAR_AVAILABLE:
+                    qrs = decode(work_img, symbols=[ZBarSymbol.QRCODE])
+                else:
+                    qrs = []
+                if qrs:
+                    found_method = f"{name}_S{scale}"
+                    self._fix_qr_rects(qrs, scale)
+                    break
+            if qrs: break
+            
+            if PYZBAR_AVAILABLE:
+                adp = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 10)
+                qrs = decode(adp, symbols=[ZBarSymbol.QRCODE])
+            else:
+                qrs = []
+            if qrs:
+                found_method = f"{name}_Adaptive"
+                break
+                
+            if PYZBAR_AVAILABLE:
+                dilated = cv2.dilate(img, kernel, iterations=1)
+                qrs = decode(dilated, symbols=[ZBarSymbol.QRCODE])
+            else:
+                qrs = []
+            if qrs:
+                found_method = f"{name}_Dilate"
+                break
 
-        # 대비 강화 (QR 인식률 크게 올라감)
-        gray = cv2.equalizeHist(gray)
-
-        qrs = decode(gray, symbols=[ZBarSymbol.QRCODE])
+            if PYZBAR_AVAILABLE:
+                eroded = cv2.erode(img, kernel, iterations=1)
+                qrs = decode(eroded, symbols=[ZBarSymbol.QRCODE])
+            else:
+                qrs = []
+            if qrs:
+                found_method = f"{name}_Erode"
+                break
 
         # 🔴 디버깅 로그
         if qrs:
-            logger.info(f"[QR] detected {len(qrs)} symbols")
+            logger.info(f"[QR] Detected via {found_method}")
         else:
             logger.debug("[QR] no symbol")
 
         # 🔴 화면에 박스 그리기
         for qr in qrs:
             (x, y, w, h) = qr.rect
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+            # 성공 시 시각 효과 강화 (형광색 두꺼운 박스)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 4)
+            cv2.putText(frame, "QR DETECTED", (x, y-15), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 3)
 
         if not qrs:
             return None
 
         return qrs[0].data.decode("utf-8")
+
+    def _fix_qr_rects(self, qrs, scale):
+        """스케일 조정된 좌표를 원본으로 복구"""
+        if scale == 1.0: return
+        for qr in qrs:
+            x, y, w, h = qr.rect
+            qr.rect = (int(x/scale), int(y/scale), int(w/scale), int(h/scale))
+    
+    def _richardson_lucy_deblur(self, img, iterations=10, psf_size=5):
+        """
+        Richardson-Lucy 디콘볼루션 (초점 불량 복원)
+        
+        가우시안 PSF를 가정하여 흐릿함을 제거합니다.
+        """
+        if not SCIPY_AVAILABLE:
+            return img
+        
+        try:
+            # PSF 생성 (가우시안 블러 커널)
+            psf = np.zeros((psf_size, psf_size))
+            psf[psf_size//2, psf_size//2] = 1
+            psf = gaussian_filter(psf, sigma=1.5)
+            psf /= psf.sum()
+            
+            # Richardson-Lucy 반복
+            img_float = img.astype(np.float64) / 255.0
+            img_float = np.maximum(img_float, 1e-10)
+            
+            estimated = img_float.copy()
+            for _ in range(iterations):
+                reblurred = convolve2d(estimated, psf, mode='same', boundary='symm')
+                reblurred = np.maximum(reblurred, 1e-10)
+                
+                ratio = img_float / reblurred
+                correction = convolve2d(ratio, psf[::-1, ::-1], mode='same', boundary='symm')
+                estimated *= correction
+                estimated = np.maximum(estimated, 1e-10)
+            
+            result = np.clip(estimated * 255, 0, 255).astype(np.uint8)
+            return result
+        except Exception as e:
+            logger.warning(f"[QR] Deblur failed: {e}")
+            return img
     
     def _handle_qr(self, qr_token: str):
         """
@@ -145,7 +290,7 @@ class QRMode(BaseMode):
             # QR 토큰 내용이 바로 pairing_code라고 가정
             result = self.server_client.register_device(qr_token, DEVICE_ID)
             
-            if result and result.get("status") == "200 OK":
+            if result and result.get("statusCode") == "200 OK":
                 data = result.get("data", {})
                 
                 access_token = data.get("access_token")
@@ -160,7 +305,7 @@ class QRMode(BaseMode):
                 # 액세스 토큰 성공적으로 받아지면 라즈베리파이에 전달
                 try:
                     rpi_result = self.server_client.send_access_token_to_rpi(access_token)
-                    if rpi_result and rpi_result.get("status") == "200 OK":
+                    if rpi_result and rpi_result.get("ok") == True:
                         logger.info("Access token sent to RPI successfully")
                     else:
                         logger.error("Failed to send access token to RPI")

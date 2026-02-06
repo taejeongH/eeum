@@ -1,5 +1,8 @@
 from typing import Dict, Any, Optional
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ----------------------------
 # Config imports
@@ -97,8 +100,7 @@ def _bbox_diag(t0: Dict[str, Any]) -> float:
     # 정규화 좌표 체크: 모두 0~1 범위인지 확인
     # 범위 벗어나면 pixel 좌표로 간주 → 디버깅 경고 + 기본값 반환
     if not (0 <= x1 <= 1 and 0 <= y1 <= 1 and 0 <= x2 <= 1 and 0 <= y2 <= 1):
-        import logging
-        logging.warning(f"bbox out of normalized range: {b} → treating as pixel coords")
+        logger.warning(f"bbox out of normalized range: {b} → treating as pixel coords")
         return 1.0
     
     diag = math.hypot(x2 - x1, y2 - y1)
@@ -196,8 +198,7 @@ def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
             _prev_frame_shape = frame_shape
     else:
         # frame_shape가 없으면 정규화 좌표 검증 불가 → 경고
-        import logging
-        logging.warning(
+        logger.warning(
             "t0['frame_shape'] not provided → "
             "cannot validate frame resolution changes. "
             "Consider adding frame_shape to obs for better stability."
