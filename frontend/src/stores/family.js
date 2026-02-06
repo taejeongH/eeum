@@ -44,6 +44,9 @@ export const useFamilyStore = defineStore('family', () => {
         const exists = selectedFamily.value && families.value.find(f => f.id === selectedFamily.value.id);
         if (!selectedFamily.value || !exists) {
           selectedFamily.value = families.value[0];
+        } else {
+          // [Fix] Reactivity를 위해 새로운 객체로 교체
+          selectedFamily.value = exists;
         }
 
         // Sync confirmed selection to localStorage

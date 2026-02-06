@@ -27,6 +27,12 @@ onMounted(async () => {
     // 2. 클라이언트 상태 초기화
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('accessToken');
+
+    // [Fix] 모바일 네이티브 토큰 삭제
+    if (window.AndroidBridge) {
+      if (window.AndroidBridge.logout) window.AndroidBridge.logout();
+      if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); 
+    }
     
     // 2. 클라이언트 상태 초기화
     userStore.clearUser();

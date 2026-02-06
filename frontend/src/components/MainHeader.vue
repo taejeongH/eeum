@@ -368,7 +368,7 @@ const joinGroup = async (inviteCode) => {
   try {
     const response = await joinFamilyWithCode(inviteCode);
      // Fetch via store
-    await familyStore.fetchFamilies();
+    await familyStore.fetchFamilies(true);
     familyStore.selectFamily(response.data);
     await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
   } catch (error) {

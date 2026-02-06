@@ -340,6 +340,11 @@ const submitProfile = async () => {
     // 7. Pinia 스토어의 사용자 정보를 최신화 (홈 화면에서 바뀐 이름/사진을 바로 보여주기 위해)
     await userStore.fetchUser(true);
     
+    // [Fix] 현재 선택된 가족의 멤버 리스트도 강제 갱신하여 헤더에 즉시 반영
+    if (familyStore.selectedFamily && familyStore.selectedFamily.id) {
+        await familyStore.fetchMembers(familyStore.selectedFamily.id, true);
+    }
+    
     if (isInitialSetup.value) {
       router.push({ name: 'VoiceRegistration', query: { flow: 'initial' } });
     } else {
@@ -347,11 +352,7 @@ const submitProfile = async () => {
       const familyId = familyStore.selectedFamily?.id;
       const userId = userStore.profile?.id;
       
-      if (familyId && userId) {
-          router.push({ name: 'MemberDetail', params: { familyId, userId } });
-      } else {
-          router.push('/');
-      }
+      router.back();
     }
 
   } catch (error) {
