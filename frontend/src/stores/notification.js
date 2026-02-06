@@ -97,6 +97,8 @@ export const useNotificationStore = defineStore('notification', () => {
         notifications.value = [];
         currentFamilyId.value = null;
         isInitialized.value = false;
+        modalVisible.value = false;
+        modalData.value = null;
     }
 
     return {

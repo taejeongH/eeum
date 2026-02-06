@@ -46,6 +46,12 @@ export const useHealthStore = defineStore('health', {
             } finally {
                 this.loading = false;
             }
+        },
+        reset() {
+            this.latestMetrics = {};
+            this.currentReport = null;
+            this.loading = false;
+            this.error = null;
         }
     },
     persist: {
