@@ -53,7 +53,11 @@ public class MessageTtsAsyncService {
                 });
                 // REMOVED: return; -> Proceed to Log Creation (VoiceUrl will be null here,
                 // effectively Text-Only for now)
-                voiceUrl = null;
+
+                // [MODIFIED] Return immediately to prevent sending "Text-Only" notification.
+                // The actual notification will be sent by VoiceWebhookController when TTS is
+                // completed.
+                return;
             }
 
             // Case 2: Immediate completion or Text-only fallback
