@@ -49,9 +49,16 @@ export const useSlideshowStore = defineStore('slideshow', () => {
 
                 lastSeq = data.seq
 
+                let rawMessage = data.item.message || data.item.description
+
+                // [FIX] If message looks like a filename, ignore it to show default message instead
+                if (rawMessage && /\.(jpg|jpeg|png|gif|bmp|webp|heic)$/i.test(rawMessage)) {
+                    rawMessage = ''
+                }
+
                 const newSlide = {
                     ...data.item,
-                    message: data.item.message || data.item.description,
+                    message: rawMessage,
                     id: data.item.id || Date.now() // Ensure ID
                 }
 
