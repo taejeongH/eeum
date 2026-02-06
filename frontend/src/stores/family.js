@@ -93,6 +93,7 @@ export const useFamilyStore = defineStore('family', () => {
   function clearFamily() {
     selectedFamily.value = null;
     families.value = [];
+    membersCache.value = {}; // [NEW] Clear cache to prevent session leaks
     localStorage.removeItem('selectedFamilyId');
   }
 
