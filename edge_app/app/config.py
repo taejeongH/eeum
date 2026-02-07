@@ -13,11 +13,12 @@ MODEL_DET = float(os.getenv("MODEL_DET", "30"))
 DETERMINISTIC = os.getenv("DETERMINISTIC", "1") == "1"
 USE_HALF = False if DETERMINISTIC else (os.getenv("USE_HALF", "1") == "1")
 
-MODEL_PATH = os.getenv("MODEL_PATH", "yolov8s-pose.engine")
+MODEL_PATH = os.getenv("MODEL_PATH", "yolov8s-pose.pt")
 DEVICE_ID = os.getenv("DEVICE_ID", "EEUM-J105")
 DEVICE_NAME = os.getenv("DEVICE_NAME", "Jetson-Orin-Nano")
 LOCATION_ID = os.getenv("LOCATION_ID", "LivingRoom")
 SERVER_URL = os.getenv("SERVER_URL", "https://i14a105.p.ssafy.io")
+WS_SERVER_URL = os.getenv("WS_SERVER_URL", SERVER_URL.replace("http", "ws") + "/ws/stream")
 RPI_URL = os.getenv("RPI_URL", "http://10.10.0.1:8080/eeum")# ("RPI_URL", "http://70.12.245.104:8080/eeum")
 
 # JSONL / Clip 저장 경로
@@ -32,6 +33,7 @@ CLIP_PRE_SEC = int(os.getenv("CLIP_PRE_SEC", "6"))
 CLIP_POST_SEC = int(os.getenv("CLIP_POST_SEC", "6"))
 CLIP_COOLDOWN_S = float(os.getenv("CLIP_COOLDOWN_S", "30.0"))
 CLIP_EVENT_POST_SEC = int(os.getenv("CLIP_EVENT_POST_SEC", "7"))
+ABNORMAL_TIMEOUT_S = float(os.getenv("ABNORMAL_TIMEOUT_S", "30.0"))
 
 # EMA 스무딩
 KP_EMA_ENABLE = os.getenv("KP_EMA_ENABLE", "1") == "1"
