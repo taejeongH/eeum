@@ -25,7 +25,7 @@ RUNS_DIR = os.getenv("RUNS_DIR", "runs")
 CLIP_DIR = os.getenv("CLIP_DIR", f"{RUNS_DIR}/clips")
 
 # 클립 저장 파라미터
-CLIP_FPS = int(os.getenv("CLIP_FPS", "15"))
+CLIP_FPS = int(os.getenv("CLIP_FPS", "24"))
 CLIP_RESIZE_WIDTH = int(os.getenv("CLIP_RESIZE_WIDTH", "640"))
 CLIP_RESIZE_HEIGHT = int(os.getenv("CLIP_RESIZE_HEIGHT", "480"))
 CLIP_PRE_SEC = int(os.getenv("CLIP_PRE_SEC", "6"))
@@ -37,6 +37,10 @@ CLIP_EVENT_POST_SEC = int(os.getenv("CLIP_EVENT_POST_SEC", "7"))
 KP_EMA_ENABLE = os.getenv("KP_EMA_ENABLE", "1") == "1"
 KP_EMA_ALPHA = float(os.getenv("KP_EMA_ALPHA", "0.75"))
 KP_MIN_CONF_FOR_SMOOTH = float(os.getenv("KP_MIN_CONF", "0.30"))
+
+# Fall Detection Parameters
+# 낙상 판단 대기 시간 (Abnormal -> Level1)
+ABNORMAL_TIMEOUT_S = float(os.getenv("ABNORMAL_TIMEOUT_S", "10.0"))
 
 # 인덱스 별 EMA 스무딩
 KP_ALPHA_BY_ID = {
