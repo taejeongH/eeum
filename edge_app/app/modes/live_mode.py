@@ -73,18 +73,54 @@ class LiveMode(BaseMode):
             self.last_level1_event = None
             self.local_incident_ts = None
             
+            # WebSocket Connect
+            self.server_client.connect_websocket(DEVICE_ID)
+
+            # Async Send Queue
+            import queue
+            import threading
+            self.frame_queue = queue.Queue(maxsize=5) # Drop frames if network lags
+            self.stop_event = threading.Event()
+            self.send_thread = threading.Thread(target=self._send_loop, daemon=True)
+            self.send_thread.start()
+
             self.is_running = True
             return True
         except Exception as e:
             logger.error(f"Live Mode setup failed: {e}")
             return False
     
+    def _send_loop(self):
+        """별도 스레드에서 프레임 전송"""
+        while not self.stop_event.is_set():
+            try:
+                # 0.1초 대기 (Wait for frame)
+                import queue
+                frame_bytes = self.frame_queue.get(timeout=0.1)
+                self.server_client.send_stream_frame(frame_bytes)
+                self.frame_queue.task_done()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Send loop error: {e}")
+
     def cleanup(self):
         """모드 정리"""
+        self.is_running = False
+        
+        # Stop Thread
+        if hasattr(self, 'stop_event'):
+            self.stop_event.set()
+        if hasattr(self, 'send_thread'):
+            self.send_thread.join(timeout=1.0)
+            
         if self.pipeline:
              pass 
-        self.is_running = False
         self.pipeline = None
+        
+        # WebSocket Close
+        self.server_client.close_websocket()
+        
         logger.info("Live Mode cleaned up")
 
     def get_status(self) -> Dict[str, Any]:
@@ -104,6 +140,21 @@ class LiveMode(BaseMode):
 
         if obs is None:
             return None, overlay_jpg, raw_frame, None
+
+        # WebSocket Streaming (Raw Frame)
+        if raw_frame is not None:
+             # 인코딩이 안된 상태라면 여기서 인코딩 (LivePipeline에서 raw_frame은 numpy array임)
+             # 하지만 효율성을 위해 LivePipeline이 raw_jpg를 반환하게 하거나, 여기서 인코딩.
+             # 여기서는 안전하게 cv2.imencode 수행
+            import cv2
+            ok, enc = cv2.imencode('.jpg', raw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
+            if ok:
+                # self.server_client.send_stream_frame(enc.tobytes())
+                if hasattr(self, 'frame_queue'):
+                    try:
+                        self.frame_queue.put_nowait(enc.tobytes())
+                    except:
+                        pass # Drop frame if full
 
         ts_now = float(obs["ts"])
 
