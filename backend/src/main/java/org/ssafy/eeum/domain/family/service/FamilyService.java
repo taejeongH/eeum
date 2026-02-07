@@ -74,10 +74,19 @@ public class FamilyService {
                 String streamingTarget = family.getStreamingUrl();
                 List<org.ssafy.eeum.domain.iot.entity.IotDevice> devices = iotDeviceRepository
                                 .findAllByFamilyId(familyId);
+
+                // [Logic Update] Prioritize valid JETSON devices
                 for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
                         if ("JETSON".equalsIgnoreCase(device.getDeviceType())) {
-                                streamingTarget = device.getSerialNumber();
-                                break;
+                                String sn = device.getSerialNumber();
+                                // Filter out garbage data like 'falls'
+                                if (sn != null && sn.length() > 5 && sn.toUpperCase().startsWith("EEUM")) {
+                                        streamingTarget = sn;
+                                        break;
+                                } else if (streamingTarget == null || streamingTarget.length() < 5) {
+                                        // Keep as candidate if strictly better than nothing, but prefer EEUM
+                                        streamingTarget = sn;
+                                }
                         }
                 }
 
