@@ -114,7 +114,7 @@
           <div :class="['w-full bg-black relative flex items-center justify-center py-4 min-h-[220px]', isFullscreen ? 'flex-1 py-0' : '']">
               <!-- [CASE] Video Loaded (History or Live) -->
               <div 
-                v-if="videoUrl" 
+                v-if="videoUrl || liveFrameUrl" 
                 ref="fullscreenContainer" 
                 class="w-full relative group transition-all duration-300 flex flex-col cursor-pointer"
                 :class="isFullscreen ? 'h-full' : ''"
@@ -456,6 +456,12 @@ watch(() => emergencyStore.isVisible, (visible) => {
 
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
+  shouldReconnect.value = false;
+  stopRenderLoop();
+  if (ws.value) {
+      ws.value.close();
+      ws.value = null;
+  }
 });
 
 const callEmergency = async () => {
@@ -466,11 +472,47 @@ const callEmergency = async () => {
 const videoUrl = ref(null);
 const videoLoading = ref(false);
 const videoError = ref(null);
+
+// [Optimization] Frame Throttling Variables
+let pendingFrameBlob = null;
+let renderRequestId = null;
+const liveFrameUrl = ref(null);
+const ws = ref(null);
+const shouldReconnect = ref(false);
+let reconnectTimer = null;
 import { getFallVideo, getFamilyDetails, getHeartRateResult, getLatestHeartRate } from '@/services/api';
 
-// [NEW] Heart Rate Logic
 const heartRateData = ref(null);
 const heartRateLoading = ref(false);
+
+const startRenderLoop = () => {
+    if (renderRequestId) return;
+    
+    const loop = () => {
+        if (pendingFrameBlob) {
+            if (liveFrameUrl.value) {
+                URL.revokeObjectURL(liveFrameUrl.value);
+            }
+            liveFrameUrl.value = URL.createObjectURL(pendingFrameBlob);
+            videoLoading.value = false;
+            pendingFrameBlob = null;
+        }
+        renderRequestId = requestAnimationFrame(loop);
+    };
+    renderRequestId = requestAnimationFrame(loop);
+};
+
+const stopRenderLoop = () => {
+    if (renderRequestId) {
+        cancelAnimationFrame(renderRequestId);
+        renderRequestId = null;
+    }
+    if (liveFrameUrl.value) {
+        URL.revokeObjectURL(liveFrameUrl.value);
+        liveFrameUrl.value = null;
+    }
+    pendingFrameBlob = null;
+};
 
 const fetchHeartRate = async () => {
     heartRateData.value = null; // Reset to null or '--'
@@ -485,6 +527,14 @@ const fetchHeartRate = async () => {
 
     const eventId = emergencyStore.emergencyData?.eventId;
     const familyId = emergencyStore.emergencyData?.familyId;
+
+    // Safety: Early return if IDs are missing or invalid string "null"
+    if (!eventId || eventId === 'null' || !familyId || familyId === 'null') {
+        console.warn("⚠️ Missing Event ID or Family ID for Heart Rate fetch:", { eventId, familyId });
+        heartRateData.value = 96; // Fallback
+        heartRateLoading.value = false;
+        return;
+    }
 
     try {
         let result = null;
@@ -525,11 +575,6 @@ const handleLiveError = (e) => {
     videoUrl.value = null;
 };
 
-const liveFrameUrl = ref(null);
-const ws = ref(null);
-const shouldReconnect = ref(false);
-let reconnectTimer = null;
-
 const openVideo = async (view) => {
     currentView.value = view;
     videoUrl.value = null;
@@ -558,7 +603,7 @@ const openVideo = async (view) => {
         // Based on previous code, it used familyData.streamingUrl or fallback.
         // Now we need the Backend WebSocket URL.
         
-        try:
+        try {
             const familyData = await getFamilyDetails(familyId);
             console.log("🔍 Family Data:", familyData);
             
@@ -568,33 +613,36 @@ const openVideo = async (view) => {
             if (familyData && familyData.streamingUrl) {
                 const sUrl = familyData.streamingUrl.trim();
                 
-                // Case A: It's a Full URL (Legacy or Specific IP)
+                // Use production domain for streaming relay
+                const hardwareIp = "i14a105.p.ssafy.io";
+                const isSecure = window.location.protocol === 'https:';
+                
+                // If we are on HTTPS, we MUST use WSS. 
+                // Note: Direct IP over WSS usually requires a valid domain/cert, 
+                // but we will try to be protocol-consistent.
+                const wsProtocol = isSecure ? 'wss' : 'ws';
+                
                 if (sUrl.startsWith('http://') || sUrl.startsWith('https://') || sUrl.startsWith('ws://') || sUrl.startsWith('wss://')) {
-                     // Legacy support or direct IP
-                     console.warn("Using Legacy/Direct URL:", sUrl);
-                     // If it's http/https, we can't use it for WS directly unless we assume it's MJPEG?
-                     // But we want WS. 
-                     // Check if migration is fully done. If sUrl is http, maybe it's the OLD way.
-                     // Let's fallback to videoUrl logic if it is http? 
-                     // No, let's try to convert logic.
-                     if (sUrl.startsWith('http')) {
-                         wsUrl = sUrl.replace(/^http/, 'ws');
-                     } else {
-                         wsUrl = sUrl;
-                     }
+                     // Legacy support - but we OVERRIDE with the new IP as requested
+                     wsUrl = `${wsProtocol}://${hardwareIp}/ws/stream`;
+                     
+                     // Extract ID if possible. If it's "falls" or similar internal path, use emulator default
+                     const extractedId = sUrl.match(/\/device\/([^/]+)/)?.[1];
+                     targetDeviceId = (extractedId && extractedId !== 'falls') ? extractedId : "EEUM-J105";
+                     console.warn("Legacy Override | Target ID:", targetDeviceId, "from", sUrl);
                 } else {
-                    // Case B: It's a Device Serial Number (Backend returns this now)
+                    // Case B: Serial Number + Custom IP for now
                     targetDeviceId = sUrl;
-                    console.log("Detected Device ID for Streaming:", targetDeviceId);
-                    
-                    // Construct WS URL to Backend
-                    wsUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}`.replace(/^http/, 'ws') + '/ws/stream';
+                    wsUrl = `${wsProtocol}://${hardwareIp}/ws/stream`;
+                    console.log("Optimized Setup | Target ID:", targetDeviceId);
                 }
             } else {
-                // Fallback Test ID
+                // Fallback
                 targetDeviceId = "EEUM-J105"; 
-                wsUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}`.replace(/^http/, 'ws') + '/ws/stream';
-                console.warn("⚠️ No streaming URL found, using default:", targetDeviceId);
+                const isSecure = window.location.protocol === 'https:';
+                const wsProtocol = isSecure ? 'wss' : 'ws';
+                wsUrl = `${wsProtocol}://i14a105.p.ssafy.io/ws/stream`;
+                console.warn("⚠️ No streaming URL found, using production fallback:", wsUrl);
             }
 
             console.log("Connecting to WS:", wsUrl);
@@ -604,6 +652,7 @@ const openVideo = async (view) => {
             
             ws.value.onopen = () => {
                 console.log("WS Connected");
+                startRenderLoop(); // Start smooth rendering
                 if (targetDeviceId) {
                     ws.value.send(JSON.stringify({
                         type: "REGISTER_VIEWER",
@@ -613,12 +662,9 @@ const openVideo = async (view) => {
             };
             
             ws.value.onmessage = (event) => {
+                // Buffer the latest frame (dropping intermediate ones if flooding)
                 if (event.data instanceof Blob) {
-                    if (liveFrameUrl.value) {
-                        URL.revokeObjectURL(liveFrameUrl.value);
-                    }
-                    liveFrameUrl.value = URL.createObjectURL(event.data);
-                    videoLoading.value = false;
+                    pendingFrameBlob = event.data;
                 }
             };
             
@@ -697,6 +743,7 @@ onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
   if (reconnectTimer) clearTimeout(reconnectTimer);
   shouldReconnect.value = false;
+  stopRenderLoop();
   if (ws.value) ws.value.close();
 });
 
@@ -705,6 +752,7 @@ watch(currentView, (newView) => {
     if (newView !== 'live') {
         if (reconnectTimer) clearTimeout(reconnectTimer);
         shouldReconnect.value = false;
+        stopRenderLoop();
         if (ws.value) {
             ws.value.close();
             ws.value = null;
