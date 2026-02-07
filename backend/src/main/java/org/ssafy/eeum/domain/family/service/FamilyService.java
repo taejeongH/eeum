@@ -10,6 +10,8 @@ import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 import org.ssafy.eeum.domain.family.repository.SupporterRepository;
 import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
+import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
+import org.ssafy.eeum.domain.iot.entity.IotDevice;
 
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
@@ -28,9 +30,66 @@ public class FamilyService {
         private final UserRepository userRepository;
         private final SupporterRepository supporterRepository;
         private final S3Service s3Service;
+        private final IotDeviceRepository iotDeviceRepository;
         private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         private static final int CODE_LENGTH = 8;
         private static final SecureRandom RANDOM = new SecureRandom();
+
+        // ... existing methods ...
+
+        @Transactional(readOnly = true)
+        public FamilyDetailResponseDto getFamilyDetails(Integer familyId) {
+                Family family = familyRepository.findById(familyId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+                List<Supporter> supporters = supporterRepository.findAllByFamily(family);
+
+                Integer dependentUserId = supporters.stream()
+                                .filter(s -> s.getRole() == Supporter.Role.PATIENT)
+                                .map(s -> s.getUser().getId())
+                                .findFirst()
+                                .orElse(null);
+
+                List<FamilyMemberPriorityDto> memberPriorities = supporters.stream()
+                                .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
+                                .map(s -> FamilyMemberPriorityDto.builder()
+                                                .userId(s.getUser().getId())
+                                                .emergencyPriority(s.getEmergencyPriority())
+                                                .build())
+                                .collect(Collectors.toList());
+
+                List<FamilyMemberDto> members = supporters.stream()
+                                .map(supporter -> {
+                                        FamilyMemberDto familyMemberDto = FamilyMemberDto.of(supporter);
+                                        String presignedUrl = s3Service
+                                                        .getPresignedUrl(supporter.getUser().getProfileImage());
+                                        familyMemberDto.setProfileImage(presignedUrl);
+                                        return familyMemberDto;
+                                })
+                                .collect(Collectors.toList());
+
+                // [Changed] Get JETSON device serial as streamingUrl
+                // If multiple, pick first. If none, use family.getStreamingUrl() (fallback) or
+                // null
+                String streamingTarget = family.getStreamingUrl();
+                List<org.ssafy.eeum.domain.iot.entity.IotDevice> devices = iotDeviceRepository
+                                .findAllByFamilyId(familyId);
+                for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
+                        if ("JETSON".equalsIgnoreCase(device.getDeviceType())) {
+                                streamingTarget = device.getSerialNumber();
+                                break;
+                        }
+                }
+
+                return FamilyDetailResponseDto.builder()
+                                .familyId(family.getId())
+                                .groupName(family.getGroupName())
+                                .dependentUserId(dependentUserId)
+                                .memberPriorities(memberPriorities)
+                                .members(members)
+                                .streamingUrl(streamingTarget)
+                                .build();
+        }
 
         @Transactional
         public CreateFamilyResponseDto createFamily(String userId, CreateFamilyRequestDto createFamilyRequestDto) {
@@ -139,47 +198,6 @@ public class FamilyService {
                 responseDto.setCurrentUserOwner(user.getId().equals(family.getUser().getId()));
 
                 return responseDto;
-        }
-
-        @Transactional(readOnly = true)
-        public FamilyDetailResponseDto getFamilyDetails(Integer familyId) {
-                Family family = familyRepository.findById(familyId)
-                                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
-
-                List<Supporter> supporters = supporterRepository.findAllByFamily(family);
-
-                Integer dependentUserId = supporters.stream()
-                                .filter(s -> s.getRole() == Supporter.Role.PATIENT)
-                                .map(s -> s.getUser().getId())
-                                .findFirst()
-                                .orElse(null);
-
-                List<FamilyMemberPriorityDto> memberPriorities = supporters.stream()
-                                .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
-                                .map(s -> FamilyMemberPriorityDto.builder()
-                                                .userId(s.getUser().getId())
-                                                .emergencyPriority(s.getEmergencyPriority())
-                                                .build())
-                                .collect(Collectors.toList());
-
-                List<FamilyMemberDto> members = supporters.stream()
-                                .map(supporter -> {
-                                        FamilyMemberDto familyMemberDto = FamilyMemberDto.of(supporter);
-                                        String presignedUrl = s3Service
-                                                        .getPresignedUrl(supporter.getUser().getProfileImage());
-                                        familyMemberDto.setProfileImage(presignedUrl);
-                                        return familyMemberDto;
-                                })
-                                .collect(Collectors.toList());
-
-                return FamilyDetailResponseDto.builder()
-                                .familyId(family.getId())
-                                .groupName(family.getGroupName())
-                                .dependentUserId(dependentUserId)
-                                .memberPriorities(memberPriorities)
-                                .members(members)
-                                .streamingUrl(family.getStreamingUrl())
-                                .build();
         }
 
         @Transactional(readOnly = true)

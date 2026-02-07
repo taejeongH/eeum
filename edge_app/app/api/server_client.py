@@ -305,3 +305,69 @@ class ServerClient:
         except Exception as e:
             logger.debug(f"Server ping failed: {e}")
             return False
+
+    # ===== WebSocket Streaming =====
+    
+    def connect_websocket(self, device_id: str) -> bool:
+        """
+        WebSocket 연결 및 장치 등록
+        """
+        import websocket
+        import json
+        
+        self.device_id = device_id  # Store for reconnection
+        
+        try:
+            ws_url = self.server_url.replace("http", "ws") + "/ws/stream"
+            self.ws = websocket.WebSocket()
+            self.ws.connect(ws_url, timeout=5)
+            
+            # Register Device
+            msg = {
+                "type": "REGISTER_DEVICE",
+                "deviceId": device_id
+            }
+            self.ws.send(json.dumps(msg))
+            logger.info(f"WebSocket connected and registered as {device_id}")
+            return True
+        except Exception as e:
+            logger.error(f"WebSocket connection failed: {e}")
+            self.ws = None
+            return False
+
+    def send_stream_frame(self, frame_bytes: bytes):
+        """
+        WebSocket으로 프레임 전송 (Binary)
+        연결이 끊겨있으면 재연결 시도
+        """
+        # If not connected, try to reconnect
+        if not (hasattr(self, 'ws') and self.ws and self.ws.connected):
+             if hasattr(self, 'device_id') and self.device_id:
+                 logger.info("Attempting to reconnect WebSocket...")
+                 if not self.connect_websocket(self.device_id):
+                     return # Failed to reconnect, drop frame
+
+        if hasattr(self, 'ws') and self.ws and self.ws.connected:
+            try:
+                self.ws.send_binary(frame_bytes)
+            except Exception as e:
+                logger.error(f"WebSocket send failed: {e}")
+                try:
+                    self.ws.close()
+                except:
+                    pass
+                self.ws = None
+                # Retry logic could go here, or just wait for next frame to trigger reconnect
+    
+    def close_websocket(self):
+        """
+        WebSocket 연결 종료
+        """
+        if hasattr(self, 'ws') and self.ws:
+            try:
+                self.ws.close()
+            except:
+                pass
+            self.ws = None
+            logger.info("WebSocket closed")
+
