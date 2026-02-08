@@ -59,7 +59,13 @@ public class TtsCleanupScheduler {
                 String resultOrStatus = voiceAiClient.checkJobStatus(jobId);
 
                 // 실패 처리
-                if (resultOrStatus == null || "FAILED".equals(resultOrStatus) || "ERROR".equals(resultOrStatus)) {
+                if (resultOrStatus == null || "ERROR".equals(resultOrStatus)) {
+                    log.warn("[TTS Cleanup) Job {} 응답 지연 또는 통신 에러 (상태: {}). 다음 주기에 재시도합니다.", jobId, resultOrStatus);
+                    continue;
+                }
+
+                if ("FAILED".equals(resultOrStatus)) {
+                    log.error("[TTS Cleanup] Job {} 생성 실패 확인.", jobId);
                     if (task.getPollCount() >= 100) {
                         task.fail(VoiceTask.TaskStatus.TIMEOUT);
                     } else {
