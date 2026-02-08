@@ -11,10 +11,25 @@
       </div>
 
       <!-- Content -->
-      <div class="p-6 space-y-5">
-        <!-- Image Preview -->
-        <div class="relative w-full aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-inner">
-          <img :src="imageSrc" alt="Preview" class="w-full h-full object-contain" />
+      <div class="p-6 space-y-6">
+        <!-- Multi Image Preview -->
+        <div v-if="previewUrls.length > 1" class="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
+          <div v-for="(url, index) in previewUrls" :key="index" class="relative min-w-[100px] w-[100px] aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-100 shadow-sm shrink-0 transition-transform active:scale-95">
+            <img :src="url" alt="Preview" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl"></div>
+          </div>
+        </div>
+        
+        <!-- Single Image Preview -->
+        <div v-else-if="previewUrls.length === 1" class="relative w-full aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-inner">
+          <img :src="previewUrls[0]" alt="Preview" class="w-full h-full object-contain" />
+        </div>
+
+        <!-- Info Badge -->
+        <div v-if="previewUrls.length > 0" class="flex justify-center">
+            <span class="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
+                {{ previewUrls.length }}장의 사진이 선택됨
+            </span>
         </div>
 
         <!-- Description Input -->
@@ -56,9 +71,9 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  imageSrc: {
-    type: String,
-    default: ''
+  previewUrls: {
+    type: Array,
+    default: () => []
   }
 });
 
