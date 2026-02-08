@@ -129,43 +129,49 @@
 
 
       <!-- Message Detail Modal (Centered Popup without Dark Backdrop) -->
-      <div 
-        v-if="selectedMessage"
-        class="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-        @click.self="closeMessageDetail"
-      >
-        <!-- Backdrop is transparent (User request: remove darkness), but clickable to close -->
-        
-        <div class="bg-white rounded-3xl shadow-2xl w-[85%] max-w-md max-h-[350px] flex flex-col min-h-[200px] border border-gray-100">
-          <!-- Detail Header -->
-          <div class="flex-none flex items-center justify-between p-4 border-b border-gray-100">
-            <div class="flex items-center gap-3">
-              <img 
-                :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
-                :alt="selectedMessage.senderName || 'User'"
-                class="w-12 h-12 rounded-full object-cover border border-gray-100"
-              />
-              <div>
-                <h3 class="font-bold text-gray-800">{{ selectedMessage.senderRelationship || selectedMessage.senderName }}</h3>
-                <p class="text-xs text-gray-500">{{ formatFullDate(selectedMessage.createdAt) }}</p>
+      <Teleport to="body">
+        <div 
+          v-if="selectedMessage"
+          class="fixed inset-0 z-[140] flex items-center justify-center p-4"
+          @click.self="closeMessageDetail"
+        >
+          <!-- Backdrop is transparent, but clickable to close -->
+          <!-- We can add a slight bg-black/10 if needed to show it's modal, but user asked for no dark backdrop earlier -->
+          <!-- Keep it transparent or extremely subtle per user request -->
+          <div class="absolute inset-0 bg-black/10 backdrop-blur-[2px]" @click="closeMessageDetail"></div>
+          
+          <div class="bg-white rounded-3xl shadow-2xl w-[85%] max-w-md max-h-[60vh] flex flex-col min-h-[200px] border border-gray-100 relative z-10 animate-scale-in">
+            <!-- Detail Header -->
+            <div class="flex-none flex items-center justify-between p-5 border-b border-gray-100">
+              <div class="flex items-center gap-3">
+                <img 
+                  :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
+                  :alt="selectedMessage.senderName || 'User'"
+                  class="w-12 h-12 rounded-full object-cover border border-gray-100 shadow-sm"
+                />
+                <div>
+                  <h3 class="font-bold text-gray-800 text-lg">{{ selectedMessage.senderRelationship || selectedMessage.senderName }}</h3>
+                  <p class="text-xs text-gray-500 font-medium">{{ formatFullDate(selectedMessage.createdAt) }}</p>
+                </div>
               </div>
+              <button 
+                @click="closeMessageDetail"
+                class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Close detail"
+              >
+                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
             </div>
-            <button 
-              @click="closeMessageDetail"
-              class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
 
-          <!-- Detail Content -->
-          <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <p class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{{ selectedMessage.content }}</p>
+            <!-- Detail Content -->
+            <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <p class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words font-medium">{{ selectedMessage.content }}</p>
+            </div>
           </div>
         </div>
-      </div>
+      </Teleport>
 
 
       <!-- Message Composer Modal: Teleported for Proper Z-Index -->
@@ -532,9 +538,24 @@ const goBack = () => {
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
   
-  const date = new Date(timestamp)
+  let date = new Date(timestamp)
   const now = new Date()
+  
+  // [Timezone Fix] 
+  // If the date is in the future, it's likely a timezone mismatch (e.g., Server sent KST as UTC, causing +9h shift).
+  // We try to correct this by subtracting 9 hours.
+  if (date > now) {
+     const correctedDate = new Date(date.getTime() - 9 * 60 * 60 * 1000)
+     // Use corrected date if it makes sense (is now in the past or close to now)
+     if (correctedDate <= now || (correctedDate - now) < 5 * 60 * 1000) { 
+         date = correctedDate
+     }
+  }
+
   const diffMs = now - date
+  // Handle small clock skew (future within 1 min) by treating as 0
+  if (diffMs < 0) return '방금 전'
+
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
