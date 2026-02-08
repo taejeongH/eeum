@@ -93,13 +93,13 @@ public class User {
     }
 
     public void updateFromKakao(String name, String email, String profileImage) {
-        if (name != null && !name.isEmpty()) {
+        if ((this.name == null || this.name.isEmpty()) && name != null && !name.isEmpty()) {
             this.name = name;
         }
-        if (email != null && !email.isEmpty()) {
+        if ((this.email == null || this.email.isEmpty()) && email != null && !email.isEmpty()) {
             this.email = email;
         }
-        if (profileImage != null && !profileImage.isEmpty()) {
+        if ((this.profileImage == null || this.profileImage.isEmpty()) && profileImage != null && !profileImage.isEmpty()) {
             this.profileImage = profileImage;
         }
     }

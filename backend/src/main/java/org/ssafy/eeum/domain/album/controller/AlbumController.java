@@ -41,6 +41,17 @@ public class AlbumController {
         return RestApiResponse.success("사진 업로드 성공");
     }
 
+    @SwaggerApiSpec(summary = "사진 다중 업로드", description = "가족 앨범에 여러 장의 사진을 한 번에 업로드합니다.", successMessage = "사진 다중 업로드 성공", errors = {
+            ErrorCode.FAMILY_NOT_FOUND })
+    @PostMapping("/families/{familyId}/album/bulk")
+    public RestApiResponse<Void> uploadPhotos(
+            @PathVariable Integer familyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody List<AlbumRequestDTO> requests) {
+        albumService.addPhotos(familyId, userDetails.getUser(), requests);
+        return RestApiResponse.success("사진 다중 업로드 성공");
+    }
+
     @SwaggerApiSpec(summary = "사진 목록 조회", description = "해당 가족의 모든 사진 목록을 조회합니다.", successMessage = "사진 목록 조회 성공")
     @GetMapping("/families/{familyId}/album")
     public RestApiResponse<List<AlbumResponseDTO>> getPhotos(

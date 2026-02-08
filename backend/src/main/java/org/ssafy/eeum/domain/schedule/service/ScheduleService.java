@@ -14,6 +14,7 @@ import org.ssafy.eeum.domain.schedule.dto.ScheduleRequestDTO;
 import org.ssafy.eeum.domain.schedule.dto.ScheduleResponseDTO;
 import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
+import org.ssafy.eeum.domain.schedule.entity.CategoryType;
 import org.ssafy.eeum.domain.schedule.entity.RepeatType;
 import org.ssafy.eeum.domain.schedule.entity.Schedule;
 import org.ssafy.eeum.domain.schedule.repository.ScheduleRepository;
@@ -172,7 +173,7 @@ public class ScheduleService {
 
         Set<String> modifiedMask = scheduleRepository.findCandidates(familyId, startDateTime, endDateTime).stream()
                 .filter(s -> s.getParentId() != null)
-                .map(s -> s.getParentId() + "_" + s.getStartAt())
+                .map(s -> s.getParentId() + "_" + s.getStartAt().toLocalDate())
                 .collect(Collectors.toSet());
 
         List<ScheduleResponseDTO> result = new ArrayList<>();
@@ -619,11 +620,53 @@ public class ScheduleService {
                 for (IotDevice device : devices) {
                     mqttService.sendAlarm(device.getSerialNumber(), "schedule", contentBuilder.toString(), data);
                 }
-
             } catch (Exception e) {
                 log.error("Failed to send {} schedule alarm for family {}: {}", dayLabel, family.getId(),
                         e.getMessage());
             }
         }
+    }
+
+    @Transactional
+    public void addBirthdaySchedule(User user, Family family) {
+        if (user.getBirthDate() == null) {
+            return;
+        }
+
+        String title = user.getName() + "님의 생신";
+        boolean exists = scheduleRepository.findAll().stream()
+                .anyMatch(s -> s.getFamily().getId().equals(family.getId()) &&
+                        s.getTitle().equals(title) &&
+                        s.getCategoryType() == CategoryType.BIRTHDAY);
+
+        if (exists) {
+            return;
+        }
+
+        LocalDateTime birthDateTime = user.getBirthDate().atTime(9, 0);
+        Schedule schedule = Schedule.builder()
+                .family(family)
+                .creator(family.getUser())
+                .title(title)
+                .startAt(birthDateTime)
+                .endAt(birthDateTime.plusHours(1))
+                .categoryType(CategoryType.BIRTHDAY)
+                .description(user.getName() + "님의 생일")
+                .repeatType(RepeatType.YEARLY)
+                .isLunar(false)
+                .targetPerson(user.getName())
+                .isVisited(false)
+                .build();
+
+        scheduleRepository.save(schedule);
+        
+        // Robust Cache Invalidation: Clear cache for the birth month in multiple years
+        // to ensure visibility in the current calendar view period.
+        int currentYear = LocalDate.now().getYear();
+        invalidateCache(family.getId(), user.getBirthDate().withYear(currentYear));
+        invalidateCache(family.getId(), user.getBirthDate().withYear(currentYear + 1));
+        invalidateCache(family.getId(), user.getBirthDate()); // Clear original birth year month too
+        
+        iotSyncService.notifyUpdate(family.getId(), "schedule");
     }
 }

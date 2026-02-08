@@ -1,5 +1,34 @@
 <template>
-  <div class="min-h-screen" style="background-color: var(--bg-page);">
+  <div 
+    class="min-h-screen relative overflow-x-hidden" 
+    style="background-color: var(--bg-page);"
+    @touchstart="handleRefreshTouchStart"
+    @touchmove="handleRefreshTouchMove"
+    @touchend="handleRefreshTouchEnd"
+  >
+    <!-- Modern Pull-to-Refresh Indicator -->
+    <div 
+      class="fixed top-0 left-0 right-0 flex justify-center items-center z-[110] pointer-events-none transition-all duration-300 ease-out"
+      :style="{ 
+        transform: `translateY(${refreshPullDistance > 0 ? Math.min(refreshPullDistance - 40, 80) : -60}px)`,
+        opacity: Math.min(refreshPullDistance / 60, 1)
+      }"
+    >
+      <div class="bg-white rounded-full shadow-2xl border border-gray-100 flex items-center justify-center w-12 h-12 mt-4 relative overflow-hidden">
+        <!-- Modern SVG Spinner -->
+        <svg v-if="isRefreshing" class="animate-spin h-7 w-7 text-[var(--color-primary)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span 
+          v-else 
+          class="material-symbols-outlined text-[var(--color-primary)] text-2xl transition-transform duration-200"
+          :style="{ transform: `rotate(${Math.min(refreshPullDistance * 3, 360)}deg)` }"
+        >
+          refresh
+        </span>
+      </div>
+    </div>
     <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
       <template #actions>
          <button 
@@ -53,7 +82,10 @@
       </div>
     </div>
 
-    <main class="max-w-2xl mx-auto px-4 py-6 pb-32">
+    <main 
+      class="max-w-2xl mx-auto px-4 py-6 pb-32 transition-transform duration-300 ease-out"
+      :style="{ transform: `translateY(${isRefreshing ? 60 : refreshPullDistance * 0.4}px)` }"
+    >
       <div v-if="loading" class="flex justify-center items-center py-20">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2" style="border-color: var(--color-primary);"></div>
       </div>
@@ -137,13 +169,6 @@
       </div>
 
 
-      <!-- Floating Action Button (FAB) -->
-      <button 
-        @click="openMessageModal"
-        class="fixed bottom-32 right-6 z-30 bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform"
-      >
-        <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0, 'wght' 600">add</span>
-      </button>
 
       <!-- Message Composer Modal: Scrollable Bottom Sheet with Sticky Header -->
       <transition name="fade">
@@ -267,6 +292,14 @@
       </div>
     </main>
 
+    <!-- Floating Action Button (FAB) -->
+    <button 
+      @click="openMessageModal"
+      class="fixed bottom-32 right-6 z-30 bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform"
+    >
+      <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0, 'wght' 600">add</span>
+    </button>
+
     <!-- Bottom Navigation -->
     <BottomNav v-if="!isModalOpen" />
   </div>
@@ -320,6 +353,12 @@ const sending = ref(false)
 const selectedMessage = ref(null)
 const groupName = ref('')
 
+// Refresh State
+const isRefreshing = ref(false)
+const refreshStartY = ref(0)
+const refreshPullDistance = ref(0)
+const canRefresh = ref(true)
+
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/'
 
 // 이미지 URL 생성 함수 추가
@@ -364,6 +403,53 @@ const onTouchEnd = () => {
   startY = 0
   currentY = 0
 }
+
+/* Pull-to-Refresh Handlers */
+const handleRefreshTouchStart = (e) => {
+    // Only refresh if at the very top
+    if (window.scrollY > 5 || isRefreshing.value || showMessageModal.value) {
+        canRefresh.value = false;
+        return;
+    }
+    canRefresh.value = true;
+    refreshStartY.value = e.touches[0].clientY;
+};
+
+const handleRefreshTouchMove = (e) => {
+    if (!canRefresh.value || isRefreshing.value) return;
+    
+    const currentY = e.touches[0].clientY;
+    const distance = currentY - refreshStartY.value;
+    
+    if (distance > 0) {
+        if (e.cancelable) e.preventDefault();
+        refreshPullDistance.value = Math.min(distance * 0.6, 150);
+    }
+};
+
+const handleRefreshTouchEnd = async () => {
+    if (!canRefresh.value || isRefreshing.value) return;
+    
+    if (refreshPullDistance.value > 100) {
+        await executeRefresh();
+    } else {
+        refreshPullDistance.value = 0;
+    }
+};
+
+const executeRefresh = async () => {
+    isRefreshing.value = true;
+    try {
+        await fetchMessages();
+    } catch (error) {
+        console.error("Message list refresh failed:", error);
+    } finally {
+        setTimeout(() => {
+            isRefreshing.value = false;
+            refreshPullDistance.value = 0;
+        }, 800);
+    }
+};
 
 // Computed
 const hasMessages = computed(() => messages.value.length > 0)
