@@ -109,7 +109,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
                 ok_rec, rec_msg = await asyncio.wait_for(
                     record_with_vad(
                         STT_TMP_WAV,
-                        device=(AUDIO_IN_DEVICE or "hw:CARD=Audio,DEV=0"),
+                        device=(AUDIO_IN_DEVICE or "plughw:CARD=Audio,DEV=0"),
                         max_sec=min(9.0, remaining()),
                         end_silence_sec=0.7,
                         min_speech_sec=0.12,
