@@ -248,6 +248,13 @@ const fetchPhotoDetail = async () => {
             });
         }
 
+        // Match sorting logic from GalleryPage.vue
+        rawPhotos.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
+            return dateB - dateA;
+        });
+
         if (contextFilter === 'recent') {
             // Keep original top 5 most recent if opened from "Recently Added"
             rawPhotos = rawPhotos.slice(0, 5);
