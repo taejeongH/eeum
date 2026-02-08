@@ -285,6 +285,7 @@ public class VoiceService {
         return "TASK_ID:" + task.getId();
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public String generateTtsSync(Integer userId, String text) {
         log.info("[TTS Sync Test] 사용자 {}의 TTS 동기 생성 요청 (텍스트: {})", userId, text);
 
@@ -295,6 +296,21 @@ public class VoiceService {
         }
 
         String jobId = initialResult;
+        VoiceTask task = null;
+
+        if (initialResult.startsWith("TASK_ID:")) {
+            try {
+                int taskId = Integer.parseInt(initialResult.substring(8));
+                task = taskRepository.findById(taskId).orElse(null);
+                if (task != null && task.getJobId() != null) {
+                    jobId = task.getJobId();
+                    log.info("[TTS Sync Test] DB Task ID {} -> RunPod Job ID {}", taskId, jobId);
+                }
+            } catch (Exception e) {
+                log.error("[TTS Sync Test] Task ID 파싱 실패: {}", initialResult, e);
+            }
+        }
+
         log.info("[TTS Sync Test] Job ID {} 에 대한 폴링을 시작합니다.", jobId);
 
         int maxAttempts = 30;
@@ -307,13 +323,30 @@ public class VoiceService {
             }
 
             String statusOrUrl = voiceAiClient.checkJobStatus(jobId);
+            if (task != null) {
+                task.incrementPollCount();
+            }
+
             if (statusOrUrl == null || "FAILED".equals(statusOrUrl) || "ERROR".equals(statusOrUrl)) {
-                log.error("[TTS Sync Test] 음성 생성 실패 (상태: {})", statusOrUrl);
-                throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+                log.error("[TTS Sync Test] 음성 생성 응답 대기/실패 (상태: {})", statusOrUrl);
+                // 일시적 에러(null, ERROR) 및 진짜 실패(FAILED) 상황
+                if ("FAILED".equals(statusOrUrl)) {
+                    if (task != null) {
+                        task.fail(VoiceTask.TaskStatus.FAILED);
+                        taskRepository.save(task);
+                    }
+                    throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+                }
+                // null이나 ERROR는 통신 장애일 가능성이 높으므로 실패 처리하지 않고 계속 진행 (continue)
+                continue;
             }
 
             if (statusOrUrl.startsWith("http")) {
                 log.info("[TTS Sync Test] 음성 생성 완료: {}", statusOrUrl);
+                if (task != null) {
+                    task.updateResult(statusOrUrl);
+                    taskRepository.save(task);
+                }
                 return statusOrUrl;
             }
 
@@ -321,6 +354,10 @@ public class VoiceService {
         }
 
         log.warn("[TTS Sync Test] 시간 초과 (Job ID: {})", jobId);
+        if (task != null) {
+            task.fail(VoiceTask.TaskStatus.TIMEOUT);
+            taskRepository.save(task);
+        }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 
