@@ -128,20 +128,22 @@
       </div>
 
 
-      <!-- Message Detail Modal -->
+      <!-- Message Detail Modal (Centered Popup without Dark Backdrop) -->
       <div 
         v-if="selectedMessage"
-        class="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[99999] flex items-center justify-center p-4"
         @click.self="closeMessageDetail"
       >
-        <div class="bg-white rounded-3xl shadow-2xl w-[85%] max-w-md max-h-[350px] flex flex-col min-h-[200px]">
+        <!-- Backdrop is transparent (User request: remove darkness), but clickable to close -->
+        
+        <div class="bg-white rounded-3xl shadow-2xl w-[85%] max-w-md max-h-[350px] flex flex-col min-h-[200px] border border-gray-100">
           <!-- Detail Header -->
-          <div class="flex-none flex items-center justify-between p-4 border-b border-gray-200">
+          <div class="flex-none flex items-center justify-between p-4 border-b border-gray-100">
             <div class="flex items-center gap-3">
               <img 
                 :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
                 :alt="selectedMessage.senderName || 'User'"
-                class="w-12 h-12 rounded-full object-cover"
+                class="w-12 h-12 rounded-full object-cover border border-gray-100"
               />
               <div>
                 <h3 class="font-bold text-gray-800">{{ selectedMessage.senderRelationship || selectedMessage.senderName }}</h3>
@@ -162,110 +164,100 @@
           <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <p class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{{ selectedMessage.content }}</p>
           </div>
-
-          <!-- Detail Footer (Actions) -->
-
         </div>
       </div>
 
 
+      <!-- Message Composer Modal: Teleported for Proper Z-Index -->
+      <Teleport to="body">
+        <transition name="fade">
+          <div 
+            v-if="showMessageModal"
+            class="fixed inset-0 bg-black/60 z-[9998]"
+            @click="closeMessageModal"
+          ></div>
+        </transition>
 
-      <!-- Message Composer Modal: Scrollable Bottom Sheet with Sticky Header -->
-      <transition name="fade">
-        <div 
-          v-if="showMessageModal"
-          class="fixed inset-0 bg-black/50 z-[60]"
-          @click="closeMessageModal"
-        ></div>
-      </transition>
-
-      <transition name="slide-up">
-        <div 
-          v-if="showMessageModal"
-          ref="messageSheet"
-          class="fixed inset-x-0 bottom-0 z-[70] bg-white rounded-t-3xl shadow-2xl min-h-[470px] max-h-[90vh] overflow-y-auto touch-pan-y pb-32"
-          @touchstart="onTouchStart"
-          @touchmove="onTouchMove"
-          @touchend="onTouchEnd"
-        >
-          <!-- Drag Handle -->
-          <div class="sticky top-0 bg-white z-20 w-full flex justify-center pt-6 pb-2" @click="closeMessageModal">
-             <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-          </div>
-
-          <!-- Modal Header (Sticky below handle) -->
-          <div class="sticky top-6 bg-white z-10 flex items-center px-4 pb-4 border-b border-gray-100 relative">
-            <h2 class="text-lg font-bold text-gray-800 w-full text-center">메시지 작성</h2>
-            <button 
-              @click="closeMessageModal"
-              class="absolute right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Modal Content -->
-          <div class="p-4 pb-10">
-            <!-- Recipient Info -->
-            <div class="bg-orange-50 rounded-xl p-3 mb-4 flex items-center gap-3">
-              <img 
-                :src="patientImage || getFullImageUrl(null, 'Family')"
-                :alt="patientName || 'Family'"
-                class="w-10 h-10 rounded-full object-cover border-2 border-orange-200"
-              />
-              <div class="flex-1">
-                <p class="text-sm font-medium text-gray-700">To: {{ patientName || '우리 가족' }}</p>
-                <p class="text-xs text-gray-500">{{ deviceName || 'IoT 스피커' }}</p>
-              </div>
+        <transition name="slide-up">
+          <div 
+            v-if="showMessageModal"
+            ref="messageSheet"
+            class="fixed inset-x-0 bottom-0 z-[9999] bg-white rounded-t-3xl shadow-2xl min-h-[0] h-auto max-h-[60vh] overflow-y-auto touch-pan-y pb-8 safe-area-bottom"
+            @touchstart="onTouchStart"
+            @touchmove="onTouchMove"
+            @touchend="onTouchEnd"
+          >
+            <!-- Drag Handle -->
+            <div class="sticky top-0 bg-white z-20 w-full flex justify-center pt-3 pb-2" @click="closeMessageModal">
+               <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
             </div>
 
-            <!-- Message Input -->
-            <div class="mb-4">
+            <!-- Modal Header -->
+            <div class="sticky top-5 bg-white z-10 flex items-center px-5 pb-3 border-b border-gray-100 relative">
+              <h2 class="text-lg font-bold text-gray-800 w-full text-center">메시지 작성</h2>
+              <button 
+                @click="closeMessageModal"
+                class="absolute right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-5 space-y-4 pb-8">
+              <!-- Recipient Info -->
+              <div class="bg-orange-50 rounded-xl p-3 flex items-center gap-3">
+                <img 
+                  :src="patientImage || getFullImageUrl(null, 'Family')"
+                  :alt="patientName || 'Family'"
+                  class="w-10 h-10 rounded-full object-cover border-2 border-orange-200"
+                />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-gray-800 truncate">To: {{ patientName || '우리 가족' }}</p>
+                  <p class="text-xs text-gray-500 truncate">{{ deviceName || 'IoT 스피커' }}</p>
+                </div>
+              </div>
+
+              <!-- Message Input -->
               <div class="relative">
                 <textarea
                   :value="newMessage.content"
                   @input="handleInput"
                   placeholder="따뜻한 메시지를 적어보세요!"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all"
-                  rows="4"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-[#e76f51] focus:border-transparent transition-all text-base leading-relaxed placeholder-gray-400"
+                  rows="3"
                   maxlength="100"
                 ></textarea>
-                <span class="absolute bottom-3 right-3 text-xs text-gray-400 font-medium">
+                <div class="absolute bottom-3 right-4 text-xs font-medium text-gray-400">
                   {{ charCount }}/100
-                </span>
+                </div>
               </div>
-            </div>
 
-            <!-- TTS Guidance Message -->
-            <div class="bg-blue-50 rounded-xl p-3 mb-4">
-              <div class="flex items-center gap-2 text-sm text-blue-700">
-                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              <!-- TTS Guidance Message -->
+              <div class="bg-blue-50/70 rounded-xl p-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-600 text-lg">volume_up</span>
+                <span class="text-xs font-semibold text-blue-700">이 메세지는 TTS로 보내집니다</span>
+              </div>
+
+              <!-- Send Button -->
+              <button
+                @click="sendMessage"
+                :disabled="!canSend || sending"
+                class="w-full bg-[#EDAEA0] hover:bg-[#E29A8A] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-lg font-bold py-3.5 rounded-2xl shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <span v-if="!sending" class="material-symbols-outlined text-xl">send</span>
+                <svg v-else class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span class="font-medium">이 메세지는 TTS로 보내집니다</span>
-              </div>
+                <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
+              </button>
             </div>
-
-            <!-- Send Button -->
-            <button
-              @click="sendMessage"
-              :disabled="!canSend || sending"
-              class="w-full eeum-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
-            >
-              <svg v-if="!sending" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-              </svg>
-              <svg v-else class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>{{ sending ? '전송 중...' : '메시지 보내기' }}</span>
-            </button>
           </div>
-        </div>
-      </transition>
+        </transition>
+      </Teleport>
 
       <div v-if="totalPages > 1" class="mt-8 flex justify-center">
         <div class="flex gap-2">
