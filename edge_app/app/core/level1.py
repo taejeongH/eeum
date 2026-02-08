@@ -552,6 +552,9 @@ class Level1Engine:
 
                 self.is_ghost_mode = False
                 self.ghost_start_ts = None
+                
+                # Confidence Score 계산
+                conf_score, conf_detail = self._calculate_confidence(abnormal_duration=time_since_abnormal)
 
                 return {
                     "type": "level1",
@@ -562,6 +565,8 @@ class Level1Engine:
                         "still_acc_s": self.still_acc_s,
                         "time_since_abnormal": time_since_abnormal,
                         "confirmed": self.abnormal_confirmed,
+                        "confidence_score": conf_score,
+                        "confidence_detail": conf_detail,
                     },
                 }
 
@@ -660,6 +665,56 @@ class Level1Engine:
             return None
 
         return None
+
+    def _calculate_confidence(self, abnormal_duration: float) -> Tuple[float, Dict[str, float]]:
+        """
+        낙상 신뢰도 점수 계산 (0~100점)
+        
+        가중치 (detail.md 기준):
+          1. 신호 강도 (40%): max_vy, min_aspect
+          2. 정지 상태 (40%): still_count 비율
+          3. 탐지 품질 (20%): avg_quality
+        """
+        if not self.abnormal_stats:
+            return 0.0, {}
+
+        s = self.abnormal_stats
+        
+        # 1. 신호 강도 (40점)
+        # 1-1. 속도 (20점): 0.5 ~ 1.5 (정규화 단위/초) 매핑
+        max_vy = s.get("max_vy", 0.0)
+        score_vy = min(20.0, max(0.0, (max_vy - 0.5) * 20.0))  # 0.5->0점, 1.5->20점
+
+        # 1-2. 자세 (20점): 1.0 ~ 0.4 (가로세로비) 매핑 (작을수록 누운 것)
+        min_aspect = s.get("min_aspect", 1.0)
+        # aspect 1.0(서있음/앉음) -> 0점, aspect 0.4(완전 누움) -> 20점
+        score_posture = min(20.0, max(0.0, (1.0 - min_aspect) * 33.3)) 
+        
+        score_signal = score_vy + score_posture
+
+        # 2. 정지 상태 (40점)
+        # abnormal 기간 동안 정지 상태 비율
+        total_count = s.get("count", 1)
+        still_count = s.get("still_count", 0)
+        ratio_still = still_count / total_count if total_count > 0 else 0.0
+        score_still = ratio_still * 40.0
+
+        # 3. 탐지 품질 (20점)
+        avg_quality = s.get("quality_sum", 0.0) / total_count if total_count > 0 else 0.0
+        score_qual = min(20.0, avg_quality * 20.0) # quality 1.0 -> 20점
+
+        total_score = score_signal + score_still + score_qual
+        
+        detail = {
+            "score_signal": round(score_signal, 1),
+            "score_still": round(score_still, 1),
+            "score_qual": round(score_qual, 1),
+            "raw_max_vy": round(max_vy, 2),
+            "raw_min_aspect": round(min_aspect, 2),
+            "raw_ratio_still": round(ratio_still, 2),
+        }
+        
+        return round(total_score, 1), detail
 
 
 @dataclass
