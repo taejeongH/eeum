@@ -102,6 +102,7 @@ import { useRouter, useRoute } from 'vue-router'
 import api from '@/services/api' // Still need api for fetching members list for dropdown
 import { useGroupSetupStore } from '@/stores/groupSetup'
 import { storeToRefs } from 'pinia'
+import { Logger } from '@/services/logger'
 import CareTargetSelect from '../../components/CareTargetSelect.vue'
 
 const router = useRouter()
@@ -139,7 +140,7 @@ onMounted(async () => {
     const membersRes = await api.get(`/families/${familyId.value}/members`)
     members.value = membersRes.data
   } catch (error) {
-    console.error('Failed to fetch members:', error)
+    Logger.error('멤버 목록 조회 실패:', error)
   }
 })
 

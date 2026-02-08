@@ -108,6 +108,7 @@ import { useFamilyStore } from '@/stores/family';
 import { useUserStore } from '@/stores/user';
 import { useGroupSetupStore } from '@/stores/groupSetup';
 import { storeToRefs } from 'pinia';
+import { Logger } from '@/services/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -165,7 +166,7 @@ onMounted(async () => {
             const membersResponse = await api.get(`/families/${familyId}/members`);
             members.value = membersResponse.data.filter(m => !m.isPlaceholder);
         } catch (error) {
-            console.error("Failed to fetch data:", error);
+            Logger.error("데이터 조회 실패:", error);
         }
     }
 });

@@ -139,6 +139,7 @@ import { getPhotos } from '@/services/albumService';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 import { usePhotoUpload } from '@/composables/usePhotoUpload';
 import IconCalendar from '@/components/icons/IconCalendar.vue';
+import { Logger } from '@/services/logger';
 
 // Swiper 설정
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -281,7 +282,7 @@ const fetchAlbumPhotos = async () => {
         } else if (response.data && Array.isArray(response.data.content)) {
             rawPhotos = response.data.content;
         } else {
-            console.warn("예상치 못한 응답 구조:", response.data);
+            Logger.warn("예상치 못한 응답 구조:", response.data);
             rawPhotos = [];
         }
 
@@ -307,7 +308,7 @@ const fetchAlbumPhotos = async () => {
         photos.value = processed;
         
     } catch (error) {
-        console.error("사진을 불러오는데 실패했습니다:", error);
+        Logger.error("갤러리 사진 조회 실패:", error);
     }
 };
 

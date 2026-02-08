@@ -161,7 +161,7 @@ const fetchDetail = async () => {
     const response = await api.get(`/families/${familyId}/medications/${medicationId}`);
     medication.value = response.data;
   } catch (error) {
-    console.error('Failed to fetch medication detail:', error);
+    Logger.error('Failed to fetch medication detail:', error);
     await modalStore.openAlert('상세 정보를 불러오는데 실패했습니다.');
     router.replace({ name: 'MedicationList', params: { familyId } });
   } finally {
@@ -195,7 +195,7 @@ const handleUpdateMedication = async (medData) => {
         closeModal();
         fetchDetail(); // Refresh data
     } catch (error) {
-        console.error('Failed to update medication:', error);
+        Logger.error('Failed to update medication:', error);
         await modalStore.openAlert('수정에 실패했습니다.');
     }
 };
@@ -208,7 +208,7 @@ const handleDelete = async () => {
         await modalStore.openAlert('삭제되었습니다.');
         router.replace({ name: 'MedicationList', params: { familyId } });
     } catch (error) {
-        console.error('Failed to delete medication:', error);
+        Logger.error('Failed to delete medication:', error);
         await modalStore.openAlert('삭제에 실패했습니다.');
     }
 };

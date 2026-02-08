@@ -221,6 +221,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { storeToRefs } from 'pinia';
 import { generatePairingCode, getIotDevices, updateIotDevice, deleteIotDevice } from '@/services/api';
+import { Logger } from '@/services/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -362,8 +363,8 @@ const generateQR = async () => {
 
     startExpiryTimer();
   } catch (error) {
-    console.error('[QR] Failed to generate QR code:', error);
-    console.error('[QR] Error details:', {
+    Logger.error('[QR] Failed to generate QR code:', error);
+    Logger.error('[QR] Error details:', {
       message: error.message,
       response: error.response?.data,
       status: error.response?.status,
@@ -400,7 +401,7 @@ const clearExpiryTimer = () => {
 
 const loadDevices = async () => {
   if (!familyId.value || isNaN(familyId.value)) {
-    console.warn('[loadDevices] Skipping due to invalid familyId:', familyId.value);
+    Logger.warn('[loadDevices] 유효하지 않은 familyId로 인해 건너뜀:', familyId.value);
     return;
   }
   isLoadingDevices.value = true;
@@ -408,7 +409,7 @@ const loadDevices = async () => {
     const response = await getIotDevices(familyId.value);
     devices.value = response.data || [];
   } catch (error) {
-    console.error('Failed to load devices:', error);
+    Logger.error('기기 목록 로드 실패:', error);
   } finally {
     isLoadingDevices.value = false;
   }
@@ -436,7 +437,7 @@ const saveDevice = async () => {
     await loadDevices();
     closeEditModal();
   } catch (error) {
-    console.error('Failed to update device:', error);
+    Logger.error('기기 정보 업데이트 실패:', error);
   } finally {
     isSaving.value = false;
   }
@@ -459,7 +460,7 @@ const deleteDevice = async () => {
     await loadDevices();
     closeDeleteModal();
   } catch (error) {
-    console.error('Failed to delete device:', error);
+    Logger.error('기기 삭제 실패:', error);
   } finally {
     isDeleting.value = false;
   }

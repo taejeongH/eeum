@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Logger } from '@/services/logger';
 import { MOCK_USER } from '../mocks/data';
 import { useUiStore } from '../stores/ui';
 import { useModalStore } from '../stores/modal';
@@ -81,14 +82,13 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Detailed Error Logging
-    console.error(`🌐 [API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
+    Logger.error(`🌐 [API 오류] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error);
     if (error.response) {
-      console.error(`   Status: ${error.response.status}`);
-      console.error(`   Data:`, error.response.data);
+      Logger.error(`   상태 코드: ${error.response.status}`, error.response.data);
     } else if (error.request) {
-      console.error(`   No response received. Possible network or CORS issue.`);
+      Logger.error(`   응답 없음. 네트워크 또는 CORS 문제일 수 있습니다.`);
     } else {
-      console.error(`   Message: ${error.message}`);
+      Logger.error(`   메시지: ${error.message}`);
     }
 
 
@@ -148,7 +148,7 @@ apiClient.interceptors.response.use(
           throw new Error("No token returned");
         }
       } catch (err) {
-        console.error("❌ Token refresh failed:", err);
+        Logger.error("❌ 토큰 갱신 실패:", err);
         processQueue(err, null);
 
         // 로그아웃 처리
@@ -254,7 +254,7 @@ export const getNotificationHistory = async (familyId) => {
     const response = await apiClient.get(`/notifications/families/${familyId}/history`);
     return response.data;
   } catch (error) {
-    console.error(`Failed to fetch notification history for family ${familyId}:`, error);
+    Logger.error(`가족 알림 기록 조회 실패 (ID: ${familyId}):`, error);
     throw error;
   }
 };
@@ -264,7 +264,7 @@ export const getFallVideo = async (eventId) => {
     const response = await apiClient.get(`/falls/${eventId}/video`);
     return response.data; // Expected: { videoUrl: "..." }
   } catch (error) {
-    console.error(`Failed to fetch fall video for event ${eventId}:`, error);
+    Logger.error(`낙상 영상 조회 실패 (Event ID: ${eventId}):`, error);
     throw error;
   }
 };
@@ -274,7 +274,7 @@ export const getFamilyDetails = async (familyId) => {
     const response = await apiClient.get(`/families/${familyId}/details`);
     return response.data;
   } catch (error) {
-    console.error(`Failed to fetch family details for ${familyId}:`, error);
+    Logger.error(`가족 상세 정보 조회 실패 (ID: ${familyId}):`, error);
     throw error;
   }
 };
@@ -285,7 +285,7 @@ export const generatePairingCode = async (familyId) => {
     const response = await apiClient.post(`/families/${familyId}/iot/pair/code`);
     return response.data;
   } catch (error) {
-    console.error(`Failed to generate pairing code for family ${familyId}:`, error);
+    Logger.error(`초대 코드 생성 실패 (ID: ${familyId}):`, error);
     throw error;
   }
 };
@@ -295,7 +295,7 @@ export const getIotDevices = async (familyId) => {
     const response = await apiClient.get(`/families/${familyId}/devices`);
     return response.data;
   } catch (error) {
-    console.error(`Failed to fetch IoT devices for family ${familyId}:`, error);
+    Logger.error(`IoT 기기 목록 조회 실패 (ID: ${familyId}):`, error);
     throw error;
   }
 };
@@ -305,7 +305,7 @@ export const registerIotDevice = async (familyId, deviceData) => {
     const response = await apiClient.post(`/families/${familyId}/devices`, deviceData);
     return response.data;
   } catch (error) {
-    console.error(`Failed to register IoT device for family ${familyId}:`, error);
+    Logger.error(`IoT 기기 등록 실패 (ID: ${familyId}):`, error);
     throw error;
   }
 };
@@ -315,7 +315,7 @@ export const updateIotDevice = async (familyId, deviceId, updateData) => {
     const response = await apiClient.patch(`/families/${familyId}/devices/${deviceId}`, updateData);
     return response.data;
   } catch (error) {
-    console.error(`Failed to update IoT device ${deviceId}:`, error);
+    Logger.error(`IoT 기기 수정 실패 (Device ID: ${deviceId}):`, error);
     throw error;
   }
 };
@@ -325,7 +325,7 @@ export const deleteIotDevice = async (familyId, deviceId) => {
     const response = await apiClient.delete(`/families/${familyId}/devices/${deviceId}`);
     return response.data;
   } catch (error) {
-    console.error(`Failed to delete IoT device ${deviceId}:`, error);
+    Logger.error(`IoT 기기 삭제 실패 (Device ID: ${deviceId}):`, error);
     throw error;
   }
 };
@@ -338,7 +338,7 @@ export const getLatestHeartRate = async (familyId) => {
     });
     return response.data; // { avgRate: 85, minRate: ... }
   } catch (error) {
-    console.error(`Failed to fetch latest heart rate for family ${familyId}:`, error);
+    Logger.error(`최신 심박수 조회 실패 (ID: ${familyId}):`, error);
     throw error;
   }
 };
@@ -348,7 +348,7 @@ export const getHeartRateResult = async (eventId) => {
     const response = await apiClient.get(`/health/heart-rate/${eventId}`);
     return response.data; // { avgRate: 110, ... }
   } catch (error) {
-    console.error(`Failed to fetch heart rate result for event ${eventId}:`, error);
+    Logger.error(`심박수 결과 조회 실패 (Event ID: ${eventId}):`, error);
     throw error;
   }
 };

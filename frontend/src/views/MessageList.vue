@@ -440,7 +440,7 @@ const executeRefresh = async () => {
     try {
         await fetchMessages();
     } catch (error) {
-        console.error("Message list refresh failed:", error);
+        Logger.error("메시지 목록 새로고침 실패:", error);
     } finally {
         setTimeout(() => {
             isRefreshing.value = false;
@@ -509,9 +509,9 @@ const sendMessage = async () => {
     // Refresh messages
     await fetchMessages()
   } catch (error) {
-    console.error('메시지 전송 실패:', error)
-    console.error('Error response:', error.response?.data)
-    console.error('Error status:', error.response?.status)
+    Logger.error('메시지 전송 실패:', error)
+    Logger.error('Error response:', error.response?.data)
+    Logger.error('Error status:', error.response?.status)
     await modalStore.openAlert(`메시지 전송에 실패했습니다.\n${error.response?.data?.message || error.message}`)
   } finally {
     sending.value = false
@@ -594,7 +594,7 @@ const fetchMessages = async () => {
     })) : []
     totalPages.value = 1
   } catch (error) {
-    console.error('메시지 조회 실패:', error)
+    Logger.error('메시지 조회 실패:', error)
   } finally {
     loading.value = false
   }
@@ -633,7 +633,7 @@ const fetchFamilyDetails = async () => {
             }
         }
     } catch (err) {
-         console.error('Failed to fetch family details', err);
+         Logger.error('가족 정보 조회 실패:', err);
     } finally {
         familyLoading.value = false;
     }

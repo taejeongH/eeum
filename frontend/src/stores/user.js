@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import { getUserProfile } from '../services/api';
+import { Logger } from '@/services/logger';
 
 export const useUserStore = defineStore('user', () => {
   const profile = ref(null);
@@ -18,7 +19,7 @@ export const useUserStore = defineStore('user', () => {
       return true;
     } catch (error) {
       profile.value = null;
-      console.error("Failed to fetch user profile:", error);
+      Logger.error("사용자 프로필 조회 실패:", error);
       return false;
     }
   }

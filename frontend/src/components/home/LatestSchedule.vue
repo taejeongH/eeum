@@ -44,6 +44,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const familyStore = useFamilyStore();
@@ -97,7 +98,7 @@ const fetchLatestSchedule = async () => {
       latestSchedule.value = null;
     }
   } catch (e) {
-    console.error("Failed to fetch schedules:", e);
+    Logger.error("일정 조회 실패:", e);
   }
 };
 
