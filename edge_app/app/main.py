@@ -16,6 +16,7 @@ from .config import (
     RUNS_DIR, DEVICE_ID, LOCATION_ID
 )
 from .core.controller import AppController
+from .core.streamer import WebSocketStreamer
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
