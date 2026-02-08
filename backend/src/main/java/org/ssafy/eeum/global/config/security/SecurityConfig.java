@@ -59,7 +59,7 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/", "/api/auth/**", "/login/**", "/oauth2/**",
-                                                                "/ws/**")
+                                                                "/api/ws/**")
                                                 .permitAll()
                                                 // IoT 인증 API - 토큰 불필요
                                                 .requestMatchers("/api/iot/auth/**")

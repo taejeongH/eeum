@@ -318,7 +318,7 @@ class ServerClient:
         self.device_id = device_id  # Store for reconnection
         
         try:
-            ws_url = self.server_url.replace("http", "ws") + "/ws/stream"
+            ws_url = self.server_url.replace("http", "ws") + "/api/ws/stream"
             self.ws = websocket.WebSocket()
             self.ws.connect(ws_url, timeout=5)
             

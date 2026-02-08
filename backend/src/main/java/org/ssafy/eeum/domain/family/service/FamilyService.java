@@ -12,7 +12,7 @@ import org.ssafy.eeum.domain.auth.entity.User;
 import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
-
+import org.ssafy.eeum.domain.schedule.service.ScheduleService;
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.s3.S3Service;
@@ -31,6 +31,7 @@ public class FamilyService {
         private final SupporterRepository supporterRepository;
         private final S3Service s3Service;
         private final IotDeviceRepository iotDeviceRepository;
+        private final ScheduleService scheduleService;
         private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         private static final int CODE_LENGTH = 8;
         private static final SecureRandom RANDOM = new SecureRandom();
@@ -125,6 +126,8 @@ public class FamilyService {
                                 .relationship(createFamilyRequestDto.getRelationship())
                                 .build();
                 supporterRepository.save(supporter);
+                
+                scheduleService.addBirthdaySchedule(user, savedFamily);
 
                 return CreateFamilyResponseDto.of(savedFamily);
         }
@@ -441,6 +444,9 @@ public class FamilyService {
                                 .relationship(null)
                                 .build();
                 supporterRepository.save(newSupporter);
+
+                // Add birthday schedule
+                scheduleService.addBirthdaySchedule(authenticatedUser, family);
 
                 return FamilySimpleResponseDto.of(family);
         }

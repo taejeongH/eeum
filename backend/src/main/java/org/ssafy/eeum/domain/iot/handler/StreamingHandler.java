@@ -39,7 +39,7 @@ public class StreamingHandler extends BinaryWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        log.info("WebSocket connected: {}", session.getId());
+        log.info("WebSocket connected: {} | Client IP: {}", session.getId(), session.getRemoteAddress());
 
         // [Logic Update] Handle Query Parameters (e.g., ?familyId=8)
         try {
@@ -119,6 +119,8 @@ public class StreamingHandler extends BinaryWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         // Handle control messages (Register Device / Register Viewer)
         String payload = message.getPayload();
+        log.info("Received Text Message from {}: {}", session.getId(), payload); // [LOG] Log all text messages
+
         try {
             JsonNode json = objectMapper.readTree(payload);
 
@@ -165,6 +167,11 @@ public class StreamingHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
+        // [DEBUG] Check if Jetson is sending data (Log every 30th frame)
+        if (logCounter.get() % 30 == 0) {
+            log.info("Received binary frame from: {} (Size: {} bytes)", session.getId(), message.getPayloadLength());
+        }
+
         // Relay binary data (JPEG Frame) from Device to Viewers
         String role = (String) session.getAttributes().get("role");
         String deviceId = (String) session.getAttributes().get("deviceId");
@@ -202,6 +209,12 @@ public class StreamingHandler extends BinaryWebSocketHandler {
                 }
             }
         }
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+        log.error("WebSocket Transport Error: Session={}, Error={}", session.getId(), exception.getMessage(), exception);
+        super.handleTransportError(session, exception);
     }
 
     @Override

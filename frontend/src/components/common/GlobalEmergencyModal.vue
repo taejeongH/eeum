@@ -624,7 +624,7 @@ const openVideo = async (view) => {
                 
                 if (sUrl.startsWith('http://') || sUrl.startsWith('https://') || sUrl.startsWith('ws://') || sUrl.startsWith('wss://')) {
                      // Legacy support - but we OVERRIDE with the new IP as requested
-                     wsUrl = `${wsProtocol}://${hardwareIp}/ws/stream`;
+                     wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
                      
                      // Extract ID if possible. If it's "falls" or similar internal path, use emulator default
                      const extractedId = sUrl.match(/\/device\/([^/]+)/)?.[1];
@@ -633,7 +633,7 @@ const openVideo = async (view) => {
                 } else {
                     // Case B: Serial Number + Custom IP for now
                     targetDeviceId = sUrl;
-                    wsUrl = `${wsProtocol}://${hardwareIp}/ws/stream`;
+                    wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
                     console.log("Optimized Setup | Target ID:", targetDeviceId);
                 }
             } else {
@@ -641,7 +641,7 @@ const openVideo = async (view) => {
                 targetDeviceId = "EEUM-J105"; 
                 const isSecure = window.location.protocol === 'https:';
                 const wsProtocol = isSecure ? 'wss' : 'ws';
-                wsUrl = `${wsProtocol}://i14a105.p.ssafy.io/ws/stream`;
+                wsUrl = `${wsProtocol}://i14a105.p.ssafy.io/api/ws/stream`;
                 console.warn("⚠️ No streaming URL found, using production fallback:", wsUrl);
             }
 

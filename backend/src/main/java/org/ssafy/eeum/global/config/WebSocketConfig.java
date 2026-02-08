@@ -18,7 +18,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(streamingHandler, "/ws/stream")
+        registry.addHandler(streamingHandler, "/api/ws/stream")
                 .setAllowedOriginPatterns("*"); // Allow all origins for dev/testing
     }
 

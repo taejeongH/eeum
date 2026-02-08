@@ -18,7 +18,7 @@ DEVICE_ID = os.getenv("DEVICE_ID", "EEUM-J105")
 DEVICE_NAME = os.getenv("DEVICE_NAME", "Jetson-Orin-Nano")
 LOCATION_ID = os.getenv("LOCATION_ID", "LivingRoom")
 SERVER_URL = os.getenv("SERVER_URL", "https://i14a105.p.ssafy.io")
-WS_SERVER_URL = os.getenv("WS_SERVER_URL", SERVER_URL.replace("http", "ws") + "/ws/stream")
+WS_SERVER_URL = os.getenv("WS_SERVER_URL", SERVER_URL.replace("http", "ws") + "/api/ws/stream")
 RPI_URL = os.getenv("RPI_URL", "http://10.10.0.1:8080/eeum")# ("RPI_URL", "http://70.12.245.104:8080/eeum")
 
 # JSONL / Clip 저장 경로

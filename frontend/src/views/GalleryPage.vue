@@ -1,7 +1,7 @@
 <template>
   <div class="bg-background-light min-h-screen text-[#1c140d] pb-32 relative">
     
-    <!-- Refined Header -->
+    <!-- 정제된 헤더 -->
     <MainHeader @modal-state-change="handleModalStateChange" :show-profiles="false">
       <template #actions>
         <div class="flex items-center gap-1 -mr-2">
@@ -16,10 +16,8 @@
       </template>
     </MainHeader>
     
-
-
     <main class="space-y-6">
-      <!-- Recently Added (Swiper) -->
+      <!-- 최근 추가된 사진 (Swiper) -->
       <section class="recent-photos-section py-6 bg-[#F0EEE9]">
         <div class="flex items-center justify-between px-6 mb-4 cursor-pointer" @click="navigateToAlbum({ id: 'all' })">
             <h2 class="text-lg font-bold text-[#1c140d]">최근 추가된 사진</h2>
@@ -51,14 +49,14 @@
         >
           <swiper-slide v-for="(photo, index) in recentPhotos" :key="photo.photoId || index">
             <div @click.stop="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
-              <!-- Blurred Background for Fill -->
+              <!-- 배경 블러 처리 (여백 채우기용) -->
               <img :src="photo.displayUrl" class="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30" aria-hidden="true" />
               
-              <!-- Main Image (Contained) -->
-              <img :src="photo.displayUrl" class="relative w-full h-full object-contain shadow-sm z-10" />
+              <!-- 메인 이미지 -->
+              <img :src="photo.displayUrl" class="relative w-full h-full object-contain shadow-sm z-10 image-fade-in" />
               
               <div class="absolute bottom-4 left-4 text-white drop-shadow-md z-20 group-[.swiper-slide-active]:opacity-100 transition-opacity">
-                <p class="text-sm font-bold">{{ photo.takenAt || 'Unknown Date' }}</p>
+                <p class="text-sm font-bold">{{ photo.takenAt || '날짜 미상' }}</p>
                 <p class="text-xs">{{ photo.uploaderName || '익명' }}님이 올림</p>
               </div>
             </div>
@@ -69,7 +67,7 @@
         </div>
       </section>
 
-      <!-- Family Albums Grid -->
+      <!-- 가족 앨범 그리드 -->
       <section class="px-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-bold leading-tight tracking-tight text-[#1c140d]">
@@ -77,25 +75,25 @@
           </h3>
         </div>
         <div class="grid grid-cols-3 gap-x-3 gap-y-6">
-          <!-- Dynamic Albums (from API) -->
+          <!-- 동적 앨범 목록 -->
           <div 
             v-for="album in albums" 
             :key="album.id" 
             class="flex flex-col gap-2 group cursor-pointer" 
             @click.stop="navigateToAlbum(album)"
           >
-            <!-- Stacked Effect Container -->
+            <!-- 겹쳐진 사진 효과 컨테이너 -->
             <div class="relative w-full aspect-square">
-                 <!-- Stack Layers -->
+                 <!-- 겹침 레이어 -->
                  <div class="absolute top-0 left-2 right-2 bottom-2 bg-white border border-[#e8dbce] rounded-2xl transform -rotate-[8deg] translate-y-1 shadow-sm z-0"></div>
                  <div class="absolute top-0 left-1 right-1 bottom-1 bg-white border border-[#e8dbce] rounded-2xl transform rotate-[5deg] translate-y-0.5 shadow-sm z-10"></div>
                  
-                 <!-- Main Cover -->
+                 <!-- 메인 커버 -->
                  <div class="absolute inset-0 rounded-2xl overflow-hidden shadow-lg z-20 bg-[#f4ede7] border border-[#f0e6dd]">
                     <img 
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 image-fade-in" 
                         :src="album.cover || 'https://via.placeholder.com/150'"
-                        alt="Album Cover"
+                        alt="앨범 커버"
                     />
                     <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                  </div>
@@ -111,16 +109,16 @@
 
     </main>
 
-    <!-- Floating Action Button -->
+    <!-- 부유형 액션 버튼 -->
     <button @click="triggerFileInput" class="fixed bottom-32 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform z-30">
       <span v-if="!isUploading" class="material-symbols-outlined text-3xl">add_photo_alternate</span>
       <span v-else class="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
     </button>
-    <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload" />
+    <input type="file" ref="fileInput" class="hidden" accept="image/*" multiple @change="handleFileUpload" />
     
     <ImagePreviewModal 
       :is-open="showPreviewModal"
-      :image-src="previewUrl"
+      :preview-urls="previewUrls"
       @close="handleUploadCancel"
       @confirm="handleUploadConfirm"
     />
@@ -142,7 +140,7 @@ import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
 import { usePhotoUpload } from '@/composables/usePhotoUpload';
 import IconCalendar from '@/components/icons/IconCalendar.vue';
 
-// Swiper Imports
+// Swiper 설정
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import { EffectCreative } from 'swiper/modules';
 import 'swiper/css';
@@ -161,10 +159,10 @@ const handleModalStateChange = (isOpen) => {
   isModalOpen.value = isOpen;
 };
 
-// Use Shared Upload Logic
+// 공통 업로드 로직 사용
 const {
   fileInput,
-  previewUrl,
+  previewUrls,
   showPreviewModal,
   isUploading,
   triggerFileInput,
@@ -172,7 +170,7 @@ const {
   handleUploadConfirm,
   handleUploadCancel
 } = usePhotoUpload(async () => {
-    // Callback on success
+    // 성공 시 콜백
     await fetchAlbumPhotos();
 });
 
@@ -192,7 +190,7 @@ const selectedDateProxy = computed({
 const recentPhotos = computed(() => {
     if (!photos.value || photos.value.length === 0) return [];
     
-    // Sort by takenAt descending (robust check for various date field formats)
+    // 최신순 정렬
     return [...photos.value]
         .sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
@@ -200,23 +198,22 @@ const recentPhotos = computed(() => {
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
-            // Tie-breaker: createdAt
+            // 동일 시간인 경우 처리
             const createdA = new Date(a.createdAt || a.created_at || 0);
             const createdB = new Date(b.createdAt || b.created_at || 0);
             const diffCreated = createdB - createdA;
             if (diffCreated !== 0) return diffCreated;
 
-            // Tie-breaker: ID
             return (b.photoId || b.id || 0) - (a.photoId || a.id || 0);
         })
         .slice(0, 5);
 });
 
-// Computed Albums for API Data
+// API 데이터를 기반으로 계산된 앨범 목록
 const albums = computed(() => {
     if (photos.value.length === 0) return [];
     
-    // 1. All Photos Album
+    // 1. 전체 사진 앨범
     const allPhotosAlbum = { 
         id: 'all', 
         title: '전체 사진', 
@@ -224,7 +221,7 @@ const albums = computed(() => {
         cover: photos.value[0]?.displayUrl 
     };
 
-    // 2. Group by Uploader
+    // 2. 업로더별 그룹핑
     const groups = {};
     photos.value.forEach(photo => {
         const name = photo.uploaderName || '익명';
@@ -235,20 +232,18 @@ const albums = computed(() => {
     });
 
     const uploaderAlbums = Object.keys(groups).map((name, index) => {
-        // Sort photos by date descending to get the latest one as cover
+        // 최신 사진을 커버로 사용하기 위해 정렬
         const groupPhotos = groups[name].sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
             const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
-            // Tie-breaker: createdAt
             const createdA = new Date(a.createdAt || a.created_at || 0);
             const createdB = new Date(b.createdAt || b.created_at || 0);
             const diffCreated = createdB - createdA;
             if (diffCreated !== 0) return diffCreated;
 
-            // Tie-breaker: ID
             return (b.photoId || b.id || 0) - (a.photoId || a.id || 0);
         });
         
@@ -266,18 +261,17 @@ const albums = computed(() => {
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
-// [FIX] Reactive familyId
+// 반응형 familyId
 const familyId = ref(null);
 
 const fetchAlbumPhotos = async () => {
-    // Prefer reactive familyId
     if (!familyId.value) return;
 
     try {
         const response = await getPhotos(familyId.value);
 
         let rawPhotos = [];
-        // Checking for different possible structures of response
+        // 다양한 응답 구조 대응
         if (Array.isArray(response.data)) {
             rawPhotos = response.data;
         } else if (response.data && Array.isArray(response.data.data)) {
@@ -287,11 +281,11 @@ const fetchAlbumPhotos = async () => {
         } else if (response.data && Array.isArray(response.data.content)) {
             rawPhotos = response.data.content;
         } else {
-            console.warn("Unexpected response structure:", response.data);
+            console.warn("예상치 못한 응답 구조:", response.data);
             rawPhotos = [];
         }
 
-        // Process URLs
+        // URL 처리 및 초기 가공
         const processed = rawPhotos.map(photo => {
             let url = photo.storageUrl || photo.imageUrl;
             if (url && !url.startsWith('http')) {
@@ -303,7 +297,7 @@ const fetchAlbumPhotos = async () => {
             };
         });
 
-        // Global Sort: Newest First
+        // 전체 정렬: 최신순
         processed.sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
             const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
@@ -313,7 +307,7 @@ const fetchAlbumPhotos = async () => {
         photos.value = processed;
         
     } catch (error) {
-        console.error("Failed to fetch photos:", error);
+        console.error("사진을 불러오는데 실패했습니다:", error);
     }
 };
 
@@ -333,16 +327,17 @@ const navigateToAlbum = (album) => {
 const goToPhotoDetail = (photo) => {
     router.push({
         name: 'PhotoDetail',
-        params: { photoId: photo.photoId || photo.id }
+        params: { photoId: photo.photoId || photo.id },
+        query: { context: 'recent' }
     });
 };
 
 onMounted(() => {
-    // 1. Prefer route param
+    // 1. 라우트 파라미터 우선
     if (route.params.familyId) {
         familyId.value = route.params.familyId;
     } 
-    // 2. Fallback to store
+    // 2. 스토어 상태 사용
     else if (familyStore.selectedFamily?.id) {
         familyId.value = familyStore.selectedFamily.id;
         router.replace({ name: 'GalleryPage', params: { familyId: familyId.value } });
@@ -353,7 +348,7 @@ onMounted(() => {
     }
 });
 
-// React to route changes (e.g. Back button or Redirect)
+// 라우트 파라미터 변경 감지
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
         familyId.value = newId;
@@ -361,10 +356,9 @@ watch(() => route.params.familyId, (newId) => {
     }
 });
 
-// React to store selection changes (Header Dropdown)
+// 스토어 가족 선택 변경 감지 (헤더 드롭다운)
 watch(() => familyStore.selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
-        // If Store changes, redirect to the new URL
         if (String(newFamily.id) !== String(route.params.familyId)) {
             router.replace({ name: 'GalleryPage', params: { familyId: newFamily.id } });
         }
@@ -380,8 +374,8 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
 }
 
 .swiper-slide {
-  width: 260px; /* Card Width */
-  height: 340px; /* Card Height */
+  width: 260px;
+  height: 340px;
 }
 
 .photo-card {
@@ -402,7 +396,7 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Swiper Active Slide Effects */
+/* Swiper 활성 슬라이드 효과 */
 .swiper-slide:not(.swiper-slide-active) img {
   filter: blur(4px);
   transition: filter 0.3s ease;
@@ -412,5 +406,15 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
   filter: blur(0);
   transform: scale(1.05);
   transition: all 0.3s ease;
+}
+
+/* 이미지 페이드인 애니메이션 */
+.image-fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 </style>

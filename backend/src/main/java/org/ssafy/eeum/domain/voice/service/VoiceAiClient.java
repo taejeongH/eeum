@@ -93,12 +93,24 @@ public class VoiceAiClient {
 
             if (response != null) {
                 String status = (String) response.get("status");
+                log.info("[RunPod] Job {} status: {}, response: {}", jobId, status, response);
+
                 if ("COMPLETED".equals(status)) {
                     @SuppressWarnings("unchecked")
                     java.util.Map<String, Object> output = (java.util.Map<String, Object>) response.get("output");
-                    if (output != null && "success".equals(output.get("status"))) {
-                        return (String) output.get("url");
+                    if (output != null) {
+                        String voiceUrl = (String) output.get("url");
+                        String outputStatus = output.get("status") != null ? output.get("status").toString() : null;
+
+                        if (voiceUrl != null && !voiceUrl.isEmpty()) {
+                            return voiceUrl;
+                        }
+
+                        if ("success".equalsIgnoreCase(outputStatus)) {
+                            return (String) output.get("url");
+                        }
                     }
+                    log.error("[RunPod] Job {} completed but success criteria not met. Output: {}", jobId, output);
                     return "FAILED";
                 }
                 return status;

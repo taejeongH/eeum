@@ -209,8 +209,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M3 3l18 18M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                             </svg>
                         </div>
-                        <span class="text-2xl text-white/60 font-black uppercase tracking-widest">와이파이</span>
-                   </div>
+                    </div>
 
                   <!-- 3. Menu Items List (Tactile Tiles) -->
                    <nav class="flex-1 flex flex-col items-center gap-8 w-full px-6 overflow-y-auto no-scrollbar py-4">
@@ -244,7 +243,13 @@
                                      </svg>
                                 </div>
                                 <div class="flex flex-col items-start gap-1">
-                                    <span class="text-4xl font-black">메시지</span>
+                                    <div class="flex items-center gap-5">
+                                        <span class="text-4xl font-black whitespace-nowrap">메시지</span>
+                                        <div v-if="(voiceStore.unreadCount + alertStore.chatHistory.length) > 0" 
+                                             class="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center text-2xl font-black shadow-lg shadow-red-900/40 border-2 border-white/20">
+                                            {{ voiceStore.unreadCount + alertStore.chatHistory.length }}
+                                        </div>
+                                    </div>
                                     <span class="text-lg font-bold text-white/30 uppercase tracking-widest">Messages</span>
                                 </div>
                             </div>
@@ -259,7 +264,13 @@
                                      </svg>
                                 </div>
                                 <div class="flex flex-col items-start gap-1">
-                                    <span class="text-4xl font-black">일정</span>
+                                    <div class="flex items-center gap-5">
+                                        <span class="text-4xl font-black whitespace-nowrap">일정</span>
+                                        <div v-if="displayData.length > 0 && activeTab === 'schedule'" 
+                                             class="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center text-2xl font-black shadow-lg shadow-red-900/40 border-2 border-white/20">
+                                            {{ displayData.length }}
+                                        </div>
+                                    </div>
                                     <span class="text-lg font-bold text-white/30 uppercase tracking-widest">Calendar</span>
                                 </div>
                             </div>
@@ -293,17 +304,17 @@
             <div v-if="activeTab && activeTab !== 'none'" class="absolute inset-y-0 right-[420px] w-[700px] z-10 pointer-events-auto p-10 flex flex-col" @click.stop>
                 <div class="flex-1 bg-stone-900/98 backdrop-blur-3xl rounded-[60px] border border-white/10 shadow-3xl text-white flex flex-col overflow-hidden">
                     <!-- Header -->
-                    <div class="p-8 flex items-center justify-between border-b border-white/10">
-                        <h3 class="text-4xl font-black tracking-tight">{{ tabTitle }}</h3>
+                    <div class="p-6 flex items-center justify-between border-b border-white/10">
+                        <h3 class="text-3xl font-black tracking-tight">{{ tabTitle }}</h3>
                         <div class="flex items-center gap-4">
                             <button 
                                 v-if="activeTab === 'alert' && displayData.length > 0"
                                 @click="confirmClearAlerts"
-                                class="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-full text-base font-bold transition-colors"
+                                class="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-full text-sm font-bold transition-colors"
                             >
                                 전체 삭제
                             </button>
-                            <button @click="activeTab = null" class="p-3 hover:bg-white/10 rounded-full transition-colors">
+                            <button @click="activeTab = null" class="p-2.5 hover:bg-white/10 rounded-full transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
@@ -326,101 +337,80 @@
                             </div>
 
                             <!-- List -->
-                            <!-- Chat Message Style (for chat tab) -->
+                            <!-- Unified Chat/Voice Message Style -->
                             <template v-if="activeTab === 'chat'">
-                                <!-- Voice Messages loop -->
                                 <div 
-                                    v-for="(item, idx) in voiceStore.voiceMessages" 
-                                    :key="'voice-'+item.id" 
-                                    class="group relative bg-white/5 backdrop-blur-2xl rounded-[50px] border-2 border-white/10 hover:bg-white/10 transition-all duration-300 overflow-hidden mb-10 shadow-3xl"
-                                >
-                                    <!-- Sidebar Color Indicator (Unified Theme) -->
-                                    <div class="absolute left-0 top-0 bottom-0 w-5 bg-gradient-to-b from-orange-500 to-red-500 shadow-[0_0_30px_rgba(234,88,12,0.4)]"></div>
-
-                                    <div class="flex items-stretch">
-                                        <!-- Content Area (Huge Targets) -->
-                                        <div class="flex-1 p-12 flex flex-col gap-6 min-w-0 cursor-pointer" @click.stop="voiceStore.playMessage(item.id)">
-                                            <div class="flex items-baseline gap-8 mb-2">
-                                                <span class="text-5xl font-black text-white">음성 메시지</span>
-                                                <span class="text-[2.2rem] font-black text-orange-400/80">{{ formatTime(item.ts * 1000) }}</span>
-                                            </div>
-
-                                            <p class="text-[3.4rem] text-white leading-tight font-black break-keep">
-                                                {{ item.description || '새로운 음성 메시지가 도착했습니다' }}
-                                            </p>
-
-                                            <div class="flex items-center gap-6 mt-4 px-6 py-4 bg-white/5 rounded-[30px] w-fit border border-white/5">
-                                                <div v-if="item.status === 'playing'" class="flex gap-2 items-end h-8">
-                                                    <div class="w-2 bg-orange-500 animate-[bounce_1s_infinite_0ms]" style="height: 100%"></div>
-                                                    <div class="w-2 bg-orange-500 animate-[bounce_1s_infinite_200ms]" style="height: 70%"></div>
-                                                    <div class="w-2 bg-orange-500 animate-[bounce_1s_infinite_400ms]" style="height: 90%"></div>
-                                                </div>
-                                                <span class="text-3xl font-black" :class="item.status === 'playing' ? 'text-orange-400' : 'text-white/60'">
-                                                    {{ item.status === 'playing' ? '지금 듣는 중...' : '눌러서 확인하기' }}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Massive Play Toggle Button -->
-                                        <button 
-                                            @click.stop="voiceStore.playMessage(item.id)"
-                                            class="w-[180px] flex items-center justify-center transition-all bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border-l border-white/10"
-                                        >
-                                            <div class="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center shadow-[0_0_40px_rgba(234,88,12,0.5)] group-hover:scale-110 transition-transform">
-                                                <svg v-if="item.status === 'playing'" xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-white animate-pulse" viewBox="0 0 24 24" fill="currentColor">
-                                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                                </svg>
-                                                <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-white ml-2" viewBox="0 0 24 24" fill="currentColor">
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                            </div>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Existing Text Chat loop -->
-                                <div 
-                                    v-for="(item, idx) in alertStore.chatHistory" 
+                                    v-for="(item, idx) in displayData" 
                                     :key="item.id || idx" 
                                     class="group relative bg-white/5 backdrop-blur-2xl rounded-[50px] border-2 border-white/10 hover:bg-white/10 transition-all duration-300 overflow-hidden mb-10 shadow-3xl"
                                 >
                                     <!-- Sidebar Color Indicator (Unified Theme) -->
-                                    <div class="absolute left-0 top-0 bottom-0 w-5 bg-gradient-to-b from-blue-500 to-indigo-500 shadow-[0_0_30px_rgba(59,130,246,0.4)]"></div>
+                                    <div class="absolute left-0 top-0 bottom-0 w-5 bg-gradient-to-b shadow-[0_0_30px_rgba(59,130,246,0.4)]"
+                                         :class="item.type === 'VOICE' ? 'from-orange-500 to-red-500' : 'from-blue-500 to-indigo-500'">
+                                    </div>
 
                                     <div class="flex items-stretch">
-                                        <!-- Content Area (Huge Targets) -->
-                                        <div class="flex-1 p-12 pr-6 flex flex-col gap-6 min-w-0">
-                                            <div class="flex items-center gap-8 mb-2">
-                                                <!-- Sender Avatar (Enlarged) -->
+                                        <!-- Content Area -->
+                                        <div class="flex-1 p-10 pr-6 flex flex-col gap-6 min-w-0" 
+                                             :class="{'cursor-pointer': item.type === 'VOICE'}"
+                                             @click.stop="item.type === 'VOICE' ? voiceStore.playMessage(item.id) : (selectedItem = item)">
+                                            
+                                            <div class="flex flex-wrap items-center gap-6 mb-2">
+                                                <!-- Sender Avatar -->
                                                 <div 
-                                                    class="flex-shrink-0 w-24 h-24 rounded-[28px] flex items-center justify-center text-white text-4xl font-black shadow-xl ring-6 ring-white/10"
+                                                    class="flex-shrink-0 w-20 h-20 rounded-[24px] flex items-center justify-center text-white text-3xl font-black shadow-xl ring-6 ring-white/10"
                                                     :class="getSenderColor(item.sender || '가족')"
                                                 >
-                                                    {{ (item.sender || '가족')[0] }}
+                                                    <img v-if="item.profile_image" :src="item.profile_image" class="w-full h-full object-cover rounded-[24px]" />
+                                                    <span v-else>{{ (item.sender || '가족')[0] }}</span>
                                                 </div>
                                                 <div class="flex flex-col">
-                                                    <span class="text-4xl font-black text-white">{{ item.sender || '가족' }}</span>
-                                                    <span class="text-[1.8rem] font-bold text-blue-400 opacity-80 uppercase tracking-widest mt-1">Family Message</span>
+                                                    <span class="text-3xl font-black text-white">{{ item.sender || '가족' }}</span>
+                                                    <div class="flex items-center gap-3 mt-1">
+                                                        <span v-if="item.type === 'VOICE'" class="text-[1.6rem] font-bold text-orange-400 opacity-80 uppercase tracking-widest leading-none">
+                                                            Voice Message
+                                                        </span>
+                                                        <span v-else class="text-[1.6rem] font-bold text-blue-400 opacity-80 uppercase tracking-widest leading-none">
+                                                            Family Message
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <span class="ml-auto text-2xl font-mono text-white/40 font-bold self-start mt-2">{{ formatTime(item.timestamp) }}</span>
+                                                <span class="ml-auto text-xl font-mono text-white/40 font-bold self-start mt-2">
+                                                    {{ formatTime(item.created_at ? item.created_at * 1000 : item.timestamp) }}
+                                                </span>
                                             </div>
 
-                                            <div class="relative group/bubble cursor-pointer" @click.stop="selectedItem = item">
+                                            <!-- Content Display -->
+                                            <div class="relative group/bubble">
                                                 <p class="text-[3.4rem] text-white font-black leading-tight break-keep">
-                                                    {{ item.content }}
+                                                    {{ item.content || item.description }}
                                                 </p>
+                                                
+                                                <!-- Voice Playback Controls (Embedded) -->
+                                                <div v-if="item.type === 'VOICE'" class="flex items-center gap-6 mt-6 px-6 py-4 bg-white/5 rounded-[30px] w-fit border border-white/5">
+                                                    <div v-if="item.status === 'playing'" class="flex gap-2 items-end h-8">
+                                                        <div class="w-2 bg-orange-500 animate-[bounce_1s_infinite_0ms]" style="height: 100%"></div>
+                                                        <div class="w-2 bg-orange-500 animate-[bounce_1s_infinite_200ms]" style="height: 70%"></div>
+                                                        <div class="w-2 bg-orange-500 animate-[bounce_1s_infinite_400ms]" style="height: 90%"></div>
+                                                    </div>
+                                                    <span class="text-3xl font-black" :class="item.status === 'playing' ? 'text-orange-400' : 'text-white/60'">
+                                                        {{ item.status === 'playing' ? '지금 듣는 중...' : '터치하여 재생' }}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <!-- Massive Delete Strip -->
+                                        <!-- Action Button (Delete for ALL) -->
                                         <button 
-                                            @click.stop="alertStore.removeChatHistory(item.id)"
-                                            class="w-32 bg-red-500/5 hover:bg-red-500/20 text-red-500/40 hover:text-red-500 flex flex-col items-center justify-center gap-4 transition-all border-l border-white/10"
+                                            @click.stop="item.type === 'VOICE' ? voiceStore.removeMessage(item.id) : alertStore.removeChatHistory(item.id)"
+                                            class="w-32 bg-red-500/5 hover:bg-red-500/20 text-red-500/40 hover:text-red-500 flex flex-col items-center justify-center gap-4 transition-all border-l border-white/10 group/btn"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                            <span class="text-lg font-black uppercase">삭제</span>
+                                            <div class="p-3 rounded-full bg-red-500/10 group-hover/btn:bg-red-500 group-hover/btn:text-white transition-all duration-300">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </div>
+                                            <span class="text-sm font-black uppercase tracking-widest opacity-60 group-hover/btn:opacity-100">삭제</span>
                                         </button>
                                     </div>
                                 </div>
@@ -438,20 +428,26 @@
  
                                     <div class="flex items-stretch">
                                         <!-- Content Area (Mega Content) -->
-                                        <div class="flex-1 p-12 pr-6 flex flex-col gap-6 min-w-0 cursor-pointer" @click.stop="selectedItem = item">
-                                            <div class="flex items-baseline gap-10 mb-2">
-                                                <span class="text-5xl font-black text-white">
+                                        <div class="flex-1 p-10 pr-6 flex flex-col gap-6 min-w-0 cursor-pointer" @click.stop="selectedItem = item">
+                                            <div class="flex flex-wrap items-baseline gap-8 mb-2">
+                                                <span class="text-4xl font-black text-white">
                                                     {{ item.title || item.sender || (activeTab === 'alert' ? '알림' : '일정') }}
                                                 </span>
-                                                <span class="text-2xl font-mono text-orange-400 font-black uppercase tracking-widest px-4 py-1 bg-white/5 rounded-full border border-white/10">
+                                                <span class="text-xl font-mono text-orange-400 font-black uppercase tracking-widest px-4 py-1 bg-white/5 rounded-full border border-white/10">
                                                     {{ formatTime(item.createdAt || item.startAt || item.timestamp) }}
                                                 </span>
                                             </div>
                                             
-                                            <p class="text-[3.4rem] text-white leading-tight font-black break-keep">
-                                                {{ item.message || item.content || item.description || '' }}
-                                            </p>
- 
+                                            <div class="flex flex-col gap-2">
+                                                <p class="text-[3.2rem] text-white leading-tight font-black break-keep">
+                                                    {{ item.content || item.message || item.description || '' }}
+                                                </p>
+                                                <p v-if="item.data?.text_message && item.data.text_message !== item.content" 
+                                                   class="text-2xl font-bold text-rose-400/60 italic">
+                                                    {{ item.data.text_message }}
+                                                </p>
+                                            </div>
+  
                                             <div v-if="item.type" class="text-2xl font-black text-white/40 tracking-[0.4em] uppercase mt-4 px-6 py-2 bg-white/5 rounded-2xl w-fit border border-white/5">
                                                 {{ item.type }}
                                             </div>
@@ -476,21 +472,21 @@
                             <template v-else-if="activeTab === 'settings'">
                                 <div class="space-y-10">
                                     <!-- Current WiFi Status -->
-                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-12 shadow-2xl">
-                                        <div class="flex items-center gap-8">
-                                            <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-10 shadow-2xl">
+                                        <div class="flex items-start flex-wrap gap-8">
+                                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                                                 </svg>
                                             </div>
-                                            <div class="flex-1">
-                                                <h4 class="text-4xl font-black text-white">현재 연결</h4>
-                                                <p class="text-[2.2rem] text-blue-400 font-bold mt-2">{{ activeSSID || '연결되지 않음' }}</p>
+                                            <div class="flex-1 min-w-[300px]">
+                                                <h4 class="text-3xl font-black text-white">현재 연결</h4>
+                                                <p class="text-[2rem] text-blue-400 font-bold mt-1 break-all">{{ activeSSID || '연결되지 않음' }}</p>
                                             </div>
                                             <button 
                                                 @click="scanWiFi(true)"
                                                 :disabled="wifiScanning || wifiConnecting"
-                                                class="px-12 py-6 bg-blue-500 hover:bg-blue-600 text-white rounded-[24px] text-3xl font-black transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20"
+                                                class="px-10 py-5 bg-blue-500 hover:bg-blue-600 text-white rounded-[24px] text-2xl font-black transition-all disabled:opacity-50 shadow-lg shadow-blue-500/20 ml-auto"
                                             >
                                                 {{ wifiScanning ? '찾는 중...' : '새로고침' }}
                                             </button>
@@ -498,47 +494,50 @@
                                     </div>
 
                                     <!-- Available Networks -->
-                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-12 shadow-2xl">
-                                        <h4 class="text-4xl font-black text-white mb-10">연결 가능한 와이파이</h4>
+                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-10 shadow-2xl">
+                                        <h4 class="text-3xl font-black text-white mb-8">연결 가능한 와이파이</h4>
                                         <div class="space-y-6 max-h-[500px] overflow-y-auto no-scrollbar pr-2">
                                             <div 
                                                 v-for="ap in wifiAPs" 
                                                 :key="ap.ssid"
                                                 @click="selectAP(ap)"
-                                                class="flex items-center justify-between p-8 bg-white/5 hover:bg-white/10 rounded-[30px] cursor-pointer transition-all border-2 border-white/5"
+                                                class="flex flex-wrap items-center justify-between p-6 bg-white/5 hover:bg-white/10 rounded-[30px] cursor-pointer transition-all border-2 border-white/5 gap-6"
                                                 :class="{ 'bg-blue-500/20 border-blue-500/30': ap.in_use }"
                                             >
-                                                <div class="flex items-center gap-8 flex-1">
-                                                    <div class="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <div class="flex items-center gap-6 min-w-[200px]">
+                                                    <div class="w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0" />
                                                         </svg>
                                                     </div>
                                                     <div class="flex-1">
-                                                        <div class="text-[2.4rem] font-black text-white">{{ ap.ssid }}</div>
-                                                        <div class="text-xl text-white/50 mt-1 uppercase tracking-widest">{{ ap.security }}</div>
+                                                        <div class="text-[2rem] font-black text-white leading-none break-all">{{ ap.ssid }}</div>
+                                                        <div class="text-lg text-white/50 mt-1 uppercase tracking-widest font-bold">{{ ap.security }}</div>
                                                     </div>
                                                 </div>
-                                                <div class="flex items-center gap-8">
-                                                    <div class="text-white/40 text-2xl font-black">{{ ap.signal }}%</div>
-                                                    <div v-if="ap.in_use" class="px-8 py-4 bg-blue-500 text-white rounded-2xl text-xl font-black shadow-lg shadow-blue-500/30">
+                                                <div class="flex items-center gap-6 ml-auto">
+                                                    <div v-if="wifiConnecting && connectingSSID === ap.ssid" class="px-6 py-3 bg-blue-500/20 text-blue-400 rounded-2xl text-lg font-black animate-pulse">
+                                                        연결 중...
+                                                    </div>
+                                                    <div v-else-if="ap.in_use" class="px-6 py-3 bg-blue-500 text-white rounded-2xl text-lg font-black shadow-lg shadow-blue-500/30">
                                                         사용 중
                                                     </div>
+                                                    <div class="text-white/40 text-xl font-black">{{ ap.signal }}%</div>
                                                 </div>
                                             </div>
-                                            <div v-if="wifiAPs.length === 0" class="text-center py-20 text-white/20 text-3xl font-bold">
+                                            <div v-if="wifiAPs.length === 0" class="text-center py-16 text-white/20 text-2xl font-bold">
                                                 주변에 와이파이가 없습니다
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- Saved Profiles -->
-                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-12 shadow-2xl">
-                                        <div class="flex items-center justify-between mb-10">
-                                            <h4 class="text-4xl font-black text-white">저장된 네트워크</h4>
+                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-10 shadow-2xl">
+                                        <div class="flex flex-wrap items-center justify-between mb-8 gap-6">
+                                            <h4 class="text-3xl font-black text-white">저장된 네트워크</h4>
                                             <button 
                                                 @click="getWiFiProfiles(true)"
-                                                class="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-2xl font-black transition-all"
+                                                class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-xl font-black transition-all"
                                             >
                                                 새로고침
                                             </button>
@@ -547,110 +546,115 @@
                                             <div 
                                                 v-for="profile in wifiProfiles" 
                                                 :key="profile.name"
-                                                class="flex items-center justify-between p-8 bg-white/5 rounded-[30px] border-2 border-white/5"
+                                                class="flex flex-wrap items-center justify-between p-6 bg-white/5 rounded-[30px] border-2 border-white/5 gap-6"
                                             >
-                                                <div class="flex items-center gap-8 flex-1">
-                                                    <div class="w-16 h-16 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <div class="flex items-center gap-6 min-w-[200px] flex-1" :class="{ 'opacity-40 grayscale': !availableSSIDs.has(profile.ssid) }">
+                                                    <div class="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                                                         </svg>
                                                     </div>
-                                                    <div>
-                                                        <div class="text-3xl font-black text-white">{{ profile.ssid }}</div>
-                                                        <div class="text-xl text-white/40 mt-1">
+                                                    <div class="flex-1">
+                                                        <div class="text-[2rem] font-black text-white flex flex-wrap items-center gap-3 break-all">
+                                                            {{ profile.ssid }}
+                                                            <span v-if="!availableSSIDs.has(profile.ssid)" class="px-3 py-1 bg-red-500/10 text-red-400 rounded-lg text-sm font-bold border border-red-500/20 whitespace-nowrap">
+                                                                검색되지 않음
+                                                            </span>
+                                                        </div>
+                                                        <div class="text-lg text-white/40 mt-1 font-bold">
                                                             {{ profile.autoconnect ? '자동 연결됨' : '수동 연결' }}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="flex items-center gap-6">
+                                                <div class="flex items-center gap-4 ml-auto">
                                                     <button 
                                                         @click="connectProfile(profile.name)"
-                                                        :disabled="wifiConnecting"
-                                                        class="px-10 py-5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-2xl text-2xl font-black transition-all disabled:opacity-50"
+                                                        :disabled="wifiConnecting || !availableSSIDs.has(profile.ssid)"
+                                                        class="px-8 py-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl text-xl font-black transition-all disabled:opacity-30 disabled:grayscale"
                                                     >
-                                                        연결
+                                                        {{ wifiConnecting && connectingSSID === profile.ssid ? '연결 중...' : '연결' }}
                                                     </button>
                                                     <button 
                                                         @click="deleteProfile(profile.name)"
-                                                        class="px-10 py-5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-2xl text-2xl font-black transition-all"
+                                                        class="px-8 py-4 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl text-xl font-black transition-all"
                                                     >
                                                         삭제
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div v-if="wifiProfiles.length === 0" class="text-center py-20 text-white/20 text-3xl font-bold">
+                                            <div v-if="wifiProfiles.length === 0" class="text-center py-16 text-white/20 text-2xl font-bold">
                                                 저장된 정보가 없습니다
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- Brightness Control -->
-                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-12 shadow-2xl">
-                                        <div class="flex items-center gap-8 mb-10">
-                                            <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-10 shadow-2xl">
+                                        <div class="flex items-center gap-6 mb-8">
+                                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                                                 </svg>
                                             </div>
                                             <div class="flex-1">
-                                                <h4 class="text-4xl font-black text-white">화면 밝기</h4>
-                                                <p class="text-[2.5rem] text-amber-400 font-black mt-2">{{ brightness }}%</p>
+                                                <h4 class="text-3xl font-black text-white">화면 밝기</h4>
+                                                <p class="text-[2rem] text-amber-400 font-extrabold mt-1">{{ brightness }}%</p>
                                             </div>
                                         </div>
-                                        <div class="px-4">
+                                        <div class="px-2">
                                             <input 
                                                 type="range" 
                                                 v-model="brightness" 
                                                 @input="adjustBrightness(brightness)"
                                                 min="0" 
                                                 max="100" 
-                                                class="w-full h-16 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+                                                class="w-full h-12 bg-white/10 rounded-full appearance-none cursor-pointer slider"
                                             />
                                         </div>
                                     </div>
 
                                     <!-- Volume Control -->
-                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-12 shadow-2xl">
-                                        <div class="flex items-center gap-8 mb-10">
-                                            <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-10 shadow-2xl">
+                                        <div class="flex items-center gap-6 mb-8">
+                                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                                                 </svg>
                                             </div>
                                             <div class="flex-1">
-                                                <h4 class="text-4xl font-black text-white">소리 크기</h4>
-                                                <p class="text-[2.5rem] text-purple-400 font-black mt-2">{{ volume }}%</p>
+                                                <h4 class="text-3xl font-black text-white">소리 크기</h4>
+                                                <p class="text-[2rem] text-purple-400 font-extrabold mt-1">{{ volume }}%</p>
                                             </div>
                                         </div>
-                                        <div class="px-4">
+                                        <div class="px-2">
                                             <input 
                                                 type="range" 
                                                 v-model="volume" 
                                                 @input="adjustVolume(volume)"
                                                 min="0" 
                                                 max="100" 
-                                                class="w-full h-16 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+                                                class="w-full h-12 bg-white/10 rounded-full appearance-none cursor-pointer slider"
                                             />
                                         </div>
                                     </div>
 
                                     <!-- Restart Button -->
-                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-12 shadow-2xl">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-8">
-                                                <div class="w-24 h-24 rounded-3xl bg-white/10 flex items-center justify-center">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div class="bg-white/5 backdrop-blur-2xl rounded-[40px] border-2 border-white/10 p-10 shadow-2xl">
+                                        <div class="flex flex-wrap items-center justify-between gap-6">
+                                            <div class="flex items-center gap-6">
+                                                <div class="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <h4 class="text-4xl font-black text-white">기기 재시작</h4>
-                                                    <p class="text-2xl text-white/40 mt-2">시스템을 다시 시작합니다</p>
+                                                    <h4 class="text-3xl font-black text-white">기기 재시작</h4>
+                                                    <p class="text-xl text-white/40 mt-1 font-bold">시스템을 다시 시작합니다</p>
                                                 </div>
                                             </div>
                                             <button 
                                                 @click="restartDevice"
-                                                class="px-12 py-6 bg-red-500 hover:bg-red-600 text-white rounded-[24px] text-3xl font-black transition-all shadow-lg shadow-red-500/20"
+                                                class="px-10 py-5 bg-red-500 hover:bg-red-600 text-white rounded-[24px] text-2xl font-black transition-all shadow-lg shadow-red-500/20 ml-auto"
                                             >
                                                 재시작
                                             </button>
@@ -671,11 +675,11 @@
                   <div class="absolute inset-0 bg-black/40 modal-backdrop"></div>
                   
                   <!-- Modal Content -->
-                  <div class="relative w-[800px] bg-stone-900/90 border border-white/10 rounded-[4rem] shadow-3xl overflow-hidden flex flex-col transform transition-all animate-scale-up backdrop-blur-md" @click.stop>
+                  <div class="relative w-[800px] max-h-[90vh] bg-stone-900/90 border border-white/10 rounded-[4rem] shadow-3xl overflow-hidden flex flex-col transform transition-all animate-scale-up backdrop-blur-md" @click.stop>
                       <!-- Top Color Header -->
                       <div class="h-4 w-full" :class="selectedItem.type === 'EMERGENCY' ? 'bg-red-500' : 'bg-orange-500'"></div>
                       
-                      <div class="p-12 flex flex-col gap-10">
+                      <div class="p-10 flex flex-col gap-10 overflow-y-auto no-scrollbar">
                           <!-- Header -->
                           <div class="flex justify-between items-start">
                               <div class="flex flex-col gap-2">
@@ -691,10 +695,34 @@
                               </span>
                           </div>
 
-                          <!-- Body Text -->
-                          <p class="text-4xl text-white/90 leading-tight font-medium break-keep">
-                              {{ selectedItem.message || selectedItem.content || selectedItem.description }}
-                          </p>
+                           <!-- Body Text -->
+                           <p class="text-5xl text-white leading-tight font-black break-keep">
+                               {{ selectedItem.content || selectedItem.message || selectedItem.description }}
+                           </p>
+
+                           <div class="h-px w-full bg-white/10 my-4"></div>
+
+                           <!-- Medication List Detail -->
+                           <div v-if="selectedItem.kind === 'medication' && selectedItem.data?.medication_list?.length > 0" class="flex flex-col gap-8">
+                               <div class="flex items-center gap-4">
+                                   <div class="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-900/40">
+                                       <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                       </svg>
+                                   </div>
+                                   <div class="text-3xl font-black text-white/90 uppercase tracking-widest">복약 대상</div>
+                               </div>
+                               
+                               <div class="grid grid-cols-1 gap-4">
+                                   <div v-for="med in selectedItem.data.medication_list" :key="med" 
+                                         class="px-8 py-6 bg-white/5 border border-white/10 rounded-[30px] flex items-center justify-between shadow-2xl group hover:bg-white/10 transition-all">
+                                       <div class="flex items-center gap-6">
+                                           <div class="w-10 h-10 rounded-full bg-blue-500 animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+                                           <span class="text-4xl font-black text-white leading-tight break-all">{{ med }}</span>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
 
                           <!-- Footer Buttons -->
                           <div class="flex justify-end gap-4 mt-4">
@@ -841,18 +869,41 @@ const tabData = ref([])
 const displayData = computed(() => {
     if (activeTab.value === 'alert') return alertStore.history
     if (activeTab.value === 'chat') {
-        // Merge voice messages with chat history? Or just show voice messages?
-        // For now, let's prepend voice messages to the chat view or show them mixed
-        // But since structure might differ, let's just return voiceMessages if we want to test voice primarily
-        // OR better: Create a combined list. 
-        // For this task, I will prioritize voiceStore messages in the chat tab.
-        return [...voiceStore.voiceMessages, ...alertStore.chatHistory]
+        const combined = [...voiceStore.voiceMessages]
+        return combined.sort((a, b) => {
+             const tA = a.created_at ? a.created_at * 1000 : new Date(a.timestamp).getTime()
+             const tB = b.created_at ? b.created_at * 1000 : new Date(b.timestamp).getTime()
+             return tB - tA // Descending
+        })
+    }
+    if (activeTab.value === 'schedule') {
+        const flattened = []
+        tabData.value.forEach(item => {
+            if (item.data?.events_for_today) {
+                item.data.events_for_today.forEach((event, eIdx) => {
+                    const today = new Date();
+                    const dateStr = today.toISOString().split('T')[0];
+                    flattened.push({
+                        id: `${item.id}-${eIdx}`,
+                        type: 'SCHEDULE',
+                        kind: 'schedule',
+                        title: '오늘의 일정',
+                        message: `[${event.time}] ${event.title}`,
+                        startAt: `${dateStr}T${event.time}:00Z`,
+                        data: {} // Clear nested data to avoid loop
+                    })
+                })
+            } else {
+                flattened.push(item)
+            }
+        })
+        return flattened
     }
     return tabData.value
 })
 
 const fetchTabData = async (tab) => {
-    if (!tab || tab === 'alert' || tab === 'settings' || tab === 'chat') return
+    if (!tab || tab === 'alert' || tab === 'settings') return
 
     isLoading.value = true
     try {
@@ -871,7 +922,18 @@ const fetchTabData = async (tab) => {
         const result = await response.json()
         if (result.data) {
             if (tab === 'chat') {
-                alertStore.chatHistory = result.data.added || []
+                // New API Structure: { data: { items: [...] } }
+                const items = result.data.items || []
+                // Populate voiceStore directly
+                voiceStore.voiceMessages = items.map(item => ({
+                    id: item.id,
+                    sender: item.sender?.name || '알 수 없음',
+                    content: item.description || '', // description -> content
+                    created_at: item.created_at, // unix timestamp (seconds)
+                    profile_image: item.sender?.profile_image_url,
+                    type: 'VOICE',
+                    status: 'pending'
+                }))
             } else {
                 tabData.value = result.data
             }
@@ -998,6 +1060,8 @@ const volume = ref(50)
 const wifiApiBase = 'http://localhost:8080'
 const wifiScanning = ref(false)
 const wifiConnecting = ref(false)
+const wifiConnectionError = ref(null)
+const connectingSSID = ref(null)
 const wifiAPs = ref([])
 const wifiProfiles = ref([])
 const activeSSID = ref(null)
@@ -1006,6 +1070,10 @@ const wifiPassword = ref('')
 const showPasswordModal = ref(false)
 const wifiPingInterval = ref(null)
 const wifiActiveInterval = ref(null)
+
+const availableSSIDs = computed(() => {
+    return new Set(wifiAPs.value.map(ap => ap.ssid))
+})
 
 // WiFi UI Ping - heartbeat to keep scan active
 const pingWifiUI = async () => {
@@ -1165,6 +1233,8 @@ const getWiFiProfiles = async (refresh = false) => {
 const connectWiFi = async (ssid, password) => {
     if (wifiConnecting.value) return
     wifiConnecting.value = true
+    connectingSSID.value = ssid
+    wifiConnectionError.value = null
     
     try {
         const response = await fetch(`${wifiApiBase}/api/wifi/connect`, {
@@ -1176,16 +1246,17 @@ const connectWiFi = async (ssid, password) => {
         
         if (data.ok) {
             if (data.skipped) {
-                await showAlert('이미 연결되어 있습니다.')
                 wifiConnecting.value = false
+                await showAlert('이미 연결되어 있습니다.')
                 await slideshowStore.updateWifiStatus()
             } else {
-                await showAlert('연결 요청을 보냈습니다.\n잠시 후 연결 상태를 확인합니다.')
-                // Poll active status for ~15 seconds
-                let attempts = 15
+                console.log(`Connecting to WiFi: ${ssid}...`)
+                // Poll active status for ~8 seconds
+                let attempts = 8
                 const checkInterval = setInterval(async () => {
                     await getActiveWiFi()
                     attempts--
+                    console.log(`Polling WiFi status... (${attempts} attempts left). Current: ${activeSSID.value}`)
                     if (activeSSID.value === ssid || attempts <= 0) {
                         clearInterval(checkInterval)
                         if (activeSSID.value === ssid) {
@@ -1194,27 +1265,39 @@ const connectWiFi = async (ssid, password) => {
                             await getWiFiProfiles()
                             await slideshowStore.updateWifiStatus()
                         } else {
-                            await showAlert('연결에 실패했습니다.\n비밀번호를 확인해주세요.', '연결 실패')
+                            wifiConnectionError.value = '연결에 실패했습니다. 비밀번호를 확인해주세요.'
+                            await showAlert(wifiConnectionError.value, '연결 실패')
                         }
                         wifiConnecting.value = false
+                        connectingSSID.value = null
                     }
                 }, 1000)
             }
         } else {
-            await showAlert(`연결 실패: ${data.message || '알 수 없는 오류'}`, '오류')
+            wifiConnectionError.value = `연결 실패: ${data.message || '알 수 없는 오류'}`
+            await showAlert(wifiConnectionError.value, '오류')
             wifiConnecting.value = false
+            connectingSSID.value = null
         }
     } catch (e) {
         console.error('WiFi connect failed:', e)
-        await showAlert('연결 요청 중 오류가 발생했습니다.', '오류')
+        wifiConnectionError.value = '연결 요청 중 오류가 발생했습니다.'
+        await showAlert(wifiConnectionError.value, '오류')
         wifiConnecting.value = false
+        connectingSSID.value = null
     }
 }
 
 // Connect to saved profile
 const connectProfile = async (profileName) => {
     if (wifiConnecting.value) return
+    
+    const profile = wifiProfiles.value.find(p => p.name === profileName)
+    const targetSSID = profile ? profile.ssid : null
+    
     wifiConnecting.value = true
+    connectingSSID.value = targetSSID
+    wifiConnectionError.value = null
     
     try {
         const response = await fetch(`${wifiApiBase}/api/wifi/profile/connect`, {
@@ -1226,22 +1309,20 @@ const connectProfile = async (profileName) => {
         
         if (data.ok) {
             if (data.skipped) {
-                await showAlert('이미 연결되어 있습니다.')
                 wifiConnecting.value = false
+                await showAlert('이미 연결되어 있습니다.')
                 await slideshowStore.updateWifiStatus()
             } else {
-                await showAlert('연결 요청을 보냈습니다.\n잠시 후 연결 상태를 확인합니다.')
+                console.log(`Connecting to Profile: ${profileName}...`)
                 // Robust Polling like connectWiFi
-                let attempts = 10
+                let attempts = 8
                 const checkInterval = setInterval(async () => {
                     await getActiveWiFi()
-                    // We need to check if the activeSSID matches the profile's SSID.
-                    // But we only have profileName here. 
-                    // Let's assume the profile list is up to date or find it locally.
                     const profile = wifiProfiles.value.find(p => p.name === profileName)
                     const targetSSID = profile ? profile.ssid : null
                     
                     attempts--
+                    console.log(`Polling Profile status... (${attempts} attempts left). Active: ${activeSSID.value}, Target: ${targetSSID}`)
                     
                     if ((targetSSID && activeSSID.value === targetSSID) || attempts <= 0) {
                          clearInterval(checkInterval)
@@ -1250,16 +1331,20 @@ const connectProfile = async (profileName) => {
                              await scanWiFi()
                              await slideshowStore.updateWifiStatus()
                          } else {
-                             await showAlert('연결에 실패했습니다.\n다시 시도해주세요.', '연결 실패')
+                             wifiConnectionError.value = '연결에 실패했습니다. 다시 시도해주세요.'
+                             await showAlert(wifiConnectionError.value, '연결 실패')
                          }
                          wifiConnecting.value = false
+                         connectingSSID.value = null
                     }
                 }, 1000)
             }
         }
     } catch (e) {
         console.error('Profile connect failed:', e)
+        wifiConnectionError.value = '연결 권한이 없거나 오류가 발생했습니다.'
         wifiConnecting.value = false
+        connectingSSID.value = null
     }
 }
 

@@ -68,6 +68,29 @@ public class AlbumService {
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
+    // 사진 다중 등록
+    @Transactional
+    public void addPhotos(Integer familyId, User user, List<AlbumRequestDTO> requests) {
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
+
+        List<MediaAsset> assets = requests.stream()
+                .map(request -> MediaAsset.builder()
+                        .family(family)
+                        .uploader(user)
+                        .storageUrl(request.getStorageUrl())
+                        .takenAt(request.getTakenAt())
+                        .description(request.getDescription())
+                        .build())
+                .collect(Collectors.toList());
+
+        albumRepository.saveAll(assets);
+
+        // 벌크 저장 후 한 번에 로그 저장 및 알림
+        assets.forEach(asset -> saveLog(familyId, asset.getId(), ActionType.ADD));
+        iotSyncService.notifyUpdate(familyId, "image");
+    }
+
     // 가족별 사진 목록 조회
     public List<AlbumResponseDTO> getPhotos(Integer familyId, Integer userId) {
         Family family = familyRepository.findById(familyId)

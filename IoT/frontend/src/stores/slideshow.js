@@ -26,7 +26,7 @@ export const useSlideshowStore = defineStore('slideshow', () => {
         if (reconnectTimer) clearTimeout(reconnectTimer)
 
         // SSE Endpoint
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081'
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
         const url = `${apiUrl}/api/slideshow/stream`
 
         console.log(`[SlideshowStore] Connecting to SSE: ${url}`)
@@ -146,7 +146,7 @@ export const useSlideshowStore = defineStore('slideshow', () => {
     // API Control Navigation
     const controlNext = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081'
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
             await axios.post(`${apiUrl}/api/slideshow/next`)
         } catch (e) {
             console.error('[SlideshowStore] Next failed:', e)
@@ -155,7 +155,7 @@ export const useSlideshowStore = defineStore('slideshow', () => {
 
     const controlPrev = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081'
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
             await axios.post(`${apiUrl}/api/slideshow/prev`)
         } catch (e) {
             console.error('[SlideshowStore] Prev failed:', e)
@@ -164,7 +164,7 @@ export const useSlideshowStore = defineStore('slideshow', () => {
 
     const controlPlay = async (interval = 60) => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081'
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
             await axios.post(`${apiUrl}/api/slideshow/play`, { interval_sec: interval })
             startSlideshowTimer() // Resume local timer
             isPlaying.value = true // Update playing state
@@ -175,7 +175,7 @@ export const useSlideshowStore = defineStore('slideshow', () => {
 
     const controlPause = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081'
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
             await axios.post(`${apiUrl}/api/slideshow/pause`)
             if (slideshowTimer) clearInterval(slideshowTimer) // Pause local timer
             isPlaying.value = false // Update playing state
