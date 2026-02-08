@@ -197,7 +197,7 @@ const executeRefresh = async () => {
             familyStore.selectedFamily?.id ? familyStore.fetchMembers(familyStore.selectedFamily.id, true) : Promise.resolve()
         ]);
     } catch (error) {
-        console.error("Home refresh failed:", error);
+        Logger.error("홈 새로고침 실패:", error);
     } finally {
         setTimeout(() => {
             isRefreshing.value = false;

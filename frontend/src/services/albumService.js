@@ -1,4 +1,5 @@
 import apiClient from './api';
+import { Logger } from '@/services/logger';
 import axios from 'axios';
 
 // 가족별 사진 목록 조회
@@ -69,7 +70,7 @@ export const uploadFile = async (familyId, file, description) => {
         await savePhotoMetadata(familyId, metadata);
         return true;
     } catch (error) {
-        console.error("파일 업로드 실패:", error);
+        Logger.error("파일 업로드 실패:", error);
         throw error;
     }
 };
@@ -108,7 +109,7 @@ export const bulkUploadFiles = async (familyId, files, description) => {
         await saveBulkPhotoMetadata(familyId, allMetadata);
         return true;
     } catch (error) {
-        console.error("일괄 업로드 실패:", error);
+        Logger.error("일괄 업로드 실패:", error);
         throw error;
     }
 };

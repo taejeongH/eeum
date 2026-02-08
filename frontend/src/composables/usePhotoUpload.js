@@ -3,6 +3,7 @@ import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { uploadFile, bulkUploadFiles } from '@/services/albumService';
 import { compressImage } from '@/utils/imageUtils';
+import { Logger } from '@/services/logger';
 
 export function usePhotoUpload(onUploadSuccess) {
     const familyStore = useFamilyStore();
@@ -59,7 +60,7 @@ export function usePhotoUpload(onUploadSuccess) {
 
             await modalStore.openAlert(`${selectedFiles.value.length}장의 사진이 업로드되었습니다.`);
         } catch (error) {
-            console.error(error);
+            Logger.error(error);
             await modalStore.openAlert('사진 업로드에 실패했습니다.');
         } finally {
             isUploading.value = false;

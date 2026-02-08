@@ -145,6 +145,7 @@ import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto, updatePhoto } from '@/services/albumService';
 import { useUserStore } from '@/stores/user';
 import { useAlbumStore } from '@/stores/album';
+import { Logger } from '@/services/logger';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -272,7 +273,7 @@ const fetchPhotoDetail = async () => {
              router.back();
         }
     } catch (error) {
-        console.error("Error fetching photo:", error);
+        Logger.error("사진 로드 실패:", error);
          await modalStore.openAlert('사진 로드 중 오류가 발생했습니다.');
          router.back();
     }
@@ -313,7 +314,7 @@ const handleDelete = async () => {
             await modalStore.openAlert('사진이 삭제되었습니다.');
             router.back();
         } catch (error) {
-             console.error(error);
+             Logger.error("사진 삭제 실패:", error);
              await modalStore.openAlert('삭제 실패');
         }
     }
@@ -352,7 +353,7 @@ const saveEdit = async () => {
         await modalStore.openAlert('수정되었습니다.');
         isEditing.value = false;
     } catch (error) {
-        console.error(error);
+        Logger.error("사진 수정 실패:", error);
         await modalStore.openAlert('수정 실패');
     }
 };

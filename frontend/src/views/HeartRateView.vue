@@ -97,6 +97,7 @@ import IconBack from '@/components/icons/IconBack.vue';
 import { useFamilyStore } from '@/stores/family';
 import axios from '@/services/api'; 
 import healthService from '@/services/healthService';
+import { Logger } from '@/services/logger';
 
 const familyStore = useFamilyStore();
 
@@ -135,7 +136,7 @@ const startPrecesionMeasuring = async () => {
         }, 1000);
 
     } catch (e) {
-        console.error("Failed to start measurement", e);
+        Logger.error("측정 시작 실패:", e);
         isMeasuring.value = false;
     }
 };
@@ -145,7 +146,7 @@ const finishMeasurement = async () => {
     isMeasuring.value = false;
     
     if (!familyStore.selectedFamily?.id) {
-        console.error("No Family ID to fetch results for.");
+        Logger.error("가족 ID가 없어 결과를 조회할 수 없습니다.");
         return;
     }
 
@@ -158,10 +159,10 @@ const finishMeasurement = async () => {
             maxMetric.value = data.maxRate || 0;
             avgCount.value = data.sampleCount || 0;
         } else {
-             console.warn("No data returned from latest measurement.");
+             Logger.warn("최신 측정 데이터가 없습니다.");
         }
     } catch (e) {
-        console.error("Failed to get result", e);
+        Logger.error("결과 조회 실패:", e);
     }
 };
 

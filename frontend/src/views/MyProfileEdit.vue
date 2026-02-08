@@ -171,6 +171,7 @@ import { updateUserProfile } from '../services/api';
 import { useRouter, useRoute } from 'vue-router';
 import { useModalStore } from '@/stores/modal';
 import { compressImage } from '@/utils/imageUtils';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const route = useRoute();
@@ -272,7 +273,7 @@ const handleFileChange = async (event) => {
       profileFile.value = compressedFile;
       imageUrl.value = URL.createObjectURL(compressedFile);
     } catch (e) {
-      console.error("Image compression failed:", e);
+      Logger.error("이미지 압축 실패:", e);
       await modalStore.openAlert("이미지 처리 중 오류가 발생했습니다.", "오류");
     }
   }
@@ -309,7 +310,7 @@ watch(showAddressModal, (isShown) => {
           height: '100%',
         }).embed(container);
       } else {
-         console.error('Postcode container not found');
+         Logger.error('주소 검색 컨테이너를 찾을 수 없음');
       }
     }, 100);
   } else {
@@ -373,7 +374,7 @@ const submitProfile = async () => {
 
   } catch (error) {
     // 에러 발생 시 처리
-    console.error(error);
+    Logger.error("프로필 수정 실패:", error);
     errorMessage.value = error.response?.data?.message || '프로필 업데이트에 실패했습니다.';
   } finally {
     isLoading.value = false;

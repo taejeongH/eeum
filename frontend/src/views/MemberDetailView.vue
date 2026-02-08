@@ -239,7 +239,7 @@ const leaveGroup = async () => {
       await modalStore.openAlert('그룹에서 탈퇴했습니다.');
       router.push('/home');
     } catch (err) {
-      console.error('Failed to leave group:', err);
+      Logger.error('Failed to leave group:', err);
       await modalStore.openAlert('그룹 탈퇴에 실패했습니다.');
     }
   }
@@ -253,7 +253,7 @@ const kickMember = async () => {
       await modalStore.openAlert('멤버를 성공적으로 강퇴했습니다.');
       router.go(-1);
     } catch (err) {
-      console.error('Failed to kick member:', err);
+      Logger.error('Failed to kick member:', err);
       await modalStore.openAlert('멤버 강퇴에 실패했습니다.');
     }
   }
@@ -275,7 +275,7 @@ const fetchMemberDetails = async () => {
     const response = await api.get(`/families/${familyId}/members/${userId}`);
     member.value = response.data;
   } catch (err) {
-    console.error('Failed to fetch member details:', err);
+    Logger.error('Failed to fetch member details:', err);
     error.value = '멤버 정보를 불러오지 못했습니다.';
   } finally {
     loading.value = false;

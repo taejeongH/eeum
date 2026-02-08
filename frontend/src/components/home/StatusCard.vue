@@ -43,6 +43,7 @@ import { useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useHealthStore } from '@/stores/health';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const familyStore = useFamilyStore();
@@ -106,7 +107,7 @@ const fetchData = async () => {
             }
         }
     } catch (e) {
-        console.error("Failed to fetch data:", e);
+        Logger.error("데이터 조회 실패:", e);
     }
 };
 

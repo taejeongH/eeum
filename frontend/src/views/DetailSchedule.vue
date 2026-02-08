@@ -101,6 +101,7 @@ import { scheduleService } from '@/services/scheduleService';
 import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
+import { Logger } from '@/services/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -125,7 +126,7 @@ const fetchSchedule = async () => {
     try {
         schedule.value = await scheduleService.getSchedule(familyId, scheduleId);
     } catch (error) {
-        console.error("Failed to load schedule", error);
+        Logger.error("일정 상세 로드 실패", error);
     }
 };
 
@@ -184,7 +185,7 @@ const handleDelete = async (deleteAll = false) => {
         await scheduleService.deleteSchedule(familyId, scheduleId, deleteAll);
         router.back();
     } catch (error) {
-        console.error("Delete failed", error);
+        Logger.error("삭제 실패", error);
         await modalStore.openAlert("삭제 실패");
     }
 };

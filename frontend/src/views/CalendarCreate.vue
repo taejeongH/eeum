@@ -196,6 +196,7 @@ import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import EeumDatePicker from '@/components/common/EeumDatePicker.vue';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const route = useRoute();
@@ -307,7 +308,7 @@ onMounted(async () => {
                          formData.value.startAtTime = parts[1].substring(0, 5);
                     }
                 } catch (e) {
-                    console.error("Error parsing startAt", e);
+                    Logger.error("startAt 파싱 오류", e);
                 }
             }
             if (data.endAt) {
@@ -318,11 +319,11 @@ onMounted(async () => {
                         formData.value.endAtTime = parts[1].substring(0, 5);
                      }
                 } catch (e) {
-                    console.error("Error parsing endAt", e);
+                    Logger.error("endAt 파싱 오류", e);
                 }
             }
         } catch (error) {
-            console.error("Failed to load schedule for edit", error);
+            Logger.error("일정 수정 데이터 로드 실패", error);
             await modalStore.openAlert("일정 정보를 불러오는데 실패했습니다.");
             router.back();
         }
@@ -359,7 +360,7 @@ const submitForm = async () => {
     const targetFamilyId = route.params.familyId || familyStore.selectedFamily?.id;
 
     if (!targetFamilyId) {
-        console.error("No family selected");
+        Logger.error("선택된 가족 없음");
         await modalStore.openAlert("가족 정보가 없습니다. 다시 시도해주세요.");
         return;
     }
@@ -389,7 +390,7 @@ const submitForm = async () => {
 
         router.back();
     } catch (error) {
-        console.error("Failed to save schedule", error);
+        Logger.error("일정 저장 실패", error);
         await modalStore.openAlert('일정 저장에 실패했습니다.');
     }
 };

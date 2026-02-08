@@ -42,8 +42,8 @@ const syncFcmToken = async (retryCount = 0) => {
 
             }
         } catch (e) {
-            console.error("FCM: Sync failed. Status:", e.response?.status);
-            console.error("FCM: Error data:", JSON.stringify(e.response?.data || e.message || e));
+            Logger.error("FCM: Sync failed. Status:", e.response?.status);
+            Logger.error("FCM: Error data:", JSON.stringify(e.response?.data || e.message || e));
         }
     }
     
@@ -85,10 +85,10 @@ window.onFcmTokenReceived = (fcmToken) => {
       router.push(route);
 
     } catch (e) {
-      console.error("FCM: router.push failed:", e);
+      Logger.error("FCM: router.push failed:", e);
     }
   } else {
-    console.warn("FCM: handlePushRoute received empty route");
+    Logger.warn("FCM: handlePushRoute received empty route");
   }
 };
 
@@ -137,7 +137,7 @@ onMounted(async () => {
                   router.replace('/home');
               }
           } catch (e) { 
-              console.error("유저 정보 로드 실패 (토큰 만료 등):", e);
+              Logger.error("유저 정보 로드 실패 (토큰 만료 등):", e);
               localStorage.removeItem('accessToken');
               sessionStorage.removeItem('accessToken');
               if (window.AndroidBridge?.saveAccessToken) window.AndroidBridge.saveAccessToken("");
@@ -164,7 +164,7 @@ onMounted(async () => {
                   return;
               }
           } catch (e) {
-             console.error("Native Token Restore Failed", e);
+             Logger.error("Native Token Restore Failed", e);
              localStorage.removeItem('accessToken');
              sessionStorage.removeItem('accessToken');
              if (window.AndroidBridge?.saveAccessToken) window.AndroidBridge.saveAccessToken("");
@@ -276,10 +276,10 @@ onMounted(async () => {
                   if (matchingNoti && (matchingNoti.eventId || matchingNoti.event_id || matchingNoti.related_id)) {
                       resolvedEventId = matchingNoti.eventId || matchingNoti.event_id || matchingNoti.related_id;
                   } else {
-                      console.warn(`[onNativeNotification] Could not find eventId in history for notificationId: ${notificationId}. Falling back to notificationId.`);
+                      Logger.warn(`[onNativeNotification] Could not find eventId in history for notificationId: ${notificationId}. Falling back to notificationId.`);
                   }
               } catch (err) {
-                  console.error('[onNativeNotification] Failed to resolve real eventId:', err);
+                  Logger.error('[onNativeNotification] Failed to resolve real eventId:', err);
               }
 
               emergencyStore.open({
@@ -329,7 +329,7 @@ onMounted(async () => {
               }
           }
       } catch (e) {
-          console.error('FCM: Error in onNativeNotification processing:', e);
+          Logger.error('FCM: Error in onNativeNotification processing:', e);
       }
   };
 
@@ -384,7 +384,7 @@ onMounted(async () => {
         if (window.AndroidBridge && window.AndroidBridge.finishApp) {
             window.AndroidBridge.finishApp();
         } else {
-            console.warn("Back Pressed on Home, but no finishApp method found.");
+            Logger.warn("Back Pressed on Home, but no finishApp method found.");
         }
         return;
     }

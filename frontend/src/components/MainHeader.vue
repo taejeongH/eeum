@@ -198,6 +198,7 @@ import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
 import { storeToRefs } from 'pinia';
 import api, { joinFamilyWithCode } from '@/services/api';
+import { Logger } from '@/services/logger';
 import GroupSelector from './GroupSelector.vue';
 import GroupCreateModal from './GroupCreateModal.vue';
 import SettingsDropdown from './SettingsDropdown.vue';
@@ -338,7 +339,7 @@ const leaveGroup = async () => {
       // Refreshing might reset store state if not persisted, but usually app reloads
       window.location.reload(); 
     } catch (error) {
-      console.error('Failed to leave group:', error);
+      Logger.error('그룹 탈퇴 실패:', error);
       await modalStore.openAlert('그룹 탈퇴/삭제에 실패했습니다.');
     }
   }
@@ -358,7 +359,7 @@ const handleCreateGroup = async (groupData) => {
     closeAddGroupModal();
     await modalStore.openAlert('새로운 그룹이 생성되었습니다.');
   } catch (error) {
-    console.error('Failed to create group:', error);
+    Logger.error('그룹 생성 실패:', error);
     await modalStore.openAlert('그룹 생성에 실패했습니다.');
   }
 };
@@ -372,7 +373,7 @@ const joinGroup = async (inviteCode) => {
     familyStore.selectFamily(response.data);
     await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
   } catch (error) {
-    console.error('Failed to join group:', error);
+    Logger.error('그룹 참여 실패:', error);
     let errorMessage = '그룹 참여 중 오류가 발생했습니다.';
     if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
@@ -407,7 +408,7 @@ const fetchMembers = async () => {
     syncSelectedIdWithRoute();
     
   } catch (error) {
-    console.error(`Failed to process members for familyId ${selectedGroup.value.id}:`, error);
+    Logger.error(`구성원 데이터 처리 실패 (ID: ${selectedGroup.value.id}):`, error);
     members.value = [];
   }
 };

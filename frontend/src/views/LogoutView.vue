@@ -8,6 +8,7 @@
 
 <script setup>
 import { onMounted } from 'vue';
+import { Logger } from '@/services/logger';
 import { useRouter } from 'vue-router';
 import { logout } from '@/services/api';
 import { useFamilyStore } from '@/stores/family';
@@ -25,7 +26,7 @@ onMounted(async () => {
     // 1. 서버 로그아웃 요청 (토큰 만료 등)
     await logout();
   } catch (e) {
-    console.error('Logout failed:', e);
+    Logger.error('Logout failed:', e);
   } finally {
     // 2. 클라이언트 브라우저 스토리지 초기화
     localStorage.removeItem('accessToken');
