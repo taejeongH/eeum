@@ -135,30 +135,30 @@
                     <!-- Time Slots List -->
                     <div class="flex flex-col gap-3 pl-2">
                         <template v-for="hour in activeHours" :key="hour">
-                             <div v-if="weeklySchedule[day][hour] && weeklySchedule[day][hour].length > 0" class="flex items-start gap-4">
+                              <div v-if="weeklySchedule[day][hour] && weeklySchedule[day][hour].length > 0" class="flex items-start gap-4">
                                 <!-- Time Column -->
                                 <div class="w-14 shrink-0 flex flex-col items-center pt-1.5">
                                     <div class="text-xs font-black text-gray-800 tracking-tight">
-                                        {{ String(hour).padStart(2, '0') }}:00
-                                    </div>
-                                    <div class="text-[9px] font-bold text-gray-400 mt-[-2px]">
-                                        {{ hour < 12 ? '오전' : '오후' }}
+                                        {{ String(hour).padStart(2, '0') }}시
                                     </div>
                                 </div>
-
+ 
                                 <!-- Meds Group -->
-                                <div class="flex-1 flex flex-wrap gap-2 py-0.5">
+                                <div class="flex-1 flex flex-col gap-2 py-0.5">
                                     <div 
                                         v-for="med in weeklySchedule[day][hour]" 
                                         :key="med.id"
-                                        class="group flex items-center gap-2 pl-2 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-[var(--color-primary)] hover:shadow-sm transition-all shadow-sm"
+                                        class="group flex items-center justify-between pl-2 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-[var(--color-primary)] hover:shadow-sm transition-all shadow-sm"
                                         @click.stop="goToDetail(med.id)"
                                     >
-                                        <div class="w-2 h-2 rounded-full" :class="med.color.bg.replace('bg-', 'bg-')"></div>
-                                        <span class="text-sm font-bold text-gray-700 group-hover:text-[var(--color-primary)] leading-none">{{ med.medicineName }}</span>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 rounded-full" :class="med.color.bg.replace('bg-', 'bg-')"></div>
+                                            <span class="text-sm font-bold text-gray-700 group-hover:text-[var(--color-primary)] leading-none">{{ med.medicineName }}</span>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-400 group-hover:text-[var(--color-primary)]">{{ med.exactTime.substring(0, 5) }}</span>
                                     </div>
                                 </div>
-                             </div>
+                              </div>
                         </template>
 
                         <!-- Empty State for Day -->
@@ -287,6 +287,14 @@ const weeklySchedule = computed(() => {
             });
         }
     });
+
+    // Final sort for each hour bucket to ensure minutes are ordered
+    weekDays.forEach(day => {
+        Object.keys(schedule[day]).forEach(hour => {
+            schedule[day][hour].sort((a, b) => a.exactTime.localeCompare(b.exactTime));
+        });
+    });
+
     return schedule;
 });
 
