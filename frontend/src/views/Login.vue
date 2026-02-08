@@ -199,7 +199,7 @@ const handleLogin = async () => {
     // 홈 화면으로 이동
     router.push('/home')
   } catch (e) {
-    console.error(e)
+    Logger.error(e)
     const msg = e.response?.data?.message
     if (msg) {
       errorMessage.value = msg

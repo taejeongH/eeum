@@ -267,6 +267,7 @@ import { ref, computed, watch, onUnmounted, h } from 'vue';
 import { useEmergencyStore } from '@/stores/emergency';
 import { useModalStore } from '@/stores/modal';
 import { useNotificationStore } from '@/stores/notification';
+import { Logger } from '@/services/logger';
 
 // Icons using render functions
 
@@ -530,7 +531,7 @@ const fetchHeartRate = async () => {
 
     // Safety: Early return if IDs are missing or invalid string "null"
     if (!eventId || eventId === 'null' || !familyId || familyId === 'null') {
-        console.warn("⚠️ Missing Event ID or Family ID for Heart Rate fetch:", { eventId, familyId });
+        Logger.warn("⚠️ 심박수 조회 실패: Event ID 또는 Family ID 누락:", { eventId, familyId });
         heartRateData.value = 96; // Fallback
         heartRateLoading.value = false;
         return;
@@ -561,7 +562,7 @@ const fetchHeartRate = async () => {
             heartRateData.value = 96; // HARDCODED FOR TEST
         }
     } catch (e) {
-        console.error("Failed to fetch heart rate for modal:", e);
+        Logger.error("심박수 조회 실패:", e);
     } finally {
         heartRateLoading.value = false;
     }
@@ -569,7 +570,7 @@ const fetchHeartRate = async () => {
 
 const handleLiveError = (e) => {
     const errorMsg = "실시간 영상을 로드할 수 없습니다.";
-    console.error("🔴 Live Video Load Error:", e);
+    Logger.error("🔴 실시간 영상 로드 오류:", e);
     // alert(`${errorMsg}\nURL: ${videoUrl.value}`);
     videoError.value = errorMsg;
     videoUrl.value = null;
@@ -605,7 +606,7 @@ const openVideo = async (view) => {
         
         try {
             const familyData = await getFamilyDetails(familyId);
-            console.log("🔍 Family Data:", familyData);
+
             
             let targetDeviceId = null;
             let wsUrl = null;
@@ -629,12 +630,12 @@ const openVideo = async (view) => {
                      // Extract ID if possible. If it's "falls" or similar internal path, use emulator default
                      const extractedId = sUrl.match(/\/device\/([^/]+)/)?.[1];
                      targetDeviceId = (extractedId && extractedId !== 'falls') ? extractedId : "EEUM-J105";
-                     console.warn("Legacy Override | Target ID:", targetDeviceId, "from", sUrl);
+                     Logger.warn("레거시 오버라이드 | 타겟 ID:", targetDeviceId, "출처:", sUrl);
                 } else {
                     // Case B: Serial Number + Custom IP for now
                     targetDeviceId = sUrl;
                     wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
-                    console.log("Optimized Setup | Target ID:", targetDeviceId);
+
                 }
             } else {
                 // Fallback
@@ -642,16 +643,16 @@ const openVideo = async (view) => {
                 const isSecure = window.location.protocol === 'https:';
                 const wsProtocol = isSecure ? 'wss' : 'ws';
                 wsUrl = `${wsProtocol}://i14a105.p.ssafy.io/api/ws/stream`;
-                console.warn("⚠️ No streaming URL found, using production fallback:", wsUrl);
+                Logger.warn("⚠️ 스트리밍 URL 없음, 프로덕션 폴백 사용:", wsUrl);
             }
 
-            console.log("Connecting to WS:", wsUrl);
+
             ws.value = new WebSocket(wsUrl);
             
             ws.value.binaryType = 'blob';
             
             ws.value.onopen = () => {
-                console.log("WS Connected");
+
                 startRenderLoop(); // Start smooth rendering
                 if (targetDeviceId) {
                     ws.value.send(JSON.stringify({
@@ -669,15 +670,15 @@ const openVideo = async (view) => {
             };
             
             ws.value.onerror = (e) => {
-                console.error("WS Error:", e);
+                Logger.error("WS 오류:", e);
                 videoError.value = "실시간 연결 중 오류가 발생했습니다.";
                 videoLoading.value = false;
             };
             
             ws.value.onclose = () => {
-                console.log("WS Closed");
+
                 if (shouldReconnect.value && currentView.value === 'live') {
-                    console.log("♻️ Connection lost, retrying in 3s...");
+
                     videoLoading.value = true;
                     reconnectTimer = setTimeout(() => {
                         openVideo('live');
@@ -686,7 +687,7 @@ const openVideo = async (view) => {
             };
 
         } catch (err) {
-            console.error("Failed to setup WebSocket:", err);
+            Logger.error("웹소켓 설정 실패:", err);
             videoError.value = '실시간 영상을 연결할 수 없습니다.';
         }
         
@@ -709,16 +710,16 @@ const openVideo = async (view) => {
              if (response.data && response.data.videoUrl) {
                  videoUrl.value = response.data.videoUrl;
              } else {
-                 console.error("Invalid response structure:", response);
+                 Logger.error("잘못된 응답 구조:", response);
                  throw new Error(`영상 URL을 찾을 수 없습니다. (응답: ${JSON.stringify(response)})`);
              }
         } catch (err) {
-            console.error('Failed to load video:', err);
+            Logger.error('영상 로드 실패:', err);
             
             // 상세 에러 정보 로깅
             if (err.response) {
-                console.error("Error Status:", err.response.status);
-                console.error("Error Data:", err.response.data);
+                Logger.error("에러 상태:", err.response.status);
+                Logger.error("에러 데이터:", err.response.data);
                 
                 if (err.response.data && err.response.data.code === 'IOT001') {
                      videoError.value = '영상이 아직 처리 중입니다. 잠시 후 다시 시도해주세요.';

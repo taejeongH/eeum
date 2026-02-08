@@ -246,6 +246,7 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { updateUserProfile } from '@/services/api';
 import { useModalStore } from '@/stores/modal';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -381,7 +382,7 @@ const saveProfile = async () => {
     currentStep.value = 4;
   } catch (error) {
     modalStore.openAlert("프로필 저장 중 오류가 발생했습니다.");
-    console.error(error);
+    Logger.error(error);
   } finally {
     isLoading.value = false;
   }

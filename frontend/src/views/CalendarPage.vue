@@ -234,6 +234,7 @@ import { scheduleService } from '@/services/scheduleService';
 import { useFamilyStore } from '@/stores/family'; 
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import 'swiper/css';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const route = useRoute(); // Instance
@@ -344,7 +345,7 @@ const fetchCalendarEvents = async () => {
         const data = await scheduleService.getMonthlySchedules(targetFamilyId, year.value, month.value);
         events.value = data;
     } catch (error) {
-        console.error("Failed to fetch events", error);
+        Logger.error("이벤트 목록 조회 실패", error);
     }
 };
 

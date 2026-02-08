@@ -358,6 +358,7 @@ import api from '@/services/api';
 import healthService from '@/services/healthService';
 import BottomNav from '@/components/layout/BottomNav.vue';
 import IconBack from '@/components/icons/IconBack.vue';
+import { Logger } from '@/services/logger';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -467,7 +468,7 @@ const fetchLatestData = async () => {
             currentDate.value = recordDate;
         }
     } catch (error) {
-        console.error("Failed to fetch health data:", error);
+        Logger.error("건강 데이터 조회 실패:", error);
     }
 };
 
@@ -482,7 +483,7 @@ const handleAnalyze = async () => {
         syncMessage.value = 'AI 건강 분석이 완료되었습니다.';
         setTimeout(() => syncMessage.value = '', 3000);
     } catch (error) {
-        console.error("Analysis failed:", error);
+        Logger.error("분석 실패:", error);
         syncMessage.value = 'AI 분석 중 오류가 발생했습니다.';
         setTimeout(() => syncMessage.value = '', 3000);
     } finally {
@@ -516,7 +517,7 @@ const handleSync = async () => {
             }, 5000);
             
         } catch (error) {
-            console.error("Sync request failed:", error);
+            Logger.error("동기화 요청 실패:", error);
             syncLoading.value = false;
             syncMessage.value = '동기화 요청에 실패했습니다.';
             setTimeout(() => syncMessage.value = '', 3000);
@@ -531,7 +532,7 @@ const fetchAllData = () => {
         currentDate.value = new Date(); // Update to today when starting sync
         window.AndroidBridge.fetchAllHealthMetrics();
     } else {
-        console.warn("AndroidBridge not found. Browser mode: No mock data will be stored.");
+        Logger.warn("AndroidBridge not found. Browser mode: No mock data will be stored.");
         syncMessage.value = '모바일 기기에서만 연동이 가능합니다.';
         setTimeout(() => syncMessage.value = '', 3000);
     }
@@ -578,7 +579,7 @@ window.onReceiveAllHealthData = (dataString) => {
         syncMessage.value = '데이터를 서버에 저장 중...';
         uploadToBackend(mappedData);
     } catch (e) {
-        console.error("Parse/Mapping Error:", e);
+        Logger.error("파싱/매핑 오류:", e);
         syncMessage.value = '데이터 처리 중 오류 발생: ' + e.message;
         setTimeout(() => syncMessage.value = '', 3000);
     }
@@ -603,7 +604,7 @@ const uploadToBackend = async (mappedData) => {
         fetchLatestData(); // Refresh after upload
         setTimeout(() => syncMessage.value = '', 5000);
     } catch (error) {
-        console.error("Upload failed details:", error);
+        Logger.error("업로드 실패 상세:", error);
         syncMessage.value = '서버 저장에 실패했습니다.';
         setTimeout(() => syncMessage.value = '', 3000);
     }
@@ -646,7 +647,7 @@ onMounted(async () => {
                 fetchLatestData()
             ]);
         } catch (e) {
-            console.error("Failed to fetch initial health data:", e);
+            Logger.error("초기 건강 데이터 조회 실패:", e);
         }
     }
 
@@ -665,7 +666,7 @@ watch(() => familyStore.selectedFamily?.id, async (newFamilyId) => {
         const response = await api.get(`/families/${newFamilyId}/members`);
         members.value = response.data;
     } catch (e) {
-        console.error("Failed to fetch members for the new group:", e);
+        Logger.error("새 그룹 멤버 조회 실패:", e);
         members.value = [];
     }
 

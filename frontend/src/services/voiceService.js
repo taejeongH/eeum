@@ -1,4 +1,5 @@
 import apiClient from './api';
+import { Logger } from '@/services/logger';
 
 /**
  * 학습용 대본 목록 조회
@@ -201,7 +202,7 @@ export const uploadVoiceSample = async (file, scriptId, durationSec, transcript 
 
         return true;
     } catch (error) {
-        console.error("Voice upload processing failed:", error);
+        Logger.error("음성 업로드 처리 실패:", error);
         throw error;
     }
 };
@@ -245,7 +246,7 @@ export const transcribeAudio = async (file) => {
         const data = await response.json();
         return data.text;
     } catch (error) {
-        console.error("Transcription error via proxy:", error);
+        Logger.error("음성 변환(STT) 오류:", error);
         throw error;
     }
 };

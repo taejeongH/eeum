@@ -126,6 +126,7 @@ import ImagePreviewModal from '@/components/gallery/ImagePreviewModal.vue';
 import { usePhotoUpload } from '@/composables/usePhotoUpload';
 import { useUserStore } from '@/stores/user';
 import { useAlbumStore } from '@/stores/album';
+import { Logger } from '@/services/logger';
 
 const route = useRoute();
 const router = useRouter();
@@ -241,7 +242,7 @@ const fetchPhotos = async (forceRefresh = false) => {
         
         filterPhotos(); // 초기 필터 적용
     } catch (error) {
-        console.error("앨범 사진을 불러오는데 실패했습니다:", error);
+        Logger.error("앨범 사진 조회 실패:", error);
     }
 };
 
@@ -323,7 +324,7 @@ const deleteSelectedPhotos = async () => {
         // 편집 모드 종료
         toggleSelectionMode();
     } catch (error) {
-        console.error("삭제 실패:", error);
+        Logger.error("삭제 실패:", error);
         await modalStore.openAlert("사진 삭제에 실패했습니다.");
     }
 };

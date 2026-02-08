@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { Logger } from '@/services/logger';
 
 export function useSamsungHealth() {
   const heartRate = ref(null);
@@ -12,7 +13,7 @@ export function useSamsungHealth() {
       isLoading.value = true;
       window.Android.fetchHeartRate();
     } else {
-      console.warn("안드로이드 브릿지(Android.fetchHeartRate)를 찾을 수 없습니다.");
+      Logger.warn("안드로이드 브릿지(Android.fetchHeartRate)를 찾을 수 없습니다.");
 
       // MOCK Bridge Response for Browser Testing
       if (import.meta.env.VITE_USE_MOCK === 'true') {

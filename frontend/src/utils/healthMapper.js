@@ -1,3 +1,5 @@
+import { Logger } from '@/services/logger';
+
 export const mapSamsungHealthToBackend = (dataString) => {
     try {
         if (!dataString) return null;
@@ -24,7 +26,7 @@ export const mapSamsungHealthToBackend = (dataString) => {
             activeMinutes: data.active_minutes || 0
         };
     } catch (e) {
-        console.error("HealthMapper Error:", e);
+        Logger.error("HealthMapper Error:", e);
         return null;
     }
 };

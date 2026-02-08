@@ -118,6 +118,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { useFamilyStore } from '@/stores/family';
 import { useModalStore } from '@/stores/modal';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const route = useRoute();
@@ -193,7 +194,7 @@ const setActive = (tab) => {
         if (familyId) {
           router.push(`/families/${familyId}/messages`);
         } else {
-          console.error('No familyId found in user profile or storage');
+          Logger.error('사용자 프로필 또는 저장소에서 familyId를 찾을 수 없습니다.');
           modalStore.openAlert('가족 정보를 찾을 수 없습니다.');
         }
       }

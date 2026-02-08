@@ -1,4 +1,5 @@
 import apiClient from './api';
+import { Logger } from '@/services/logger';
 
 export const scheduleService = {
     // 월간 일정 조회
@@ -16,8 +17,8 @@ export const scheduleService = {
             // EXCLUDED 타이틀을 가진 일정은 필터링하여 반환
             return scheduleList.filter(item => item.title !== 'EXCLUDED');
         } catch (error) {
-            console.error("일정 로드 실패:", error);
-            console.error("Error Response Data:", error.response?.data);
+            Logger.error("일정 로드 실패:", error);
+            Logger.error("에러 응답 데이터:", error.response?.data);
             throw error;
         }
     },
@@ -29,7 +30,7 @@ export const scheduleService = {
             // 상세 조회도 동일한 구조라고 가정 (확인 필요)
             return response.data.data;
         } catch (error) {
-            console.error("일정 상세 조회 실패:", error);
+            Logger.error("일정 상세 조회 실패:", error);
             throw error;
         }
     },
@@ -54,7 +55,7 @@ export const scheduleService = {
         try {
             return await apiClient.post(`/families/${familyId}/schedules`, requestBody);
         } catch (error) {
-            console.error("Create Schedule Error details:", error.response?.data);
+            Logger.error("일정 생성 에러 상세:", error.response?.data);
             throw error;
         }
     },

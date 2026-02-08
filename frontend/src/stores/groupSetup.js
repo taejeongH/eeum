@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '@/services/api'
 import { useFamilyStore } from '@/stores/family'
+import { Logger } from '@/services/logger'
 
 export const useGroupSetupStore = defineStore('groupSetup', () => {
     const isInitialized = ref(false)
@@ -60,7 +61,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
             }
 
         } catch (error) {
-            console.error('Failed to fetch group basic info / members:', error)
+            Logger.error('그룹 기본 정보/구성원 조회 실패:', error)
         }
 
         try {
@@ -136,7 +137,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
             }
 
         } catch (error) {
-            console.error('Failed to init group setup data:', error)
+            Logger.error('그룹 설정 데이터 초기화 실패:', error)
             reset()
         }
     }
@@ -217,7 +218,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
             }
 
         } catch (error) {
-            console.error('Failed to save group setup:', error)
+            Logger.error('그룹 설정 저장 실패:', error)
             throw error;
         }
     }

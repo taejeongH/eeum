@@ -88,6 +88,7 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 import { useModalStore } from '@/stores/modal';
 
 const modalStore = useModalStore();
@@ -158,7 +159,7 @@ const fetchInviteCode = async () => {
     const response = await api.get(`/families/${props.familyId}/invite`);
     inviteCode.value = response.data;
   } catch (err) {
-    console.error('Failed to fetch invite code:', err);
+    Logger.error('초대 코드 조회 실패:', err);
     if (err.response && err.response.status === 403) {
       error.value = '대표자만 초대 코드를 볼 수 있습니다.';
     } else {
@@ -181,7 +182,7 @@ const regenerateCode = async () => {
     inviteCode.value = response.data;
     await modalStore.openAlert('새로운 초대 코드가 발급되었습니다.');
   } catch (err) {
-    console.error('Failed to regenerate invite code:', err);
+    Logger.error('초대 코드 재발급 실패:', err);
     if (err.response && err.response.status === 403) {
       error.value = '대표자만 코드를 재발급할 수 있습니다.';
     } else {
@@ -200,7 +201,7 @@ const copyToClipboard = () => {
   navigator.clipboard.writeText(getInviteLink.value).then(() => {
     modalStore.openAlert('초대 링크가 클립보드에 복사되었습니다.');
   }).catch(err => {
-    console.error('Failed to copy text: ', err);
+    Logger.error('텍스트 복사 실패: ', err);
     modalStore.openAlert('복사에 실패했습니다.');
   });
 };
