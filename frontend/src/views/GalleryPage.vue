@@ -32,30 +32,30 @@
           :loop="true"
           :creativeEffect="{
             prev: {
-              shadow: true,
+              shadow: false,
               translate: ['-120%', 0, -500],
               rotate: [0, 0, -15],
-              opacity: 0.6,
+              opacity: 1,
             },
             next: {
-              shadow: true,
+              shadow: false,
               translate: ['120%', 0, -500],
               rotate: [0, 0, 15],
-              opacity: 0.6,
+              opacity: 1,
             },
           }"
           :modules="modules"
           class="recent-swiper"
         >
           <swiper-slide v-for="(photo, index) in recentPhotos" :key="photo.photoId || index">
-            <div @click.stop="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-black/5 cursor-pointer">
-              <!-- 배경 블러 처리 (여백 채우기용) -->
-              <img :src="photo.displayUrl" class="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30" aria-hidden="true" />
-              
+            <div @click.stop="goToPhotoDetail(photo)" class="photo-card relative group overflow-hidden rounded-2xl bg-white cursor-pointer">
               <!-- 메인 이미지 -->
-              <img :src="photo.displayUrl" class="relative w-full h-full object-contain shadow-sm z-10 image-fade-in" />
+              <img :src="photo.displayUrl" class="relative w-full h-full object-cover shadow-sm z-10 image-fade-in" />
               
-              <div class="absolute bottom-4 left-4 text-white drop-shadow-md z-20 group-[.swiper-slide-active]:opacity-100 transition-opacity">
+              <!-- 커스텀 딤 오버레이 (둥근 모서리 적용을 위해 내부 배치) -->
+              <div class="absolute inset-0 bg-black/40 z-20 pointer-events-none transition-opacity duration-300 custom-overlay opacity-0"></div>
+
+              <div class="absolute bottom-4 left-4 text-white drop-shadow-md z-30 group-[.swiper-slide-active]:opacity-100 transition-opacity">
                 <p class="text-sm font-bold">{{ photo.takenAt || '날짜 미상' }}</p>
                 <p class="text-xs">{{ photo.uploaderName || '익명' }}님이 올림</p>
               </div>
@@ -397,13 +397,11 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
 }
 
 /* Swiper 활성 슬라이드 효과 */
-.swiper-slide:not(.swiper-slide-active) img {
-  filter: blur(4px);
-  transition: filter 0.3s ease;
+.swiper-slide:not(.swiper-slide-active) .custom-overlay {
+  opacity: 1;
 }
 
 .swiper-slide-active img {
-  filter: blur(0);
   transform: scale(1.05);
   transition: all 0.3s ease;
 }
