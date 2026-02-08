@@ -4,11 +4,27 @@ import logging
 import os
 import time
 import json
+import signal
 from dataclasses import dataclass
 from typing import Optional
+from .config import(
+    AUDIO_OUT_DEVICE, AUDIO_RATE_HZ, AUDIO_CHANNELS,
+    AUDIO_WARMUP_MS, AUDIO_REWARM_IDLE_SEC,
+)
 
 logger = logging.getLogger(__name__)
+
 _WARMED = False
+_LAST_OUT_TS = 0.0
+
+def _env_float(name: str, default: float) -> float:
+    v = os.getenv(name)
+    try:
+        return float(v) if v is not None and str(v).strip() != "" else float(default)
+    except Exception:
+        return float(default)
+
+
 
 async def _probe_audio_duration_sec(path: str, *, timeout_sec: float = 2.0) -> Optional[float]:
     """
@@ -160,13 +176,62 @@ class AudioPlayback:
     aplay_stderr_task: Optional[asyncio.Task] = None
     src_duration_sec: Optional[float] = None
 
-    async def stop(self):
+    async def _soft_close_aplay_stdin(self):
+        """
+        HDMI sink drop 방지:
+        - aplay를 terminate로 끊지 말고
+        - stdin EOF로 자연스럽게 drain하도록 유도
+        """
+        try:
+            if self.aplay and self.aplay.stdin:
+                try:
+                    self.aplay.stdin.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    async def _soft_stop(self):
+        """
+        Soft stop 전략:
+        1) pump_task 먼저 멈추고
+        2) aplay stdin EOF로 자연 종료 유도
+        3) ffmpeg는 SIGTERM(또는 terminate) 후 짧게 대기
+        4) aplay는 terminate하지 말고 짧게 기다렸다가, 너무 오래 걸릴 때만 terminate/kill
+        """
+        # 1) pump 중지(파이프 끊김)
         if self.pump_task and not self.pump_task.done():
             self.pump_task.cancel()
             try:
                 await self.pump_task
             except Exception:
                 pass
+
+        # 2) aplay 자연 종료 유도(EOF)
+        await self._soft_close_aplay_stdin()
+
+        # 3) ffmpeg 종료
+        try:
+            if self.ffmpeg and self.ffmpeg.returncode is None:
+                try:
+                    self.ffmpeg.send_signal(signal.SIGTERM)
+                except Exception:
+                    self.ffmpeg.terminate()
+        except Exception:
+            pass
+
+    async def stop(self):
+        # --- HDMI 안정성: 기본은 soft stop 우선 ---
+        soft = _env_bool("AUDIO_SOFT_STOP", True)
+        if soft:
+            await self._soft_stop()
+        else:
+            if self.pump_task and not self.pump_task.done():
+                self.pump_task.cancel()
+                try:
+                    await self.pump_task
+                except Exception:
+                    pass
 
         for t in (self.ffmpeg_stderr_task, self.aplay_stderr_task):
             if t and not t.done():
@@ -178,21 +243,55 @@ class AudioPlayback:
                 except Exception:
                     pass
 
-        for p in (self.ffmpeg, self.aplay):
+        # soft stop이면 aplay terminate를 최대한 피한다(HDMI drop 방지)
+        if not soft:
+            for p in (self.ffmpeg, self.aplay):
+                try:
+                    if p and p.returncode is None:
+                        p.terminate()
+                except Exception:
+                    pass
+        else:
+            # ffmpeg만 정리 시도(필요하면)
             try:
-                if p and p.returncode is None:
-                    p.terminate()
+                if self.ffmpeg and self.ffmpeg.returncode is None:
+                    self.ffmpeg.terminate()
             except Exception:
                 pass
 
-        for p in (self.ffmpeg, self.aplay):
+        # 프로세스 wait: soft면 aplay는 조금 더 기다린다(자연 drain)
+        # (HDMI 쪽이 "끊김" 대신 "정상 종료"로 인식하도록)
+        try:
+            if self.ffmpeg:
+                await asyncio.wait_for(self.ffmpeg.wait(), timeout=1.0)
+        except Exception:
             try:
-                if p:
-                    await asyncio.wait_for(p.wait(), timeout=1.0)
+                if self.ffmpeg and self.ffmpeg.returncode is None:
+                    self.ffmpeg.kill()
+            except Exception:
+                pass
+
+        try:
+            if self.aplay:
+                if soft:
+                    # 짧게만 기다림(너무 오래 hang 방지)
+                    await asyncio.wait_for(self.aplay.wait(), timeout=2.5)
+                else:
+                    await asyncio.wait_for(self.aplay.wait(), timeout=1.0)
+        except Exception:
+            # 정말 안 끝나면 그때만 terminate/kill
+            try:
+                if self.aplay and self.aplay.returncode is None:
+                    self.aplay.terminate()
+            except Exception:
+                pass
+            try:
+                if self.aplay:
+                    await asyncio.wait_for(self.aplay.wait(), timeout=1.0)
             except Exception:
                 try:
-                    if p and p.returncode is None:
-                        p.kill()
+                    if self.aplay and self.aplay.returncode is None:
+                        self.aplay.kill()
                 except Exception:
                     pass
 
@@ -276,19 +375,44 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0, start_delay_ms: 
     if start_delay_ms and start_delay_ms > 0:
         await asyncio.sleep(start_delay_ms / 1000.0)
 
+    # ---- ffmpeg probe 안정화(voice mp3 변칙 대응) ----
+    # 기존: probesize=32k, analyzeduration=0 은 "빠르지만" 일부 mp3에서 불안정할 수 있음
+    # HDMI drop/무음/디코드 에러 완화용으로 기본값을 조금 올리고, env로 조절 가능하게.
+    probesize = os.getenv("AUDIO_FFPROBE_PROBESIZE", "256k").strip() or "256k"
+    analyzedur = os.getenv("AUDIO_FFMPEG_ANALYZE_DURATION", "200k").strip() or "200k"
+
     # duration은 재생 안정성(기다리는 시간)용이라 실패해도 OK
     dur_sec = await _probe_audio_duration_sec(path, timeout_sec=2.0)
 
-    out_dev = os.getenv("AUDIO_OUT_DEVICE", "default").strip() or "default"
+    out_dev = (AUDIO_OUT_DEVICE or "default").strip() or "default"
+    rate_hz = int(AUDIO_RATE_HZ or 48000)
+    channels = int(AUDIO_CHANNELS or 2)
+    if channels not in (1, 2):
+        channels = 1
 
-    global _WARMED
-    if not _WARMED:
+    global _WARMED, _LAST_OUT_TS
+    now = time.time()
+    need_rewarm = (not _WARMED) or ((_LAST_OUT_TS > 0) and ((now - _LAST_OUT_TS) >= float(AUDIO_REWARM_IDLE_SEC or 15)))
+
+    if need_rewarm:
         try:
-            await _warmup_output_device(out_dev=out_dev, rate_hz=rate_hz, channels=channels, ms=200)
-            logger.info("[audio] warmup done dev=%s rate=%d ch=%d", out_dev, rate_hz, channels)
+            await _warmup_output_device(
+                out_dev=out_dev,
+                rate_hz=rate_hz,
+                channels=channels,
+                ms=int(AUDIO_WARMUP_MS or 700),
+            )
+            logger.info("[audio] warmup done dev=%s rate=%d ch=%d ms=%d",
+                        out_dev, rate_hz, channels, int(AUDIO_WARMUP_MS or 700))
         except Exception as e:
             logger.info("[audio] warmup skipped err=%r", e)
         _WARMED = True
+        _LAST_OUT_TS = now
+    else:
+        _LAST_OUT_TS = now
+
+    buffer_time = _env_int("AUDIO_APLAY_BUFFER_TIME_US", 500000)
+    period_time = _env_int("AUDIO_APLAY_PERIOD_TIME_US", 100000)
 
     aplay = await asyncio.create_subprocess_exec(
         "aplay",
@@ -297,8 +421,8 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0, start_delay_ms: 
         "-f", "S16_LE",
         "-c", str(channels),
         "-r", str(rate_hz),
-        "--buffer-time=500000",
-        "--period-time=100000",
+        f"--buffer-time={buffer_time}",
+        f"--period-time={period_time}",
         "-",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.DEVNULL,
@@ -319,7 +443,7 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0, start_delay_ms: 
     # resample 안정화(클럭 드리프트/언더런 완화)
     base = f"aresample=async=1:first_pts=0"
     if preroll_ms > 0:
-        af = f"adelay={delay},{base},volume={volume:.2f}"
+        af = f"adelay={delay},{base},afade=t=in:ss=0:d=0.03,volume={volume:.2f}"
     else:
         af = f"{base},volume={volume:.2f}"
 
@@ -327,8 +451,8 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0, start_delay_ms: 
         "ffmpeg",
         "-nostdin",
         "-loglevel", "error",
-        "-probesize", "32k",
-        "-analyzeduration", "0",
+        "-probesize", probesize,
+        "-analyzeduration", analyzedur,
         "-threads", "1",
         "-vn", "-sn", "-dn",
         "-i", path,
