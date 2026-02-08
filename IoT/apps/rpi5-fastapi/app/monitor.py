@@ -326,6 +326,10 @@ async def refresh_wifi_active(state: MonitorState) -> None:
         state.wifi_active_ts = time.time()
     except asyncio.CancelledError:
         raise
+    except asyncio.TimeoutError:
+        # timeout은 운영 중 흔함: 이전 wifi_active 유지 + ts만 갱신
+        state.wifi_active_ts = time.time()
+        logger.info("[wifi] active check timeout (keep last=%r)", state.wifi_active)
     except Exception:
         logger.exception("[refresh_wifi_active] unexpected error")
         pass
@@ -358,10 +362,29 @@ async def wifi_active_loop(state: MonitorState, interval_sec: float = 3.0) -> No
             if getattr(state, "shutting_down", False):
                 return
 
+            now = time.time()
+            ui_on = (now - float(getattr(state, "wifi_ui_last_ping", 0.0))) < 15.0
+
+            # FALL/STT 바쁠 때는 active 체크도 스킵 (프리즈 방지)
+            is_fall_mode = False
             try:
-                await refresh_wifi_active(state)
+                is_fall_mode = bool(getattr(state, "fall_active", False)) or \
+                               (int(getattr(state.audio, "block_below_prio", 0) or 0) >= int(AudioPrio.FALL))
             except Exception:
-                logger.exception("[wifi_active_loop] refresh failed")
+                is_fall_mode = bool(getattr(state, "fall_active", False))
+            stt_busy = bool(getattr(state, "stt_busy", False))
+            paused = bool(getattr(state, "heavy_ops_pause", False))
+
+            if (not is_fall_mode) and (not stt_busy) and (not paused) and (not state.wifi_busy):
+                try:
+                    await refresh_wifi_active(state)
+                except Exception:
+                    logger.exception("[wifi_active_loop] refresh failed")
+            else:
+                logger.debug(
+                    "[wifi_active_loop] skip active ui_on=%s wifi_busy=%s fall_mode=%s stt_busy=%s paused=%s",
+                    ui_on, state.wifi_busy, is_fall_mode, stt_busy, paused
+                )
 
             # wifi가 "새로" 붙는 순간(없던 SSID -> SSID) 1회 STT 캐싱 시도
             cur = state.wifi_active
@@ -372,8 +395,12 @@ async def wifi_active_loop(state: MonitorState, interval_sec: float = 3.0) -> No
                     logger.exception("[STT] maybe_cache_stt_on_wifi_up failed")
             prev_active = cur
 
-            # busy면 더 천천히, 아니면 기본 주기
-            await asyncio.sleep(1.0 if state.wifi_busy else interval_sec)
+            # UI 보고 있을 땐 자주, 아니면 느리게
+            sleep_s = 2.0 if ui_on else 15.0
+            # wifi_busy면 더 느리게
+            if state.wifi_busy:
+                sleep_s = max(sleep_s, 5.0)
+            await asyncio.sleep(sleep_s)
 
     except asyncio.CancelledError:
         logger.info("[wifi_active_loop] cancelled")

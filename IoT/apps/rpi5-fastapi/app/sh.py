@@ -37,7 +37,7 @@ async def async_sh(
         await proc.wait()
         raise
     except asyncio.TimeoutError:
-        logger.warning("[sh] timeout cmd=%s", cmd, exc_info=True)
+        logger.warning("[sh] timeout cmd=%s timeout=%.1fs", " ".join(cmd), timeout)
         try:
             proc.kill()
         except ProcessLookupError:

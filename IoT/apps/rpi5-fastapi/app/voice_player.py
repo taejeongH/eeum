@@ -6,7 +6,7 @@ import time
 import logging
 import hashlib
 from .config import VOICE_PATH
-from .voice_duration import get_mp3_duration_sec
+from .voice_duration import get_mp3_duration_sec, verify_mp3_quick
 from .sse_fanout import fanout_nowait
 from typing import Optional
 
@@ -94,6 +94,8 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
         sem = getattr(state, "download_sem", None)
         tmp = path + ".tmp"
 
+        # 검증 파라미터
+        VERIFY_TIMEOUT_SEC = 1.2
         # 시작 마크
         if repo:
             try:
@@ -121,6 +123,41 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
                             total += len(chunk)
                             h.update(chunk)
                 os.replace(tmp, path)
+
+                # ---- NEW: mp3 무결성/길이 검증 (깨진 파일이면 failed 처리 + 재시도) ----
+                try:
+                    # 오디오 busy 여부와 무관하게 "다운로드 직후 1회"는 하는 게 안전함.
+                    dur = await verify_mp3_quick(path, timeout_sec=VERIFY_TIMEOUT_SEC, min_dur_sec=0.05)
+                    try:
+                        state.voice_duration_cache[int(vid)] = float(dur)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    # 깨진 파일 -> 삭제 + failed 마킹 + 백오프
+                    try:
+                        if os.path.exists(path):
+                            os.remove(path)
+                    except Exception:
+                        pass
+                    if repo:
+                        try:
+                            d = repo.get_download(int(vid)) if hasattr(repo, "get_download") else None
+                            rc = (d or {}).get("retry_count", 0)
+                            backoff = _calc_backoff_sec(int(rc or 0))
+                        except Exception:
+                            backoff = 2.0
+                        try:
+                            next_try = time.time() + float(backoff)
+                            repo.set_download_status(
+                                int(vid), "failed",
+                                local_path=path,
+                                last_error=f"verify_failed: {e}",
+                                inc_retry=True,
+                                next_try_at=next_try,
+                            )
+                        except Exception:
+                            pass
+                    raise RuntimeError(f"voice verify failed id={vid}: {e}")
 
                 # 성공 마크
                 if repo:

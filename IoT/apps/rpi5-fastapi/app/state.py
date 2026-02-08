@@ -27,17 +27,14 @@ class MonitorState:
         self.device_id = CLIENT_ID or ""
         self.loop = None
 
+        self.voice_done_sent = set()
+        self.voice_done_lock = asyncio.Lock()
+
         self.stt_engine = None
         self.stt_cache_missing: bool = False
         self.stt_cache_attempted: bool = False
         self.stt_lock = asyncio.Lock()
         self.stt_busy: bool = False
-        
-        # ---- STT adaptive gain (낙상/응답용) ----
-        # 환경(마이크 거리/볼륨) 편차가 커서, 녹음 결과(rms/peak) 기반으로 gain_db를 자동 조절
-        self.stt_gain_db: float = 3.0          # 기본 +6dB 권장
-        self.stt_gain_db_min: float = 0.0
-        self.stt_gain_db_max: float = 12.0
 
         # ---- DB ----
         self.db = None

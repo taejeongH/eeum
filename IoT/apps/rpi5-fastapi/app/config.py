@@ -86,6 +86,42 @@ DEFAULT_TTS_BY_KIND = {
     "voice": "새로운 음성 메시지가 있어요"
 }
 
-AUDIO_IN_DEVICE = _get_env("AUDIO_IN_DEVICE", "")  # 예: plughw:CARD=Audio,DEV=0
 OFFLINE_AFTER_SEC = float(_get_env("OFFLINE_AFTER_SEC", "1800"))  # 30분
 OFFLINE_CHECK_INTERVAL_SEC = float(_get_env("OFFLINE_CHECK_INTERVAL_SEC", "10"))
+
+AUDIO_IN_DEVICE = _get_env("AUDIO_IN_DEVICE", "plughw:CARD=Audio,DEV=0")
+AUDIO_OUT_DEVICE = _get_env("AUDIO_OUT_DEVICE", "hdmi:CARD=vc4hdmi0,DEV=0")
+
+AUDIO_RATE_HZ = int(_get_env("AUDIO_RATE_HZ", "48000"))
+AUDIO_CHANNELS = int(_get_env("AUDIO_CHANNELS", "2"))
+
+AUDIO_START_DELAY_MS = int(_get_env("AUDIO_START_DELAY_MS", "100"))
+AUDIO_PREROLL_MS = int(_get_env("AUDIO_PREROLL_MS", "800"))
+AUDIO_DRAIN_FUDGE_SEC = float(_get_env("AUDIO_DRAIN_FUDGE_SEC", "0.4"))
+
+# warmup/keepalive 옵션
+AUDIO_WARMUP_MS = int(_get_env("AUDIO_WARMUP_MS", "700"))
+AUDIO_REWARM_IDLE_SEC = float(_get_env("AUDIO_REWARM_IDLE_SEC", "60"))
+AUDIO_KEEPALIVE_SEC = float(_get_env("AUDIO_KEEPALIVE_SEC", "30")) # 0이면 비활성
+AUDIO_KEEPALIVE_MS = int(_get_env("AUDIO_KEEPALIVE_MS", "160"))
+
+# FALL STT echo guard (TTS 직후 잔향/하울링으로 VAD가 오작동하는 것 방지)
+# 권장: 0.25 ~ 0.50
+FALL_ECHO_GUARD_SEC = float(_get_env("FALL_ECHO_GUARD_SEC", "0.35"))
+
+# -----------------------------
+# STT (faster-whisper) knobs
+# -----------------------------
+# 모델이 "무음/노이즈"를 말로 착각할 때 강하게 no_speech로 컷
+STT_NO_SPEECH_THRESHOLD = float(_get_env("STT_NO_SPEECH_THRESHOLD", "0.60"))
+# confidence 낮은 디코딩은 버림(로그에 threshold not met 뜨는 케이스 차단)
+STT_LOG_PROB_THRESHOLD = float(_get_env("STT_LOG_PROB_THRESHOLD", "-0.80"))
+# 반복/깨짐 텍스트(노이즈 디코딩) 억제
+STT_COMPRESSION_RATIO_THRESHOLD = float(_get_env("STT_COMPRESSION_RATIO_THRESHOLD", "2.40"))
+
+# 짧은 명령어 정확도(도와줘/살려줘 등) 개선용
+STT_BEAM_SIZE = int(_get_env("STT_BEAM_SIZE", "5"))
+STT_BEST_OF = int(_get_env("STT_BEST_OF", "5"))
+
+# VAD가 잡음에 속는 것 방지: 프레임 RMS가 너무 낮으면 speech로 취급 안 함
+STT_MIN_FRAME_RMS = int(_get_env("STT_MIN_FRAME_RMS", "140"))

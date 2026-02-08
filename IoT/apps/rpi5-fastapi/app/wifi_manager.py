@@ -99,7 +99,7 @@ async def async_get_active_on_wlan0() -> Optional[str]:
     """
     async with _wifi_lock:
         r = await async_sh(
-            ["nmcli", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
+            ["nmcli", "-w", "3", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
             check=False,
             timeout=5.0,
         )
@@ -113,7 +113,7 @@ async def async_list_wifi_profiles_wlan0() -> List[WifiProfile]:
     # active connection id
     async with _wifi_lock:
         r_active = await async_sh(
-            ["nmcli", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
+            ["nmcli", "-w", "3", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
             check=False,
             timeout=5.0,
         )
@@ -189,7 +189,7 @@ async def async_scan_wifi_wlan0(force_rescan: bool = False) -> List[Dict[str, ob
         if do_rescan:
             _last_rescan_mono = now
             await async_sh(
-                ["sudo", "-n", "nmcli", "dev", "wifi", "rescan", "ifname", STA_IFACE],
+                ["sudo", "-n", "nmcli", "-w", "5", "dev", "wifi", "rescan", "ifname", STA_IFACE],
                 check=False,
                 timeout=8.0,
             )
@@ -198,7 +198,7 @@ async def async_scan_wifi_wlan0(force_rescan: bool = False) -> List[Dict[str, ob
 
         # list는 rescan 없이 가볍게
         r = await async_sh(
-            ["sudo", "-n", "nmcli", "-t",
+            ["sudo", "-n", "nmcli", "-w", "5", "-t",
                 "-f", "IN-USE,SSID,SIGNAL,SECURITY",
                 "device", "wifi", "list",
                 "ifname", STA_IFACE,
@@ -219,11 +219,11 @@ async def async_scan_wifi_wlan0(force_rescan: bool = False) -> List[Dict[str, ob
 
 async def async_bind_profile_to_wlan0(name: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "modify", name, "connection.interface-name", STA_IFACE], timeout=10.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "modify", name, "connection.interface-name", STA_IFACE], timeout=10.0)
 
 async def async_delete_profile(name: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "delete", "id", name], timeout=10.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "delete", "id", name], timeout=10.0)
 
 async def async_ensure_profile_named_as_ssid(ssid: str) -> None:
     """
@@ -231,38 +231,38 @@ async def async_ensure_profile_named_as_ssid(ssid: str) -> None:
     없으면 새로 만들고 bind.
     """
     async with _wifi_lock:
-        r = await async_sh(["nmcli", "-g", "connection.id", "connection", "show", "id", ssid], check=False, timeout=5.0)
+        r = await async_sh(["nmcli", "-w", "3", "-g", "connection.id", "connection", "show", "id", ssid], check=False, timeout=5.0)
         exists = r.returncode == 0 and (r.stdout or "").strip() == ssid
 
         if exists:
-            await async_sh(["sudo", "-n", "nmcli", "connection", "modify", ssid, "connection.interface-name", STA_IFACE], timeout=10.0)
+            await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "modify", ssid, "connection.interface-name", STA_IFACE], timeout=10.0)
             return
 
         await async_sh([
-            "sudo", "-n", "nmcli", "connection", "add",
+            "sudo", "-n", "nmcli", "-w", "8", "connection", "add",
             "type", "wifi",
             "ifname", STA_IFACE,
             "con-name", ssid,
             "ssid", ssid
         ], timeout=15.0)
 
-        await async_sh(["sudo", "-n", "nmcli", "connection", "modify", ssid, "connection.interface-name", STA_IFACE], timeout=10.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "modify", ssid, "connection.interface-name", STA_IFACE], timeout=10.0)
 
 
 async def async_set_profile_password(name: str, password: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "modify", name, "802-11-wireless-security.key-mgmt", "wpa-psk"], timeout=10.0)
-        await async_sh(["sudo", "-n", "nmcli", "connection", "modify", name, "802-11-wireless-security.psk", password], timeout=10.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "modify", name, "802-11-wireless-security.key-mgmt", "wpa-psk"], timeout=10.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "modify", name, "802-11-wireless-security.psk", password], timeout=10.0)
 
 
 async def async_up_profile_on_wlan0(name: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "up", "id", name, "ifname", STA_IFACE], timeout=15.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "8", "connection", "up", "id", name, "ifname", STA_IFACE], timeout=15.0)
 
 
 async def async_down_profile(name: str) -> None:
     async with _wifi_lock:
-        await async_sh(["sudo", "-n", "nmcli", "connection", "down", "id", name], check=False, timeout=10.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "down", "id", name], check=False, timeout=10.0)
 
 
 # -------- 프로비저닝(SSID/PW 입력 → 연결 시도) --------

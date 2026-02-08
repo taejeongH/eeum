@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
-from .config import AP_IFACE, STA_IFACE, ALBUM_PATH, PROFILE_PATH, WEB_DIST_PATH, OFFLINE_AFTER_SEC, OFFLINE_CHECK_INTERVAL_SEC
+from .config import AP_IFACE, STA_IFACE, ALBUM_PATH, PROFILE_PATH, WEB_DIST_PATH, OFFLINE_AFTER_SEC, OFFLINE_CHECK_INTERVAL_SEC, AUDIO_PREROLL_MS, AUDIO_START_DELAY_MS, AUDIO_DRAIN_FUDGE_SEC
 from .ap_manager import async_get_ipv4_addr
 from .state import MonitorState, Event, Command
 from typing import Any, Dict, Optional, List, Literal
@@ -30,10 +30,11 @@ from .voice_player import (
     voice_path,
     emit_voice_done,
 )
-from .voice_duration import get_mp3_duration_sec
+from .voice_duration import verify_mp3_quick
 from .profile_cache import ensure_profile_cached
 from .sync_gate import schedule_initial_sync
 from .album_downloader import download_album_loop
+from .audio_keepalive import audio_keepalive_loop
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,13 @@ def ok_voice(action: str, vid: int, *, duration_sec: float | None = None):
         if duration_sec is not None and duration_sec > 0:
             d["duration_sec"] = float(duration_sec)
         return {"ok": True, "reason": None, "data": d}
+
+def fail_voice(reason: str, action: str, vid: int):
+    return {
+        "ok": False,
+        "reason": reason,
+        "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}
+    }
 
 class AckTarget(BaseModel):
     type: Literal["voice"]
@@ -194,8 +202,11 @@ def create_app(state: MonitorState) -> FastAPI:
             # 4) 다운로드는 더 느리고 더 적게
             album_dl_task = asyncio.create_task(download_album_loop(state, interval_sec=3.0, batch_limit=5))
 
+            # 5) 오디오 keepalive
+            keepalive_task = asyncio.create_task(audio_keepalive_loop(state))
+
             # 태스크 핸들 저장(종료에서 cancel/gather 위해)
-            state._bg_tasks = [wifi_active_task, wifi_scan_task, device_offline_task, album_dl_task]
+            state._bg_tasks = [wifi_active_task, wifi_scan_task, device_offline_task, album_dl_task, keepalive_task]
 
         delayed_task = asyncio.create_task(delayed_start())
 
@@ -764,6 +775,26 @@ def create_app(state: MonitorState) -> FastAPI:
         resp.headers["Connection"] = "keep-alive"
         return resp
 
+    async def _emit_done_once(state: MonitorState, vid: int, result: str):
+        """
+        voice_done(done|skipped) 이벤트를 최대 1회만 발행.
+        watchdog/cleanup 중복 발행 방지용.
+        """
+        try:
+            lock = getattr(state, "voice_done_lock", None)
+            sent = getattr(state, "voice_done_sent", None)
+
+            if lock is not None and sent is not None:
+                async with lock:
+                    if int(vid) in sent:
+                        return
+                    sent.add(int(vid))
+        except Exception:
+            # lock/set이 없거나 실패해도 best-effort 발행
+            pass
+
+        await emit_voice_done(state, int(vid), result)
+
     async def _handle_ack_voice(vid: int, action: str) -> dict:
         """
         규칙:
@@ -792,56 +823,104 @@ def create_app(state: MonitorState) -> FastAPI:
         return await _handle_ack_voice_inner(vid, action)
     
     async def _handle_ack_voice_inner(vid: int, action: str) -> dict:
-        if not state.voice_repo:
-            # 명세상 형식 오류가 아니라 "대상 없음"에 가깝게 처리
-            return {"ok": True, "reason": "not_found", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
+        if action not in ("play", "skip"):
+            return fail("bad_request", None)
 
-        # DB 존재 확인: pending/playing 상관없이 id가 있으면 유효로
+        # repo 없으면: skip은 UI 정리 위해 skipped 이벤트라도 발행
+        if not state.voice_repo:
+            if action == "skip":
+                try:
+                    await _emit_done_once(state, int(vid), "skipped")
+                except Exception:
+                    pass
+                return ok_voice("skip", int(vid))
+            return fail_voice("not_found", action, vid)
+
+        # DB 존재 확인
         v = None
         try:
-            v = state.voice_repo.get(int(vid))  # repo에 get(id) 필요
+            v = state.voice_repo.get(int(vid))
         except Exception:
             v = None
-        if not v:
-            return {"ok": True, "reason": "not_found", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
 
-        # ---- (옵션) 멱등성: 이미 playing이면 already_done ----
-        # 의도: 같은 id에 대해 play가 여러 번 들어와도 중복 enqueue 방지
+        # --- skip은 "대상 없어도" UI 제거되게 skipped 이벤트를 보장 ---
+        if action == "skip":
+            # DB 삭제(best-effort)
+            try:
+                if v:
+                    state.voice_repo.delete(int(vid))
+            except Exception:
+                pass
+
+            # 파일 삭제(best-effort)
+            path = voice_path(vid)
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                tmp = path + ".tmp"
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except Exception:
+                pass
+
+            # SSE skipped 보장(1회)
+            try:
+                await _emit_done_once(state, int(vid), "skipped")
+            except Exception:
+                pass
+
+            return ok_voice("skip", int(vid))
+
+        # ---- 여기부터 action == "play" ----
+        if not v:
+            # play는 대상 없으면 실패
+            return fail_voice("not_found", "play", vid)
+
+        # 이미 playing이면 실패로 (명세 전제: ok=true면 done 와야 함. already_done은 ok=false로)
         try:
-            if action == "play" and str(v.get("status") or "") == "playing":
-                return {
-                    "ok": True,
-                    "reason": "already_done",
-                    "data": {"target": {"type": "voice", "id": int(vid)}, "action": "play"},
-                }
+            if str(v.get("status") or "") == "playing":
+                return fail_voice("already_done", "play", vid)
         except Exception:
             pass
 
         path = voice_path(vid)
         exists = os.path.exists(path) and os.path.getsize(path) > 0
         if not exists:
-            # “SSE 즈음에 다운로드”가 실패했거나 아직 안 된 케이스
-            return {"ok": True, "reason": "not_ready", "data": {"target": {"type": "voice", "id": int(vid)}, "action": action}}
- 
-        if action == "skip":
-            # 파일/DB 정리 + SSE voice_done(skipped)
-            try:
-                state.voice_repo.delete(int(vid))
-            except Exception:
-                pass
-            try:
-                os.remove(path)
-            except Exception:
-                pass
-            try:
-                await emit_voice_done(state, int(vid), "skipped")
-            except Exception:
-                pass
-           # 명세: 성공이면 reason=null
-            return ok_voice("skip", int(vid))
+            # 파일 없으면 재생 수락하지 않음 -> ok=false
+            return fail_voice("not_ready", "play", vid)
 
-        # action == "play"
-        # duration은 ffprobe가 무거움 -> 다운로드 시 계산한 캐시 우선 사용
+        # ---- 재생 직전 빠른 검증(깨진 파일이면 failed로 돌려 재다운로드 유도) ----
+        try:
+            dur2 = await verify_mp3_quick(path, timeout_sec=0.8, min_dur_sec=0.05)
+            try:
+                state.voice_duration_cache[int(vid)] = float(dur2)
+            except Exception:
+                pass
+        except Exception as e:
+            # 파일 삭제 + 다운로드 상태 failed로 돌려서 downloader가 다시 받게 유도
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
+            try:
+                if state.voice_repo:
+                    d = state.voice_repo.get_download(int(vid)) if hasattr(state.voice_repo, "get_download") else None
+                    rc = (d or {}).get("retry_count", 0)
+                    backoff = min(300.0, float(2 ** int(rc or 0)))
+                    next_try = time.time() + float(backoff)
+                    state.voice_repo.set_download_status(
+                        int(vid), "failed",
+                        local_path=path,
+                        last_error=f"preplay_verify_failed: {e}",
+                        inc_retry=True,
+                        next_try_at=next_try,
+                    )
+            except Exception:
+                pass
+            return fail_voice("not_ready", "play", vid)
+
+        # duration은 캐시 우선 사용 (없을 수도 있음)
         dur = None
         try:
             dur = (state.voice_duration_cache or {}).get(int(vid))
@@ -850,50 +929,92 @@ def create_app(state: MonitorState) -> FastAPI:
         except Exception:
             dur = None
 
-        # 캐시가 없을 때만(선택) ffprobe fallback
-        if dur is None:
-            try:
-                dur = float(await get_mp3_duration_sec(path))
-                try:
-                    state.voice_duration_cache[int(vid)] = float(dur)
-                except Exception:
-                    pass
-            except Exception:
-                dur = None
-
-        # DB 상태 반영(선택): pending -> playing
+        # DB 상태 반영(선택)
         try:
             state.voice_repo.mark_playing(int(vid))
         except Exception:
             pass
 
-        # 재생 완료 훅: voice_done(done) emit + DB 삭제 + 파일 삭제
-        def _cleanup():
-            # 1) SSE done emit (best-effort)
+        # --- watchdog: ok=true로 수락한 play는 반드시 voice_done(done) 오게 보장 ---
+        # - duration 있으면 duration 기반
+        # - 없으면 상한(예: 120s) 후 강제 done
+        max_timeout = 120.0
+        timeout_sec = max_timeout
+        if dur is not None and dur > 0:
+            delay_s = (AUDIO_PREROLL_MS / 1000.0) + (AUDIO_START_DELAY_MS / 1000.0) + float(AUDIO_DRAIN_FUDGE_SEC or 0.4)
+            timeout_sec = min(max_timeout, float(dur) + delay_s + 3.0)
+
+        watchdog_task: asyncio.Task | None = None
+
+        async def _watchdog():
             try:
-                loop = getattr(state, "loop", None)
-                if loop and loop.is_running():
-                    loop.call_soon_threadsafe(
-                        asyncio.create_task,
-                        emit_voice_done(state, int(vid), "done")
-                    )
+                await asyncio.sleep(float(timeout_sec))
+            except asyncio.CancelledError:
+                return
+
+            # 아직 done을 안 보냈으면 강제 정리 + done
+            try:
+                await state.audio.stop_current()
             except Exception:
                 pass
-            # 2) DB 정리: voice_messages 삭제(→ FK로 voice_downloads 자동 삭제)
+
             try:
                 if state.voice_repo:
                     state.voice_repo.delete(int(vid))
             except Exception:
                 pass
-            
-            # 3) 파일 정리 (없어도 OK)
+
             try:
                 if os.path.exists(path):
                     os.remove(path)
             except Exception:
                 pass
 
-            # 4) 메모리 캐시 정리
+            try:
+                state.voice_duration_cache.pop(int(vid), None)
+            except Exception:
+                pass
+
+            try:
+                await _emit_done_once(state, int(vid), "done")
+            except Exception:
+                pass
+
+        watchdog_task = asyncio.create_task(_watchdog())
+
+        # 재생 완료 훅: voice_done(done) emit + DB 삭제 + 파일 삭제
+        def _cleanup():
+            # watchdog 중지
+            try:
+                if watchdog_task and not watchdog_task.done():
+                    watchdog_task.cancel()
+            except Exception:
+                pass
+
+            # done 1회 발행(best-effort)
+            try:
+                loop = getattr(state, "loop", None)
+                if loop and loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        _emit_done_once(state, int(vid), "done"),
+                        loop,
+                    )
+            except Exception:
+                pass
+
+            # DB/파일 정리
+            try:
+                if state.voice_repo:
+                    state.voice_repo.delete(int(vid))
+            except Exception:
+                pass
+
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
+
             try:
                 state.voice_duration_cache.pop(int(vid), None)
             except Exception:
@@ -904,15 +1025,16 @@ def create_app(state: MonitorState) -> FastAPI:
             kind="voice",
             path=path,
             ttl_sec=300.0,
-            replace_key=None,   # batch sequential 의미 살리려면 None 권장
+            replace_key=None,
             on_done=_cleanup,
         ))
 
-        # duration_sec는 제공 가능할 때만 포함(명세)
+        # duration_sec는 제공 가능할 때만 포함(명세 유지)
         if dur is not None and dur > 0:
-            delay_s = 0.5
+            delay_s = (AUDIO_PREROLL_MS/1000.0) + (AUDIO_START_DELAY_MS/1000.0) + float(AUDIO_DRAIN_FUDGE_SEC or 0.4)
             return ok_voice("play", int(vid), duration_sec=(dur + delay_s))
         return ok_voice("play", int(vid))
+
     
     @app.post("/api/ack")
     async def ack(req: AckReq):
@@ -1003,6 +1125,8 @@ def create_app(state: MonitorState) -> FastAPI:
             except Exception:
                 ready = False
 
+            if not ready:
+                continue
             out.append({
                 "id": vid,
                 "description": v.get("description") or "",

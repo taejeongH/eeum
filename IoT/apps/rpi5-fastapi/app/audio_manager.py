@@ -118,11 +118,24 @@ class AudioManager:
 
     async def stop_current(self):
         pb = self._playback
+        cur = self._current
         if pb:
             try:
                 await pb.stop()
             except Exception:
                 pass
+                
+        if cur:
+            if cur.on_done:
+                try:
+                    cur.on_done()
+                except Exception:
+                    pass
+            if cur.done_event:
+                try:
+                    cur.done_event.set()
+                except Exception:
+                    pass
 
     async def enqueue(self, job: AudioJob):
         # enqueue 시점 TTL 만료면 버림
