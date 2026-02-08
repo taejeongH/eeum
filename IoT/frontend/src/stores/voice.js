@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 
 // Dynamic API URL resolution
-const getApiUrl = () => import.meta.env.VITE_API_URL || 'http://localhost:8081';
+const getApiUrl = () => import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export const useVoiceStore = defineStore('voice', () => {
     const voiceMessages = ref([]);
@@ -18,9 +18,10 @@ export const useVoiceStore = defineStore('voice', () => {
         console.log(`[VoiceStore] Connecting to SSE: ${apiUrl}/api/voice/stream`);
         eventSource.value = new EventSource(`${apiUrl}/api/voice/stream`);
 
-        eventSource.value.onopen = () => {
+        eventSource.value.onopen = async () => {
             console.log('[VoiceStore] SSE Connected');
             isConnected.value = true;
+            await fetchPendingMessages();
         };
 
         eventSource.value.onerror = (err) => {
@@ -41,7 +42,14 @@ export const useVoiceStore = defineStore('voice', () => {
                 if (!voiceMessages.value.some(msg => msg.id === data.id)) {
                     voiceMessages.value.push({
                         ...data,
-                        status: 'pending' // pending -> playing -> done/skipped
+                        sender: data.sender?.name || data.title || '알 수 없음',
+                        content: data.description || data.content || '',
+                        profile_image: data.sender?.profile_image_url,
+                        created_at: data.created_at || (Date.now() / 1000),
+                        type: 'VOICE',
+                        status: 'pending',
+                        isPlayed: false, // Track played state
+                        download: data.download // Access download status
                     });
                     // Keep recent N (e.g. 50)
                     if (voiceMessages.value.length > 50) voiceMessages.value.shift();
@@ -81,6 +89,16 @@ export const useVoiceStore = defineStore('voice', () => {
     const playMessage = async (id) => {
         const msg = voiceMessages.value.find(m => m.id === id);
         if (!msg) return;
+
+        // Check if ready (if download status exists)
+        if (msg.download && !msg.download.ready) {
+            console.warn('[VoiceStore] Message not ready for playback (download pending/failed)');
+            // Ideally show a toast here
+            return;
+        }
+
+        // Mark as played locally immediately
+        msg.isPlayed = true;
 
         try {
             msg.status = 'playing'; // Optimistic update
@@ -147,6 +165,66 @@ export const useVoiceStore = defineStore('voice', () => {
         }
     };
 
+    // 5. Remove Message (Delete)
+    const removeMessage = async (id) => {
+        // Optimistic remove
+        const index = voiceMessages.value.findIndex(m => m.id === id);
+        if (index !== -1) voiceMessages.value.splice(index, 1);
+
+        try {
+            const apiUrl = getApiUrl();
+            const token = localStorage.getItem('iotAccessToken');
+            await axios.delete(`${apiUrl}/api/iot/device/sync/voice/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            console.log(`[VoiceStore] Message ${id} deleted`);
+        } catch (e) {
+            console.error('[VoiceStore] Failed to delete message:', e);
+        }
+    };
+
+    // Computed: Unread Count
+    // Only count messages that are NOT played
+    const unreadCount = computed(() => voiceMessages.value.filter(m => !m.isPlayed).length);
+
+    // 6. Fetch Pending Messages (Initial Load)
+    const fetchPendingMessages = async () => {
+        try {
+            const apiUrl = getApiUrl();
+            const token = localStorage.getItem('iotAccessToken');
+            const response = await axios.get(`${apiUrl}/api/voice/pending`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.data.ok && response.data.data?.items) {
+                const pendingItems = response.data.data.items;
+                console.log(`[VoiceStore] Found ${pendingItems.length} pending messages`);
+
+                pendingItems.forEach(item => {
+                    // Check duplicates
+                    if (!voiceMessages.value.some(msg => msg.id === item.id)) {
+                        voiceMessages.value.push({
+                            id: item.id,
+                            sender: item.sender?.name || '알 수 없음',
+                            content: item.description || '',
+                            profile_image: item.sender?.profile_image_url,
+                            created_at: item.created_at || (Date.now() / 1000),
+                            type: 'VOICE',
+                            status: 'pending',
+                            isPlayed: false,
+                            download: item.download // Store download status
+                        });
+                    }
+                });
+
+                // Sort by created_at desc (newest first)
+                voiceMessages.value.sort((a, b) => b.created_at - a.created_at);
+            }
+        } catch (e) {
+            console.error('[VoiceStore] Failed to fetch pending messages:', e);
+        }
+    };
+
     return {
         voiceMessages,
         isConnected,
@@ -155,6 +233,9 @@ export const useVoiceStore = defineStore('voice', () => {
         playMessage,
         skipMessage,
         batchAck,
-        skipCurrentPlayback
+        skipCurrentPlayback,
+        removeMessage,
+        unreadCount,
+        fetchPendingMessages
     };
 });

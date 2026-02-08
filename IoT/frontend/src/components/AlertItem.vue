@@ -137,9 +137,10 @@ const iconPaths = {
     @mouseleave="onMouseLeave"
   >
     <div class="flex items-start gap-8 pointer-events-none">
-      <div class="flex-shrink-0 w-28 h-28 rounded-full flex items-center justify-center text-white shadow-lg mt-1"
+      <div class="flex-shrink-0 w-28 h-28 rounded-full flex items-center justify-center text-white shadow-lg mt-1 overflow-hidden"
            :class="styles.iconBg">
-        <svg v-if="iconPaths[styles.icon]" xmlns="http://www.w3.org/2000/svg" class="w-16 h-16" viewBox="0 0 24 24" fill="currentColor">
+        <img v-if="alert.profile_image" :src="alert.profile_image" class="w-full h-full object-cover" />
+        <svg v-else-if="iconPaths[styles.icon]" xmlns="http://www.w3.org/2000/svg" class="w-16 h-16" viewBox="0 0 24 24" fill="currentColor">
           <path :d="iconPaths[styles.icon]" />
         </svg>
         <span v-else class="text-4xl">!</span>
@@ -149,7 +150,7 @@ const iconPaths = {
         <div class="flex justify-between items-baseline mb-4">
            <h3 class="font-extrabold text-4xl leading-tight tracking-tight"
                :class="styles.textTitle">
-            {{ styles.title }}
+            {{ (alert.kind === 'voice' && alert.title) ? alert.title : styles.title }}
           </h3>
           <span class="text-2xl text-gray-400 font-medium">
              {{ formatTime(alert.sent_at) || '방금 전' }}
@@ -158,7 +159,15 @@ const iconPaths = {
        
         <div class="prose prose-xl max-w-none">
           <div v-if="alert.kind === 'medication'">
-             <p class="text-gray-800 text-3xl font-bold leading-normal break-keep">{{ alert.content }}</p>
+             <div class="flex flex-col gap-2">
+                <p class="text-gray-800 text-3xl font-black leading-tight break-keep">
+                  {{ alert.content }}
+                </p>
+                <p v-if="alert.data?.text_message && alert.data.text_message !== alert.content" 
+                   class="text-2xl font-bold text-rose-500/70 italic">
+                   {{ alert.data.text_message }}
+                </p>
+             </div>
           </div>
           <div v-else-if="alert.kind === 'schedule'">
             <p class="text-gray-500 text-2xl mb-4 font-bold">오늘의 주요 일정</p>

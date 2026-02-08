@@ -15,7 +15,7 @@ export const useAlertStore = defineStore('alert', () => {
         // Clear any pending reconnect
         if (reconnectTimer) clearTimeout(reconnectTimer);
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
         console.log(`SSE 연결 시도: ${apiUrl}/api/alerts/stream`);
 
         try {
@@ -83,14 +83,8 @@ export const useAlertStore = defineStore('alert', () => {
 
         // TTS for voice messages
         if (alert.kind === 'voice' || alert.type === 'VOICE') {
-            // Push to chat tab list immediately
-            chatHistory.value.unshift({
-                id: newAlert.id,
-                sender: alert.title || '가족',
-                content: alert.content,
-                timestamp: newAlert.timestamp
-            });
-            if (chatHistory.value.length > 50) chatHistory.value.pop();
+            // Note: Voice messages are handled by voiceStore via 'voice' event.
+            // We only trigger TTS here, do NOT add to chatHistory to avoid duplicates.
 
             const speakMessage = () => {
                 const text = `${alert.title || '가족'}님이 메시지를 보냈습니다. "${alert.content}"`;
@@ -136,7 +130,7 @@ export const useAlertStore = defineStore('alert', () => {
 
         // 2. Tell the server to delete it so it doesn't come back on refresh
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
             const token = localStorage.getItem('iotAccessToken');
             await fetch(`${apiUrl}/api/iot/device/sync/voice/${id}`, {
                 method: 'DELETE',
