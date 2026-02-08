@@ -10,7 +10,6 @@ from ..api.server_client import ServerClient
 from ..state.device_state import get_device_state
 from ..config import DEVICE_ID, LOCATION_ID, RUNS_DIR, DETERMINISTIC, JPEG_QUALITY
 from ..modes.base_mode import BaseMode
-from ..modes import LiveMode, QRMode
 from ..utils import start_replay_thread
 
 logger = logging.getLogger(__name__)
@@ -104,6 +103,7 @@ class AppController:
 
         is_registered = self.device_state.is_registered()
 
+        from ..modes import QRMode
         if QRMode is not None and not is_registered:
             logger.info("Device not registered. Switching to QRMode.")
             self.camera_manager.configure(width=640, height=480)
@@ -120,6 +120,7 @@ class AppController:
             return None
 
         self.camera_manager.configure(width=1920, height=1080)
+        from ..modes import LiveMode
         mode = LiveMode(model=model, cap=cap, jpeg_quality=JPEG_QUALITY)
         self.set_processing_mode("live")
         return mode
