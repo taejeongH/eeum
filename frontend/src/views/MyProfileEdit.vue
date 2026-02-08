@@ -170,6 +170,7 @@ import { useFamilyStore } from '../stores/family';
 import { updateUserProfile } from '../services/api';
 import { useRouter, useRoute } from 'vue-router';
 import { useModalStore } from '@/stores/modal';
+import { compressImage } from '@/utils/imageUtils';
 
 const router = useRouter();
 const route = useRoute();
@@ -254,11 +255,26 @@ const genderRadioGroupFocus = () => {
   genderRadioGroup.value?.querySelector('input[type="radio"]')?.focus();
 };
 
-const handleFileChange = (event) => {
+const handleFileChange = async (event) => {
   const file = event.target.files[0];
   if (file) {
-    profileFile.value = file;
-    imageUrl.value = URL.createObjectURL(file);
+    try {
+      // 1. 이미지 압축 시도 (최대 1600px, 퀄리티 0.7)
+      const compressedFile = await compressImage(file, 1600, 0.7);
+      
+      // 2. 압축 후 용량 체크 (3MB 제한)
+      if (compressedFile.size > 3 * 1024 * 1024) {
+        await modalStore.openAlert("이미지 용량이 너무 큽니다. (최대 3MB)", "업로드 실패");
+        event.target.value = ''; // 입력 초기화
+        return;
+      }
+
+      profileFile.value = compressedFile;
+      imageUrl.value = URL.createObjectURL(compressedFile);
+    } catch (e) {
+      console.error("Image compression failed:", e);
+      await modalStore.openAlert("이미지 처리 중 오류가 발생했습니다.", "오류");
+    }
   }
 };
 
