@@ -98,7 +98,7 @@ class QRMode(BaseMode):
         self.frame_index += 1
         
         # obs는 None (QR 모드에선 포즈 감지 안 함)
-        return None, jpg, frame
+        return None, jpg, frame, None
     
     def _encode_jpeg(self, frame) -> Optional[bytes]:
         """프레임을 JPEG으로 인코딩"""

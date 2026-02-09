@@ -260,6 +260,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useModalStore } from '@/stores/modal';
 import IconBack from '@/components/icons/IconBack.vue';
 import * as voiceService from '@/services/voiceService';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const route = useRoute();
@@ -341,7 +342,7 @@ const fetchScripts = async () => {
              }
         }
     } catch (error) {
-        console.error("Failed to load scripts:", error);
+        Logger.error("스크립트 로드 실패:", error);
     } finally {
         isLoading.value = false;
     }
@@ -359,7 +360,7 @@ const openRecorder = async (sample) => {
             return;
         }
     } catch (e) {
-        console.error(e);
+        Logger.error("녹음 준비 실패:", e);
     }
 
     selectedSample.value = sample;
@@ -410,7 +411,7 @@ const toggleRecord = async () => {
             recordingDuration.value = 0;
             recordingTimer.value = setInterval(() => { recordingDuration.value += 0.1; }, 100);
         } catch (err) {
-            console.error(err);
+            Logger.error("마이크 접근 실패:", err);
             if (err.name === 'NotReadableError') {
                 alert("마이크를 시작할 수 없습니다. (다른 앱이 마이크 사용 중일 수 있음)");
             } else if (err.name === 'NotAllowedError') {
@@ -440,7 +441,7 @@ const saveRecording = async () => {
         serverSampleCount.value = status.sampleCount;
         selectedSample.value = null;
     } catch (error) {
-        console.error(error);
+        Logger.error("녹음 저장 실패:", error);
         alert(`저장 실패: ${error.message}`);
     } finally {
         isLoading.value = false;
@@ -475,7 +476,7 @@ const toggleFreeTalkRecord = async () => {
                     sttError.value = false;
                     transcribedText.value = await voiceService.transcribeAudio(blob);
                 } catch (e) {
-                    console.error("STT Failed:", e);
+                    Logger.error("STT 변환 실패:", e);
                     sttError.value = true;
                     transcribedText.value = "";
                 } finally {
@@ -489,7 +490,7 @@ const toggleFreeTalkRecord = async () => {
             recordingDuration.value = 0;
             recordingTimer.value = setInterval(() => { recordingDuration.value += 0.1; }, 100);
         } catch (err) {
-             console.error(err);
+             Logger.error("자유 대본 녹음 실패:", err);
              alert(`마이크 오류: ${err.name}`);
         }
     }
@@ -515,7 +516,7 @@ const saveFreeTalk = async () => {
         serverSampleCount.value = status.sampleCount;
         alert("자유 대본이 저장되었습니다.");
     } catch (e) {
-        console.error(e);
+        Logger.error("자유 대본 저장 실패:", e);
         alert(`저장 실패: ${e.message}`);
     } finally {
         isLoading.value = false;

@@ -1,6 +1,5 @@
 # app/db/db.py
 import sqlite3
-import time
 from pathlib import Path
 from typing import Optional
 
@@ -44,6 +43,19 @@ CREATE TABLE IF NOT EXISTS voice_messages (
   user_id           INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS voice_downloads (
+  voice_id    INTEGER PRIMARY KEY,
+  status      TEXT NOT NULL,     -- pending|downloading|done|failed
+  local_path  TEXT,
+  bytes       INTEGER,
+  sha256      TEXT,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error  TEXT,
+  updated_at  REAL NOT NULL,
+  next_try_at REAL,
+  FOREIGN KEY(voice_id) REFERENCES voice_messages(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS members (
   user_id            INTEGER PRIMARY KEY,
   name               TEXT NOT NULL,
@@ -55,7 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_album_photos_taken_at ON album_photos(taken_at);
 CREATE INDEX IF NOT EXISTS idx_album_photos_updated_at ON album_photos(updated_at);
 CREATE INDEX IF NOT EXISTS idx_voice_messages_status ON voice_messages(status);
 CREATE INDEX IF NOT EXISTS idx_members_updated_at ON members(updated_at);
-
+CREATE INDEX IF NOT EXISTS idx_voice_downloads_status ON voice_downloads(status);
+CREATE INDEX IF NOT EXISTS idx_voice_downloads_updated_at ON voice_downloads(updated_at);
 INSERT OR IGNORE INTO kv(key, value) VALUES ('voice.last_log_id', '0');
 """
 
@@ -91,8 +104,9 @@ class AppDB:
 
     def kv_set(self, key: str, value: str) -> None:
         assert self.conn is not None
-        self.conn.execute(
-            "INSERT INTO kv(key,value) VALUES(?,?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (key, value),
-        )
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO kv(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, value),
+            )

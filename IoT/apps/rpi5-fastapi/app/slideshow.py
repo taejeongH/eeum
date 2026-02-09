@@ -3,8 +3,9 @@ import os
 import asyncio
 import time
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from .profile_cache import ensure_profile_cached
+from .sse_fanout import fanout_nowait
 
 logger = logging.getLogger(__name__)
 
@@ -157,15 +158,8 @@ async def emit_slide(state, reason: str) -> None:
             "reason": reason,
         }
 
-        # item 없으면(앨범 empty)도 보내긴 보내되 front에서 처리 가능
-        dead = []
-        for q in list(state.slide_subscribers):
-            try:
-                q.put_nowait(payload)
-            except Exception:
-                dead.append(q)
-        for q in dead:
-            state.slide_subscribers.discard(q)
+        # fanout: QueueFull이면 oldest drop 후 1회 재시도, 그래도 실패하면 subscriber 제거
+        fanout_nowait(state.slide_subscribers, payload)
         
     # 어떤 이유로든 슬라이드 이벤트가 나가면 타이머 루프를 깨워 drift 줄이기
     try:
@@ -184,13 +178,11 @@ async def next_slide(state, reason: str = "next") -> None:
     async with state.slide_lock:
         _advance_index(state, +1)
     await emit_slide(state, reason)
-    state.slide_tick_event.set()
 
 async def prev_slide(state, reason: str = "prev") -> None:
     async with state.slide_lock:
         _advance_index(state, -1)
     await emit_slide(state, reason)
-    state.slide_tick_event.set()
 
 async def set_playing(state, playing: bool, interval_sec: Optional[float] = None) -> None:
     async with state.slide_lock:

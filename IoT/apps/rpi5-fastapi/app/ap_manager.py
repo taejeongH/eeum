@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 async def async_ap_up():
     try:
         logger.info("[ap] bringing up profile=%s", AP_PROFILE)
-        await async_sh(["sudo", "-n", "nmcli", "connection", "up", AP_PROFILE], timeout=20.0)
+        await async_sh(["sudo", "-n", "nmcli", "-w", "8", "connection", "up", AP_PROFILE], timeout=20.0)
         logger.info("[ap] up ok profile=%s", AP_PROFILE)
     except Exception:
         logger.exception("[ap] up failed profile=%s", AP_PROFILE)

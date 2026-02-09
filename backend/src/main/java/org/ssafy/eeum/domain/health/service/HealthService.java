@@ -19,6 +19,8 @@ import org.ssafy.eeum.domain.iot.repository.FallEventRepository;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.domain.family.repository.FamilyRepository;
 
+import org.ssafy.eeum.global.infra.fcm.FcmUnregisteredTokenException;
+
 import java.util.List;
 
 @Service
@@ -88,16 +90,21 @@ public class HealthService {
 
                 // Send High Priority FCM to Trigger Measurement
                 // title, body, type, notificationId, route, familyId, groupName, eventId
-                fcmService.sendMessageTo(
-                                user.getFcmToken(),
-                                null,
-                                null,
-                                "CMD_MEASURE_HR", // Important: This type must be handled by Watch
-                                null,
-                                null,
-                                groupId,
-                                null,
-                                null); // No Event ID for manual measurement
+                try {
+                    fcmService.sendMessageTo(
+                                    user.getFcmToken(),
+                                    null,
+                                    null,
+                                    "CMD_MEASURE_HR", // Important: This type must be handled by Watch
+                                    null,
+                                    null,
+                                    groupId,
+                                    null,
+                                    null); // No Event ID for manual measurement
+                } catch (FcmUnregisteredTokenException e) {
+                    log.warn("FCM Token is invalid/unregistered. Removing token for user: {}", user.getId());
+                    user.updateFcmToken(null);
+                }
                 
                 return;
         }
@@ -129,16 +136,21 @@ public class HealthService {
                     throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
             }
 
-            fcmService.sendMessageTo(
-                            user.getFcmToken(),
-                            null,
-                            null,
-                            "CMD_SYNC_HEALTH",
-                            null,
-                            null,
-                            groupId,
-                            null,
-                            null);
+            try {
+                fcmService.sendMessageTo(
+                                user.getFcmToken(),
+                                null,
+                                null,
+                                "CMD_SYNC_HEALTH",
+                                null,
+                                null,
+                                groupId,
+                                null,
+                                null);
+            } catch (FcmUnregisteredTokenException e) {
+                log.warn("FCM Token is invalid/unregistered. Removing token for user: {}", user.getId());
+                user.updateFcmToken(null);
+            }
             
         }
 

@@ -18,49 +18,62 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(CustomException.class)
-    protected ResponseEntity<RestApiResponse<?>> handleCustomException(CustomException e) {
-        log.warn("Custom Exception: {} - {}", e.getErrorCode().getCode(), e.getMessage());
-        return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
-                .body(RestApiResponse.fail(e.getErrorCode()));
-    }
+        @ExceptionHandler(CustomException.class)
+        protected ResponseEntity<RestApiResponse<?>> handleCustomException(CustomException e) {
+                log.warn("Custom Exception: {} - {}", e.getErrorCode().getCode(), e.getMessage());
+                return ResponseEntity
+                                .status(e.getErrorCode().getHttpStatus())
+                                .body(RestApiResponse.fail(e.getErrorCode()));
+        }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    protected ResponseEntity<RestApiResponse<?>> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        log.warn("Validation/Bind Exception: {}", e.getMessage());
-        String detail = e.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(RestApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, detail));
-    }
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        protected ResponseEntity<RestApiResponse<?>> handleMethodArgumentNotValidException(
+                        MethodArgumentNotValidException e) {
+                log.warn("Validation/Bind Exception: {}", e.getMessage());
+                String detail = e.getBindingResult().getFieldErrors().stream()
+                                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                                .collect(Collectors.joining(", "));
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(RestApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, detail));
+        }
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    protected ResponseEntity<RestApiResponse<?>> handleConstraintViolationException(ConstraintViolationException e) {
-        log.warn("Constraint Violation: {}", e.getMessage());
-        String detail = e.getConstraintViolations().stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                .collect(Collectors.joining(", "));
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(RestApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, detail));
-    }
+        @ExceptionHandler(ConstraintViolationException.class)
+        protected ResponseEntity<RestApiResponse<?>> handleConstraintViolationException(
+                        ConstraintViolationException e) {
+                log.warn("Constraint Violation: {}", e.getMessage());
+                String detail = e.getConstraintViolations().stream()
+                                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                                .collect(Collectors.joining(", "));
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(RestApiResponse.fail(ErrorCode.INVALID_INPUT_VALUE, detail));
+        }
 
-    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    protected ResponseEntity<RestApiResponse<?>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
-        log.warn("Method Not Supported: {}", e.getMethod());
-        return ResponseEntity
-                .status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(RestApiResponse.fail(ErrorCode.METHOD_NOT_ALLOWED, e.getMessage()));
-    }
+        @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+        protected ResponseEntity<RestApiResponse<?>> handleMethodNotSupported(
+                        HttpRequestMethodNotSupportedException e) {
+                log.warn("Method Not Supported: {}", e.getMethod());
+                return ResponseEntity
+                                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                                .body(RestApiResponse.fail(ErrorCode.METHOD_NOT_ALLOWED, e.getMessage()));
+        }
 
-    @ExceptionHandler(Exception.class)
-    protected ResponseEntity<RestApiResponse<?>> handleException(Exception e) {
-        log.error("Internal Server Error: ", e);
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(RestApiResponse.fail(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage()));
-    }
+        @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+        protected ResponseEntity<RestApiResponse<?>> handleNoResourceFoundException(
+                        org.springframework.web.servlet.resource.NoResourceFoundException e) {
+                log.warn("No Resource Found (404): {}", e.getResourcePath());
+                return ResponseEntity
+                                .status(HttpStatus.NOT_FOUND)
+                                .body(RestApiResponse.fail(ErrorCode.ENTITY_NOT_FOUND,
+                                                "Resource not found: " + e.getResourcePath()));
+        }
+
+        @ExceptionHandler(Exception.class)
+        protected ResponseEntity<RestApiResponse<?>> handleException(Exception e) {
+                log.error("Internal Server Error: ", e);
+                return ResponseEntity
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(RestApiResponse.fail(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
 }

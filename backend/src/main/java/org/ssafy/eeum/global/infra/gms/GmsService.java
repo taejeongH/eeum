@@ -138,6 +138,12 @@ public class GmsService {
                                                                                         +
                                                                                         "사용자의 답변을 분석하여 위급 상황(EMERGENCY)인지 안전한 상황(SAFE)인지 판단하세요.\n"
                                                                                         +
+                                                                                        "반드시 아래 규칙을 따르세요:\n"
+                                                                                        +
+                                                                                        "1. '네', '응', '그래', '도와줘', '아파' 등 긍정적이거나 도움을 요청하는 답변은 무조건 **'EMERGENCY'**입니다.\n"
+                                                                                        +
+                                                                                        "2. '아니', '괜찮아', '없어' 등 명확한 거절은 **'SAFE'**입니다.\n"
+                                                                                        +
                                                                                         "반드시 아래 JSON 형식으로 응답하세요:\n"
                                                                                         +
                                                                                         "{\n"
@@ -148,7 +154,7 @@ public class GmsService {
                                                                                         +
                                                                                         "}\n"
                                                                                         +
-                                                                                        "특히 '아니'라는 답변은 문맥에 따라 거절(SAFE)일 수도, 부정(EMERGENCY)일 수도 있으니 신중히 판단하세요."),
+                                                                                        "특히 '네'라는 짧은 답변은 '도와달라'는 의미이므로 위급 상황으로 판단해야 합니다."),
                                                         Map.of("role", "user", "content", text)));
 
                         Map<String, Object> response = webClient.post()
@@ -168,15 +174,12 @@ public class GmsService {
                                                         .get("message");
                                         String content = (String) message.get("content");
 
-
                                         if (content == null)
                                                 return false;
 
                                         com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                                         JsonNode rootNode = mapper.readTree(content);
                                         String status = rootNode.path("status").asText().toUpperCase();
-
-
 
                                         return "EMERGENCY".equals(status);
                                 }

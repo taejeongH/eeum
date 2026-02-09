@@ -18,7 +18,7 @@
       <div class="mb-5">
         <p class="text-white/80 text-[11px] font-medium mb-1">{{ dependentName || '할머니' }}님의 상태</p>
         <h2 class="text-xl font-black leading-tight tracking-tight">
-          "{{ healthStore.currentReport?.summary || '데이터 분석 중...' }}"
+          "{{ parsedSummary }}"
         </h2>
       </div>
  
@@ -43,12 +43,35 @@ import { useRouter } from 'vue-router';
 import { useFamilyStore } from '@/stores/family';
 import { useHealthStore } from '@/stores/health';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 
 const router = useRouter();
 const familyStore = useFamilyStore();
 const healthStore = useHealthStore();
 
 const dependentName = ref('');
+
+const parsedSummary = computed(() => {
+    const summary = healthStore.currentReport?.summary;
+    if (!summary) return '데이터 분석 중...';
+    
+    // 1. If it's already an object (and has 'text' field)
+    if (typeof summary === 'object') {
+        return summary.text || '요약 정보를 가져올 수 없습니다.';
+    }
+    
+    // 2. If it's a JSON string, try to parse it
+    if (typeof summary === 'string' && summary.trim().startsWith('{')) {
+        try {
+            const parsed = JSON.parse(summary);
+            return parsed.text || parsed.summary || summary;
+        } catch (e) {
+            return summary;
+        }
+    }
+    
+    return summary;
+});
 
 const lastSyncTime = computed(() => {
     const metric = healthStore.latestMetrics;
@@ -84,7 +107,7 @@ const fetchData = async () => {
             }
         }
     } catch (e) {
-        console.error("Failed to fetch data:", e);
+        Logger.error("데이터 조회 실패:", e);
     }
 };
 

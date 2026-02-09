@@ -1,31 +1,20 @@
 package com.example.eeum
 
 import android.Manifest
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Message
 import android.util.Log
 import android.view.ViewGroup
-import android.webkit.JavascriptInterface
-import android.webkit.ValueCallback
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.lifecycleScope
@@ -153,40 +142,28 @@ class MainActivity : ComponentActivity() {
             Log.d("FCM", "✅ FCM TOKEN SUCCESS: $it")
         }
 
-        // ==========================================
-        // [PoC] Wearable PING Test (임시)
-        // ==========================================
-        // 앱 실행 시 자동으로 3초 뒤에 PING 전송 시도 (테스트용)
+        // Wearable PING Test
         lifecycleScope.launch {
-            kotlinx.coroutines.delay(3000) 
-            Log.d("Wearable", "Trying to find connected nodes...")
+            delay(3000) 
             try {
-                // IO 스레드에서 실행
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     val nodeClient = Wearable.getNodeClient(this@MainActivity)
                     val nodes = nodeClient.connectedNodes.await()
                     if (nodes.isNotEmpty()) {
                         val messageClient = Wearable.getMessageClient(this@MainActivity)
                         nodes.forEach { node ->
-                            Log.d("Wearable", "Sending /emergency/start to node: ${node.displayName} (${node.id})")
-                            // 비동기 전송은 await 없이 리스너만 달아도 되지만, 여기선 Tasks.await를 쓰진 않았으므로 그대로 둠.
-                            // 다만 sendMessage 자체는 비동기 Task를 반환하므로 바로 리스너 부착 가능.
                             messageClient.sendMessage(node.id, "/emergency/start", null)
                                 .addOnSuccessListener { Log.d("Wearable", "Message sent successfully") }
-                                .addOnFailureListener { Log.e("Wearable", "Message failed", it) }
                         }
-                    } else {
-                        Log.d("Wearable", "No connected nodes found.")
                     }
                 }
             } catch (e: Exception) {
                 Log.e("Wearable", "Error sending message", e)
             }
         }
-        // ==========================================
 
         setContent {
-            EeumTheme {
+            EeumTheme(darkTheme = false) {
                 WebViewScreen(
                     activity = this,
                     healthManager = healthManager,
@@ -217,9 +194,7 @@ class MainActivity : ComponentActivity() {
         }
         requestPermissions(permissions.toTypedArray(), 1001)
         
-        // 정기 동기화 예약만 수행 (초기 실행 시 강제 동기화 제거)
         schedulePeriodicHealthSync()
-        // triggerImmediateHealthSync(this) // 사용자가 원할 때만 실행되도록 변경
     }
 
     private fun schedulePeriodicHealthSync() {
@@ -232,7 +207,6 @@ class MainActivity : ComponentActivity() {
             androidx.work.ExistingPeriodicWorkPolicy.KEEP,
             syncRequest
         )
-        Log.i("MainActivity", "✅ Scheduled Periodic Health Sync Worker (1 hour)")
     }
 }
 
@@ -260,12 +234,6 @@ class HealthJsBridge(
             }
         }
     }
-
-    @JavascriptInterface
-    fun fetchSteps() = fetchHeartRate() // Simplified for now as it uses the same manager
-
-    @JavascriptInterface
-    fun fetchSleep() = fetchHeartRate()
 
     @JavascriptInterface
     fun fetchAllHealthMetrics() {
@@ -300,7 +268,6 @@ class HealthJsBridge(
     @JavascriptInterface
     fun saveSelectedFamilyId(familyId: String) {
         prefs.edit().putString("family_id", familyId).apply()
-        Log.d("BRIDGE", "Saved selectedFamilyId: $familyId")
     }
 
     @JavascriptInterface
@@ -321,7 +288,6 @@ class HealthJsBridge(
 
     @JavascriptInterface
     fun startHeartRateMonitoring() {
-        Log.d("BRIDGE", "startHeartRateMonitoring called")
         activity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             sendMessageToWatch("/emergency/start")
         }
@@ -329,7 +295,6 @@ class HealthJsBridge(
 
     @JavascriptInterface
     fun stopHeartRateMonitoring() {
-        Log.d("BRIDGE", "stopHeartRateMonitoring called")
         activity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             sendMessageToWatch("/emergency/stop")
         }
@@ -340,15 +305,14 @@ class HealthJsBridge(
             val nodeClient = Wearable.getNodeClient(activity)
             val nodes = nodeClient.connectedNodes.await()
             val messageClient = Wearable.getMessageClient(activity)
-            
             nodes.forEach { node ->
                 messageClient.sendMessage(node.id, path, null).await()
-                Log.d("BRIDGE", "Sent $path to ${node.displayName}")
             }
         } catch (e: Exception) {
             Log.e("BRIDGE", "Failed to send message", e)
         }
     }
+
     @JavascriptInterface
     fun finishApp() {
         activity.finish()
@@ -367,9 +331,6 @@ fun WebViewScreen(
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     
     BackHandler(enabled = true) {
-        // [FIX] Hardware Back Button Delegation
-        // Instead of directly going back in history, we ask the Web App to decide.
-        // If the Web App doesn't define onNativeBackPressed, fallback to history.back()
         webViewRef?.evaluateJavascript(
             "javascript:if(window.onNativeBackPressed){window.onNativeBackPressed();}else{history.back();}",
             null
@@ -386,7 +347,6 @@ fun WebViewScreen(
             val message = parts.getOrNull(4) ?: ""
             val groupName = parts.getOrNull(5) ?: ""
             
-            Log.d("FCM", "Pushing to JS: $id, $type, $familyId, $title, $message, $groupName")
             webViewRef?.post {
                 webViewRef?.evaluateJavascript(
                     "javascript:if(window.onNativeNotification){window.onNativeNotification('$id', '$type', '$familyId', '$title', '$message', '$groupName')}",
@@ -413,6 +373,12 @@ fun WebViewScreen(
                     useWideViewPort = true
                     allowFileAccessFromFileURLs = true
                     allowUniversalAccessFromFileURLs = true
+                    
+                    // [IMPORTANT] 실시간 영상(HTTP) 로드를 위한 Mixed Content 허용
+                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    
+                    // [IMPORTANT] 자동 재생 허용
+                    mediaPlaybackRequiresUserGesture = false
                 }
 
                 addJavascriptInterface(
@@ -427,24 +393,23 @@ fun WebViewScreen(
                         return true
                     }
 
-                    override fun onJsAlert(view: WebView?, url: String?, message: String?, result: android.webkit.JsResult?): Boolean {
+                    override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
                         android.app.AlertDialog.Builder(context).setTitle("알림").setMessage(message).setPositiveButton("확인") { _, _ -> result?.confirm() }.setCancelable(false).show()
                         return true
                     }
 
-                    override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: android.webkit.JsResult?): Boolean {
-                        android.app.AlertDialog.Builder(context).setTitle("확인").setMessage(message).setPositiveButton("확인") { _, _ -> result?.confirm() }.setNegativeButton("취소") { _, _ -> result?.cancel() }.setCancelable(false).show()
-                        return true
+                    override fun onPermissionRequest(request: PermissionRequest?) {
+                        request?.grant(request.resources)
                     }
 
-                    // [NEW] 웹뷰에서 마이크/카메라 권한 요청 시 자동 허용
-                    override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
-                        request?.grant(request.resources)
+                    override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                        Log.d("WebViewConsole", "${consoleMessage?.message()} -- From line ${consoleMessage?.lineNumber()} of ${consoleMessage?.sourceId()}")
+                        return true
                     }
                 }
 
                 webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                         val url = request?.url?.toString() ?: return false
                         if (url.startsWith("tel:")) {
                             val intent = Intent(Intent.ACTION_DIAL, Uri.parse(url))
@@ -454,13 +419,20 @@ fun WebViewScreen(
                         return false
                     }
 
-                    override fun onReceivedSslError(view: WebView?, handler: android.webkit.SslErrorHandler?, error: android.net.http.SslError?) {
-                        // [DEV] 로컬 개발 시 SSL 인증서 오류 무시 (HTTPS 테스트용)
-                        handler?.proceed()
+                    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
+                        handler?.proceed() // 로컬 테스트용 SSL 허용
+                    }
+
+                    override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                        super.onReceivedError(view, request, error)
+                        Log.e("WebView", "❌ Load Error: ${error?.errorCode} - ${error?.description}")
+                        if (request?.isForMainFrame == true) {
+                            Log.e("WebView", "❌ Main Frame failure: ${request.url}")
+                        }
                     }
                 }
 
-                // 로컬 개발 환경용 (2026-02-03 테스트중)
+                setBackgroundColor(android.graphics.Color.WHITE)
                 loadUrl(BuildConfig.WEBVIEW_URL)
             }
         }

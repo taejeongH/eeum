@@ -145,6 +145,7 @@ import { useModalStore } from '@/stores/modal';
 import { getPhotos, deletePhoto, updatePhoto } from '@/services/albumService';
 import { useUserStore } from '@/stores/user';
 import { useAlbumStore } from '@/stores/album';
+import { Logger } from '@/services/logger';
 
 // Swiper Imports
 import { Swiper, SwiperSlide } from 'swiper/vue';
@@ -232,14 +233,35 @@ const fetchPhotoDetail = async () => {
             albumStore.setCachedPhotos(familyId, rawPhotos);
         }
         
-        allPhotos.value = rawPhotos;
+        // Apply Context Filters
+        const uploaderFilter = route.query.uploader;
+        const dateFilter = route.query.date;
+        const contextFilter = route.query.context;
 
-        // Sort by createdAt descending (to match Gallery order usually)
-        allPhotos.value.sort((a, b) => {
-            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || 0);
-            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || 0);
+        if (uploaderFilter) {
+            rawPhotos = rawPhotos.filter(p => p.uploaderName === uploaderFilter);
+        }
+
+        if (dateFilter) {
+            rawPhotos = rawPhotos.filter(p => {
+                const pDate = (p.takenAt || p.taken_at || p.createdAt || p.created_at || '').split('T')[0];
+                return pDate === dateFilter;
+            });
+        }
+
+        // Match sorting logic from GalleryPage.vue
+        rawPhotos.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
+            const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
             return dateB - dateA;
         });
+
+        if (contextFilter === 'recent') {
+            // Keep original top 5 most recent if opened from "Recently Added"
+            rawPhotos = rawPhotos.slice(0, 5);
+        }
+
+        allPhotos.value = rawPhotos;
 
         currentIndex.value = allPhotos.value.findIndex(p => (p.photoId || p.id) === targetId);
 
@@ -251,7 +273,7 @@ const fetchPhotoDetail = async () => {
              router.back();
         }
     } catch (error) {
-        console.error("Error fetching photo:", error);
+        Logger.error("사진 로드 실패:", error);
          await modalStore.openAlert('사진 로드 중 오류가 발생했습니다.');
          router.back();
     }
@@ -261,8 +283,12 @@ const onSlideChange = (swiper) => {
     currentIndex.value = swiper.activeIndex;
     photo.value = allPhotos.value[currentIndex.value];
     const newPhotoId = photo.value.photoId || photo.value.id;
-    // Update URL without adding to history to avoid back-button hell
-    router.replace({ name: 'PhotoDetail', params: { photoId: newPhotoId } });
+    // Update URL while preserving context filters
+    router.replace({ 
+        name: 'PhotoDetail', 
+        params: { photoId: newPhotoId },
+        query: { ...route.query }
+    });
 };
 
 const toggleMenu = () => {
@@ -288,7 +314,7 @@ const handleDelete = async () => {
             await modalStore.openAlert('사진이 삭제되었습니다.');
             router.back();
         } catch (error) {
-             console.error(error);
+             Logger.error("사진 삭제 실패:", error);
              await modalStore.openAlert('삭제 실패');
         }
     }
@@ -327,7 +353,7 @@ const saveEdit = async () => {
         await modalStore.openAlert('수정되었습니다.');
         isEditing.value = false;
     } catch (error) {
-        console.error(error);
+        Logger.error("사진 수정 실패:", error);
         await modalStore.openAlert('수정 실패');
     }
 };

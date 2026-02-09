@@ -162,6 +162,8 @@ class MqttClient:
 
     def publish_json(self, topic: str, payload: Dict[str, Any], qos: int = 1, retain: bool = False) -> str:
         """msg_id 없으면 자동 생성해서 publish"""
+        # 호출자가 넘긴 dict를 변형하지 않도록 복사
+        payload = dict(payload or {})
         msg_id = payload.get("msg_id")
         if not msg_id:
             msg_id = str(uuid.uuid4())
@@ -254,7 +256,23 @@ class MqttClient:
                 return
  
         item = (msg.topic, payload)
+        def _try_enqueue():
+            try:
+                self.inbound_queue.put_nowait(item)
+            except asyncio.QueueFull:
+                # 드랍 정책: 가장 오래된 1개 제거 후 재시도
+                try:
+                    self.inbound_queue.get_nowait()
+                except Exception:
+                    pass
+                try:
+                    self.inbound_queue.put_nowait(item)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
         try:
-            self.loop.call_soon_threadsafe(self.inbound_queue.put_nowait, item)
-        except Exception as e:
+            self.loop.call_soon_threadsafe(_try_enqueue)
+        except Exception:
             logger.warning("[mqtt] enqueue failed", exc_info=True)

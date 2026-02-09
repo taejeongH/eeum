@@ -16,6 +16,7 @@ from .config import (
     RUNS_DIR, DEVICE_ID, LOCATION_ID
 )
 from .core.controller import AppController
+from .core.streamer import WebSocketStreamer
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -36,19 +37,25 @@ def create_yolo_model():
     model.max_det = MODEL_DET
     return model
 
-# ---------- Controller ----------
+from .core.controller import AppController
+from .core.streamer import WebSocketStreamer
+
+# ---------- Controller & Streamer ----------
 controller = AppController(model_factory=create_yolo_model)
+streamer = WebSocketStreamer(controller=controller)
 app = FastAPI()
 
 # ---------- Lifecycle ----------
 @app.on_event("startup")
 async def startup_event():
-    logger.info("[STARTUP] Starting Application Controller")
+    logger.info("[STARTUP] Starting Application Controller and Streamer")
     controller.start()
+    streamer.start()
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("[SHUTDOWN] Stopping Application Controller")
+    logger.info("[SHUTDOWN] Stopping Application Controller and Streamer")
+    streamer.stop()
     controller.stop()
 
 # ---------- API Routes ----------

@@ -14,10 +14,9 @@ from .audio_manager import AudioPrio
 from .stt_service import FasterWhisperSTT
 
 logger = logging.getLogger(__name__)
-DEBUG_DIV = 30
+DEBUG_DIV = 120
 PIR_ABSENCE_SEC = 2 * 60 * 60 / DEBUG_DIV        # 2h
-VISION_EXIT_ABSENCE_SEC = 60 * 60 / DEBUG_DIV    # 1h
-DAY = 24 * 60 * 60 / (4 * DEBUG_DIV)                   # 1d
+VISION_EXIT_ABSENCE_SEC = 60 * 60 / DEBUG_DIV    # 1h                 # 1d
 
 def _cancel(task: asyncio.Task | None) -> None:
     if task and not task.done():
@@ -196,7 +195,6 @@ async def device_offline_loop(state: MonitorState, interval_sec: float = 10.0) -
     try:
         logger.info("[device_offline_loop] started interval=%s", interval_sec)
 
-        # did -> last published online(bool) cache
         if not hasattr(state, "_dev_online_cache"):
             state._dev_online_cache = {}
 
@@ -211,6 +209,10 @@ async def device_offline_loop(state: MonitorState, interval_sec: float = 10.0) -
                 devices = (doc.get("devices") or {})
 
                 for kind, m in devices.items():
+                    # PIR만 오프라인 체크 (vision은 유선으로 항상 online 가정)
+                    if kind != "pir":
+                        continue
+
                     if not isinstance(m, dict):
                         continue
                     for did, info in m.items():
@@ -226,35 +228,27 @@ async def device_offline_loop(state: MonitorState, interval_sec: float = 10.0) -
                             continue
 
                         should_be_online = (now - last_f) <= float(state.offline_after_sec)
-
-                        # json에 저장된 online을 "진짜 상태"로 사용
                         is_online = bool(info.get("online", False))
 
-                        # 캐시에 저장된 이전 상태(없으면 최초 관측)
                         prev_online = state._dev_online_cache.get(did)
                         if prev_online is None:
                             state._dev_online_cache[did] = is_online
                             continue
 
-                        # 1) online -> offline 전이: persist + publish
                         if is_online and (not should_be_online):
                             try:
                                 changed = await ds.async_set_offline(did)
                                 if changed:
-                                    # doc 안의 online은 ds.async_set_offline에서 False로 바뀜
                                     if state.mqtt:
                                         state.mqtt.publish_online(retain=True)
                                     logger.warning(
                                         "[device] offline did=%s kind=%s last_seen=%s now=%s",
                                         did, kind, last_f, now
                                     )
-                                    is_online = False  # 캐시 업데이트용
+                                    is_online = False
                             except Exception:
                                 logger.exception("[device] set_offline failed did=%s", did)
 
-                        # 2) offline -> online 전이: (persist는 mark_seen이 함) publish만
-                        # - 여기서는 should_be_online이 True이고, json online도 True로 바뀐 경우를 잡는다
-                        # - 외부에서 online을 올려주거나 mark_seen이 이미 올려둔 상태를 "감지"하는 용도
                         if (not prev_online) and is_online and should_be_online:
                             if state.mqtt:
                                 try:
@@ -326,16 +320,20 @@ async def refresh_wifi_active(state: MonitorState) -> None:
         state.wifi_active_ts = time.time()
     except asyncio.CancelledError:
         raise
+    except asyncio.TimeoutError:
+        # timeout은 운영 중 흔함: 이전 wifi_active 유지 + ts만 갱신
+        state.wifi_active_ts = time.time()
+        logger.info("[wifi] active check timeout (keep last=%r)", state.wifi_active)
     except Exception:
         logger.exception("[refresh_wifi_active] unexpected error")
         pass
 
-async def refresh_wifi_scan(state: MonitorState) -> List[Dict[str, Any]]:
+async def refresh_wifi_scan(state: MonitorState, *, force_rescan: bool = False) -> List[Dict[str, Any]]:
     # scan 캐시 갱신
     async with state.wifi_cache_lock:
         if state.wifi_busy:
             return state.wifi_scan
-        aps = await async_scan_wifi_wlan0()
+        aps = await async_scan_wifi_wlan0(force_rescan=force_rescan)
         state.wifi_scan = aps
         state.wifi_scan_ts = time.time()
         return aps
@@ -358,10 +356,29 @@ async def wifi_active_loop(state: MonitorState, interval_sec: float = 3.0) -> No
             if getattr(state, "shutting_down", False):
                 return
 
+            now = time.time()
+            ui_on = (now - float(getattr(state, "wifi_ui_last_ping", 0.0))) < 15.0
+
+            # FALL/STT 바쁠 때는 active 체크도 스킵 (프리즈 방지)
+            is_fall_mode = False
             try:
-                await refresh_wifi_active(state)
+                is_fall_mode = bool(getattr(state, "fall_active", False)) or \
+                               (int(getattr(state.audio, "block_below_prio", 0) or 0) >= int(AudioPrio.FALL))
             except Exception:
-                logger.exception("[wifi_active_loop] refresh failed")
+                is_fall_mode = bool(getattr(state, "fall_active", False))
+            stt_busy = bool(getattr(state, "stt_busy", False))
+            paused = bool(getattr(state, "heavy_ops_pause", False))
+
+            if (not is_fall_mode) and (not stt_busy) and (not paused) and (not state.wifi_busy):
+                try:
+                    await refresh_wifi_active(state)
+                except Exception:
+                    logger.exception("[wifi_active_loop] refresh failed")
+            else:
+                logger.debug(
+                    "[wifi_active_loop] skip active ui_on=%s wifi_busy=%s fall_mode=%s stt_busy=%s paused=%s",
+                    ui_on, state.wifi_busy, is_fall_mode, stt_busy, paused
+                )
 
             # wifi가 "새로" 붙는 순간(없던 SSID -> SSID) 1회 STT 캐싱 시도
             cur = state.wifi_active
@@ -372,8 +389,12 @@ async def wifi_active_loop(state: MonitorState, interval_sec: float = 3.0) -> No
                     logger.exception("[STT] maybe_cache_stt_on_wifi_up failed")
             prev_active = cur
 
-            # busy면 더 천천히, 아니면 기본 주기
-            await asyncio.sleep(1.0 if state.wifi_busy else interval_sec)
+            # UI 보고 있을 땐 자주, 아니면 느리게
+            sleep_s = 2.0 if ui_on else 15.0
+            # wifi_busy면 더 느리게
+            if state.wifi_busy:
+                sleep_s = max(sleep_s, 5.0)
+            await asyncio.sleep(sleep_s)
 
     except asyncio.CancelledError:
         logger.info("[wifi_active_loop] cancelled")
@@ -406,19 +427,42 @@ async def wifi_scan_loop(
                 logger.info("[wifi_ui] UI active (scan enabled)")
                 # UI가 새로 켜짐: profiles 즉시 1회
                 last_profiles_ts = 0.0
+                # UI 켜질 때만 1회 rescan (무거운 작업은 여기서만)
+                try:
+                    await refresh_wifi_scan(state, force_rescan=True)
+                except Exception:
+                    logger.exception("[wifi] force_rescan on ui enter failed")
             elif not ui_on and prev_ui_on:
                 logger.info("[wifi_ui] UI inactive (scan paused)")
                 
             prev_ui_on = ui_on
-            if ui_on and not state.wifi_busy:
-                # scan은 매 tick
-                await refresh_wifi_scan(state)
+            # ---- heavy ops gate ----
+            # 정책 변경:
+            # - 평상시(TTS/VOICE/알림)는 nmcli/wifi scan을 막지 않는다.
+            # - FALL 파이프라인 중에만(= block_below_prio가 FALL이거나 fall_active) 무거운 작업을 쉰다.
+            is_fall_mode = False
+            try:
+                is_fall_mode = bool(getattr(state, "fall_active", False)) or \
+                               (int(getattr(state.audio, "block_below_prio", 0) or 0) >= int(AudioPrio.FALL))
+            except Exception:
+                is_fall_mode = bool(getattr(state, "fall_active", False))
+            stt_busy = bool(getattr(state, "stt_busy", False))
+            paused = bool(getattr(state, "heavy_ops_pause", False))
+
+            if ui_on and (not state.wifi_busy) and (not is_fall_mode) and (not stt_busy) and (not paused):
+                await refresh_wifi_scan(state, force_rescan=False)
 
                 # profiles는 더 긴 주기
                 if (now - last_profiles_ts) >= profiles_interval_sec:
                     await refresh_wifi_profiles(state)
                     last_profiles_ts = now
-
+            elif ui_on:
+                # UI는 켜져있는데 지금은 무거운 작업을 쉬는 중 -> 로그만 (너무 시끄럽지 않게 debug)
+                logger.debug(
+                    "[wifi_scan_loop] skip scan ui_on=1 wifi_busy=%s fall_mode=%s stt_busy=%s paused=%s",
+                    state.wifi_busy, is_fall_mode, stt_busy, paused
+                )
+            
             await asyncio.sleep(scan_interval_sec)
     except asyncio.CancelledError:
         logger.info("[wifi_scan_loop] cancelled")

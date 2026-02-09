@@ -2,39 +2,70 @@
 #include <HTTPClient.h>
 #include <esp_wifi.h>
 
-// ====== AP 정보 ======
+// ==================================================
+// AP 정보
+// ==================================================
 static const char* AP_SSID = "A105-RPI-PROV";
 static const char* AP_PASS = "A1051234";
 
-// ====== 서버 ======
+// ==================================================
+// 서버 정보
+// ==================================================
 static const char* SERVER_HOST = "192.168.4.1";
 static const uint16_t SERVER_PORT = 8080;
 static const char* EVENT_ENDPOINT = "/eeum/event";
+static const char* PING_ENDPOINT  = "/api/device/ping";
 
-// ====== 디바이스 ======
+// ==================================================
+// 디바이스 정보
+// ==================================================
 static const char* DEVICE_NAME = "EEUM-E105-1";
 
-// ====== PIR ======
+// ==================================================
+// PIR
+// ==================================================
 static const int PIR_PIN = 27;
-static const int DEBUG_DIV = 20;
-// ====== 정책 ======
-static const uint32_t WARMUP_MS = 60 * 1000UL;              // 초기 60초 무시
-static const uint32_t MIN_POST_INTERVAL_MS = 10 * 60 * 1000UL / DEBUG_DIV; // 최소 간격 10분
+static const int DEBUG_DIV = 60;
+
+// ==================================================
+// 정책
+// ==================================================
+static const uint32_t WARMUP_MS = 60 * 1000UL / DEBUG_DIV;
+static const uint32_t MIN_PIR_INTERVAL_MS = 10 * 60 * 1000UL / DEBUG_DIV;
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
 
-// ====== ISR 플래그 ======
+// PING 정책
+static const uint32_t PING_INTERVAL_MS = 10 * 60 * 1000UL / DEBUG_DIV;
+static const uint32_t PING_RETRY_COOLDOWN_MS = 5000 / DEBUG_DIV;
+
+// ==================================================
+// ISR 플래그
+// ==================================================
 volatile bool pirRiseFlag = false;
 volatile uint32_t pirIsrMs = 0;
 
+// ==================================================
+// 전송 타이머 상태
+// ==================================================
+static uint32_t g_lastTxMs = 0;
+static uint32_t g_nextPirAllowedMs = 0;
+static uint32_t g_lastPingTryMs = 0;
+
+// ==================================================
+// PIR ISR
+// ==================================================
 void IRAM_ATTR onPirRise() {
   pirIsrMs = millis();
   pirRiseFlag = true;
 }
 
+// ==================================================
+// Wi-Fi 유틸
+// ==================================================
 static void setupWifiPowerSave() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(true);
-  esp_wifi_set_ps(WIFI_PS_MIN_MODEM); // MAX_MODEM 고려
+  esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 }
 
 static void ensureWifiConnected() {
@@ -55,17 +86,13 @@ static void ensureWifiConnected() {
   }
 }
 
-static bool postPir1() {
+// ==================================================
+// HTTP POST 공통
+// ==================================================
+static bool httpPostJson(const char* endpoint, const String& body) {
   ensureWifiConnected();
 
-  String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + EVENT_ENDPOINT;
-  String body = "{";
-  body += "\"kind\":\"pir\",";
-  body += "\"device_id\":\"" + String(DEVICE_NAME) + "\",";
-  body += "\"data\":{";
-  body += "\"event\":\"motion\",";
-  body += "\"value\":1";
-  body += "}}";
+  String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + endpoint;
 
   HTTPClient http;
   http.setConnectTimeout(3000);
@@ -80,22 +107,53 @@ static bool postPir1() {
   return (code > 0 && code < 400);
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(200);
+// ==================================================
+// PIR 전송
+// ==================================================
+static bool postPirMotion() {
+  String body = "{";
+  body += "\"kind\":\"pir\",";
+  body += "\"device_id\":\"" + String(DEVICE_NAME) + "\",";
+  body += "\"data\":{";
+  body += "\"event\":\"motion\",";
+  body += "\"value\":1";
+  body += "}}";
 
-  pinMode(PIR_PIN, INPUT);
-
-  ensureWifiConnected();
-
-  attachInterrupt(digitalPinToInterrupt(PIR_PIN), onPirRise, RISING);
-
-  Serial.println("[BOOT] started");
+  return httpPostJson(EVENT_ENDPOINT, body);
 }
 
-void loop() {
-  static uint32_t nextAllowedMs = 0; // 다음 전송 허용 시각
+// ==================================================
+// PING 전송
+// ==================================================
+static bool postPing() {
+  String body = "{";
+  body += "\"device_id\":\"" + String(DEVICE_NAME) + "\",";
+  body += "\"kind\":\"pir\"";
+  body += "}";
 
+  return httpPostJson(PING_ENDPOINT, body);
+}
+
+// ==================================================
+// setup()
+// ==================================================
+void setup() {
+  pinMode(PIR_PIN, INPUT_PULLDOWN);
+
+  ensureWifiConnected();
+  attachInterrupt(digitalPinToInterrupt(PIR_PIN), onPirRise, RISING);
+
+  postPing();
+  g_lastTxMs = millis();
+}
+
+// ==================================================
+// loop()
+// ==================================================
+void loop() {
+  uint32_t now = millis();
+
+  // ---------- PIR 처리 ----------
   bool fired = false;
   uint32_t isrT = 0;
 
@@ -108,34 +166,27 @@ void loop() {
   interrupts();
 
   if (fired) {
-    uint32_t now = millis();
+    if (now >= WARMUP_MS &&
+        (int32_t)(now - g_nextPirAllowedMs) >= 0 &&
+        digitalRead(PIR_PIN) == HIGH) {
 
-    // 1) 워밍업 무시
-    if (now < WARMUP_MS) {
-      Serial.println("[PIR] ignored (warmup)");
-      delay(10);
-      return;
+      bool ok = postPirMotion();
+      if (ok) {
+        g_lastTxMs = now;
+        g_nextPirAllowedMs = now + MIN_PIR_INTERVAL_MS;
+      }
     }
+  }
 
-    // 2) rate limit: 10분에 1번만
-    if ((int32_t)(now - nextAllowedMs) < 0) {
-      Serial.println("[PIR] ignored (rate limit)");
-      delay(10);
-      return;
+  // ---------- PING 처리 ----------
+  if ((now - g_lastTxMs) >= PING_INTERVAL_MS) {
+    if ((now - g_lastPingTryMs) >= PING_RETRY_COOLDOWN_MS) {
+      g_lastPingTryMs = now;
+      bool ok = postPing();
+      if (ok) {
+        g_lastTxMs = now;
+      }
     }
-
-    // 3) 핀 상태 확인으로 노이즈 컷
-    if (digitalRead(PIR_PIN) != HIGH) {
-      Serial.println("[PIR] ignored (pin not HIGH)");
-      delay(10);
-      return;
-    }
-
-    bool ok = postPir1();
-    Serial.printf("[PIR] sent=1 ok=%d (isr=%lu)\n", ok ? 1 : 0, (unsigned long)isrT);
-
-    // 다음 허용 시각 갱신
-    nextAllowedMs = now + MIN_POST_INTERVAL_MS;
   }
 
   delay(20);

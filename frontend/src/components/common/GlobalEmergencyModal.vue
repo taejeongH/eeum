@@ -114,7 +114,7 @@
           <div :class="['w-full bg-black relative flex items-center justify-center py-4 min-h-[220px]', isFullscreen ? 'flex-1 py-0' : '']">
               <!-- [CASE] Video Loaded (History or Live) -->
               <div 
-                v-if="videoUrl" 
+                v-if="videoUrl || liveFrameUrl" 
                 ref="fullscreenContainer" 
                 class="w-full relative group transition-all duration-300 flex flex-col cursor-pointer"
                 :class="isFullscreen ? 'h-full' : ''"
@@ -122,10 +122,10 @@
               >
 
 
-                  <!-- Live View (MJPEG Stream uses <img>) -->
+                  <!-- Live View (WebSocket Stream uses <img> with blob URL) -->
                   <div v-if="currentView === 'live'" class="relative" :class="isFullscreen ? 'h-full w-full flex items-center justify-center' : ''">
                       <img 
-                        :src="videoUrl"
+                        :src="liveFrameUrl"
                         class="block mx-auto rounded-lg shadow-inner"
                         :class="isFullscreen ? 'max-w-full max-h-full object-contain rounded-none' : 'w-full h-auto'"
                         alt="실시간 스트리밍"
@@ -267,6 +267,7 @@ import { ref, computed, watch, onUnmounted, h } from 'vue';
 import { useEmergencyStore } from '@/stores/emergency';
 import { useModalStore } from '@/stores/modal';
 import { useNotificationStore } from '@/stores/notification';
+import { Logger } from '@/services/logger';
 
 // Icons using render functions
 
@@ -456,6 +457,12 @@ watch(() => emergencyStore.isVisible, (visible) => {
 
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
+  shouldReconnect.value = false;
+  stopRenderLoop();
+  if (ws.value) {
+      ws.value.close();
+      ws.value = null;
+  }
 });
 
 const callEmergency = async () => {
@@ -466,11 +473,47 @@ const callEmergency = async () => {
 const videoUrl = ref(null);
 const videoLoading = ref(false);
 const videoError = ref(null);
+
+// [Optimization] Frame Throttling Variables
+let pendingFrameBlob = null;
+let renderRequestId = null;
+const liveFrameUrl = ref(null);
+const ws = ref(null);
+const shouldReconnect = ref(false);
+let reconnectTimer = null;
 import { getFallVideo, getFamilyDetails, getHeartRateResult, getLatestHeartRate } from '@/services/api';
 
-// [NEW] Heart Rate Logic
 const heartRateData = ref(null);
 const heartRateLoading = ref(false);
+
+const startRenderLoop = () => {
+    if (renderRequestId) return;
+    
+    const loop = () => {
+        if (pendingFrameBlob) {
+            if (liveFrameUrl.value) {
+                URL.revokeObjectURL(liveFrameUrl.value);
+            }
+            liveFrameUrl.value = URL.createObjectURL(pendingFrameBlob);
+            videoLoading.value = false;
+            pendingFrameBlob = null;
+        }
+        renderRequestId = requestAnimationFrame(loop);
+    };
+    renderRequestId = requestAnimationFrame(loop);
+};
+
+const stopRenderLoop = () => {
+    if (renderRequestId) {
+        cancelAnimationFrame(renderRequestId);
+        renderRequestId = null;
+    }
+    if (liveFrameUrl.value) {
+        URL.revokeObjectURL(liveFrameUrl.value);
+        liveFrameUrl.value = null;
+    }
+    pendingFrameBlob = null;
+};
 
 const fetchHeartRate = async () => {
     heartRateData.value = null; // Reset to null or '--'
@@ -485,6 +528,14 @@ const fetchHeartRate = async () => {
 
     const eventId = emergencyStore.emergencyData?.eventId;
     const familyId = emergencyStore.emergencyData?.familyId;
+
+    // Safety: Early return if IDs are missing or invalid string "null"
+    if (!eventId || eventId === 'null' || !familyId || familyId === 'null') {
+        Logger.warn("⚠️ 심박수 조회 실패: Event ID 또는 Family ID 누락:", { eventId, familyId });
+        heartRateData.value = 96; // Fallback
+        heartRateLoading.value = false;
+        return;
+    }
 
     try {
         let result = null;
@@ -511,45 +562,135 @@ const fetchHeartRate = async () => {
             heartRateData.value = 96; // HARDCODED FOR TEST
         }
     } catch (e) {
-        console.error("Failed to fetch heart rate for modal:", e);
+        Logger.error("심박수 조회 실패:", e);
     } finally {
         heartRateLoading.value = false;
     }
 };
 
-const handleLiveError = () => {
-    videoError.value = '실시간 영상을 불러올 수 없습니다. 카메라 상태를 확인해주세요.';
+const handleLiveError = (e) => {
+    const errorMsg = "실시간 영상을 로드할 수 없습니다.";
+    Logger.error("🔴 실시간 영상 로드 오류:", e);
+    // alert(`${errorMsg}\nURL: ${videoUrl.value}`);
+    videoError.value = errorMsg;
     videoUrl.value = null;
 };
 
 const openVideo = async (view) => {
     currentView.value = view;
     videoUrl.value = null;
+    liveFrameUrl.value = null;
     videoError.value = null;
     videoLoading.value = true;
     
-    if (view === 'live') {
-        const familyId = emergencyStore.emergencyData?.familyId;
-        
-        if (!familyId) {
-            videoError.value = '가족 정보를 확인할 수 없어 실시간 영상을 불러올 수 없습니다.';
-            videoLoading.value = false;
-            return;
-        }
+    // Clear existing retry timer if any
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
 
+    // Close existing WS if any
+    if (ws.value) {
+        shouldReconnect.value = false; // Prevent trigger onclose
+        ws.value.close();
+        ws.value = null;
+    }
+    
+    if (view === 'live') {
+        shouldReconnect.value = true;
+        const familyId = emergencyStore.emergencyData?.familyId;
+        // In real scenario, we might need deviceId from familyData or somewhere.
+        // For now, let's assume familyId or a specific deviceId logic.
+        // Based on previous code, it used familyData.streamingUrl or fallback.
+        // Now we need the Backend WebSocket URL.
+        
         try {
             const familyData = await getFamilyDetails(familyId);
+
+            
+            let targetDeviceId = null;
+            let wsUrl = null;
+
             if (familyData && familyData.streamingUrl) {
-                videoUrl.value = familyData.streamingUrl;
+                const sUrl = familyData.streamingUrl.trim();
+                
+                // Use production domain for streaming relay
+                const hardwareIp = "i14a105.p.ssafy.io";
+                const isSecure = window.location.protocol === 'https:';
+                
+                // If we are on HTTPS, we MUST use WSS. 
+                // Note: Direct IP over WSS usually requires a valid domain/cert, 
+                // but we will try to be protocol-consistent.
+                const wsProtocol = isSecure ? 'wss' : 'ws';
+                
+                if (sUrl.startsWith('http://') || sUrl.startsWith('https://') || sUrl.startsWith('ws://') || sUrl.startsWith('wss://')) {
+                     // Legacy support - but we OVERRIDE with the new IP as requested
+                     wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
+                     
+                     // Extract ID if possible. If it's "falls" or similar internal path, use emulator default
+                     const extractedId = sUrl.match(/\/device\/([^/]+)/)?.[1];
+                     targetDeviceId = (extractedId && extractedId !== 'falls') ? extractedId : "EEUM-J105";
+                     Logger.warn("레거시 오버라이드 | 타겟 ID:", targetDeviceId, "출처:", sUrl);
+                } else {
+                    // Case B: Serial Number + Custom IP for now
+                    targetDeviceId = sUrl;
+                    wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
+
+                }
             } else {
-                videoError.value = '등록된 실시간 스트리밍 주소가 없습니다.';
+                // Fallback
+                targetDeviceId = "EEUM-J105"; 
+                const isSecure = window.location.protocol === 'https:';
+                const wsProtocol = isSecure ? 'wss' : 'ws';
+                wsUrl = `${wsProtocol}://i14a105.p.ssafy.io/api/ws/stream`;
+                Logger.warn("⚠️ 스트리밍 URL 없음, 프로덕션 폴백 사용:", wsUrl);
             }
+
+
+            ws.value = new WebSocket(wsUrl);
+            
+            ws.value.binaryType = 'blob';
+            
+            ws.value.onopen = () => {
+
+                startRenderLoop(); // Start smooth rendering
+                if (targetDeviceId) {
+                    ws.value.send(JSON.stringify({
+                        type: "REGISTER_VIEWER",
+                        deviceId: targetDeviceId
+                    }));
+                }
+            };
+            
+            ws.value.onmessage = (event) => {
+                // Buffer the latest frame (dropping intermediate ones if flooding)
+                if (event.data instanceof Blob) {
+                    pendingFrameBlob = event.data;
+                }
+            };
+            
+            ws.value.onerror = (e) => {
+                Logger.error("WS 오류:", e);
+                videoError.value = "실시간 연결 중 오류가 발생했습니다.";
+                videoLoading.value = false;
+            };
+            
+            ws.value.onclose = () => {
+
+                if (shouldReconnect.value && currentView.value === 'live') {
+
+                    videoLoading.value = true;
+                    reconnectTimer = setTimeout(() => {
+                        openVideo('live');
+                    }, 3000);
+                }
+            };
+
         } catch (err) {
-            console.error("Failed to fetch streaming URL:", err);
-            videoError.value = '실시간 스트리밍 주소를 가져오는데 실패했습니다.';
+            Logger.error("웹소켓 설정 실패:", err);
+            videoError.value = '실시간 영상을 연결할 수 없습니다.';
         }
         
-        videoLoading.value = false;
         return;
     }
     
@@ -569,21 +710,21 @@ const openVideo = async (view) => {
              if (response.data && response.data.videoUrl) {
                  videoUrl.value = response.data.videoUrl;
              } else {
-                 console.error("Invalid response structure:", response);
+                 Logger.error("잘못된 응답 구조:", response);
                  throw new Error(`영상 URL을 찾을 수 없습니다. (응답: ${JSON.stringify(response)})`);
              }
         } catch (err) {
-            console.error('Failed to load video:', err);
+            Logger.error('영상 로드 실패:', err);
             
             // 상세 에러 정보 로깅
             if (err.response) {
-                console.error("Error Status:", err.response.status);
-                console.error("Error Data:", err.response.data);
+                Logger.error("에러 상태:", err.response.status);
+                Logger.error("에러 데이터:", err.response.data);
                 
                 if (err.response.data && err.response.data.code === 'IOT001') {
                      videoError.value = '영상이 아직 처리 중입니다. 잠시 후 다시 시도해주세요.';
                      return;
-                }
+                 }
                 
                 // 그 외 서버 에러 메시지 표시
                 if (err.response.data && err.response.data.message) {
@@ -598,6 +739,27 @@ const openVideo = async (view) => {
         }
     }
 };
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval);
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  shouldReconnect.value = false;
+  stopRenderLoop();
+  if (ws.value) ws.value.close();
+});
+
+// Watch to close WS if view changes away from live
+watch(currentView, (newView) => {
+    if (newView !== 'live') {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        shouldReconnect.value = false;
+        stopRenderLoop();
+        if (ws.value) {
+            ws.value.close();
+            ws.value = null;
+        }
+    }
+});
 
 // [NEW] 오알람 처리 로직 (Confirm Modal 연동)
 const handleFalseAlarm = async () => {

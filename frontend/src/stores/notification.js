@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 
 export const useNotificationStore = defineStore('notification', () => {
     const isInitialized = ref(false);
@@ -65,14 +66,14 @@ export const useNotificationStore = defineStore('notification', () => {
                     if (error.message === 'Network Error' && retries < maxRetries) {
                         retries++;
                         const delay = 500 * Math.pow(2, retries); // 1s, 2s, 4s...
-                        console.warn(`Network Error fetching history. Retrying in ${delay}ms... (${retries}/${maxRetries})`);
+                        Logger.warn(`네트워크 오류로 재시도합니다. ${delay}ms 후 재시도... (${retries}/${maxRetries})`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
 
                     // 재시도 횟수 초과 혹은 다른 에러
                     const detail = error.response?.data ? JSON.stringify(error.response.data) : (error.message || error);
-                    console.error('Failed to fetch notification history:', detail);
+                    Logger.error('알림 기록 조회 실패:', detail);
                     // 에러 발생 시, 기존 데이터가 있다면 유지 (빈 배열로 초기화하지 않음)
                     break;
                 }
@@ -89,7 +90,7 @@ export const useNotificationStore = defineStore('notification', () => {
             const noti = notifications.value.find(n => n.id === notificationId);
             if (noti) noti.isRead = true;
         } catch (error) {
-            console.error('Failed to mark notification as read:', error);
+            Logger.error('알림 읽음 처리 실패:', error);
         }
     }
 
@@ -97,6 +98,8 @@ export const useNotificationStore = defineStore('notification', () => {
         notifications.value = [];
         currentFamilyId.value = null;
         isInitialized.value = false;
+        modalVisible.value = false;
+        modalData.value = null;
     }
 
     return {

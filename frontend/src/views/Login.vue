@@ -190,11 +190,16 @@ const handleLogin = async () => {
     
     // axios 헤더에 토큰 설정
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+
+    // [Fix] 모바일 네이티브 저장소와 동기화 (강제 종료 후 세션 유지 및 계정 꼬임 방지)
+    if (window.AndroidBridge && window.AndroidBridge.saveAccessToken) {
+        window.AndroidBridge.saveAccessToken(accessToken);
+    }
     
     // 홈 화면으로 이동
     router.push('/home')
   } catch (e) {
-    console.error(e)
+    Logger.error(e)
     const msg = e.response?.data?.message
     if (msg) {
       errorMessage.value = msg

@@ -139,6 +139,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import * as voiceService from '@/services/voiceService';
+import { Logger } from '@/services/logger';
 
 const samples = ref([]);
 const representativeId = ref(null);
@@ -169,13 +170,13 @@ const loadData = async () => {
         // but display list immediately
         const needsGeneration = fetchedSamples.some(s => !s.testAudioUrl);
         if (needsGeneration) {
-            voiceService.generateTestAudio().catch(err => console.error("Generation trigger failed", err));
+            voiceService.generateTestAudio().catch(err => Logger.error("음성 생성 트리거 실패:", err));
             // We don't await loop here, just show "Processing" state
         }
         
         samples.value = fetchedSamples;
     } catch (error) {
-        console.error("Failed to load voice settings:", error);
+        Logger.error("목소리 설정 로드 실패:", error);
     }
 };
 
@@ -218,7 +219,7 @@ const setRepresentative = async (sample) => {
         representativeId.value = sample.id;
         selectedSample.value = null; // Close modal
     } catch (error) {
-        console.error("Failed to set representative:", error);
+        Logger.error("대표 목소리 설정 실패:", error);
         alert("설정에 실패했습니다.");
     }
 };
@@ -231,7 +232,7 @@ const confirmDelete = async (sample) => {
         await loadData();
         selectedSample.value = null;
     } catch (error) {
-        console.error("Failed to delete:", error);
+        Logger.error("삭제 실패:", error);
         alert("삭제에 실패했습니다.");
     }
 };
@@ -263,7 +264,7 @@ const saveNickname = async () => {
         
         closeEditModal();
     } catch (error) {
-        console.error("Failed to update nickname:", error);
+        Logger.error("별명 수정 실패:", error);
         alert("수정에 실패했습니다.");
     }
 };

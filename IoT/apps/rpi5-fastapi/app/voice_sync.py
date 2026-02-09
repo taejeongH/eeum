@@ -55,10 +55,6 @@ def _remove_local_voice_file(vid: int) -> None:
             pass
 
 def _normalize_members(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    data["members"]를 members 테이블 upsert 포맷으로 정규화
-    [{"user_id":int,"name":str,"profile_image_url":str}, ...]
-    """
     out: List[Dict[str, Any]] = []
     members = data.get("members") or []
     if not isinstance(members, list):
@@ -113,7 +109,6 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
             except Exception:
                 logger.exception("[voice_sync] member upsert failed")
 
-            # 캐시 반영(변경분만 갱신)
             try:
                 for m in ms:
                     uid = int(m["user_id"])
@@ -128,7 +123,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
             except Exception:
                 logger.exception("[voice_sync] member_cache update failed")
 
-    # 2) added를 user_id만 포함해서 전달
+    # 2) added normalize
     normalized_added: List[Dict[str, Any]] = []
     for v in data.get("added", []):
         if not isinstance(v, dict) or "id" not in v or "url" not in v:
@@ -144,7 +139,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
             "id": int(v["id"]),
             "url": str(v["url"]),
             "description": str(v.get("description") or ""),
-            "userId": uid,   # voice_repo에서 userId/user_id 둘 다 처리함
+            "userId": uid,
         })
 
     sync_delta = {
@@ -153,7 +148,8 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
         "deleted": data.get("deleted") or [],
     }
 
-    new_log, add_cnt, del_cnt, deleted_ids = repo.apply_sync_delta(sync_delta)
+    # 반환값 변경 반영
+    new_log, add_cnt, del_cnt, deleted_ids, inserted_ids = repo.apply_sync_delta(sync_delta)
 
     for vid in deleted_ids:
         _remove_local_voice_file(int(vid))
@@ -166,6 +162,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
         "added_ids": added_ids,
         "deleted": del_cnt,
         "deleted_ids": deleted_ids,
+        "inserted_ids": inserted_ids,  # 디버그용
         "last_log_id": last_log_id,
         "new_log_id": new_log,
     }

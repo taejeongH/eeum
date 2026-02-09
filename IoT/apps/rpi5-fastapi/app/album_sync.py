@@ -1,5 +1,4 @@
 # app/album_sync.py
-import asyncio
 import logging
 import time
 from typing import Any, Dict, List, Tuple

@@ -27,12 +27,15 @@ class MonitorState:
         self.device_id = CLIENT_ID or ""
         self.loop = None
 
+        self.voice_done_sent = set()
+        self.voice_done_lock = asyncio.Lock()
+
         self.stt_engine = None
         self.stt_cache_missing: bool = False
         self.stt_cache_attempted: bool = False
         self.stt_lock = asyncio.Lock()
         self.stt_busy: bool = False
-        
+
         # ---- DB ----
         self.db = None
         self.album_repo = None
@@ -69,9 +72,20 @@ class MonitorState:
         # ---- audio manager ----
         self.audio = AudioManager()
         
+        # ---- heavy ops gate (nmcli/scan 등) ----
+        # 오디오 재생/ STT 중에는 nmcli 같은 무거운 작업을 쉬게 해서 프리즈/OOM 확률을 낮춤
+        self.heavy_ops_pause: bool = False  # 필요 시 강제 pause 토글(디버그용)
+        self.heavy_ops_lock = asyncio.Lock()
+
         # ---- voice ----
         self.voice_subscribers: set[asyncio.Queue] = set()
         self.voice_repo = None
+        # duration은 ffprobe가 무거우므로 "다운로드 시 1회" 계산해서 캐시 재사용
+        self.voice_duration_cache: dict[int, float] = {}   # vid -> sec
+        # ACK 레이스(중복 enqueue/삭제) 방지: vid 단위 락
+        self.voice_ack_locks: dict[int, asyncio.Lock] = {}
+        # download 레이스(consumer vs downloader) 방지: vid 단위 락
+        self.voice_dl_locks: dict[int, asyncio.Lock] = {}
 
         # ---- alarm ----
         self.alert_subscribers: set[asyncio.Queue] = set()

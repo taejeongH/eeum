@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 
 export const useFamilyStore = defineStore('family', () => {
   const families = ref([]);
@@ -58,7 +59,7 @@ export const useFamilyStore = defineStore('family', () => {
         localStorage.removeItem('selectedFamilyId');
       }
     } catch (error) {
-      console.error('Failed to fetch families:', error);
+      Logger.error('가족 목록 조회 실패:', error);
       families.value = [];
     } finally {
       isLoading.value = false;
@@ -93,6 +94,7 @@ export const useFamilyStore = defineStore('family', () => {
   function clearFamily() {
     selectedFamily.value = null;
     families.value = [];
+    membersCache.value = {}; // [NEW] Clear cache to prevent session leaks
     localStorage.removeItem('selectedFamilyId');
   }
 
@@ -111,7 +113,7 @@ export const useFamilyStore = defineStore('family', () => {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to create family:', error);
+      Logger.error('가족 생성 실패:', error);
       throw error;
     } finally {
       isLoading.value = false;
@@ -134,7 +136,7 @@ export const useFamilyStore = defineStore('family', () => {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to join family:', error);
+      Logger.error('가족 참여 실패:', error);
       throw error;
     } finally {
       isLoading.value = false;
@@ -155,7 +157,7 @@ export const useFamilyStore = defineStore('family', () => {
       membersCache.value[familyId] = response.data;
       return response.data;
     } catch (error) {
-      console.error(`Failed to fetch members for family ${familyId}:`, error);
+      Logger.error(`가족 구성원 조회 실패 (ID: ${familyId}):`, error);
       return membersCache.value[familyId] || []; // 에러 시 기존 캐시라도 반환
     }
   }

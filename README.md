@@ -261,10 +261,24 @@ npm run dev
 │   │   └── network/               # Retrofit API 인터페이스
 │   └── build.gradle.kts           # Kotlin DSL 빌드 스크립트
 │
-└── IoT/                           # IoT 디바이스 코드
-    └── apps/
-        ├── rpi5-fastapi/          # 라즈베리파이 엣지 게이트웨이
-        └── esp32-pir-sender/      # ESP32 모션 감지 센서 펌웨어
+├── IoT/                           # IoT 디바이스 코드
+│    └── apps/
+│       ├── rpi5-fastapi/          # 라즈베리파이 엣지 게이트웨이
+│       └── esp32-pir-sender/      # ESP32 모션 감지 센서 펌웨어
+│
+└── edge_app/                      # 젯슨 오린 나노 실행 코드
+    ├── app/
+    │   ├── api/                   # 서버, RPI 통신 코드
+    │   ├── auth/                  # 디바이스 인증 코드
+    │   ├── core/                  # 낙상 관련 핵심 기능 코드
+    │   ├── engine/                # 촬영 코드
+    │   ├── modes/                 # QR, Live 모드 코드
+    │   ├── state/                 # 디바이스 상태 관리
+    │   ├── utils/                 # 부가 기능 관리 코드
+    │   └── main.py                # 메인 코드
+    ├── Dockerfie                  # 젯슨 도커 파일
+    ├── docker-compose.yml         # 젯슨 도커 compose 빌드 파일
+    └── yolov8s-pose.engine        # YOLOv8s 모델 텐서 엔진 
 ```
 
 ---

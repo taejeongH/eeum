@@ -73,18 +73,24 @@ class LiveMode(BaseMode):
             self.last_level1_event = None
             self.local_incident_ts = None
             
+            # [Note] Streaming is now handled centrally by WebSocketStreamer in main.py
+            # This ensures stable connection across mode changes.
+            
             self.is_running = True
             return True
         except Exception as e:
             logger.error(f"Live Mode setup failed: {e}")
             return False
     
+
     def cleanup(self):
         """모드 정리"""
+        self.is_running = False
+        
         if self.pipeline:
              pass 
-        self.is_running = False
         self.pipeline = None
+        
         logger.info("Live Mode cleaned up")
 
     def get_status(self) -> Dict[str, Any]:
@@ -104,6 +110,9 @@ class LiveMode(BaseMode):
 
         if obs is None:
             return None, overlay_jpg, raw_frame, None
+
+        # [Note] Frame relay is handled by AppController -> WebSocketStreamer
+        # We just return the raw_frame to the controller.
 
         ts_now = float(obs["ts"])
 

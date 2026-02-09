@@ -38,6 +38,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import api from '@/services/api';
+import { Logger } from '@/services/logger';
 import { useModalStore } from '@/stores/modal';
 import IconCrown from '@/components/icons/IconCrown.vue';
 
@@ -72,7 +73,7 @@ const fetchMembers = async (id) => {
     members.value = response.data;
 
   } catch (error) {
-    console.error(`Failed to fetch members for familyId ${id}:`, error);
+    Logger.error(`구성원 조회 실패 (ID: ${id}):`, error);
     members.value = [];
   }
 };

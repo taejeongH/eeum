@@ -1,4 +1,5 @@
 import api from './api';
+import { Logger } from '@/services/logger';
 
 export const healthService = {
     getDailyReport: async (groupId, date) => {
@@ -8,7 +9,7 @@ export const healthService = {
             });
             return response.data.data;
         } catch (error) {
-            console.error('Failed to fetch health report:', error);
+            Logger.error('건강 리포트 조회 실패:', error);
             throw error;
         }
     },
@@ -20,7 +21,7 @@ export const healthService = {
             });
             return response.data.data;
         } catch (error) {
-            console.error('Failed to fetch latest health metrics:', error);
+            Logger.error('최신 건강 지표 조회 실패:', error);
             throw error;
         }
     },
@@ -29,7 +30,7 @@ export const healthService = {
             const response = await api.post(`/health/data?groupId=${groupId}`, payload);
             return response.data.data;
         } catch (error) {
-            console.error('Failed to save health metrics:', error);
+            Logger.error('건강 지표 저장 실패:', error);
             throw error;
         }
     },
@@ -41,7 +42,7 @@ export const healthService = {
             });
             return response.data.data;
         } catch (error) {
-            console.error('Failed to analyze health report:', error);
+            Logger.error('건강 리포트 분석 실패:', error);
             throw error;
         }
     },
@@ -52,7 +53,7 @@ export const healthService = {
             });
             // No return value (void)
         } catch (error) {
-            console.error('Failed to request heart rate measurement:', error);
+            Logger.error('심박수 측정 요청 실패:', error);
             throw error;
         }
     },
@@ -63,7 +64,7 @@ export const healthService = {
             });
             return response.data.data;
         } catch (error) {
-            console.error('Failed to fetch latest heart rate:', error);
+            Logger.error('최신 심박수 조회 실패:', error);
             throw error;
         }
     },
@@ -72,7 +73,7 @@ export const healthService = {
             const response = await api.get(`/health/heart-rate/${eventId}`);
             return response.data.data;
         } catch (error) {
-            console.error('Failed to fetch heart rate result:', error);
+            Logger.error('심박수 결과 조회 실패:', error);
             throw error;
         }
     },
