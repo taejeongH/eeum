@@ -1,4 +1,4 @@
-# app/album_sync.py
+
 import logging
 import time
 from typing import Any, Dict, List, Tuple
@@ -27,12 +27,12 @@ def _extract_data(resp_json: Dict[str, Any]) -> Dict[str, Any]:
     ok = is_ok_status(status)
     msg = (resp_json.get("message") or resp_json.get("msg") or "").strip()
 
-    # 실패는 반드시 실패로 처리(지금까지의 치명 버그 포인트)
+    
     if not ok:
         logger.warning("[album_sync] not-ok status=%r msg=%r body=%s", status, msg, resp_json)
         raise ValueError(msg or "sync failed")
 
-    # ok인데 메시지가 수상하면 경고만
+    
     if msg and "fail" in msg.lower():
         logger.warning("[album_sync] ok-status but suspicious msg=%r body=%s", msg, resp_json)
 
@@ -65,7 +65,7 @@ def _apply_delta_to_cache(state: MonitorState, delta: Dict[str, Any]) -> Tuple[i
     add_cnt = 0
     del_cnt = 0
 
-    # deleted 먼저
+    
     for pid in deleted:
         try:
             pid_i = int(pid)
@@ -75,7 +75,7 @@ def _apply_delta_to_cache(state: MonitorState, delta: Dict[str, Any]) -> Tuple[i
             state.album_cache.pop(pid_i, None)
             del_cnt += 1
 
-    # added upsert
+    
     for it in added:
         if not isinstance(it, dict) or "id" not in it:
             continue
@@ -85,7 +85,7 @@ def _apply_delta_to_cache(state: MonitorState, delta: Dict[str, Any]) -> Tuple[i
             "url": it.get("url"),
             "description": it.get("description"),
             "takenAt": it.get("takenAt"),
-            "user_id": it.get("userId") or it.get("user_id"),  # 추가
+            "user_id": it.get("userId") or it.get("user_id"),  
             "local_path": None,
         }
         add_cnt += 1
@@ -106,7 +106,7 @@ def load_album_cache_from_db(state: MonitorState) -> int:
             "url": r.get("url"),
             "description": r.get("description"),
             "takenAt": r.get("taken_at"),
-            "user_id": r.get("user_id"),  # 추가
+            "user_id": r.get("user_id"),  
             "local_path": (r.get("local_path") if r.get("dl_status") == "done" else None),
         }
     state.album_cache_loaded = True
@@ -133,7 +133,7 @@ async def async_sync_album_once(state: MonitorState) -> Dict[str, Any]:
         logger.warning("[album_sync] API disabled (API_BASE_URL missing/empty)")
         return {"ok": False, "message": "api disabled"}
 
-    # 여러 트리거(부팅/MQTT/HTTP) 동시 실행 방지
+    
     async with state.album_lock:
         last_log_id = state.album_repo.get_last_log_id()
 
@@ -150,16 +150,16 @@ async def async_sync_album_once(state: MonitorState) -> Dict[str, Any]:
                 state.album_last_sync_ok = True
                 logger.info("[album_sync] noop (no added/deleted) last_log_id=%s", last_log_id)
                 return {"ok": True, "skipped": True, "last_log_id": last_log_id, "message": "noop"}
-            # log_id 방어: 서버가 안 주면 기존 유지
+            
             try:
                 data["log_id"] = int(data.get("log_id"))
             except Exception:
                 data["log_id"] = last_log_id
 
-            # DB 반영
+            
             new_log_id, db_add_cnt, db_del_cnt = state.album_repo.apply_sync_delta(data)
 
-            # 캐시 반영
+            
             cache_add_cnt, cache_del_cnt = _apply_delta_to_cache(state, data)
             state.album_last_sync_ts = time.time()
             state.album_last_sync_ok = True

@@ -68,7 +68,7 @@ class DeviceState:
             self._state["serial_number"] = serial_number
             self._state["registered_at"] = time.time()
             
-            # 토큰 만료 시간 (기본: 1시간) 이지만 개발 단계에선 1년으로 설정
+            
             if token_expiry:
                 self._state["token_expiry"] = token_expiry
             else:
@@ -175,10 +175,10 @@ class DeviceState:
                 new_refresh_token = new_data.get("refresh_token")
                 
                 if new_access_token and new_refresh_token:
-                    # 로컬 저장소 갱신
+                    
                     self.refresh_tokens(new_access_token, new_refresh_token)
                     
-                    # 라즈베리파이 동기화
+                    
                     result = server_client.send_access_token_to_rpi(new_access_token)
                     if result and result.get("ok") == True:
                         logger.info("Access token sent to RPI successfully")
@@ -187,11 +187,11 @@ class DeviceState:
                     
                     return new_access_token
             
-            return None # 갱신 실패
+            return None 
         
         return self.get_access_token()
 
-# 전역 인스턴스
+
 _device_state: Optional[DeviceState] = None
 
 

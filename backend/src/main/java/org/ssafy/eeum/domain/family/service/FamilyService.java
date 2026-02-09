@@ -36,7 +36,7 @@ public class FamilyService {
         private static final int CODE_LENGTH = 8;
         private static final SecureRandom RANDOM = new SecureRandom();
 
-        // ... existing methods ...
+        
 
         @Transactional(readOnly = true)
         public FamilyDetailResponseDto getFamilyDetails(Integer familyId) {
@@ -69,23 +69,23 @@ public class FamilyService {
                                 })
                                 .collect(Collectors.toList());
 
-                // [Changed] Get JETSON device serial as streamingUrl
-                // If multiple, pick first. If none, use family.getStreamingUrl() (fallback) or
-                // null
+                
+                
+                
                 String streamingTarget = family.getStreamingUrl();
                 List<org.ssafy.eeum.domain.iot.entity.IotDevice> devices = iotDeviceRepository
                                 .findAllByFamilyId(familyId);
 
-                // [Logic Update] Prioritize valid JETSON devices
+                
                 for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
                         if ("JETSON".equalsIgnoreCase(device.getDeviceType())) {
                                 String sn = device.getSerialNumber();
-                                // Filter out garbage data like 'falls'
+                                
                                 if (sn != null && sn.length() > 5 && sn.toUpperCase().startsWith("EEUM")) {
                                         streamingTarget = sn;
                                         break;
                                 } else if (streamingTarget == null || streamingTarget.length() < 5) {
-                                        // Keep as candidate if strictly better than nothing, but prefer EEUM
+                                        
                                         streamingTarget = sn;
                                 }
                         }
@@ -363,7 +363,7 @@ public class FamilyService {
                 Family family = familyRepository.findById(familyId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-                // 인증된 유저가 가족의 대표자인지 확인
+                
                 if (!family.getUser().getId().equals(authenticatedUser.getId())) {
                         throw new CustomException(ErrorCode.NOT_FAMILY_REPRESENTATIVE);
                 }
@@ -377,7 +377,7 @@ public class FamilyService {
                 Family family = familyRepository.findById(familyId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-                // 인증된 유저가 가족의 대표자인지 확인
+                
                 if (!family.getUser().getId().equals(authenticatedUser.getId())) {
                         throw new CustomException(ErrorCode.NOT_FAMILY_REPRESENTATIVE);
                 }
@@ -400,7 +400,7 @@ public class FamilyService {
                 Family family = familyRepository.findById(familyId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-                // 인증된 유저가 가족의 대표자인지 확인
+                
                 if (!family.getUser().getId().equals(authenticatedUser.getId())) {
                         throw new CustomException(ErrorCode.NOT_FAMILY_REPRESENTATIVE);
                 }
@@ -408,7 +408,7 @@ public class FamilyService {
                 User memberUserToDelete = userRepository.findById(memberUserId.intValue())
                                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-                // 대표자가 자기 자신을 삭제하는 경우
+                
                 if (authenticatedUser.getId().equals(memberUserToDelete.getId())) {
                         throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "자기 자신을 삭제하려면 가족 탈퇴 API를 사용해주세요.");
                 }
@@ -426,12 +426,12 @@ public class FamilyService {
                 Family family = familyRepository.findByInviteCode(inviteCode)
                                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INVITE_CODE));
 
-                // 이미 멤버인지 확인
+                
                 if (supporterRepository.findByUserAndFamily(authenticatedUser, family).isPresent()) {
                         throw new CustomException(ErrorCode.ALREADY_FAMILY_MEMBER);
                 }
 
-                // 이미 대표자인지 확인
+                
                 if (family.getUser().getId().equals(authenticatedUser.getId())) {
                         throw new CustomException(ErrorCode.ALREADY_FAMILY_REPRESENTATIVE);
                 }
@@ -445,7 +445,7 @@ public class FamilyService {
                                 .build();
                 supporterRepository.save(newSupporter);
 
-                // Add birthday schedule
+                
                 scheduleService.addBirthdaySchedule(authenticatedUser, family);
 
                 return FamilySimpleResponseDto.of(family);

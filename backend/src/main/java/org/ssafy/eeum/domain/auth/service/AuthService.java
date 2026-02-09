@@ -72,7 +72,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .profileImage(DEFAULT_PROFILE_IMAGE)
-                .isEmailVerified(true) // 이미 인증됨
+                .isEmailVerified(true) 
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -87,28 +87,28 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public String findEmail(String name, String phone) {
-        // 이름과 휴대폰 번호로 사용자 찾기
+        
         java.util.List<User> users = userRepository.findByNameAndPhone(name, phone);
         if (users.isEmpty()) {
             throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
         }
 
-        // 첫 번째 사용자의 이메일 반환 (마스킹 처리)
-        // 예: test@example.com -> te**@example.com
+        
+        
         String email = users.get(0).getEmail();
         return maskEmail(email);
     }
 
     @Transactional
     public void sendPasswordResetCode(String email) {
-        // 가입된 이메일인지 확인
+        
         if (userRepository.findByEmail(email).isEmpty()) {
             throw new CustomException(ErrorCode.ENTITY_NOT_FOUND);
         }
 
         String code = generateRandomCode();
         redisTemplate.opsForValue().set(PW_RESET_CODE_PREFIX + email, code, 3, TimeUnit.MINUTES);
-        emailService.sendVerificationCode(email, code); // 기존 이메일 발송 메서드 재사용
+        emailService.sendVerificationCode(email, code); 
     }
 
     @Transactional
@@ -123,16 +123,16 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(String email, String newPassword) {
-        // 인증 여부 확인
+        
         String isVerified = redisTemplate.opsForValue().get(PW_RESET_VERIFIED_PREFIX + email);
         if (isVerified == null || !"true".equals(isVerified)) {
-            throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED); // 재사용. 의미상 맞음
+            throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED); 
         }
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-        user.updatePassword(passwordEncoder.encode(newPassword)); // User 엔티티에 메서드 추가 필요
+        user.updatePassword(passwordEncoder.encode(newPassword)); 
         redisTemplate.delete(PW_RESET_VERIFIED_PREFIX + email);
     }
 
@@ -141,7 +141,7 @@ public class AuthService {
             return email;
         int atIndex = email.indexOf("@");
         if (atIndex <= 2)
-            return email; // 너무 짧으면 그대로
+            return email; 
 
         String id = email.substring(0, atIndex);
         String domain = email.substring(atIndex);
@@ -163,12 +163,12 @@ public class AuthService {
             throw new CustomException(ErrorCode.LOGIN_FAILED);
         }
 
-        // 기존 isEmailVerified 체크는 유지하거나, 회원가입 시 true로 들어가므로 생략 가능하나 안전을 위해 유지
+        
         if (!user.isEmailVerified()) {
             throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
 
-        // 기본 프로필 이미지가 없는 경우 설정
+        
         if (user.getProfileImage() == null || user.getProfileImage().isEmpty()) {
             user.updateProfileImage(DEFAULT_PROFILE_IMAGE);
         }
@@ -176,7 +176,7 @@ public class AuthService {
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), "ROLE_USER");
         String refreshToken = jwtProvider.createRefreshToken(user.getId(), user.getEmail(), "ROLE_USER");
 
-        // Refresh Token Redis 저장 (7일)
+        
         redisTemplate.opsForValue().set(RT_PREFIX + user.getEmail(), refreshToken, 7, TimeUnit.DAYS);
 
         return TokenDto.builder()
@@ -195,32 +195,32 @@ public class AuthService {
 
     @Transactional
     public TokenDto reissue(String refreshToken) {
-        // 1. Refresh Token 검증
+        
         if (!jwtProvider.validateToken(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN); // ErrorCode 확인 필요
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN); 
         }
 
-        // 2. Access Token에서 User email 가져오기 (만료되었어도 claim은 파싱 가능 혹은 Refresh Token에서
-        // 가져오기)
-        // Refresh Token도 JWT이므로 바로 파싱 가능
+        
+        
+        
         org.springframework.security.core.Authentication authentication = jwtProvider.getAuthentication(refreshToken);
         org.ssafy.eeum.global.auth.model.CustomUserDetails userDetails = (org.ssafy.eeum.global.auth.model.CustomUserDetails) authentication
                 .getPrincipal();
         String email = userDetails.getEmail();
 
-        // 3. Redis에서 Refresh Token 저장 확인
+        
         String storedRefreshToken = redisTemplate.opsForValue().get(RT_PREFIX + email);
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        // 4. 새로운 토큰 생성
+        
         String newAccessToken = jwtProvider.createAccessToken(userDetails.getId(), userDetails.getName(),
                 userDetails.getRole());
         String newRefreshToken = jwtProvider.createRefreshToken(userDetails.getId(), userDetails.getName(),
                 userDetails.getRole());
 
-        // 5. Refresh Token Rotation (Redis 업데이트)
+        
         redisTemplate.opsForValue().set(RT_PREFIX + email, newRefreshToken, 7, TimeUnit.DAYS);
 
         return TokenDto.builder()

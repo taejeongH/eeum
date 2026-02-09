@@ -1,8 +1,4 @@
-/**
- * Unified Mock Server for IoT Frontend Testing
- * Merged from mock-wifi-server.js and mock-sse-server.js
- * Port: 8080
- */
+
 
 import http from 'http';
 import fs from 'fs';
@@ -14,13 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = 8080;
 
-// Path to test images
+
 const LOCAL_IMAGES_DIR = path.join(__dirname, '..', 'test-images');
 if (!fs.existsSync(LOCAL_IMAGES_DIR)) {
     fs.mkdirSync(LOCAL_IMAGES_DIR, { recursive: true });
 }
 
-// --- Global States ---
+
 let wifiState = {
     activeSSID: 'MyHomeWiFi',
     lastPing: Date.now() / 1000,
@@ -53,7 +49,7 @@ const todayStr = `${yyyy}-${mm}-${dd}`;
 let scheduleEvents = [];
 let chatHistory = [];
 
-// --- Helpers ---
+
 function sendJSON(res, statusCode, data) {
     res.writeHead(statusCode, {
         'Content-Type': 'application/json',
@@ -77,7 +73,7 @@ function parseBody(req, callback) {
 }
 
 const server = http.createServer((req, res) => {
-    // CORS Preflight
+    
     if (req.method === 'OPTIONS') {
         res.writeHead(204, {
             'Access-Control-Allow-Origin': '*',
@@ -88,13 +84,13 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const url = new URL(req.url, `http:
     const pathName = url.pathname;
     const query = url.searchParams;
 
     console.log(`${req.method} ${pathName}`);
 
-    // --- 1. WiFi APIs ---
+    
     if (pathName === '/api/wifi/ui/ping' && req.method === 'POST') {
         wifiState.lastPing = Date.now() / 1000;
         return sendJSON(res, 200, { ok: true, ts: wifiState.lastPing });
@@ -180,8 +176,8 @@ const server = http.createServer((req, res) => {
         });
     }
 
-    // --- 2. SSE Streams ---
-    // Track active SSE connections for broadcasting
+    
+    
     if (!global.sseClients) global.sseClients = new Set();
 
     if (pathName === '/api/alerts/stream') {
@@ -210,8 +206,8 @@ const server = http.createServer((req, res) => {
         });
         res.write('event: connected\ndata: {}\n\n');
 
-        // We can reuse global.sseClients or create a new set. 
-        // For simplicity, let's track voice clients separately to send specific 'voice' events.
+        
+        
         if (!global.voiceClients) global.voiceClients = new Set();
         global.voiceClients.add(res);
 
@@ -222,7 +218,7 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Manual Trigger Endpoint
+    
     if (pathName === '/api/mock/trigger' && req.method === 'POST') {
         return parseBody(req, (err, body) => {
             if (err) return sendJSON(res, 400, { ok: false, message: 'Invalid JSON' });
@@ -242,7 +238,7 @@ const server = http.createServer((req, res) => {
 
             console.log('[Mock] Triggering alert:', payload.kind);
 
-            // Sync schedule data if kind is schedule
+            
             if (payload.kind === 'schedule' && payload.data?.events_for_today) {
                 console.log('[Mock] Syncing schedule data');
                 scheduleEvents = [{
@@ -252,14 +248,14 @@ const server = http.createServer((req, res) => {
                     startAt: new Date().toISOString(),
                     type: "SCHEDULE",
                     data: payload.data
-                }, ...scheduleEvents.slice(0, 10)]; // Keep last 10
+                }, ...scheduleEvents.slice(0, 10)]; 
             }
 
-            // Sync voice data if kind is voice
+            
             if (payload.kind === 'voice') {
                 console.log('[Mock] Syncing voice/chat data');
 
-                // Mock profile lookup
+                
                 const senders = [
                     { name: "아들 철수", img: "https://randomuser.me/api/portraits/men/32.jpg" },
                     { name: "딸 영희", img: "https://randomuser.me/api/portraits/women/44.jpg" },
@@ -275,7 +271,7 @@ const server = http.createServer((req, res) => {
                 };
                 chatHistory = [voiceMsg, ...chatHistory.slice(0, 20)];
 
-                // Broadcast to Voice Stream Clients
+                
                 if (global.voiceClients) {
                     const voicePayload = {
                         id: voiceMsg.id,
@@ -297,7 +293,7 @@ const server = http.createServer((req, res) => {
                     });
                 }
 
-                // Inject profile_image into payload for alert stream too
+                
                 payload.profile_image = senderInfo.img || null;
             }
 
@@ -324,17 +320,17 @@ const server = http.createServer((req, res) => {
                 seq: Date.now(),
                 item: {
                     id: Date.now(),
-                    url: `https://picsum.photos/1920/1080?random=${Date.now()}`,
+                    url: `https:
                     description: "가족의 소중한 추억"
                 }
             };
             res.write(`event: slide\ndata: ${JSON.stringify(data)}\n\n`);
-        }, 15000); // Slooooow down slideshow for better testing
+        }, 15000); 
         req.on('close', () => clearInterval(interval));
         return;
     }
 
-    // --- 3. Additional APIs (Schedules, Voice sync, etc.) ---
+    
     if (pathName === '/api/iot/device/schedules') {
         return sendJSON(res, 200, {
             status: 200,
@@ -348,13 +344,13 @@ const server = http.createServer((req, res) => {
             return sendJSON(res, 200, { ok: true });
         }
 
-        // Transform chatHistory to new format
+        
         const items = chatHistory.map(msg => ({
             id: msg.id,
             description: msg.content,
             created_at: new Date(msg.timestamp).getTime() / 1000,
             sender: {
-                user_id: 1, // Mock ID
+                user_id: 1, 
                 name: msg.sender,
                 profile_image_url: null
             }
@@ -376,7 +372,7 @@ const server = http.createServer((req, res) => {
             {
                 id: 9991,
                 description: "부재중 음성 메시지가 있습니다 (Pending Test)",
-                created_at: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
+                created_at: Math.floor(Date.now() / 1000) - 3600, 
                 sender: {
                     user_id: 10,
                     name: "홍길동",
@@ -404,7 +400,7 @@ const server = http.createServer((req, res) => {
         });
     }
 
-    // --- 4. Image Serving ---
+    
     if (pathName.startsWith('/images/')) {
         const fileName = decodeURIComponent(pathName.replace('/images/', ''));
         const filePath = path.join(LOCAL_IMAGES_DIR, fileName);
@@ -414,12 +410,12 @@ const server = http.createServer((req, res) => {
         }
     }
 
-    // 404
+    
     sendJSON(res, 404, { ok: false, message: 'Not Found' });
 });
 
 server.listen(PORT, () => {
-    console.log(`\n🚀 Unified Mock Server running at http://localhost:${PORT}`);
+    console.log(`\n🚀 Unified Mock Server running at http:
     console.log(`   - WiFi & SSE APIs Integrated`);
     console.log(`   - Port: ${PORT}\n`);
 });

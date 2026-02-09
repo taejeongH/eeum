@@ -12,8 +12,8 @@ public class LogConfig {
     public FilterRegistrationBean<ApiLoggingFilter> apiLoggingFilterRegistration(ApiLoggingFilter apiLoggingFilter) {
         FilterRegistrationBean<ApiLoggingFilter> registrationBean = new FilterRegistrationBean<>();
         registrationBean.setFilter(apiLoggingFilter);
-        registrationBean.addUrlPatterns("/api/*"); // /api/로 시작하는 모든 요청에 적용
-        registrationBean.setOrder(1); // 우선순위 설정
+        registrationBean.addUrlPatterns("/api/*"); 
+        registrationBean.setOrder(1); 
         return registrationBean;
     }
 }

@@ -14,7 +14,7 @@ from ..utils import start_replay_thread
 
 logger = logging.getLogger(__name__)
 
-# 임시 테스트 등록 (Windows)
+
 def _register_temp_for_windows():
     device_state = get_device_state()
     if sys.platform == "win32" and not device_state.is_registered():
@@ -46,11 +46,11 @@ class AppController:
         self.processing_mode: str = "initial"
         self.latest_obs: Optional[Dict[str, Any]] = None
 
-        # ✅ 두 개로 분리
+        
         self.latest_jpeg_overlay: Optional[bytes] = None
         self.latest_jpeg_raw: Optional[bytes] = None
 
-        # ✅ 스트림도 각각 카운터/condition 분리 (간단/안전)
+        
         self.frame_count_overlay = 0
         self.frame_count_raw = 0
         self.cond_overlay = threading.Condition()
@@ -58,12 +58,12 @@ class AppController:
 
         self.current_mode: Optional[BaseMode] = None
 
-        # Replay
+        
         self.replay_thread = None
         self.replay_stop_event = threading.Event()
         self.replay_running = False
 
-        # Recording
+        
         self.record_lock = threading.Lock()
         self.record_fp = None
         self.record_path = None
@@ -148,11 +148,11 @@ class AppController:
 
             try:
                 if self.current_mode:
-                    # ✅ LiveMode.step()가 (obs, overlay_jpg, raw_frame, frame) 형태로 리턴한다고 가정
-                    #    (너가 LiveMode를 그렇게 바꿔야 함)
+                    
+                    
                     obs, overlay_jpg, raw_frame, _ = self.current_mode.step()
 
-                    # raw_frame -> raw_jpg 인코딩
+                    
                     raw_jpg = None
                     if raw_frame is not None:
                         ok, enc = cv2.imencode(
@@ -167,7 +167,7 @@ class AppController:
                         if obs is not None:
                             self.latest_obs = obs
 
-                    # ✅ overlay jpeg 갱신
+                    
                     if overlay_jpg is not None:
                         with self.state_lock:
                             self.latest_jpeg_overlay = overlay_jpg
@@ -175,7 +175,7 @@ class AppController:
                             self.frame_count_overlay += 1
                             self.cond_overlay.notify_all()
 
-                    # ✅ raw jpeg 갱신
+                    
                     if raw_jpg is not None:
                         with self.state_lock:
                             self.latest_jpeg_raw = raw_jpg
@@ -205,7 +205,7 @@ class AppController:
         with self.state_lock:
             return self.latest_obs
 
-    # ✅ overlay용 wait
+    
     def wait_for_overlay_frame(self, last_count: int, timeout: float = 1.0) -> Tuple[Optional[bytes], int]:
         with self.cond_overlay:
             if self.frame_count_overlay <= last_count:
@@ -214,7 +214,7 @@ class AppController:
         with self.state_lock:
             return self.latest_jpeg_overlay, self.frame_count_overlay
 
-    # ✅ raw용 wait
+    
     def wait_for_raw_frame(self, last_count: int, timeout: float = 1.0) -> Tuple[Optional[bytes], int]:
         with self.cond_raw:
             if self.frame_count_raw <= last_count:
@@ -223,7 +223,7 @@ class AppController:
         with self.state_lock:
             return self.latest_jpeg_raw, self.frame_count_raw
 
-    # --- Recording (기존 그대로) ---
+    
     def start_recording(self):
         import os
         os.makedirs(RUNS_DIR, exist_ok=True)
@@ -254,7 +254,7 @@ class AppController:
                 self.record_fp.write(json.dumps(obs, ensure_ascii=False) + "\n")
                 self.record_fp.flush()
 
-    # --- Replay (기존 그대로) ---
+    
     def start_replay(self, path: str, fps: float):
         if self.replay_running:
             return False
@@ -265,7 +265,7 @@ class AppController:
         def on_frame(obs, jpg):
             with self.state_lock:
                 self.latest_obs = obs
-                # replay는 overlay만 있다고 가정
+                
                 self.latest_jpeg_overlay = jpg
             with self.cond_overlay:
                 self.frame_count_overlay += 1

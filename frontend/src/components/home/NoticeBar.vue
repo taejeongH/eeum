@@ -43,22 +43,22 @@ const isEmergency = computed(() => {
 });
 
 const displayMessage = computed(() => {
-  // 1. 초기 로딩 중이거나 아직 데이터를 가져오기 전인 경우
+  
   if (!notificationStore.isInitialized || notificationStore.isLoading || familyStore.isLoading) {
     return '알람을 가져오는 중...';
   }
   
-  // 2. 가족이 아예 없는 경우
+  
   if (familyStore.families.length === 0) {
     return '참여 중인 그룹이 없습니다.';
   }
 
-  // 3. 알림이 없는 경우
+  
   if (!notificationStore.latestNotification) {
     return '새로운 알림이 없습니다.';
   }
 
-  // 4. 최신 알림 메시지 출력
+  
   return notificationStore.latestNotification.message;
 });
 

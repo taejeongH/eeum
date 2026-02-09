@@ -18,7 +18,7 @@ public class VoiceSampleRequestDTO {
     private Double durationSec;
 
     @Schema(description = "녹음 내용 텍스트 (프리토킹인 경우 필수)", example = "오늘 날씨가 참 좋네요", nullable = true)
-    private String transcript; // STT로 변환된 텍스트
+    private String transcript; 
 
     @NotBlank(message = "음성 샘플 별명은 필수입니다.")
     @Schema(description = "음성 샘플 별명 (예: 구수한 목소리)", example = "구수한 목소리", nullable = false)

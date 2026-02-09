@@ -170,12 +170,12 @@ const handleLogin = async () => {
       password: loginForm.password
     }, {
       withCredentials: false,
-      skipLoading: true // 버튼에 스피너가 있으므로 전역 오버레이는 생략
+      skipLoading: true 
     })
 
     const { accessToken, refreshToken } = response.data
     
-    // 로그인 유지 체크 여부에 따라 스토리지 분기
+    
     if (loginForm.rememberMe) {
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
@@ -188,15 +188,15 @@ const handleLogin = async () => {
       localStorage.removeItem('refreshToken')
     }
     
-    // axios 헤더에 토큰 설정
+    
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
 
-    // [Fix] 모바일 네이티브 저장소와 동기화 (강제 종료 후 세션 유지 및 계정 꼬임 방지)
+    
     if (window.AndroidBridge && window.AndroidBridge.saveAccessToken) {
         window.AndroidBridge.saveAccessToken(accessToken);
     }
     
-    // 홈 화면으로 이동
+    
     router.push('/home')
   } catch (e) {
     Logger.error(e)
@@ -223,7 +223,7 @@ const handleSignup = () => {
 </script>
 
 <style scoped>
-/* main.css의 변수/유틸리티를 상속받아 쓰되, 필요한 경우 재정의 */
+
 .login-container {
   background: linear-gradient(135deg, #ffffff 0%, var(--color-primary-light) 100%);
 }

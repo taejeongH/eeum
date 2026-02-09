@@ -1,4 +1,4 @@
-# app/voice_sync.py
+
 import logging
 import os
 from typing import Any, Dict, List
@@ -100,7 +100,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
     resp = await async_http_get_json(state, url, headers=headers, params=params, timeout_sec=10.0)
     data = _extract_data(resp)
 
-    # 1) members upsert (있으면)
+    
     if state.member_repo:
         ms = _normalize_members(data)
         if ms:
@@ -123,7 +123,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
             except Exception:
                 logger.exception("[voice_sync] member_cache update failed")
 
-    # 2) added normalize
+    
     normalized_added: List[Dict[str, Any]] = []
     for v in data.get("added", []):
         if not isinstance(v, dict) or "id" not in v or "url" not in v:
@@ -148,7 +148,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
         "deleted": data.get("deleted") or [],
     }
 
-    # 반환값 변경 반영
+    
     new_log, add_cnt, del_cnt, deleted_ids, inserted_ids = repo.apply_sync_delta(sync_delta)
 
     for vid in deleted_ids:
@@ -162,7 +162,7 @@ async def async_sync_voice_once(state: MonitorState) -> Dict[str, Any]:
         "added_ids": added_ids,
         "deleted": del_cnt,
         "deleted_ids": deleted_ids,
-        "inserted_ids": inserted_ids,  # 디버그용
+        "inserted_ids": inserted_ids,  
         "last_log_id": last_log_id,
         "new_log_id": new_log,
     }

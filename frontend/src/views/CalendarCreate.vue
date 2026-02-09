@@ -203,7 +203,7 @@ const route = useRoute();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 
-// Drag to Close Logic
+
 const sheet = ref(null);
 const touchStartY = ref(0);
 const touchCurrentY = ref(0);
@@ -220,15 +220,15 @@ const sheetStyle = computed(() => {
 
 const onTouchStart = (e) => {
   touchStartY.value = e.touches[0].clientY;
-  touchCurrentY.value = e.touches[0].clientY; // 초기화 필수 (클릭 시 diff=0 보장)
+  touchCurrentY.value = e.touches[0].clientY; 
   isDragging.value = true;
 };
 
 const onTouchMove = (e) => {
   if (!isDragging.value) return;
   touchCurrentY.value = e.touches[0].clientY;
-  // Prevent default scroll behavior only if we are dragging the handle
-  // (Since touch-none is on the handle div, explicit preventDefault might not be needed but safe)
+  
+  
 };
 
 const onTouchEnd = () => {
@@ -237,10 +237,10 @@ const onTouchEnd = () => {
   const diff = touchCurrentY.value - touchStartY.value;
   isDragging.value = false;
   
-  if (diff > 100) { // Threshold to close (100px)
+  if (diff > 100) { 
     router.back();
   } else {
-    // Snap back happen automatically due to removing transform and CSS transition
+    
     touchStartY.value = 0;
     touchCurrentY.value = 0;
   }
@@ -263,7 +263,7 @@ const headerYear = computed(() => {
 
 const formData = ref({
     title: '',
-    categoryType: 'VISIT', // Default
+    categoryType: 'VISIT', 
     startAtDate: new Date().toISOString().split('T')[0],
     startAtTime: '12:00',
     endAtDate: new Date().toISOString().split('T')[0],
@@ -284,13 +284,13 @@ onMounted(async () => {
     }
 
 
-    // Edit Mode: Fetch existing data
+    
     if (isEditMode.value) {
         try {
             const scheduleId = route.query.id;
             const data = await scheduleService.getSchedule(familyStore.selectedFamily.id, scheduleId);
             
-            // Populate form
+            
             formData.value.title = data.title;
             formData.value.categoryType = data.categoryType;
             formData.value.description = data.description;
@@ -328,15 +328,15 @@ onMounted(async () => {
             router.back();
         }
     } else if (route.query.date) {
-        // Create Mode with specific date
+        
         formData.value.startAtDate = route.query.date;
         formData.value.endAtDate = route.query.date;
     }
 });
 
-// Sync end date with start date only when start date changes and recurrence is not set
+
 watch(() => formData.value.startAtDate, (newVal) => {
-    if (!isEditMode.value) { // Only sync in create mode to avoid overwriting existing end date
+    if (!isEditMode.value) { 
         formData.value.endAtDate = newVal;
     }
 });
@@ -368,11 +368,11 @@ const submitForm = async () => {
     try {
         const payload = {
             ...formData.value,
-            // categoryType이 수정된 값을 따르도록 함 (기본값 fallback 주의)
+            
             categoryType: formData.value.categoryType || 'VISIT',
             startAt: `${formData.value.startAtDate}T${formData.value.startAtTime}:00`,
             endAt: `${formData.value.endAtDate}T${formData.value.endAtTime}:00`,
-            isLunar: formData.value.isLunar ? 1 : 0, // 0 또는 1로 전송 (DB 호환성 고려)
+            isLunar: formData.value.isLunar ? 1 : 0, 
             recurrenceEndAt: formData.value.recurrenceEndAt || null, 
             targetPerson: formData.value.targetPerson || null,
             visitPurpose: formData.value.visitPurpose || null,

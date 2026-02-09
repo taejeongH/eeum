@@ -99,7 +99,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import api from '@/services/api' // Still need api for fetching members list for dropdown
+import api from '@/services/api' 
 import { useGroupSetupStore } from '@/stores/groupSetup'
 import { storeToRefs } from 'pinia'
 import { Logger } from '@/services/logger'
@@ -109,7 +109,7 @@ const router = useRouter()
 const route = useRoute()
 const setupStore = useGroupSetupStore()
 
-// Bind to store state
+
 const { seniorId, bloodType, diseases } = storeToRefs(setupStore)
 
 const familyId = computed(() => route.params.familyId)
@@ -130,12 +130,12 @@ const removeDisease = (index) => {
 onMounted(async () => {
   if (!familyId.value) return
   
-  // Initialize store data (if not already)
+  
   setupStore.initData(familyId.value)
 
-  // Fetch Members for the dropdown (Selectable options)
-  // This is UI state/options, not the "Setup Data" per se, although setupStore *could* cache it.
-  // Keeping it here is fine for now.
+  
+  
+  
   try {
     const membersRes = await api.get(`/families/${familyId.value}/members`)
     members.value = membersRes.data

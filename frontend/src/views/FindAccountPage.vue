@@ -216,7 +216,7 @@ const router = useRouter();
 const activeTab = ref('findEmail');
 const loading = ref(false);
 const message = ref('');
-const isError = ref(false); // Used for styling (red vs blue, though currently using red for errors)
+const isError = ref(false); 
 
 const emailForm = reactive({ name: '', phone: '' });
 const foundEmail = ref('');
@@ -245,7 +245,7 @@ const handleFindEmail = async () => {
     foundEmail.value = '';
 
     try {
-        // Send format with hyphens as DB stores it that way
+        
         const payload = { ...emailForm };
         const res = await findEmail(payload);
         foundEmail.value = res.data;

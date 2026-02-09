@@ -147,8 +147,8 @@ const currentAudio = ref(null);
 const isPlaying = ref(false);
 const audioPlayer = ref(null);
 
-const selectedSample = ref(null); // For action modal
-const isEditing = ref(false);     // For nickname edit
+const selectedSample = ref(null); 
+const isEditing = ref(false);     
 const editSampleId = ref(null);
 const editNickname = ref("");
 
@@ -158,20 +158,20 @@ onMounted(async () => {
 
 const loadData = async () => {
     try {
-        // 1. Get Status (includes samples and rep ID)
+        
         const statusData = await voiceService.getVoiceStatus();
         representativeId.value = statusData.representativeSampleId;
         
-        // Use samples from status directly
-        // Backend returns samples array in status
+        
+        
         const fetchedSamples = statusData.samples || [];
         
-        // Check if any sample lacks testAudioUrl, if so trigger generation in background
-        // but display list immediately
+        
+        
         const needsGeneration = fetchedSamples.some(s => !s.testAudioUrl);
         if (needsGeneration) {
             voiceService.generateTestAudio().catch(err => Logger.error("음성 생성 트리거 실패:", err));
-            // We don't await loop here, just show "Processing" state
+            
         }
         
         samples.value = fetchedSamples;
@@ -187,8 +187,8 @@ const formatDate = (isoString) => {
 };
 
 const handleSampleClick = (sample) => {
-    // If playing this sample, stop it? Or open modal?
-    // UX: Click opens modal for actions. Playing is one action.
+    
+    
     selectedSample.value = sample;
 };
 
@@ -217,7 +217,7 @@ const setRepresentative = async (sample) => {
     try {
         await voiceService.setRepresentativeSample(sample.id);
         representativeId.value = sample.id;
-        selectedSample.value = null; // Close modal
+        selectedSample.value = null; 
     } catch (error) {
         Logger.error("대표 목소리 설정 실패:", error);
         alert("설정에 실패했습니다.");
@@ -237,7 +237,7 @@ const confirmDelete = async (sample) => {
     }
 };
 
-// Edit Logic
+
 const openEditModal = (sample) => {
     editSampleId.value = sample.id;
     editNickname.value = sample.nickname || '';
@@ -258,7 +258,7 @@ const saveNickname = async () => {
     
     try {
         await voiceService.updateNickname(editSampleId.value, editNickname.value);
-        // Update local list directly to reflect change fast
+        
         const target = samples.value.find(s => s.id === editSampleId.value);
         if (target) target.nickname = editNickname.value;
         

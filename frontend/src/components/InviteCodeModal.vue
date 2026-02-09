@@ -123,7 +123,7 @@ const displayValue = computed(() => {
   return getInviteLink.value;
 });
 
-/* Touch / Swipe Logic */
+
 const sheet = ref(null);
 let startY = 0;
 let currentY = 0;
@@ -150,7 +150,7 @@ const onTouchEnd = () => {
   currentY = 0;
 };
 
-/* API Actions */
+
 const fetchInviteCode = async () => {
   if (!props.familyId) return;
   loading.value = true;

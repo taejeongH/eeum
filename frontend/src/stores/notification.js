@@ -9,12 +9,12 @@ export const useNotificationStore = defineStore('notification', () => {
     const notifications = ref([]);
     const currentFamilyId = ref(null);
 
-    // [NEW] 전역 알림 모달 상태
+    
     const modalVisible = ref(false);
     const modalData = ref(null);
 
     const latestNotification = computed(() => notifications.value[0] || null);
-    const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length); // 프론트엔드 계산
+    const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length); 
 
     function openModal(data) {
         modalData.value = data;
@@ -43,12 +43,12 @@ export const useNotificationStore = defineStore('notification', () => {
 
             while (retries <= maxRetries) {
                 try {
-                    // [Fix] Android WebView 캐싱 방지를 위해 timestamp 추가
+                    
                     const timestamp = new Date().getTime();
                     const response = await api.get(`/notifications/families/${familyId}/history?_t=${timestamp}`, { headers: { silent: true } });
                     notifications.value = response.data;
 
-                    // [NEW] expectedId가 있는데 목록에 없다면 (레이스 컨디션), 1초 뒤 한 번 더 시도
+                    
                     if (expectedId && !notifications.value.some(n => String(n.id) === String(expectedId))) {
 
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -58,23 +58,23 @@ export const useNotificationStore = defineStore('notification', () => {
                         notifications.value = retryResponse.data;
                     }
 
-                    // 성공하면 루프 탈출
+                    
                     break;
 
                 } catch (error) {
-                    // 네트워크 에러인 경우 재시도
+                    
                     if (error.message === 'Network Error' && retries < maxRetries) {
                         retries++;
-                        const delay = 500 * Math.pow(2, retries); // 1s, 2s, 4s...
+                        const delay = 500 * Math.pow(2, retries); 
                         Logger.warn(`네트워크 오류로 재시도합니다. ${delay}ms 후 재시도... (${retries}/${maxRetries})`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
 
-                    // 재시도 횟수 초과 혹은 다른 에러
+                    
                     const detail = error.response?.data ? JSON.stringify(error.response.data) : (error.message || error);
                     Logger.error('알림 기록 조회 실패:', detail);
-                    // 에러 발생 시, 기존 데이터가 있다면 유지 (빈 배열로 초기화하지 않음)
+                    
                     break;
                 }
             }

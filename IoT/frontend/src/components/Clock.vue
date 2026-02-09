@@ -28,7 +28,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 const props = defineProps({
   position: {
     type: String,
-    default: 'top-right' // 'top-right', 'top-left'
+    default: 'top-right' 
   }
 })
 
@@ -40,7 +40,7 @@ const now = ref(new Date())
 const offsetX = ref(0)
 const offsetY = ref(0)
 
-// Formatters
+
 const timeDisplay = computed(() => {
   const hours = String(now.value.getHours()).padStart(2, '0')
   const minutes = String(now.value.getMinutes()).padStart(2, '0')
@@ -56,7 +56,7 @@ const dateDisplay = computed(() => {
   return `${y}.${m}.${d} (${dayName})`
 })
 
-// Timer ID
+
 let timer = null
 let burnInTimer = null
 
@@ -64,8 +64,8 @@ const updateTime = () => {
   now.value = new Date()
 }
 
-// Pixel Shifting Logic
-// Move randomly within a small range (e.g., +/- 20px) every minute
+
+
 const shiftPixels = () => {
   const range = 20
   offsetX.value = Math.floor(Math.random() * (range * 2 + 1)) - range
@@ -76,8 +76,8 @@ onMounted(() => {
   updateTime()
   timer = setInterval(updateTime, 1000)
   
-  // Burn-in protection interval: every 1 minute
-  shiftPixels() // Initial shift
+  
+  shiftPixels() 
   burnInTimer = setInterval(shiftPixels, 60000)
 })
 
@@ -88,5 +88,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Optional: Add custom font if needed, but Tailwind sans/mono usually works */
+
 </style>

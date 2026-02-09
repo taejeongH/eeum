@@ -39,7 +39,7 @@ public class AlbumService {
     private final UserRepository userRepository;
     private final SupporterRepository supporterRepository;
 
-    // 업로드용 Presigned URL 생성
+    
     public PresignedUrlResponseDTO generateUploadUrl(String fileName, String contentType) {
         String uniqueFileName = "album/" + java.util.UUID.randomUUID() + "-" + fileName;
         String url = s3Service.generatePresignedUrl(uniqueFileName, contentType);
@@ -49,7 +49,7 @@ public class AlbumService {
                 .build();
     }
 
-    // 사진 등록
+    
     @Transactional
     public void addPhoto(Integer familyId, User user, AlbumRequestDTO request) {
         Family family = familyRepository.findById(familyId)
@@ -68,7 +68,7 @@ public class AlbumService {
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-    // 사진 다중 등록
+    
     @Transactional
     public void addPhotos(Integer familyId, User user, List<AlbumRequestDTO> requests) {
         Family family = familyRepository.findById(familyId)
@@ -86,12 +86,12 @@ public class AlbumService {
 
         albumRepository.saveAll(assets);
 
-        // 벌크 저장 후 한 번에 로그 저장 및 알림
+        
         assets.forEach(asset -> saveLog(familyId, asset.getId(), ActionType.ADD));
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-    // 가족별 사진 목록 조회
+    
     public List<AlbumResponseDTO> getPhotos(Integer familyId, Integer userId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
@@ -109,7 +109,7 @@ public class AlbumService {
                 .collect(Collectors.toList());
     }
 
-    // 사진 수정
+    
     @Transactional
     public void updatePhoto(Integer photoId, AlbumRequestDTO request) {
         MediaAsset asset = albumRepository.findById(photoId)
@@ -120,7 +120,7 @@ public class AlbumService {
         iotSyncService.notifyUpdate(asset.getFamily().getId(), "image");
     }
 
-    // 사진 삭제
+    
     @Transactional
     public void deletePhoto(Integer photoId, Integer requesterUserId) {
         MediaAsset asset = albumRepository.findById(photoId)
@@ -147,7 +147,7 @@ public class AlbumService {
         iotSyncService.notifyUpdate(familyId, "image");
     }
 
-     // IoT 기기용 동기화 데이터 조회 로직
+     
     @Transactional
     public IotAlbumSyncResponseDTO syncForIot(Integer familyId) {
         List<MediaAsset> unsyncedAssets = albumRepository.findAllByFamilyIdAndIsSyncedFalse(familyId);

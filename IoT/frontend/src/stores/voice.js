@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axios from 'axios';
 
-// Dynamic API URL resolution
+
 const getApiUrl = () => import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export const useVoiceStore = defineStore('voice', () => {
@@ -10,7 +10,7 @@ export const useVoiceStore = defineStore('voice', () => {
     const isConnected = ref(false);
     const eventSource = ref(null);
 
-    // 1. SSE Connection
+    
     const connect = () => {
         if (eventSource.value) return;
 
@@ -32,13 +32,13 @@ export const useVoiceStore = defineStore('voice', () => {
             setTimeout(connect, 3000);
         };
 
-        // Event: voice (New Message)
+        
         eventSource.value.addEventListener('voice', (event) => {
             try {
                 const data = JSON.parse(event.data);
                 console.log('[VoiceStore] New Voice:', data);
 
-                // Check duplicates (req 1.3)
+                
                 if (!voiceMessages.value.some(msg => msg.id === data.id)) {
                     voiceMessages.value.push({
                         ...data,
@@ -48,10 +48,10 @@ export const useVoiceStore = defineStore('voice', () => {
                         created_at: data.created_at || (Date.now() / 1000),
                         type: 'VOICE',
                         status: 'pending',
-                        isPlayed: false, // Track played state
-                        download: data.download // Access download status
+                        isPlayed: false, 
+                        download: data.download 
                     });
-                    // Keep recent N (e.g. 50)
+                    
                     if (voiceMessages.value.length > 50) voiceMessages.value.shift();
                 }
             } catch (e) {
@@ -59,16 +59,16 @@ export const useVoiceStore = defineStore('voice', () => {
             }
         });
 
-        // Event: voice_done (Completion)
+        
         eventSource.value.addEventListener('voice_done', (event) => {
             try {
                 const data = JSON.parse(event.data);
                 console.log('[VoiceStore] Voice Done:', data);
-                // req: data.id, data.result="done|skipped"
+                
 
                 const index = voiceMessages.value.findIndex(msg => msg.id === data.id);
                 if (index !== -1) {
-                    // Remove from UI when done
+                    
                     voiceMessages.value.splice(index, 1);
                 }
             } catch (e) {
@@ -85,30 +85,30 @@ export const useVoiceStore = defineStore('voice', () => {
         }
     };
 
-    // 2. Single ACK
+    
     const playMessage = async (id) => {
         const msg = voiceMessages.value.find(m => m.id === id);
         if (!msg) return;
 
-        // Check if ready (if download status exists)
+        
         if (msg.download && !msg.download.ready) {
             console.warn('[VoiceStore] Message not ready for playback (download pending/failed)');
-            // Ideally show a toast here
+            
             return;
         }
 
-        // Mark as played locally immediately
+        
         msg.isPlayed = true;
 
         try {
-            msg.status = 'playing'; // Optimistic update
+            msg.status = 'playing'; 
             const apiUrl = getApiUrl();
             const response = await axios.post(`${apiUrl}/api/ack`, {
                 target: { type: 'voice', id: id },
                 action: 'play'
             });
 
-            // Response compliance check
+            
             if (response.data.ok) {
                 console.log(`[VoiceStore] Play accepted. Duration: ${response.data.data.duration_sec}s`);
             } else {
@@ -123,7 +123,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
     const skipMessage = async (id) => {
         const index = voiceMessages.value.findIndex(m => m.id === id);
-        if (index !== -1) voiceMessages.value.splice(index, 1); // Optimistic remove
+        if (index !== -1) voiceMessages.value.splice(index, 1); 
 
         try {
             const apiUrl = getApiUrl();
@@ -136,7 +136,7 @@ export const useVoiceStore = defineStore('voice', () => {
         }
     };
 
-    // 3. Batch ACK
+    
     const batchAck = async (items, defaultAction = 'skip') => {
         try {
             const apiUrl = getApiUrl();
@@ -145,7 +145,7 @@ export const useVoiceStore = defineStore('voice', () => {
                 default_action: defaultAction,
                 items: items.map(item => ({
                     target: { type: 'voice', id: item.id },
-                    action: item.action // optional override
+                    action: item.action 
                 }))
             };
 
@@ -155,7 +155,7 @@ export const useVoiceStore = defineStore('voice', () => {
         }
     }
 
-    // 4. Skip Current Global
+    
     const skipCurrentPlayback = async () => {
         try {
             const apiUrl = getApiUrl();
@@ -165,9 +165,9 @@ export const useVoiceStore = defineStore('voice', () => {
         }
     };
 
-    // 5. Remove Message (Delete)
+    
     const removeMessage = async (id) => {
-        // Optimistic remove
+        
         const index = voiceMessages.value.findIndex(m => m.id === id);
         if (index !== -1) voiceMessages.value.splice(index, 1);
 
@@ -183,11 +183,11 @@ export const useVoiceStore = defineStore('voice', () => {
         }
     };
 
-    // Computed: Unread Count
-    // Only count messages that are NOT played
+    
+    
     const unreadCount = computed(() => voiceMessages.value.filter(m => !m.isPlayed).length);
 
-    // 6. Fetch Pending Messages (Initial Load)
+    
     const fetchPendingMessages = async () => {
         try {
             const apiUrl = getApiUrl();
@@ -201,7 +201,7 @@ export const useVoiceStore = defineStore('voice', () => {
                 console.log(`[VoiceStore] Found ${pendingItems.length} pending messages`);
 
                 pendingItems.forEach(item => {
-                    // Check duplicates
+                    
                     if (!voiceMessages.value.some(msg => msg.id === item.id)) {
                         voiceMessages.value.push({
                             id: item.id,
@@ -212,12 +212,12 @@ export const useVoiceStore = defineStore('voice', () => {
                             type: 'VOICE',
                             status: 'pending',
                             isPlayed: false,
-                            download: item.download // Store download status
+                            download: item.download 
                         });
                     }
                 });
 
-                // Sort by created_at desc (newest first)
+                
                 voiceMessages.value.sort((a, b) => b.created_at - a.created_at);
             }
         } catch (e) {

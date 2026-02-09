@@ -1,4 +1,4 @@
-# app/db/db.py
+
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -96,7 +96,7 @@ class AppDB:
         self.conn.executescript(SCHEMA_SQL)
         self.conn.commit()
 
-    # ---- KV Helpers ----
+    
     def kv_get(self, key: str) -> Optional[str]:
         assert self.conn is not None
         row = self.conn.execute("SELECT value FROM kv WHERE key=?", (key,)).fetchone()

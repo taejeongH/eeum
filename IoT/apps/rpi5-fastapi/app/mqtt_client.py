@@ -22,7 +22,7 @@ class TTLCache:
     def __init__(self, ttl_seconds: int = 120, max_size: int = 5000):
         self.ttl = ttl_seconds
         self.max_size = max_size
-        self._store: Dict[str, float] = {}  # msg_id -> expire_ts
+        self._store: Dict[str, float] = {}  
 
     def seen(self, key: Optional[str]) -> bool:
         """True면 중복(드랍), False면 신규(처리)"""
@@ -36,7 +36,7 @@ class TTLCache:
 
         self._store[key] = now + self.ttl
 
-        # 가끔 청소
+        
         if len(self._store) > self.max_size:
             self._prune(now)
 
@@ -47,7 +47,7 @@ class TTLCache:
         for k in expired:
             self._store.pop(k, None)
 
-        # 그래도 크면 오래된 것부터 제거
+        
         if len(self._store) > self.max_size:
             for k, _ in sorted(self._store.items(), key=lambda x: x[1])[: len(self._store) - self.max_size]:
                 self._store.pop(k, None)
@@ -103,16 +103,16 @@ class MqttClient:
         self.client.enable_logger()
         self.client.username_pw_set(username, password)
 
-        # TLS
+        
         if cafile:
             self.client.tls_set(ca_certs=cafile, tls_version=ssl.PROTOCOL_TLSv1_2)
         else:
             self.client.tls_set(tls_version=ssl.PROTOCOL_TLSv1_2)
 
-        # 재연결 백오프
+        
         self.client.reconnect_delay_set(min_delay=1, max_delay=30)
 
-        # LWT: 비정상 종료 시 브로커가 offline publish
+        
         self.client.will_set(
             topic=self.status_topic,
             payload=json.dumps(self._make_offline_payload(), ensure_ascii=False),
@@ -120,7 +120,7 @@ class MqttClient:
             retain=True,
         )
         
-        # callbacks
+        
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
@@ -154,15 +154,15 @@ class MqttClient:
                 self.client.disconnect()
             except Exception:
                 pass
-            # loop_stop은 disconnect 이후
-            self.client.loop_stop(force=True)  # 필요시 force=True 고려
+            
+            self.client.loop_stop(force=True)  
             self._started = False
             self._connected = False
             logger.info("[mqtt] deactivated")
 
     def publish_json(self, topic: str, payload: Dict[str, Any], qos: int = 1, retain: bool = False) -> str:
         """msg_id 없으면 자동 생성해서 publish"""
-        # 호출자가 넘긴 dict를 변형하지 않도록 복사
+        
         payload = dict(payload or {})
         msg_id = payload.get("msg_id")
         if not msg_id:
@@ -181,7 +181,7 @@ class MqttClient:
             payload = self._make_online_payload()
             self.publish_json(self.status_topic, payload, qos=1, retain=retain)
         except Exception:
-            # 콜백 안정성 우선
+            
             logger.exception("[mqtt] publish_online failed")
 
     def publish_event(self, payload: dict) -> str:
@@ -195,7 +195,7 @@ class MqttClient:
         payload.setdefault("token", self.token)
         payload.setdefault("serial_number", self.client_id)
         return self.publish_json("eeum/response", payload, qos=1, retain=False)
-    # ---------- payload builders ----------
+    
     def _make_offline_payload(self) -> Dict[str, Any]:
         return {
             "serial_number": self.client_id,
@@ -217,7 +217,7 @@ class MqttClient:
             "token": self.token,
         }
 
-    # ---------- callbacks ----------
+    
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         self._connected = (reason_code == 0)
         logger.info("[mqtt] connected rc=%s", reason_code)
@@ -248,7 +248,7 @@ class MqttClient:
             logger.warning("[mqtt] bad json topic=%s", msg.topic, exc_info=True)
             return
 
-        # QoS1 중복 대비 (옵션)
+        
         if self.dedupe is not None:
             msg_id = payload.get("msg_id")
             if msg_id and self.dedupe.seen(msg_id):
@@ -260,7 +260,7 @@ class MqttClient:
             try:
                 self.inbound_queue.put_nowait(item)
             except asyncio.QueueFull:
-                # 드랍 정책: 가장 오래된 1개 제거 후 재시도
+                
                 try:
                     self.inbound_queue.get_nowait()
                 except Exception:

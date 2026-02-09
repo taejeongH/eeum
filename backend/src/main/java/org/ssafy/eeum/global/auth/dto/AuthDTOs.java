@@ -20,6 +20,6 @@ public class AuthDTOs {
     @Builder
     public static class TokenResponseDTO {
         private String accessToken;
-        private String refreshToken; // 선택적 (재발급 시에만 포함)
+        private String refreshToken; 
     }
 }

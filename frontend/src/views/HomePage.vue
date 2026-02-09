@@ -103,13 +103,13 @@ const modalStore = useModalStore();
 const isModalOpen = ref(false);
 const router = useRouter();
 
-// Refresh State
+
 const isRefreshing = ref(false);
 const startY = ref(0);
 const refreshPullDistance = ref(0);
 const canRefresh = ref(true);
 
-// 공용 모달 상태
+
 const isHomeAddModalOpen = ref(false);
 const addModalStep = ref(0);
 
@@ -134,7 +134,7 @@ const handleJoinGroup = async (code) => {
         await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
         isHomeAddModalOpen.value = false;
     } catch (e) {
-        // 에러는 store나 modal에서 처리
+        
     }
 };
 
@@ -147,11 +147,11 @@ const handleCreateGroup = async (data) => {
         await modalStore.openAlert(`'${data.groupName}' 그룹이 생성되었습니다!`);
         isHomeAddModalOpen.value = false;
     } catch (e) {
-        // 에러 처리
+        
     }
 };
 
-// Pull-to-Refresh Handlers
+
 const handleTouchStart = (e) => {
     if (window.scrollY > 5 || isRefreshing.value) {
         canRefresh.value = false;
@@ -168,9 +168,9 @@ const handleTouchMove = (e) => {
     const distance = currentY - startY.value;
     
     if (distance > 0) {
-        // Prevent default only at the top to allow the pull action
+        
         if (e.cancelable) e.preventDefault();
-        // Resistance factor for natural feeling
+        
         refreshPullDistance.value = Math.min(distance * 0.6, 150);
     }
 };
@@ -187,13 +187,13 @@ const handleTouchEnd = async () => {
 
 const executeRefresh = async () => {
     isRefreshing.value = true;
-    // Don't set distance to 0 immediately to keep space for indicator
+    
     
     try {
         await Promise.all([
-            familyStore.fetchFamilies(true), // Force refresh
+            familyStore.fetchFamilies(true), 
             familyStore.selectedFamily?.id ? notificationStore.fetchHistory(familyStore.selectedFamily.id) : Promise.resolve(),
-            // [Fix] Header 멤버 리스트도 갱신
+            
             familyStore.selectedFamily?.id ? familyStore.fetchMembers(familyStore.selectedFamily.id, true) : Promise.resolve()
         ]);
     } catch (error) {
@@ -202,11 +202,11 @@ const executeRefresh = async () => {
         setTimeout(() => {
             isRefreshing.value = false;
             refreshPullDistance.value = 0;
-        }, 800); // UI breathing room
+        }, 800); 
     }
 };
 
-// 선택된 가족 그룹이 변경될 때마다 알람 이력을 가져옵니다.
+
 watch(() => familyStore.selectedFamily, async (newFamily) => {
   if (newFamily?.id) {
 

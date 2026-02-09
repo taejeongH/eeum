@@ -39,13 +39,13 @@ class CameraManager:
 
         c = None
         if sys.platform.startswith("win"):
-            # Windows: DSHOW 우선 시도 후 MSMF
+            
             c = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
             if not c.isOpened():
                 c.release()
                 c = cv2.VideoCapture(cam_index, cv2.CAP_MSMF)
         else:
-            # Linux/Mac (Jetson including)
+            
             if cam_device:
                 c = cv2.VideoCapture(cam_device, cv2.CAP_V4L2)
             else:
@@ -53,10 +53,10 @@ class CameraManager:
 
         if c and c.isOpened():
             self.cap = c
-            # 기본 설정 적용
+            
             self.configure(self.current_w, self.current_h, self.current_fps)
             
-            # 실제 설정된 값 로깅
+            
             aw = int(c.get(cv2.CAP_PROP_FRAME_WIDTH))
             ah = int(c.get(cv2.CAP_PROP_FRAME_HEIGHT))
             logger.info(f"Camera opened successfully. Request=({self.current_w}x{self.current_h}), Actual=({aw}x{ah})")
@@ -71,7 +71,7 @@ class CameraManager:
         if self.cap is not None and self.cap.isOpened():
             return True
         
-        # 닫혀있다면 재시도
+        
         if self.cap is not None:
             try:
                 self.cap.release()
@@ -98,7 +98,7 @@ class CameraManager:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
-        # 확인용
+        
         aw = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         ah = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         if aw != width or ah != height:
@@ -114,15 +114,15 @@ class CameraManager:
             return
         
         try:
-            # 1. 오토포커스 활성화 시도
+            
             af_supported = self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
             if af_supported:
                 logger.info("[Camera] Autofocus enabled")
             else:
                 logger.debug("[Camera] Autofocus not supported")
             
-            # 2. 수동 초점 거리를 중간값(근거리)으로 설정 시도
-            # 일반적으로 0(무한대)~255(최근거리) 범위
+            
+            
             focus_set = self.cap.set(cv2.CAP_PROP_FOCUS, 180)
             if focus_set:
                 logger.info("[Camera] Manual focus set to 180 (close range)")

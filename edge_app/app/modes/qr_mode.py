@@ -11,7 +11,7 @@ from typing import Optional, Tuple, Dict, Any
 import sys
 try:
     if sys.platform == "win32":
-        # Windows에서는 libzbar DLL 의존성 문제로 인해 비활성화 (요구사항)
+        
         PYZBAR_AVAILABLE = False
     else:
         from pyzbar.pyzbar import decode, ZBarSymbol
@@ -56,9 +56,9 @@ class QRMode(BaseMode):
         self.server_client = ServerClient()
         self.device_state = get_device_state()
         
-        # QR 감지 후처리
+        
         self.last_qr_time = 0
-        self.qr_cooldown = 1.0  # 1초 내 중복 감지 방지
+        self.qr_cooldown = 1.0  
     
     def setup(self) -> bool:
         """모드 초기화"""
@@ -86,10 +86,10 @@ class QRMode(BaseMode):
         if not ok:
             return None, None, None
         
-        # QR 감지 (프레임에 박스 그리기 포함)
+        
         qr_data = self._detect_qr(frame)
         
-        # JPEG 인코딩 (박스가 그려진 후 인코딩해야 화면에 보임)
+        
         jpg = self._encode_jpeg(frame)
         
         if qr_data:
@@ -97,7 +97,7 @@ class QRMode(BaseMode):
         
         self.frame_index += 1
         
-        # obs는 None (QR 모드에선 포즈 감지 안 함)
+        
         return None, jpg, frame, None
     
     def _encode_jpeg(self, frame) -> Optional[bytes]:
@@ -113,44 +113,44 @@ class QRMode(BaseMode):
         """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
-        # 전처리 후보들 생성
+        
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         gray_enhanced = clahe.apply(gray)
         
-        # 1. 초강력 선명화 (더 공격적인 계수)
+        
         blur = cv2.GaussianBlur(gray_enhanced, (0, 0), 2)
         sharpened = cv2.addWeighted(gray_enhanced, 2.5, blur, -1.5, 0)
         
-        # 2. Richardson-Lucy Deblurring (scipy 있을 때만)
+        
         deblurred = self._richardson_lucy_deblur(gray_enhanced) if SCIPY_AVAILABLE else sharpened
         
-        # 3. 노출 감소
+        
         darkened = cv2.convertScaleAbs(gray_enhanced, alpha=0.6, beta=0)
         
-        # 4. Bilateral Filter (노이즈 제거 + 엣지 보존)
+        
         bilateral = cv2.bilateralFilter(gray_enhanced, 9, 75, 75)
         
-        # 조합 리스트: (이름, 이미지)
+        
         candidates = [
-            ("Deblur", deblurred),  # 최우선: 디블러링
+            ("Deblur", deblurred),  
             ("Sharpen", sharpened),
             ("Base", gray_enhanced),
             ("Darkened", darkened),
             ("Bilateral", bilateral),
         ]
         
-        # 스케일 후보 (극단 케이스 추가: 아주 가깝거나 먼 경우)
+        
         scales = [1.0, 0.7, 0.85, 1.15, 1.3, 1.5]
         
         qrs = []
         found_method = ""
         
-        # 공통 모폴로지 커널
+        
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
         
-        # 모든 조합 시도
+        
         for name, img in candidates:
-            # 기본 + 스케일 시도
+            
             for scale in scales:
                 work_img = img
                 if scale != 1.0:
@@ -194,16 +194,16 @@ class QRMode(BaseMode):
                 found_method = f"{name}_Erode"
                 break
 
-        # 🔴 디버깅 로그
+        
         if qrs:
             logger.info(f"[QR] Detected via {found_method}")
         else:
             logger.debug("[QR] no symbol")
 
-        # 🔴 화면에 박스 그리기
+        
         for qr in qrs:
             (x, y, w, h) = qr.rect
-            # 성공 시 시각 효과 강화 (형광색 두꺼운 박스)
+            
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 4)
             cv2.putText(frame, "QR DETECTED", (x, y-15), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 3)
@@ -230,13 +230,13 @@ class QRMode(BaseMode):
             return img
         
         try:
-            # PSF 생성 (가우시안 블러 커널)
+            
             psf = np.zeros((psf_size, psf_size))
             psf[psf_size//2, psf_size//2] = 1
             psf = gaussian_filter(psf, sigma=1.5)
             psf /= psf.sum()
             
-            # Richardson-Lucy 반복
+            
             img_float = img.astype(np.float64) / 255.0
             img_float = np.maximum(img_float, 1e-10)
             
@@ -275,7 +275,7 @@ class QRMode(BaseMode):
         """
         current_time = time.time()
         
-        # 쿨다운 체크 (1초 내 중복 감지 방지)
+        
         if (current_time - self.last_qr_time) < self.qr_cooldown:
             return
         
@@ -285,9 +285,9 @@ class QRMode(BaseMode):
         logger.info(f"QR detected: {qr_token[:8]}...")
         print(f"[QRMode] QR detected: {qr_token}...")
 
-        # 서버에 등록 요청
+        
         try:
-            # QR 토큰 내용이 바로 pairing_code라고 가정
+            
             result = self.server_client.register_device(qr_token, DEVICE_ID)
             
             if result and result.get("statusCode") == "200 OK":
@@ -302,7 +302,7 @@ class QRMode(BaseMode):
                     logger.error("Missing required fields in server response")
                     return False
                 
-                # 액세스 토큰 성공적으로 받아지면 라즈베리파이에 전달
+                
                 try:
                     rpi_result = self.server_client.send_access_token_to_rpi(access_token)
                     if rpi_result and rpi_result.get("ok") == True:
@@ -312,7 +312,7 @@ class QRMode(BaseMode):
                 except Exception as e:
                     logger.error(f"Error sending access token to RPI: {e}")
                     
-                # 로컬 상태 저장
+                
                 if self.device_state.register(
                     device_id=DEVICE_ID,
                     access_token=access_token,
@@ -321,7 +321,7 @@ class QRMode(BaseMode):
                     serial_number=serial_number
                 ):
                     logger.info(f"Device registered successfully: {DEVICE_ID} (group: {group_id})")
-                    # complete_qr_token(qr_token, DEVICE_ID) # 로컬 스토어 미사용 시 제거
+                    
                     return True
                 else:
                     logger.error("Failed to save device state")

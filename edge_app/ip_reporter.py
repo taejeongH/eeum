@@ -7,7 +7,7 @@ import logging
 
 from pathlib import Path
 
-# from fastapi import FastAPI  # 여기서는 필요 없어서 주석 처리 (원하면 유지해도 됨)
+
 
 logger = logging.getLogger("ip_reporter")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -51,10 +51,10 @@ def report_ip(ipAddress: str):
 
     url = f"{SERVER_URL}/api/iot/device/{FAMILIES_ID}/streaming-ip"
 
-    # ✅ POST -> PATCH
+    
     r = requests.patch(url, json=payload, headers=headers, timeout=3)
 
-    # 실패하면 로그에 남기기 (디버깅에 매우 유용)
+    
     try:
         r.raise_for_status()
         logger.info(f"Reported IP via PATCH: {ipAddress} -> {url} (status={r.status_code})")

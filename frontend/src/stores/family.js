@@ -9,9 +9,9 @@ export const useFamilyStore = defineStore('family', () => {
   const isLoading = ref(false);
 
   async function fetchFamilies(force = false) {
-    // [Cache Check] 강제 갱신이 아니고 이미 데이터가 있다면 skip
+    
     if (!force && families.value.length > 0) {
-      // [IMPORTANT] Even if not fetching, ensure a selection exists
+      
       if (!selectedFamily.value && families.value.length > 0) {
         const savedId = localStorage.getItem('selectedFamilyId');
         if (savedId) {
@@ -25,13 +25,13 @@ export const useFamilyStore = defineStore('family', () => {
 
     isLoading.value = true;
     try {
-      // 배경에서 조용히 업데이트 (silent header 사용)
+      
       const response = await api.get('/families', { headers: { silent: true } });
       families.value = response.data;
 
-      // If no family is selected, or the selected family is no longer in the list, default to the first one
+      
       if (families.value.length > 0) {
-        // 1. Try to restore from localStorage if no current selection
+        
         if (!selectedFamily.value) {
           const savedId = localStorage.getItem('selectedFamilyId');
           if (savedId) {
@@ -46,11 +46,11 @@ export const useFamilyStore = defineStore('family', () => {
         if (!selectedFamily.value || !exists) {
           selectedFamily.value = families.value[0];
         } else {
-          // [Fix] Reactivity를 위해 새로운 객체로 교체
+          
           selectedFamily.value = exists;
         }
 
-        // Sync confirmed selection to localStorage
+        
         if (selectedFamily.value) {
           localStorage.setItem('selectedFamilyId', selectedFamily.value.id);
         }
@@ -70,7 +70,7 @@ export const useFamilyStore = defineStore('family', () => {
     selectedFamily.value = family;
     if (family && family.id) {
       localStorage.setItem('selectedFamilyId', family.id);
-      // [NEW] Sync to Android SharedPreferences for background workers
+      
       if (window.AndroidBridge && window.AndroidBridge.saveSelectedFamilyId) {
         window.AndroidBridge.saveSelectedFamilyId(String(family.id));
       }
@@ -94,7 +94,7 @@ export const useFamilyStore = defineStore('family', () => {
   function clearFamily() {
     selectedFamily.value = null;
     families.value = [];
-    membersCache.value = {}; // [NEW] Clear cache to prevent session leaks
+    membersCache.value = {}; 
     localStorage.removeItem('selectedFamilyId');
   }
 
@@ -102,9 +102,9 @@ export const useFamilyStore = defineStore('family', () => {
     isLoading.value = true;
     try {
       const response = await api.post('/families', data);
-      await fetchFamilies(true); // 리스트 강제 갱신
+      await fetchFamilies(true); 
 
-      // 방금 만든 가족으로 자동 선택
+      
       if (response.data && response.data.id) {
         selectFamilyById(response.data.id);
       } else if (families.value.length > 0) {
@@ -127,9 +127,9 @@ export const useFamilyStore = defineStore('family', () => {
         headers: { 'Content-Type': 'text/plain' },
         transformRequest: [(data) => data]
       });
-      await fetchFamilies(true); // 리스트 강제 갱신
+      await fetchFamilies(true); 
 
-      // 방금 가입한 가족으로 자동 선택
+      
       if (response.data && response.data.id) {
         selectFamilyById(response.data.id);
       }
@@ -147,7 +147,7 @@ export const useFamilyStore = defineStore('family', () => {
 
   async function fetchMembers(familyId, force = false) {
     if (!familyId) return [];
-    // [Cache Check] 강제 갱신이 아니고 이미 해당 가족의 멤버 정보가 있다면 skip
+    
     if (!force && membersCache.value[familyId]) {
       return membersCache.value[familyId];
     }
@@ -158,7 +158,7 @@ export const useFamilyStore = defineStore('family', () => {
       return response.data;
     } catch (error) {
       Logger.error(`가족 구성원 조회 실패 (ID: ${familyId}):`, error);
-      return membersCache.value[familyId] || []; // 에러 시 기존 캐시라도 반환
+      return membersCache.value[familyId] || []; 
     }
   }
 

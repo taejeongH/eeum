@@ -204,14 +204,14 @@ const isViewingSelf = computed(() => {
 });
 
 const canShowMenu = computed(() => {
-  // if (loading.value || error.value) return false; // Optional logic
+  
   if (!member.value) return false;
   if (isViewingSelf.value) return true;
   if (member.value.currentUserOwner) return true;
   return false;
 });
 
-// ✅ 나이 계산 함수
+
 const calculateAge = (birthDateString) => {
   if (!birthDateString) return 0;
   

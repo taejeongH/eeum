@@ -22,9 +22,7 @@ public class IotNotificationService {
     private final IotNotificationRepository notificationRepository;
     private final FamilyRepository familyRepository;
 
-    /**
-     * 알림 로그 저장 (MQTT 발송 시 호출)
-     */
+    
     @Transactional
     public void saveNotification(String serialNumber, Integer groupId, String kind, String messageId, String content) {
         Family family = familyRepository.findById(groupId)
@@ -41,9 +39,7 @@ public class IotNotificationService {
         notificationRepository.save(notification);
     }
 
-    /**
-     * 알림 읽음 처리 (MQTT ACK 수신 시 호출)
-     */
+    
     @Transactional
     public void markAsRead(String messageId) {
         notificationRepository.findByMessageId(messageId)
@@ -52,9 +48,7 @@ public class IotNotificationService {
                         () -> log.warn("Notification not found for ACK: MessageId={}", messageId));
     }
 
-    /**
-     * 알림 목록 조회 (페이지네이션)
-     */
+    
     public Page<IotNotification> getNotifications(Integer familyId, Boolean unreadOnly, Pageable pageable) {
         if (unreadOnly != null && unreadOnly) {
             return notificationRepository.findByFamilyIdAndIsRead(familyId, false, pageable);
@@ -62,17 +56,13 @@ public class IotNotificationService {
         return notificationRepository.findByFamilyId(familyId, pageable);
     }
 
-    /**
-     * 전체 읽음 처리
-     */
+    
     @Transactional
     public void markAllAsRead(Integer familyId) {
         notificationRepository.markAllAsRead(familyId);
     }
 
-    /**
-     * 단건 삭제
-     */
+    
     @Transactional
     public void deleteNotification(Long id, Integer familyId) {
         IotNotification notification = notificationRepository.findById(id)
@@ -85,9 +75,7 @@ public class IotNotificationService {
         notificationRepository.delete(notification);
     }
 
-    /**
-     * 읽은 알림 전체 삭제
-     */
+    
     @Transactional
     public void deleteAllRead(Integer familyId) {
         notificationRepository.deleteAllReadNotifications(familyId);

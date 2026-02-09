@@ -24,7 +24,7 @@ class ServerClient:
         self.rpi_url = rpi_url or RPI_URL
         self.timeout = timeout
     
-    # ===== QR & 등록 =====
+    
 
     def register_device(self, pairing_code: str, device_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -43,8 +43,8 @@ class ServerClient:
         """
         try:
             url = f"{self.server_url}/api/iot/auth/pairing"
-            # 기본 하위 장치 목록
-            # TODO: 설정 파일이나 Env에서 가져오도록 개선 가능
+            
+            
             child_devices = [
                 {"serial_number": device_id, "device_type": "JETSON"},
                 {"serial_number": "EEUM-R105", "device_type": "RPI"},
@@ -70,7 +70,7 @@ class ServerClient:
             logger.error(f"Device registration failed: {e}")
             return None
     
-    # ===== 액세스 토큰 라즈베리파이에 전송 =====
+    
     def send_access_token_to_rpi(self, access_token: str) -> bool:
         """
         액세스 토큰을 라즈베리파이에 전송
@@ -91,7 +91,7 @@ class ServerClient:
             logger.error(f"Access token send to RPI failed: {e}")
             return False
 
-    # ===== 토큰 갱신 =====
+    
     def get_access_token(self, refresh_token: str) -> Optional[Dict[str, Any]]:
         """
         리프레시 토큰으로 새로운 토큰 발급
@@ -130,7 +130,7 @@ class ServerClient:
             logger.error(f"Token refresh request failed: {e}")
             return None
 
-    # ===== 이벤트 전송 =====
+    
     
     def send_event_rpi(self, payload: Dict[str, Any]) -> bool:
         """
@@ -182,7 +182,7 @@ class ServerClient:
             logger.error(f"Event send failed: {e}")
             return (None, None)
     
-    # ===== 영상 서버 업로드 =====
+    
     def upload_clip_via_presigned_put(self, presigned_url: str, clip_path: str, timeout: float = 120.0):
         if not os.path.exists(clip_path):
             raise FileNotFoundError(clip_path)
@@ -191,24 +191,24 @@ class ServerClient:
             resp = requests.put(
                 presigned_url,
                 data=f,
-                headers={"Content-Type": "video/mp4"},  # ★ 매우 중요
+                headers={"Content-Type": "video/mp4"},  
                 timeout=timeout,
             )
 
-        # 성공
+        
         if resp.status_code in (200, 201, 204):
             return
 
         print("[DBG] status", resp.status_code, "headers", dict(resp.headers), "body", resp.text[:500], flush=True)
 
-        # 실패 → 여기서 진짜 원인을 던진다
+        
         raise RuntimeError(
             f"S3 upload failed | "
             f"status={resp.status_code} | "
             f"response={resp.text[:1000]}"
         )
 
-    # ===== 영상 업로드 성공 =====
+    
     def send_video_upload_success(self, video_path: str, access_token: str) -> None:
         """
         낙상 영상 업로드 성공 이벤트 전송
@@ -233,7 +233,7 @@ class ServerClient:
         except Exception as e:
             logger.error(f"Event success send failed: {e}")
 
-    # ===== presigned_url 요청 =====
+    
     def get_presigned_url(self, event_id: str, filename: str, groupId: int, access_token: str) -> Optional[str]:
         """
         낙상 영상 업로드용 presigned_url 요청
@@ -294,7 +294,7 @@ class ServerClient:
             logger.error(f"Clip send failed: {e}")
             return False
     
-    # ===== 헬스체크 =====
+    
     
     def ping(self) -> bool:
         """서버 연결 상태 확인"""
@@ -306,7 +306,7 @@ class ServerClient:
             logger.debug(f"Server ping failed: {e}")
             return False
 
-    # ===== WebSocket Streaming =====
+    
     
     def connect_websocket(self, device_id: str) -> bool:
         """
@@ -315,14 +315,14 @@ class ServerClient:
         import websocket
         import json
         
-        self.device_id = device_id  # Store for reconnection
+        self.device_id = device_id  
         
         try:
             ws_url = self.server_url.replace("http", "ws") + "/api/ws/stream"
             self.ws = websocket.WebSocket()
             self.ws.connect(ws_url, timeout=5)
             
-            # Register Device
+            
             msg = {
                 "type": "REGISTER_DEVICE",
                 "deviceId": device_id
@@ -340,12 +340,12 @@ class ServerClient:
         WebSocket으로 프레임 전송 (Binary)
         연결이 끊겨있으면 재연결 시도
         """
-        # If not connected, try to reconnect
+        
         if not (hasattr(self, 'ws') and self.ws and self.ws.connected):
              if hasattr(self, 'device_id') and self.device_id:
                  logger.info("Attempting to reconnect WebSocket...")
                  if not self.connect_websocket(self.device_id):
-                     return # Failed to reconnect, drop frame
+                     return 
 
         if hasattr(self, 'ws') and self.ws and self.ws.connected:
             try:
@@ -357,7 +357,7 @@ class ServerClient:
                 except:
                     pass
                 self.ws = None
-                # Retry logic could go here, or just wait for next frame to trigger reconnect
+                
     
     def close_websocket(self):
         """

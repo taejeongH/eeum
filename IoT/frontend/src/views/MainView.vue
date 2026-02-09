@@ -846,7 +846,7 @@ import { useVoiceStore } from '@/stores/voice'
 const slideshowStore = useSlideshowStore()
 const alertStore = useAlertStore()
 const voiceStore = useVoiceStore()
-const activeTab = ref(null) // null for closed
+const activeTab = ref(null) 
 
 const toggleTab = (tab) => {
     if (activeTab.value === tab) activeTab.value = null
@@ -873,7 +873,7 @@ const displayData = computed(() => {
         return combined.sort((a, b) => {
              const tA = a.created_at ? a.created_at * 1000 : new Date(a.timestamp).getTime()
              const tB = b.created_at ? b.created_at * 1000 : new Date(b.timestamp).getTime()
-             return tB - tA // Descending
+             return tB - tA 
         })
     }
     if (activeTab.value === 'schedule') {
@@ -890,7 +890,7 @@ const displayData = computed(() => {
                         title: '오늘의 일정',
                         message: `[${event.time}] ${event.title}`,
                         startAt: `${dateStr}T${event.time}:00Z`,
-                        data: {} // Clear nested data to avoid loop
+                        data: {} 
                     })
                 })
             } else {
@@ -922,14 +922,14 @@ const fetchTabData = async (tab) => {
         const result = await response.json()
         if (result.data) {
             if (tab === 'chat') {
-                // New API Structure: { data: { items: [...] } }
+                
                 const items = result.data.items || []
-                // Populate voiceStore directly
+                
                 voiceStore.voiceMessages = items.map(item => ({
                     id: item.id,
                     sender: item.sender?.name || '알 수 없음',
-                    content: item.description || '', // description -> content
-                    created_at: item.created_at, // unix timestamp (seconds)
+                    content: item.description || '', 
+                    created_at: item.created_at, 
                     profile_image: item.sender?.profile_image_url,
                     type: 'VOICE',
                     status: 'pending'
@@ -980,7 +980,7 @@ const currentDayStr = computed(() => {
     return days[now.value.getDay()]
 })
 const currentDateFormatted = computed(() => {
-    // Not used in simplified clock, but available
+    
     return now.value.toLocaleDateString()
 })
 
@@ -1009,33 +1009,33 @@ const formatTime = (timeStr) => {
 const formatDate = (dateStr) => dateStr || ''
 
 const getSenderColor = (sender) => {
-    // Better hash function for more unique distribution
+    
     let hash = 0
     const str = sender.trim()
     
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i)
         hash = ((hash << 5) - hash) + char
-        hash = hash & hash // Convert to 32bit integer
+        hash = hash & hash 
     }
     
-    // Add position-based variation for better distribution
+    
     hash = Math.abs(hash + str.length * 7919)
     
-    // Expanded color palette with 12 distinct colors
+    
     const colorPalettes = [
-        'bg-gradient-to-br from-blue-500/30 to-cyan-500/30 border-blue-400/40',        // 파랑
-        'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-purple-400/40',    // 보라
-        'bg-gradient-to-br from-green-500/30 to-emerald-500/30 border-green-400/40',   // 초록
-        'bg-gradient-to-br from-orange-500/30 to-amber-500/30 border-orange-400/40',   // 오렌지
-        'bg-gradient-to-br from-rose-500/30 to-red-500/30 border-rose-400/40',         // 로즈
-        'bg-gradient-to-br from-indigo-500/30 to-violet-500/30 border-indigo-400/40',  // 인디고
-        'bg-gradient-to-br from-teal-500/30 to-cyan-500/30 border-teal-400/40',        // 틸
-        'bg-gradient-to-br from-fuchsia-500/30 to-purple-500/30 border-fuchsia-400/40',// 푸시아
-        'bg-gradient-to-br from-lime-500/30 to-green-500/30 border-lime-400/40',       // 라임
-        'bg-gradient-to-br from-amber-500/30 to-yellow-500/30 border-amber-400/40',    // 앰버
-        'bg-gradient-to-br from-sky-500/30 to-blue-500/30 border-sky-400/40',          // 스카이
-        'bg-gradient-to-br from-pink-500/30 to-rose-500/30 border-pink-400/40'         // 핑크
+        'bg-gradient-to-br from-blue-500/30 to-cyan-500/30 border-blue-400/40',        
+        'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-purple-400/40',    
+        'bg-gradient-to-br from-green-500/30 to-emerald-500/30 border-green-400/40',   
+        'bg-gradient-to-br from-orange-500/30 to-amber-500/30 border-orange-400/40',   
+        'bg-gradient-to-br from-rose-500/30 to-red-500/30 border-rose-400/40',         
+        'bg-gradient-to-br from-indigo-500/30 to-violet-500/30 border-indigo-400/40',  
+        'bg-gradient-to-br from-teal-500/30 to-cyan-500/30 border-teal-400/40',        
+        'bg-gradient-to-br from-fuchsia-500/30 to-purple-500/30 border-fuchsia-400/40',
+        'bg-gradient-to-br from-lime-500/30 to-green-500/30 border-lime-400/40',       
+        'bg-gradient-to-br from-amber-500/30 to-yellow-500/30 border-amber-400/40',    
+        'bg-gradient-to-br from-sky-500/30 to-blue-500/30 border-sky-400/40',          
+        'bg-gradient-to-br from-pink-500/30 to-rose-500/30 border-pink-400/40'         
     ]
     
     const index = hash % colorPalettes.length
@@ -1052,11 +1052,11 @@ const getTypeColor = (type) => {
     return 'bg-orange-500'
 }
 
-// Settings functionality
+
 const brightness = ref(80)
 const volume = ref(50)
 
-// WiFi Management
+
 const wifiApiBase = 'http://localhost:8080'
 const wifiScanning = ref(false)
 const wifiConnecting = ref(false)
@@ -1075,7 +1075,7 @@ const availableSSIDs = computed(() => {
     return new Set(wifiAPs.value.map(ap => ap.ssid))
 })
 
-// WiFi UI Ping - heartbeat to keep scan active
+
 const pingWifiUI = async () => {
     try {
         const response = await fetch(`${wifiApiBase}/api/wifi/ui/ping`, { method: 'POST' })
@@ -1083,14 +1083,14 @@ const pingWifiUI = async () => {
             console.warn('WiFi UI ping failed:', response.status)
         }
     } catch (e) {
-        // Silently fail - this is just a heartbeat
+        
     }
 }
 
-// Global Modal State
+
 const generalModal = ref({
     show: false,
-    type: 'alert', // 'alert' | 'confirm'
+    type: 'alert', 
     title: '',
     message: '',
     onConfirm: null,
@@ -1143,7 +1143,7 @@ const handleModalCancel = () => {
     if (generalModal.value.onCancel) generalModal.value.onCancel()
 }
 
-// Scan WiFi APs
+
 const scanWiFi = async (forceRescan = false) => {
     if (wifiScanning.value) return
     wifiScanning.value = true
@@ -1176,14 +1176,14 @@ const scanWiFi = async (forceRescan = false) => {
     }
 }
 
-// Get active WiFi status
+
 const getActiveWiFi = async () => {
     try {
         const response = await fetch(`${wifiApiBase}/api/wifi/active`)
         
         if (!response.ok) {
             if (response.status === 401) {
-                // Silently fail for 401
+                
                 return
             }
             slideshowStore.wifiStatus = false
@@ -1193,19 +1193,19 @@ const getActiveWiFi = async () => {
         const data = await response.json()
         activeSSID.value = data.ssid
         
-        // Sync global store status for Top Bar Icon
+        
         if (data.ssid) {
             slideshowStore.wifiStatus = true
         } else {
             slideshowStore.wifiStatus = false
         }
     } catch (e) {
-        // Silently fail
+        
         slideshowStore.wifiStatus = false
     }
 }
 
-// Get saved WiFi profiles
+
 const getWiFiProfiles = async (refresh = false) => {
     try {
         const url = `${wifiApiBase}/api/wifi/profiles${refresh ? '?refresh=true' : ''}`
@@ -1229,7 +1229,7 @@ const getWiFiProfiles = async (refresh = false) => {
     }
 }
 
-// Connect to WiFi with password
+
 const connectWiFi = async (ssid, password) => {
     if (wifiConnecting.value) return
     wifiConnecting.value = true
@@ -1251,7 +1251,7 @@ const connectWiFi = async (ssid, password) => {
                 await slideshowStore.updateWifiStatus()
             } else {
                 console.log(`Connecting to WiFi: ${ssid}...`)
-                // Poll active status for ~8 seconds
+                
                 let attempts = 8
                 const checkInterval = setInterval(async () => {
                     await getActiveWiFi()
@@ -1288,7 +1288,7 @@ const connectWiFi = async (ssid, password) => {
     }
 }
 
-// Connect to saved profile
+
 const connectProfile = async (profileName) => {
     if (wifiConnecting.value) return
     
@@ -1314,7 +1314,7 @@ const connectProfile = async (profileName) => {
                 await slideshowStore.updateWifiStatus()
             } else {
                 console.log(`Connecting to Profile: ${profileName}...`)
-                // Robust Polling like connectWiFi
+                
                 let attempts = 8
                 const checkInterval = setInterval(async () => {
                     await getActiveWiFi()
@@ -1348,7 +1348,7 @@ const connectProfile = async (profileName) => {
     }
 }
 
-// Delete WiFi profile
+
 const deleteProfile = async (profileName) => {
     if (!await showConfirm(`${profileName}\n프로필을 삭제하시겠습니까?`, '삭제 확인')) return
     
@@ -1372,7 +1372,7 @@ const deleteProfile = async (profileName) => {
     }
 }
 
-// Handle AP selection
+
 const selectAP = (ap) => {
     if (ap.in_use) {
         showAlert('이미 연결된 네트워크입니다.')
@@ -1383,7 +1383,7 @@ const selectAP = (ap) => {
     showPasswordModal.value = true
 }
 
-// Submit password and connect
+
 const submitPassword = async () => {
     if (!selectedAP.value || !wifiPassword.value) return
     
@@ -1393,22 +1393,22 @@ const submitPassword = async () => {
     wifiPassword.value = ''
 }
 
-// Start WiFi management when settings tab opens
+
 watch(activeTab, async (newTab, oldTab) => {
     if (newTab === 'settings' && oldTab !== 'settings') {
-        // Start WiFi management
+        
         await pingWifiUI()
         await scanWiFi()
         await getWiFiProfiles()
         await getActiveWiFi()
         
-        // Start ping interval (3 seconds)
+        
         wifiPingInterval.value = setInterval(pingWifiUI, 3000)
         
-        // Start active status polling (1 second)
+        
         wifiActiveInterval.value = setInterval(getActiveWiFi, 1000)
     } else if (oldTab === 'settings' && newTab !== 'settings') {
-        // Stop WiFi management
+        
         if (wifiPingInterval.value) {
             clearInterval(wifiPingInterval.value)
             wifiPingInterval.value = null
@@ -1419,7 +1419,7 @@ watch(activeTab, async (newTab, oldTab) => {
         }
     }
     
-    // Existing tab data fetch
+    
     if (newTab) fetchTabData(newTab)
     else tabData.value = []
 })
@@ -1434,7 +1434,7 @@ const adjustVolume = (value) => {
     console.log('Volume set to:', volume.value)
 }
 
-// Slideshow Control
+
 const slideInterval = ref(60)
 
 const toggleSlideshow = () => {
@@ -1464,7 +1464,7 @@ const restartDevice = async () => {
         if (response.ok) {
             await showAlert('기기를 재시작합니다.', '명령 전송됨')
         } else {
-             throw new Error('Response not ok') // Trigger catch
+             throw new Error('Response not ok') 
         }
     } catch (e) {
         console.error('Device restart failed:', e)
@@ -1472,7 +1472,7 @@ const restartDevice = async () => {
     }
 }
 
-// Touch Sweep Logic (API Control)
+
 const touchStartX = ref(0)
 const touchEndX = ref(0)
 
@@ -1486,19 +1486,19 @@ const handleTouchEnd = (e) => {
 }
 
 const handleSwipe = () => {
-    const threshold = 50 // Minimum distance for swipe
+    const threshold = 50 
     const distance = touchStartX.value - touchEndX.value
     
-    // If detail view or any modal is open, do not trigger slide change
+    
     if (isDetailView.value || activeTab.value !== null || generalModal.value.show || showPasswordModal.value || selectedItem.value) return
 
     if (Math.abs(distance) > threshold) {
         if (distance > 0) {
-             // Swipe Left (Gesture) -> Go Next
+             
              console.log('Swipe Left -> Next')
              slideshowStore.controlNext()
         } else {
-             // Swipe Right (Gesture) -> Go Prev
+             
              console.log('Swipe Right -> Prev')
              slideshowStore.controlPrev()
         }
@@ -1510,7 +1510,7 @@ const handleSwipe = () => {
 .post-it-yellow { background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); color: #1f2937; border-radius: 4px; }
 .post-it-blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); color: #1e3a8a; border-radius: 4px; }
 
-/* Control Panel Buttons (Tactile Tiles) */
+
 .menu-card {
     @apply w-full bg-white/5 border border-white/10 rounded-[32px] p-6 transition-all duration-300 flex items-center opacity-70 hover:opacity-100 hover:bg-white/10 hover:scale-[1.03] active:scale-95;
 }
@@ -1524,11 +1524,11 @@ const handleSwipe = () => {
     @apply w-24 h-24 rounded-[24px] bg-black/40 border border-white/10 flex items-center justify-center text-white shadow-lg transition-all duration-300;
 }
 
-/* Scrollbar Hide */
+
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Transitions */
+
 .fade-bg-enter-active, .fade-bg-leave-active { transition: opacity 2000ms ease; }
 .fade-bg-enter-from, .fade-bg-leave-to { opacity: 0; }
 
@@ -1538,11 +1538,11 @@ const handleSwipe = () => {
 .fade-ui-enter-active, .fade-ui-leave-active { transition: opacity 500ms ease; }
 .fade-ui-enter-from, .fade-ui-leave-to { opacity: 0; }
 
-/* Slide Panel Transition */
+
 .slide-panel-enter-active, .slide-panel-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .slide-panel-enter-from, .slide-panel-leave-to { opacity: 0; transform: translateX(20px); }
 
-/* Modal Transition with Smooth Backdrop Blur */
+
 .fade-modal-enter-active, .fade-modal-leave-active { 
     transition: opacity 0.4s ease;
 }
@@ -1580,7 +1580,7 @@ const handleSwipe = () => {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Slider Styles */
+
 .slider::-webkit-slider-thumb {
   appearance: none;
   width: 48px;
@@ -1590,7 +1590,7 @@ const handleSwipe = () => {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
   transition: all 0.2s;
-  margin-top: -16px; /* (16px track / 2) - (48px thumb / 2) */
+  margin-top: -16px; 
 }
 
 .slider::-webkit-slider-thumb:hover {

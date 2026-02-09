@@ -212,9 +212,9 @@
 </template>
 
 <script setup>
-// // 창민 추가
-// import MainHeader from '@/components/MainHeader.vue';
-// // 창민 추가
+
+
+
 import QRCode from 'qrcode';
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -226,12 +226,12 @@ import { Logger } from '@/services/logger';
 const route = useRoute();
 const router = useRouter();
 const familyStore = useFamilyStore();
-// // 창민추가
-// const isModalOpen = ref(false);
-// const handleModalStateChange = (isOpen) => {
-//   isModalOpen.value = isOpen;
-// };
-// // 창민추가
+
+
+
+
+
+
 const { selectedFamily } = storeToRefs(familyStore);
 const familyId = ref(parseInt(route.params.familyId));
 
@@ -246,18 +246,18 @@ const locations = [
   { label: '기타', value: 'OTHER' }
 ];
 
-// QR Code state
+
 const qrCode = ref(null);
 const qrCanvas = ref(null);
 const isGenerating = ref(false);
 const expiryTimer = ref(null);
 const remainingTime = ref(0);
 
-// Device list state
+
 const devices = ref([]);
 const isLoadingDevices = ref(false);
 
-// Edit modal state
+
 const showEditModal = ref(false);
 const editingDevice = ref(null);
 const editForm = ref({
@@ -266,12 +266,12 @@ const editForm = ref({
 });
 const isSaving = ref(false);
 
-// Delete modal state
+
 const showDeleteModal = ref(false);
 const deviceToDelete = ref(null);
 const isDeleting = ref(false);
 
-// Drag to close state
+
 const touchStartY = ref(0);
 const modalTranslateY = ref(0);
 const isDragging = ref(false);
@@ -305,12 +305,12 @@ const onTouchEnd = () => {
   modalTranslateY.value = 0;
 };
 
-// Role check
+
 const isRepresentative = computed(() => {
   return selectedFamily.value?.owner === true;
 });
 
-// Computed
+
 const expiryText = computed(() => {
   if (remainingTime.value <= 0) return 'QR 코드가 만료되었습니다';
   const minutes = Math.floor(remainingTime.value / 60);
@@ -318,13 +318,13 @@ const expiryText = computed(() => {
   return `${minutes}분 ${seconds}초 후 만료`;
 });
 
-// Methods
+
 const generateQR = async () => {
   
-  // 토큰 확인 로그 추가
+  
   const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   
-  // AndroidBridge 확인
+  
   if (window.AndroidBridge?.getAccessToken) {
     const nativeToken = window.AndroidBridge.getAccessToken();
   }
@@ -337,22 +337,22 @@ const generateQR = async () => {
   try {
     const response = await generatePairingCode(familyId.value);
     
-    // 서버 응답 구조가 { data: { ... } } 형태일 경우와 아닐 경우 모두 대응
+    
     const qrData = response.data || response;
     
     
     qrCode.value = qrData;
     remainingTime.value = qrCode.value.expiresIn;
     
-    // Wait for DOM update
+    
     await nextTick();
     
     if (qrCanvas.value && qrCode.value.qrContent) {
       await QRCode.toCanvas(qrCanvas.value, qrCode.value.qrContent, {
-        width: 224, // 56 * 4 (Tailwind w-56 is 14rem = 224px)
+        width: 224, 
         margin: 2,
         color: {
-          dark: '#111827', // Gray-900 (Black)
+          dark: '#111827', 
           light: '#ffffff'
         },
         errorCorrectionLevel: 'H'
@@ -472,7 +472,7 @@ const handleModalClose = () => {
 };
 
 
-// Body scroll lock
+
 watch([showEditModal, showDeleteModal], ([edit, del]) => {
   if (edit || del) {
     document.body.style.overflow = 'hidden';
@@ -485,7 +485,7 @@ const getLocationName = (type) => {
   return locations.find(l => l.value === type)?.label || type;
 };
 
-// React to route changes
+
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== String(familyId.value)) {
         familyId.value = parseInt(newId);
@@ -493,7 +493,7 @@ watch(() => route.params.familyId, (newId) => {
     }
 });
 
-// React to store changes (Header dropdown)
+
 watch(() => familyStore.selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
         if (String(newFamily.id) !== String(route.params.familyId)) {
@@ -502,7 +502,7 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
     }
 });
 
-// Lifecycle
+
 onMounted(() => {
   loadDevices();
 });
@@ -527,7 +527,7 @@ h1, h2, h3, p, span, button, input {
   scrollbar-width: none;
 }
 
-/* Modal Transitions */
+
 .modal-enter-active, .modal-leave-active {
   transition: opacity 0.3s ease;
 }
@@ -559,7 +559,7 @@ h1, h2, h3, p, span, button, input {
   flex: 2;
 }
 
-/* QR Canvas Fix */
+
 canvas {
   image-rendering: pixelated;
 }

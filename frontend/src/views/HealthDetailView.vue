@@ -367,7 +367,7 @@ const healthStore = useHealthStore();
 
 const syncLoading = ref(false);
 const analyzeLoading = ref(false);
-const pageLoading = ref(true); // New Page Loading State
+const pageLoading = ref(true); 
 const showHelpModal = ref(false);
 const syncMessage = ref('');
 const members = ref([]);
@@ -409,17 +409,17 @@ const formattedAdvisorComment = computed(() => {
     const desc = healthStore.currentReport?.description;
     if (!desc) return [];
     
-    // 1. If it's already an array (New Backend Structure)
+    
     if (Array.isArray(desc)) return desc;
     
-    // 2. If it's a string, try to parse or clean
+    
     if (typeof desc === 'string') {
         try {
             const parsed = JSON.parse(desc);
             if (Array.isArray(parsed)) return parsed;
             return parsed.description || [parsed];
         } catch (e) {
-            // Fallback: Custom regex to remove markers like '1) ', '(1) ', '• '
+            
             const lines = desc.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
             return lines.map(line => {
                 let cleanedText = line.replace(/^[•\-\*\d\.\(\)]+\s*/, '').trim();
@@ -456,14 +456,14 @@ const fetchLatestData = async () => {
     try {
         const today = currentDate.value.toISOString().split('T')[0];
         
-        // Parallel fetch using store actions
+        
         await Promise.all([
             healthStore.fetchLatestMetrics(familyId),
             healthStore.fetchDailyReport(familyId, today)
         ]);
 
         if (healthStore.latestMetrics.recordDate) {
-            // Update currentDate to the date of the record
+            
             const recordDate = new Date(healthStore.latestMetrics.recordDate);
             currentDate.value = recordDate;
         }
@@ -493,10 +493,10 @@ const handleAnalyze = async () => {
 
 const handleSync = async () => {
     if (isUserDependent.value) {
-        // 피부양자 본인이면 즉시 로컬 동기화
+        
         fetchAllData();
     } else {
-        // 부양자라면 백엔드를 통해 피부양자 기기에 동기화 요청
+        
         const groupId = familyStore.selectedFamily?.id;
         if (!groupId) return;
 
@@ -508,7 +508,7 @@ const handleSync = async () => {
             
             syncMessage.value = '동기화 요청을 보냈습니다. 잠시만 기다려주세요.';
             
-            // 3초 뒤에 최신 데이터 폴링 (기기가 업로드할 시간 부여)
+            
             setTimeout(async () => {
                 await fetchLatestData();
                 syncLoading.value = false;
@@ -529,7 +529,7 @@ const fetchAllData = () => {
     if (window.AndroidBridge && window.AndroidBridge.fetchAllHealthMetrics) {
         syncLoading.value = true;
         syncMessage.value = '삼성 헬스 데이터 동기화 중...';
-        currentDate.value = new Date(); // Update to today when starting sync
+        currentDate.value = new Date(); 
         window.AndroidBridge.fetchAllHealthMetrics();
     } else {
         Logger.warn("AndroidBridge not found. Browser mode: No mock data will be stored.");
@@ -538,7 +538,7 @@ const fetchAllData = () => {
     }
 };
 
-// Callback from Android
+
 window.onReceiveAllHealthData = (dataString) => {
 
     syncLoading.value = false;
@@ -554,7 +554,7 @@ window.onReceiveAllHealthData = (dataString) => {
         const now = new Date();
         const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('.')[0];
         
-        // Map snake_case from Android to camelCase for Backend
+        
         const mappedData = {
             recordDate: (data.record_date ? data.record_date.replace(' ', 'T') : localIso).split('.')[0],
             steps: data.steps,
@@ -574,8 +574,8 @@ window.onReceiveAllHealthData = (dataString) => {
         };
         
 
-        healthStore.latestMetrics = mappedData; // Update store immediately for UI feedback
-        currentDate.value = now; // Ensure UI reflects today
+        healthStore.latestMetrics = mappedData; 
+        currentDate.value = now; 
         syncMessage.value = '데이터를 서버에 저장 중...';
         uploadToBackend(mappedData);
     } catch (e) {
@@ -592,7 +592,7 @@ const uploadToBackend = async (mappedData) => {
     try {
         await healthService.saveHealthMetrics(groupId, [mappedData]);
 
-        // Check if some desired data is missing
+        
         const hasMissingData = !mappedData.steps || !mappedData.activeMinutes || !mappedData.sleepTotalMinutes;
         
         if (hasMissingData) {
@@ -601,7 +601,7 @@ const uploadToBackend = async (mappedData) => {
             syncMessage.value = '모든 데이터가 정상적으로 동기화되었습니다.';
         }
 
-        fetchLatestData(); // Refresh after upload
+        fetchLatestData(); 
         setTimeout(() => syncMessage.value = '', 5000);
     } catch (error) {
         Logger.error("업로드 실패 상세:", error);
@@ -610,7 +610,7 @@ const uploadToBackend = async (mappedData) => {
     }
 };
 
-// Aliases for Android callbacks
+
 window.onReceiveHealthData = window.onReceiveAllHealthData;
 window.onReceiveSteps = window.onReceiveAllHealthData;
 window.onReceiveSleep = window.onReceiveAllHealthData;
@@ -626,17 +626,17 @@ onMounted(async () => {
                 clearInterval(checkElement);
             }
         }, 100);
-        setTimeout(() => clearInterval(checkElement), 3000); // safety clear
+        setTimeout(() => clearInterval(checkElement), 3000); 
     } else {
         window.scrollTo(0, 0);
     }
 
-    // 1. Ensure family list is loaded
+    
     if (familyStore.families.length === 0) {
         await familyStore.fetchFamilies();
     }
     
-    // 2. Fetch members for the selected group
+    
     if (familyStore.selectedFamily?.id) {
         try {
             await Promise.all([
@@ -654,7 +654,7 @@ onMounted(async () => {
     pageLoading.value = false;
 });
 
-// Re-fetch data when the selected family group changes
+
 watch(() => familyStore.selectedFamily?.id, async (newFamilyId) => {
     if (!newFamilyId) {
         members.value = [];
@@ -662,7 +662,7 @@ watch(() => familyStore.selectedFamily?.id, async (newFamilyId) => {
     }
 
     try {
-        // Fetch members for the new family to update permissions
+        
         const response = await api.get(`/families/${newFamilyId}/members`);
         members.value = response.data;
     } catch (e) {
@@ -670,7 +670,7 @@ watch(() => familyStore.selectedFamily?.id, async (newFamilyId) => {
         members.value = [];
     }
 
-    // Fetch the latest health data for the new group
+    
     fetchLatestData();
 }, { immediate: false });
 

@@ -1,4 +1,4 @@
-# app/profile_cache.py
+
 import os
 import hashlib
 from urllib.parse import urlparse
@@ -46,7 +46,7 @@ async def ensure_profile_cached(session: aiohttp.ClientSession, remote_url: str,
     dst = profile_cache_local_path(u)
     pub = profile_cache_public_url(u)
 
-    # 이미 있으면 그대로 반환
+    
     if os.path.exists(dst) and os.path.getsize(dst) > 0:
         return pub
 
@@ -66,7 +66,7 @@ async def ensure_profile_cached(session: aiohttp.ClientSession, remote_url: str,
         os.replace(tmp, dst)
         return pub
     except Exception:
-        # tmp 정리
+        
         try:
             if os.path.exists(tmp):
                 os.remove(tmp)

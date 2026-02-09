@@ -3,11 +3,11 @@ import { ref } from 'vue';
 
 export const useModalStore = defineStore('modal', () => {
     const isVisible = ref(false);
-    const type = ref('alert'); // 'alert' | 'confirm'
+    const type = ref('alert'); 
     const title = ref('');
     const message = ref('');
 
-    // Promise resolve function to handle async/await
+    
     let resolvePromise = null;
 
     const openAlert = (msg, ttl = '알림') => {

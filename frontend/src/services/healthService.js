@@ -51,7 +51,7 @@ export const healthService = {
             await api.post('/health/request-measurement', null, {
                 params: { groupId }
             });
-            // No return value (void)
+            
         } catch (error) {
             Logger.error('심박수 측정 요청 실패:', error);
             throw error;

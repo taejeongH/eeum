@@ -50,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        // /api/auth/test는 JWT 필터를 거쳐야 하므로 제외
+        
         if (path.equals("/api/auth/test")) {
             return false;
         }

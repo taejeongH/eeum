@@ -99,7 +99,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 
-// 이미지 import
+
 import welcomeImg from '@/assets/onboarding/welcome_v2.png';
 import messageImg from '@/assets/onboarding/message_v2.png';
 import careImg from '@/assets/onboarding/care_3d.png';

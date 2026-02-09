@@ -81,7 +81,7 @@ const emit = defineEmits(['close', 'confirm']);
 
 const description = ref('');
 
-// Reset description when modal opens
+
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     description.value = '';

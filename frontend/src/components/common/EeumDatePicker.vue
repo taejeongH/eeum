@@ -220,7 +220,7 @@ const closePicker = () => {
   isOpen.value = false;
 };
 
-/* Wheel Picker */
+
 const isWheelOpen = ref(false);
 const pickerYears = Array.from({ length: 100 }, (_, i) => 1950 + i);
 const wheelYear = ref(2025);
@@ -244,7 +244,7 @@ const confirmWheel = () => {
     isWheelOpen.value = false;
 };
 
-/* Navigation */
+
 const prevMonth = () => {
     slideDirection.value = 'slide-prev';
     viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() - 1, 1);
@@ -256,12 +256,12 @@ const nextMonth = () => {
 const resetToToday = () => {
     viewDate.value = new Date();
     if(!props.isRange) {
-        // Option: Select today? or just view?
-        // User behavior: just view 'today' context
+        
+        
     }
 };
 
-/* Gestures (Swipe Only) */
+
 const gridTouchStartX = ref(0);
 const gridTouchEndX = ref(0);
 const onGridTouchStart = (e) => { gridTouchStartX.value = e.changedTouches[0].screenX; };
@@ -299,8 +299,8 @@ const confirmSelection = () => {
       if (localEnd.value) emit('update:endDate', formatDate(localEnd.value));
       else if (localStart.value) emit('update:endDate', formatDate(localStart.value)); 
       
-      // IMPORTANT: Do NOT emit update:modelValue here to prevent overwriting the triggering input's specific model
-      // if (localStart.value) emit('update:modelValue', formatDate(localStart.value));
+      
+      
   }
   closePicker();
 };
@@ -341,7 +341,7 @@ const getDayColorClass = (day) => {
 </script>
 
 <style scoped>
-.eeum-input { /* Tailwind */ }
+.eeum-input {  }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -362,7 +362,7 @@ const getDayColorClass = (day) => {
   font-family: 'Material Symbols Outlined';
   font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
-/* Slide Animations */
+
 .slide-next-enter-active, .slide-next-leave-active,
 .slide-prev-enter-active, .slide-prev-leave-active {
   transition: all 0.3s ease-out;

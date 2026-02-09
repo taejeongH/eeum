@@ -132,11 +132,11 @@ const complete = async () => {
   try {
     await setupStore.saveData(familyId)
     
-    // Refresh families to update group name/members (force refresh to bypass cache)
+    
     const familyStore = useFamilyStore();
     await familyStore.fetchFamilies(true);
     
-    // Re-select the current family to trigger UI updates
+    
     const updatedFamily = familyStore.families.find(f => f.id == familyId);
     if (updatedFamily) {
       familyStore.selectFamily(updatedFamily);
@@ -144,7 +144,7 @@ const complete = async () => {
     
     await modalStore.openAlert('그룹 설정이 저장되었습니다.')
     
-    // Clear temporary store
+    
     setupStore.reset()
     router.push('/home')
     

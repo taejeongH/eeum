@@ -9,7 +9,7 @@ from .config import STA_IFACE
 
 logger = logging.getLogger(__name__)
 
-# -------- dataclass --------
+
 @dataclass
 class WifiProfile:
     name: str
@@ -24,7 +24,7 @@ class ProvisionResult:
     message: str
     new_profile: Optional[str] = None
 
-# -------- lock & TTL --------
+
 _wifi_lock = asyncio.Lock()
 
 _SCAN_CACHE_TTL_SEC = 3.0
@@ -34,7 +34,7 @@ _last_scan_result: List[Dict[str, object]] = []
 _RESCAN_INTERVAL_SEC = 30.0
 _last_rescan_mono: float = 0.0
 
-# -------- Helpers --------
+
 def _parse_bool(s: str) -> Optional[bool]:
     if not s:
         return None
@@ -53,7 +53,7 @@ def _parse_wifi_list_text(text: str) -> List[Dict[str, object]]:
     best: Dict[str, Dict[str, object]] = {}
 
     for line in (text or "").splitlines():
-        # IN-USE:SSID:SIGNAL:SECURITY
+        
         parts = line.split(":", 3)
         if len(parts) != 4:
             continue
@@ -61,7 +61,7 @@ def _parse_wifi_list_text(text: str) -> List[Dict[str, object]]:
         inuse, ssid, sig, sec = parts
         ssid = ssid.strip()
         if not ssid:
-            continue  # 숨김 SSID 제외
+            continue  
 
         in_use = inuse.strip() == "*"
         try:
@@ -72,7 +72,7 @@ def _parse_wifi_list_text(text: str) -> List[Dict[str, object]]:
         sec = sec.strip()
 
         cur = best.get(ssid)
-        if cur is None or signal > int(cur["signal"]):  # type: ignore
+        if cur is None or signal > int(cur["signal"]):  
             best[ssid] = {"ssid": ssid, "signal": signal, "security": sec, "in_use": in_use}
         else:
             if in_use:
@@ -83,7 +83,7 @@ def _parse_wifi_list_text(text: str) -> List[Dict[str, object]]:
     return aps
 
 def _nmcli_err_to_message(e: BaseException) -> str:
-    # CalledProcessError / TimeoutError 등을 사용자에게 보여줄 문자열로 정리
+    
     if isinstance(e, subprocess.CalledProcessError):
         stderr = (getattr(e, "stderr", "") or "").strip()
         stdout = (getattr(e, "output", "") or "").strip()
@@ -92,7 +92,7 @@ def _nmcli_err_to_message(e: BaseException) -> str:
         return "nmcli timeout"
     return str(e) or "unknown error"
 
-# -------- 조회 유틸 --------
+
 async def async_get_active_on_wlan0() -> Optional[str]:
     """
     STA_IFACE에 바인딩된 현재 active connection 이름 반환
@@ -110,7 +110,7 @@ async def async_list_wifi_profiles_wlan0() -> List[WifiProfile]:
     """
     저장된 Wi-Fi 프로필 목록을 읽고, STA_IFACE에 bind된 것만 필터링 후 정렬
     """
-    # active connection id
+    
     async with _wifi_lock:
         r_active = await async_sh(
             ["nmcli", "-w", "3", "-g", "GENERAL.CONNECTION", "device", "show", STA_IFACE],
@@ -121,7 +121,7 @@ async def async_list_wifi_profiles_wlan0() -> List[WifiProfile]:
     if not active or active == "--":
         active = ""
 
-    # 전체 connection 목록에서 wifi 타입만 이름 수집
+    
     async with _wifi_lock:
         r = await async_sh(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"], check=False, timeout=10.0)
     wifi_names: List[str] = []
@@ -145,7 +145,7 @@ async def async_list_wifi_profiles_wlan0() -> List[WifiProfile]:
         iface_bind = vals[1].strip() if len(vals) > 1 and vals[1].strip() else None
         autoconnect = _parse_bool(vals[2]) if len(vals) > 2 else None
 
-        # 다른 iface에 bind된 프로필은 제외
+        
         if iface_bind and iface_bind != STA_IFACE:
             continue
         
@@ -157,7 +157,7 @@ async def async_list_wifi_profiles_wlan0() -> List[WifiProfile]:
             active_device=(STA_IFACE if active == name else None)
         ))
 
-    # active / bind 우선 정렬
+    
     def _score(p: WifiProfile) -> int:
         score = 0
         if p.active_device == STA_IFACE:
@@ -193,10 +193,10 @@ async def async_scan_wifi_wlan0(force_rescan: bool = False) -> List[Dict[str, ob
                 check=False,
                 timeout=8.0,
             )
-            # rescan 반영 대기 (0.8 -> 0.3)
+            
             await asyncio.sleep(0.3)
 
-        # list는 rescan 없이 가볍게
+        
         r = await async_sh(
             ["sudo", "-n", "nmcli", "-w", "5", "-t",
                 "-f", "IN-USE,SSID,SIGNAL,SECURITY",
@@ -215,7 +215,7 @@ async def async_scan_wifi_wlan0(force_rescan: bool = False) -> List[Dict[str, ob
 
 
 
-# -------- 프로필 조작 --------
+
 
 async def async_bind_profile_to_wlan0(name: str) -> None:
     async with _wifi_lock:
@@ -265,7 +265,7 @@ async def async_down_profile(name: str) -> None:
         await async_sh(["sudo", "-n", "nmcli", "-w", "5", "connection", "down", "id", name], check=False, timeout=10.0)
 
 
-# -------- 프로비저닝(SSID/PW 입력 → 연결 시도) --------
+
 
 async def async_provision_connect_wlan0(ssid: str, password: str) -> ProvisionResult:
     """

@@ -18,7 +18,7 @@ from ..config import (
     CLIP_DIR, CLIP_FPS, CLIP_PRE_SEC, CLIP_POST_SEC,
     CLIP_COOLDOWN_S, CLIP_EVENT_POST_SEC,
     CLIP_RESIZE_WIDTH, CLIP_RESIZE_HEIGHT,
-    ABNORMAL_TIMEOUT_S, JPEG_QUALITY  # Import newly added config
+    ABNORMAL_TIMEOUT_S, JPEG_QUALITY  
 )
 
 os.makedirs(CLIP_DIR, exist_ok=True)
@@ -33,19 +33,19 @@ class ClipRecorder:
     def __init__(self):
         self.lock = threading.Lock()
         
-        # [Buffer Size Calculation]
-        # 낙상 판단 대기 시간(30s) + 사전/사후(12s) + 여유(10s) = 약 52초
-        # ⚠️ 중요: 사람이 소실되면 YOLO를 건너뛰어 루프 속도가 60 FPS 이상으로 빨라집니다.
-        # 따라서 CLIP_FPS(15) 대신 안전한 최대 속도(60)를 기준으로 버퍼 크기를 잡아야 과거 영상이 밀려나지 않습니다.
+        
+        
+        
+        
         required_duration = ABNORMAL_TIMEOUT_S + CLIP_PRE_SEC + CLIP_POST_SEC + 10.0
         safety_fps = 60.0 
         buf_size = int(safety_fps * required_duration)
         
         self.buffer: Deque[Tuple[float, bytes]] = collections.deque(maxlen=buf_size)
         self.last_push_ts = 0.0
-        self.min_push_interval = 1.0 / 24.0 # 최대 24 FPS로 제한 (버퍼 밀림 방지)
+        self.min_push_interval = 1.0 / 24.0 
 
-        # (추가) 분석용 메타 링버퍼 (ts, meta)
+        
         self.meta_buffer: Deque[Tuple[float, Dict[str, Any]]] = collections.deque(maxlen=buf_size)
 
         self.recording = False
@@ -54,12 +54,12 @@ class ClipRecorder:
         self.clip_path: Optional[str] = None
         self.last_started_ts: float = 0.0
         
-        # 중복 저장 방지용
-        self.last_saved_segment_ts: float = 0.0  # 마지막 저장된 segment의 시작 시간
-        self.save_segment_cooldown: float = 3.0   # 3초 내 중복 저장 방지
+        
+        self.last_saved_segment_ts: float = 0.0  
+        self.save_segment_cooldown: float = 3.0   
 
     def push(self, ts: float, frame_bgr, meta: Optional[Dict[str, Any]] = None):
-        # [Rate Limit] 버퍼가 너무 빨리 밀리는 것을 방지하기 위해 최대 24 FPS로 제한
+        
         """
         프레임과 (선택) 메타를 버퍼에 쌓는다.
         meta에는 "측정에 쓰이는 값 + 측정값"만 최소로 넣는 것을 권장.
@@ -89,20 +89,20 @@ class ClipRecorder:
         if frame_bgr is None:
             return
 
-        # 1. Resize
+        
         h, w = frame_bgr.shape[:2]
         if w != CLIP_RESIZE_WIDTH or h != CLIP_RESIZE_HEIGHT:
             frame_bgr = cv2.resize(frame_bgr, (CLIP_RESIZE_WIDTH, CLIP_RESIZE_HEIGHT))
 
-        # 2. JPEG Encode (Memory Optimization)
-        # 퀄리티는 config의 JPEG_QUALITY 사용 (또는 70~80 정도 적절히)
+        
+        
         ok, jpg_bytes = cv2.imencode(".jpg", frame_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
         
         if ok:
             with self.lock:
                 self.buffer.append((ts, jpg_bytes.tobytes()))
                 if meta is not None:
-                    # meta는 JSON 직렬화 가능한 dict만 넣어야 함
+                    
                     self.meta_buffer.append((ts, meta))
 
     def _open_writer(self, path: str, fps: float, frame_shape: Tuple[int, int, int]):
@@ -119,18 +119,18 @@ class ClipRecorder:
         """
         h, w = frame_shape[:2]
         
-        # 유효성 검사
+        
         if w <= 0 or h <= 0:
             logger.error(f"[CLIP] 프레임 해상도 유효하지 않음: {w}x{h}")
             raise ValueError(f"프레임 해상도 유효하지 않음: {w}x{h}")
         
-        # fps 범위 검증
+        
         fps = float(fps)
         if fps <= 0 or fps > 240:
             logger.warning(f"[CLIP] FPS 범위 벗어남: {fps}, [5, 240]로 조정 중")
             fps = max(5.0, min(240.0, fps))
         
-        # 코덱 재시도 목록 (우선순위 순)
+        
         codecs = [
             ("mp4v", "mp4v"),
             ("MJPG", "mjpg"),
@@ -144,7 +144,7 @@ class ClipRecorder:
                 fourcc = cv2.VideoWriter_fourcc(*codec_code)
                 writer = cv2.VideoWriter(path, fourcc, fps, (w, h))
                 
-                # VideoWriter 유효성 검증
+                
                 if writer.isOpened():
                     logger.info(f"[CLIP] 코덱으로 VideoWriter 열기 '{codec_name}': {w}x{h} @ {fps}fps")
                     return writer
@@ -156,7 +156,7 @@ class ClipRecorder:
                 continue
         
         logger.error(f"[CLIP] 모든 코덱이 실패함 {w}x{h} @ {fps}fps. 기본 writer 생성 중.")
-        # 마지막 시도: 기본 코덱
+        
         writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
         return writer
 
@@ -208,10 +208,10 @@ class ClipRecorder:
             if len(self.buffer) == 0:
                 return None
 
-            # ---------------------------------------------------
-            # 중복 저장 방지: 실시간 기준 3초 내 재저장 차단
-            # (더 안정적인 기준: incident_ts 대신 현재 실시간 사용)
-            # ---------------------------------------------------
+            
+            
+            
+            
             now = time.time()
             time_since_last_save = now - self.last_saved_segment_ts
             if time_since_last_save < self.save_segment_cooldown:
@@ -228,7 +228,7 @@ class ClipRecorder:
             t_start = incident_ts - float(pre_sec)
             t_end = incident_ts + float(post_sec)
 
-            picked = []  # (ts, jpeg_bytes)
+            picked = []  
             for ts, jpg_bytes in list(self.buffer):
                 if t_start <= ts <= t_end:
                     picked.append((ts, jpg_bytes))
@@ -242,21 +242,21 @@ class ClipRecorder:
                 )
                 return None
 
-            # 구간의 "실제 fps" 추정 (재생 길이 보존 목적)
+            
             ts0 = picked[0][0]
             ts1 = picked[-1][0]
             span = max(1e-6, ts1 - ts0)
             eff_fps = len(picked) / span
 
-            # 너무 튀지 않게 클램프(선택)
-            # [수정] 최소 FPS 제한을 1.0으로 낮춰서, 실제 촬영 속도가 낮더라도 원래 시간 길이를 유지하도록 함
+            
+            
             eff_fps = max(1.0, min(float(CLIP_FPS), eff_fps))
 
             clip_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             mp4_path = os.path.join(CLIP_DIR, f"{filename_prefix}_{clip_id}.mp4")
             jsonl_path = os.path.join(CLIP_DIR, f"{filename_prefix}_{clip_id}.jsonl")
 
-            # writer 생성용 첫 프레임 디코드
+            
             first_frame = cv2.imdecode(np.frombuffer(picked[0][1], np.uint8), cv2.IMREAD_COLOR)
             if first_frame is None:
                 logger.error("[CLIP] failed to decode first frame")
@@ -278,7 +278,7 @@ class ClipRecorder:
                 f"eff_fps={eff_fps:.1f} size={writer_w}x{writer_h} path={mp4_path}"
             )
 
-        # (중요) 디코드/인코딩은 락 밖에서 수행 (프레임 루프 막힘 방지)
+        
         try:
             for _, jpg_bytes in picked:
                 fr = cv2.imdecode(np.frombuffer(jpg_bytes, np.uint8), cv2.IMREAD_COLOR)
@@ -295,14 +295,14 @@ class ClipRecorder:
 
         mp4_path = self.transcode_mp4_for_web(mp4_path)
 
-        # -------- jsonl 저장(최소 필드만) --------
-        # meta도 같은 구간으로 필터링
+        
+        
         with self.lock:
             meta_picked: List[Dict[str, Any]] = []
             for mts, m in list(self.meta_buffer):
                 if t_start <= mts <= t_end:
-                    # 최소 필드만 남기기(너가 원하는 "측정값/측정에 쓰이는 값" 중심)
-                    # 여기에서 키를 더 빼고 싶으면 KEEP_KEYS에서 제거하면 됨.
+                    
+                    
                     KEEP_KEYS = {
                         "frame_index",
                         "state",
@@ -340,7 +340,7 @@ class ClipRecorder:
             if len(self.buffer) == 0:
                 return None
 
-            # 중복 저장 방지(기존 save_segment와 동일 정책)
+            
             now = time.time()
             if (now - self.last_saved_segment_ts) < self.save_segment_cooldown:
                 logging.warning(
@@ -363,7 +363,7 @@ class ClipRecorder:
                 )
                 return None
 
-        # 구간 FPS 추정(재생 길이 보존)
+        
         ts0 = picked[0][0]
         ts1 = picked[-1][0]
         span = max(1e-6, ts1 - ts0)

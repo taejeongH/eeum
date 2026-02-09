@@ -1,4 +1,4 @@
-# app/sync_gate.py
+
 import asyncio
 import logging
 import time
@@ -28,7 +28,7 @@ async def _wait_wifi_active(state, timeout_sec: float = 60.0, poll_sec: float = 
         except Exception:
             pass
 
-        # state.wifi_active: SSID 문자열(연결되면 truthy)
+        
         if state.wifi_active:
             return True
 
@@ -48,11 +48,11 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
             logger.warning("[initial_sync] wifi not active within timeout=%ss -> skip", timeout_sec)
             return
 
-        # wifi OK -> sync 1회
+        
         res_album = await async_sync_album_once(state)
         res_voice = await async_sync_voice_once(state)
 
-        # 최초 sync에서도 voice는 "신규(inserted)"만 다운로드 후 SSE 1회 emit
+        
         try:
             inserted_ids = res_voice.get("inserted_ids") or []
             for vid in inserted_ids:
@@ -86,7 +86,7 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
         except Exception:
             logger.exception("[initial_sync] voice download/emit failed (non-fatal)")
 
-        # album sync 성공이면 playlist 갱신 + 현재 슬라이드 emit (원래 부팅/토큰 로직과 동일 의도)
+        
         if res_album.get("ok"):
             rebuild_playlist(state)
             try:
@@ -94,9 +94,9 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
             except Exception:
                 logger.exception("[initial_sync] emit_slide failed")
 
-        # 최초 sync에서도 voice added가 있으면 default TTS 1회(디바운스)
+        
         try:
-            # inserted_ids 기준으로 "진짜 신규"가 있을 때만
+            
             inserted_ids = res_voice.get("inserted_ids") or []
             if inserted_ids:
                 kind = "voice"
@@ -126,10 +126,10 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
     except Exception:
         logger.exception("[initial_sync] unexpected error")
     finally:
-        # 1회 작업 종료 표시
+        
         state.initial_sync_done = True
-        # 재시도 가능하게 플래그 해제
-        # (정책: 필요하면 '성공했을 때만' 재시도 막도록 조정 가능)
+        
+        
         try:
             state.initial_sync_started = False
         except Exception:
@@ -139,7 +139,7 @@ def schedule_initial_sync(state, *, timeout_sec: float = 60.0) -> bool:
     if getattr(state, "initial_sync_started", False):
         return False
 
-    # 토큰 없으면 시작 자체를 하지 않음
+    
     ds = getattr(state, "device_store", None)
     token = ds.get_token() if ds else None
     if not token:

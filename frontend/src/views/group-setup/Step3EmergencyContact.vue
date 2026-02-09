@@ -116,13 +116,13 @@ const familyStore = useFamilyStore();
 const userStore = useUserStore();
 const setupStore = useGroupSetupStore();
 
-// Bind to store state
+
 const { contactSlots } = storeToRefs(setupStore);
 
-const selectedSlotIndex = ref(0); // Default to first slot
+const selectedSlotIndex = ref(0); 
 const members = ref([]);
 
-// Available members - currently showing all members
+
 const availableMembers = computed(() => {
     return members.value;
 });
@@ -136,11 +136,11 @@ const selectSlot = (index) => {
 };
 
 const addContact = (member) => {
-    // Fill the currently selected slot
+    
     if (selectedSlotIndex.value !== null) {
         contactSlots.value[selectedSlotIndex.value] = member;
         
-        // Auto-advance to next empty slot if available
+        
         const nextEmptyIndex = contactSlots.value.findIndex(slot => slot === null);
         if (nextEmptyIndex !== -1) {
             selectedSlotIndex.value = nextEmptyIndex;
@@ -149,10 +149,10 @@ const addContact = (member) => {
 };
 
 const removeContact = (index, event) => {
-    event.stopPropagation(); // Prevent slot selection when clicking remove
+    event.stopPropagation(); 
     if (contactSlots.value[index]) {
         contactSlots.value[index] = null;
-        selectedSlotIndex.value = index; // Select the emptied slot
+        selectedSlotIndex.value = index; 
     }
 };
 
@@ -162,7 +162,7 @@ onMounted(async () => {
         setupStore.initData(familyId);
         
         try {
-            // 1. Fetch available members (UI options)
+            
             const membersResponse = await api.get(`/families/${familyId}/members`);
             members.value = membersResponse.data.filter(m => !m.isPlaceholder);
         } catch (error) {
@@ -176,8 +176,8 @@ const goBack = () => {
 };
 
 const goNext = () => {
-    // Save/Sync is handled by store state. Actual persistence happens at end?
-    // Or we can save step by step. For now, just navigate.
+    
+    
     router.push({
         name: 'GroupEditStep4',
         params: { familyId: route.params.familyId }

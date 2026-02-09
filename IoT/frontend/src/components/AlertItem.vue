@@ -10,7 +10,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'dismiss']);
 
-// --- Helpers ---
+
 const formatTime = (timestamp) => {
   if (!timestamp) return '';
   const date = new Date(timestamp * 1000); 
@@ -72,7 +72,7 @@ const getAlertStyle = (kind) => {
 
 const styles = computed(() => getAlertStyle(props.alert.kind));
 
-// --- Swipe Logic ---
+
 const touchStartX = ref(0);
 const touchCurrentX = ref(0);
 const isSwiping = ref(false);
@@ -97,7 +97,7 @@ const endSwipe = () => {
   if (touchCurrentX.value > 150) {
     touchCurrentX.value = 1000; 
     setTimeout(() => {
-      emit('dismiss'); // Swipe to dismiss (Delete from history)
+      emit('dismiss'); 
     }, 200);
   } else {
     touchCurrentX.value = 0;
@@ -113,7 +113,7 @@ const onMouseMove = (e) => moveSwipe(e.clientX);
 const onMouseUp = () => endSwipe();
 const onMouseLeave = () => endSwipe();
 
-// SVG Paths mapping for icons
+
 const iconPaths = {
   medication: "M6 3h12v2H6zm11 3H7c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 9h-2.5v2.5h-3V15H8v-3h2.5V9.5h3V12H16v3z",
   calendar_today: "M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z",

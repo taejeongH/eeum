@@ -193,7 +193,7 @@ const handleUpdateMedication = async (medData) => {
         await api.put(`/families/${familyId}/medications/${medicationId}`, payload);
         await modalStore.openAlert('수정되었습니다.');
         closeModal();
-        fetchDetail(); // Refresh data
+        fetchDetail(); 
     } catch (error) {
         Logger.error('Failed to update medication:', error);
         await modalStore.openAlert('수정에 실패했습니다.');
@@ -221,7 +221,7 @@ onMounted(() => {
     fetchDetail();
 });
 
-// Utilities
+
 const getCycleLabel = (type) => {
     const map = { 'DAILY': '매일', 'WEEKLY': '매주' };
     return map[type] || type;

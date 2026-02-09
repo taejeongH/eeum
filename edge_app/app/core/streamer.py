@@ -40,7 +40,7 @@ class WebSocketStreamer:
                 logger.info(f"[STREAMER] Connecting to {WS_SERVER_URL}...")
                 self.ws = websocket.create_connection(WS_SERVER_URL, timeout=5)
                 
-                # Handshake: REGISTER_DEVICE
+                
                 register_msg = {
                     "type": "REGISTER_DEVICE",
                     "deviceId": DEVICE_ID
@@ -49,7 +49,7 @@ class WebSocketStreamer:
                 logger.info(f"[STREAMER] Registered as device: {DEVICE_ID}")
                 
                 self.is_connected = True
-                retry_delay = 1 # Reset retry delay
+                retry_delay = 1 
                 
                 self._stream_loop()
 
@@ -69,16 +69,16 @@ class WebSocketStreamer:
         sent_count = 0
         while not self.stop_event.is_set() and self.is_connected:
             try:
-                # Wait for raw frame (non-overlay preferred for relay)
+                
                 jpg, current_count = self.controller.wait_for_raw_frame(last_count, timeout=1.0)
                 
                 if jpg is None:
-                    # logger.debug("[STREAMER] No frame in last 1s")
+                    
                     continue
                 
                 last_count = current_count
                 
-                # Send binary frame
+                
                 self.ws.send_binary(jpg)
                 sent_count += 1
                 

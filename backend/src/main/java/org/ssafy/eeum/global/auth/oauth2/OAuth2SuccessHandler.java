@@ -26,8 +26,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.info("OAuth2 Login Success - UserID: {}, UserName: {}", userId, userName);
 
-        // TODO: JWT 토큰 생성 후 프론트엔드로 리다이렉트
-        // 지금은 간단하게 사용자 정보만 응답
+        
+        
 
         String targetUrl = String.format("http://localhost:3000/oauth/callback?userId=%d&userName=%s",
                 userId, userName);

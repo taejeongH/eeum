@@ -38,7 +38,7 @@ public class SecurityConfig {
                 return new BCryptPasswordEncoder();
         }
 
-        // [핵심] Swagger 관련 경로를 Security Filter Chain에서 제외
+        
         @Bean
         public WebSecurityCustomizer webSecurityCustomizer() {
                 return (web) -> web.ignoring().requestMatchers(
@@ -61,13 +61,13 @@ public class SecurityConfig {
                                                 .requestMatchers("/", "/api/auth/**", "/login/**", "/oauth2/**",
                                                                 "/api/ws/**")
                                                 .permitAll()
-                                                // IoT 인증 API - 토큰 불필요
+                                                
                                                 .requestMatchers("/api/iot/auth/**")
                                                 .permitAll()
-                                                // 보이스 웹후크 - 토큰 불필요
+                                                
                                                 .requestMatchers("/api/voice/webhook/**")
                                                 .permitAll()
-                                                // IoT 기기 전용 API - ROLE_DEVICE 필수
+                                                
                                                 .requestMatchers("/api/iot/device/**")
                                                 .hasRole("DEVICE")
                                                 .anyRequest().authenticated())

@@ -26,7 +26,7 @@ onMounted(async () => {
   
   if (!familyId) return
 
-  // Ensure families are loaded
+  
   if (familyStore.families.length === 0) {
       await familyStore.fetchFamilies()
   }
@@ -50,6 +50,6 @@ const currentStep = computed(() => {
   if (route.name === 'GroupEditStep2') return 2
   if (route.name === 'GroupEditStep3') return 3
   if (route.name === 'GroupEditStep4') return 4
-  return 1 // fallback
+  return 1 
 })
 </script>

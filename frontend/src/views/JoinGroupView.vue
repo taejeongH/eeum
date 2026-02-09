@@ -110,9 +110,7 @@ const joining = ref(false);
 
 const inviteCode = route.query.code;
 
-/**
- *  초대 정보 미리보기
- */
+
 const fetchInvitePreview = async () => {
   if (!inviteCode) {
     error.value = '유효하지 않은 초대 링크입니다.';
@@ -138,21 +136,19 @@ const fetchInvitePreview = async () => {
   }
 };
 
-/**
- *  실제 그룹 참여
- */
+
 const joinGroup = async () => {
   joining.value = true;
   try {
     const response = await joinFamilyWithCode(inviteCode);
     
-    // Refresh families and select the new one
+    
     const familyStore = useFamilyStore();
     const setupStore = useGroupSetupStore();
     
     await familyStore.fetchFamilies();
     
-    // Select the newly joined family if possible
+    
     if (response && response.data) {
         familyStore.selectFamily(response.data);
     }

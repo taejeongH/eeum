@@ -141,7 +141,7 @@ const router = useRouter();
 const currentTime = ref('');
 
 
-// Watch modal visibility
+
 watch(() => notificationStore.modalVisible, (visible) => {
   if (visible) {
     const date = modalData.value.createdAt ? new Date(modalData.value.createdAt) : new Date();
@@ -160,7 +160,7 @@ const confidence = computed(() => modalData.value.confidence || null);
 
 const notificationId = computed(() => modalData.value.notificationId || null);
 
-// Simplified computed classes using full strings
+
 const headerBgClass = computed(() => {
    if (type.value === 'EMERGENCY' || type.value === 'FALL') return 'bg-red-50';
    if (type.value === 'OUTING') return 'bg-orange-50';
@@ -214,7 +214,7 @@ const infoIconColorClass = computed(() => {
     return 'text-gray-600';
 });
 
-// Swipe to Dismiss Logic
+
 const startY = ref(0);
 const currentY = ref(0);
 const isSwiping = ref(false);

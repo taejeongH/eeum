@@ -74,7 +74,7 @@ public class FcmService {
             return;
         }
 
-        // 유효한 토큰만 필터링
+        
         List<String> validTokens = tokens.stream()
                 .filter(t -> t != null && !t.isEmpty())
                 .collect(Collectors.toList());

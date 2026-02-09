@@ -64,7 +64,7 @@ public class ScheduleService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
     }
 
-    // 월간 일정 조회
+    
     public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month,
             String category,
             String keyword, String targetPerson, Boolean isVisited) {
@@ -73,7 +73,7 @@ public class ScheduleService {
 
         YearMonth targetMonth = YearMonth.of(year, month);
 
-        // 필터 조건이 있으면 캐시 사용하지 않음
+        
         boolean hasFilter = (category != null || keyword != null || targetPerson != null || isVisited != null);
 
         if (!hasFilter) {
@@ -159,7 +159,7 @@ public class ScheduleService {
                     .toList();
         }
 
-        // isVisited 필터
+        
         if (isVisited != null) {
             boolean visitFilter = isVisited;
             candidates = candidates.stream()
@@ -219,14 +219,14 @@ public class ScheduleService {
             }
         }
 
-        // 반복 없음
+        
         if (s.getRepeatType() == RepeatType.NONE) {
             if (!targetDate.isBefore(start) && !targetDate.isAfter(end)) {
                 dates.add(targetDate);
             }
         }
 
-        // 매년 반복 (YEARLY)
+        
         else if (s.getRepeatType() == RepeatType.YEARLY) {
             if (isValidOccurrence(targetDate, start, end, baseDate, limitDate))
                 dates.add(targetDate);
@@ -253,7 +253,7 @@ public class ScheduleService {
     }
 
     private ScheduleResponseDTO convertToResponse(Schedule s, String id, LocalDate date, boolean isModified) {
-        // 원본 일정의 시간 정보 추출
+        
         LocalTime time = s.getStartAt().toLocalTime();
         LocalDateTime startDateTime = date.atTime(time);
         LocalDateTime endDateTime = date.atTime(s.getEndAt().toLocalTime());
@@ -276,7 +276,7 @@ public class ScheduleService {
                 .build();
     }
 
-    // 일정 등록
+    
     @Transactional
     public void createSchedule(Integer userId, Integer familyId, ScheduleRequestDTO dto) {
         if (dto.getStartAt().isAfter(dto.getEndAt())) {
@@ -314,7 +314,7 @@ public class ScheduleService {
         iotSyncService.notifyUpdate(familyId, "schedule");
     }
 
-    // 일정 수정
+    
     @Transactional
     public void updateSchedule(Integer userId, Integer familyId, String scheduleId, ScheduleRequestDTO dto) {
         if (dto.getStartAt().isAfter(dto.getEndAt())) {
@@ -408,7 +408,7 @@ public class ScheduleService {
         }
     }
 
-    // 일정 삭제
+    
     @Transactional
     public void deleteSchedule(Integer userId, Integer familyId, String scheduleId, boolean deleteAll) {
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
@@ -464,7 +464,7 @@ public class ScheduleService {
         }
     }
 
-    // 방문 상태 변경
+    
     @Transactional
     public void updateVisitStatus(Integer userId, Integer familyId, String scheduleId, boolean visited) {
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
@@ -660,12 +660,12 @@ public class ScheduleService {
 
         scheduleRepository.save(schedule);
         
-        // Robust Cache Invalidation: Clear cache for the birth month in multiple years
-        // to ensure visibility in the current calendar view period.
+        
+        
         int currentYear = LocalDate.now().getYear();
         invalidateCache(family.getId(), user.getBirthDate().withYear(currentYear));
         invalidateCache(family.getId(), user.getBirthDate().withYear(currentYear + 1));
-        invalidateCache(family.getId(), user.getBirthDate()); // Clear original birth year month too
+        invalidateCache(family.getId(), user.getBirthDate()); 
         
         iotSyncService.notifyUpdate(family.getId(), "schedule");
     }

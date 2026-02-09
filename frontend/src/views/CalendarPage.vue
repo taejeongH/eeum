@@ -237,18 +237,18 @@ import 'swiper/css';
 import { Logger } from '@/services/logger';
 
 const router = useRouter();
-const route = useRoute(); // Instance
+const route = useRoute(); 
 const familyStore = useFamilyStore();
-const familyId = ref(route.params.familyId); // Reactive familyId
+const familyId = ref(route.params.familyId); 
 const isModalOpen = ref(false);
 const slideDirection = ref('next');
 
-// Wheel Picker State
+
 const isDatePickerModalOpen = ref(false);
 const pickerSelection = ref({ year: 2025, month: 1 });
 const pickerYears = Array.from({ length: 100 }, (_, i) => 1950 + i);
 
-// Picker Drag Logic
+
 const pickerSheet = ref(null);
 const pickerTouchStartY = ref(0);
 const pickerTouchCurrentY = ref(0);
@@ -279,16 +279,16 @@ const onPickerTouchEnd = () => {
   const diff = pickerTouchCurrentY.value - pickerTouchStartY.value;
   isPickerDragging.value = false;
   
-  if (diff > 100) { // Threshold 100px
+  if (diff > 100) { 
     closeDatePicker();
   } else {
-    // Snap back styles will apply (transform removed)
+    
     pickerTouchStartY.value = 0;
     pickerTouchCurrentY.value = 0;
   }
 };
 
-// Computed indices for Swiper initialSlide
+
 const initialYearIndex = computed(() => pickerYears.indexOf(pickerSelection.value.year));
 const initialMonthIndex = computed(() => pickerSelection.value.month - 1);
 
@@ -300,7 +300,7 @@ const onMonthChange = (swiper) => {
 };
 
 const openDatePicker = () => {
-    // Init with current selected date
+    
     const d = new Date(selectedDate.value);
     pickerSelection.value = {
         year: d.getFullYear(),
@@ -314,11 +314,11 @@ const closeDatePicker = () => {
 };
 
 const confirmDate = () => {
-    // Construct Date (1st day of month)
+    
     const newDate = new Date(pickerSelection.value.year, pickerSelection.value.month - 1, 1);
     currentDate.value = newDate;
     
-    // Logic to select appropriate date (1st or Today)
+    
     syncSelectedDateWithView(newDate);
     
     closeDatePicker();
@@ -335,7 +335,7 @@ const year = computed(() => currentDate.value.getFullYear());
 const month = computed(() => currentDate.value.getMonth() + 1);
 
 const fetchCalendarEvents = async () => {
-    // Priority: route param -> store -> null
+    
     const targetFamilyId = familyId.value;
 
     if (!targetFamilyId) return;
@@ -353,18 +353,18 @@ const goToDetail = (scheduleId) => {
     router.push({ name: 'DetailSchedule', params: { familyId: familyId.value }, query: { id: scheduleId } });
 };
 
-// Calendar Logic
+
 const calendarDays = computed(() => {
     const currYear = currentDate.value.getFullYear();
     const currMonth = currentDate.value.getMonth();
 
-    const firstDayOfMonth = new Date(currYear, currMonth, 1).getDay(); // 0 (Sun) - 6 (Sat)
+    const firstDayOfMonth = new Date(currYear, currMonth, 1).getDay(); 
     const lastDateOfMonth = new Date(currYear, currMonth + 1, 0).getDate();
     const lastDateOfPrevMonth = new Date(currYear, currMonth, 0).getDate();
 
     const days = [];
 
-    // Prev Month Days
+    
     for (let i = firstDayOfMonth - 1; i >= 0; i--) {
         const date = new Date(currYear, currMonth - 1, lastDateOfPrevMonth - i);
         days.push({
@@ -375,7 +375,7 @@ const calendarDays = computed(() => {
         });
     }
 
-    // Current Month Days
+    
     for (let i = 1; i <= lastDateOfMonth; i++) {
         const date = new Date(currYear, currMonth, i);
         days.push({
@@ -386,8 +386,8 @@ const calendarDays = computed(() => {
         });
     }
 
-    // Next Month Days (Fill remaining grid up to 35 or 42 cells)
-    // Basic 6-row calendar requires 42 cells usually, or just fill to end of week
+    
+    
     const remainingCells = 42 - days.length; 
     for (let i = 1; i <= remainingCells; i++) {
         const date = new Date(currYear, currMonth + 1, i);
@@ -402,7 +402,7 @@ const calendarDays = computed(() => {
     return days;
 });
 
-// Helper for local YYYY-MM-DD string
+
 const toLocalDateString = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -410,35 +410,35 @@ const toLocalDateString = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-// Calendar Logic additions
-const selectedDate = ref(toLocalDateString(new Date())); // Default to today's date string 'YYYY-MM-DD'
+
+const selectedDate = ref(toLocalDateString(new Date())); 
 const isSearchOpen = ref(false);
 const searchQuery = ref('');
 
-// Helper to check if event matches date (Expanded for Recurrence)
+
 const checkDateMatch = (event, targetDateString) => {
     const targetDate = new Date(targetDateString);
     const startDate = new Date(event.startAt);
     
-    // 1. Check strict match
+    
     const eventDateStr = toLocalDateString(startDate);
     if (eventDateStr === targetDateString) return true;
 
-    // 2. Check Recurrence
+    
     if (event.repeatType === 'YEARLY') {
         const startOfTarget = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
         const startOfEvent = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
 
-        // Must be >= start date
+        
         if (startOfTarget < startOfEvent) return false;
 
-        // Must be <= recurrence end date (if exists)
+        
         if (event.recurrenceEndAt) {
             const endDate = new Date(event.recurrenceEndAt);
             if (startOfTarget > endDate) return false;
         }
 
-        // Match Month and Day
+        
         return startDate.getMonth() === targetDate.getMonth() && 
                startDate.getDate() === targetDate.getDate();
     }
@@ -446,12 +446,12 @@ const checkDateMatch = (event, targetDateString) => {
     return false;
 };
 
-// For Grid Indicators (Show all events for that day)
+
 const getEventsForDay = (dateString) => {
     return events.value.filter(e => checkDateMatch(e, dateString));
 };
 
-// Simplified Indicators: One dot per category presence (MAX 2 dots: Visit + Other)
+
 const getIndicatorsForDay = (dateString) => {
     const dayEvents = getEventsForDay(dateString);
     const hasVisit = dayEvents.some(e => e.categoryType === 'VISIT');
@@ -464,11 +464,11 @@ const getIndicatorsForDay = (dateString) => {
     return indicators;
 };
 
-// Filtered List for Display
+
 const filteredEvents = computed(() => {
     let result = events.value;
 
-    // 1. Filter by Search Query (Priority)
+    
     if (searchQuery.value.trim()) {
         const query = searchQuery.value.toLowerCase();
         return result.filter(e => 
@@ -477,12 +477,12 @@ const filteredEvents = computed(() => {
         );
     }
 
-    // 2. Filter by Selected Date (if no search)
+    
     if (selectedDate.value) {
         result = result.filter(e => checkDateMatch(e, selectedDate.value));
     }
     
-    // Sort by Time-of-Day (ignoring Year/Month differences due to recurrence)
+    
     return result.sort((a, b) => {
         const dateA = new Date(a.startAt);
         const dateB = new Date(b.startAt);
@@ -493,33 +493,33 @@ const filteredEvents = computed(() => {
 });
 
 const selectDate = (day) => {
-    // Ensure we are selecting the date in current view context or update month if needed
-    // For simplicity, just update selectedDate. 
-    // If day is prev/next month, we could switch month, but for now just select it.
+    
+    
+    
     selectedDate.value = day.dateString;
     
-    // Auto-switch month if clicking prev/next days (Optional UX improvement)
+    
     if (day.type === 'prev') prevMonth();
     if (day.type === 'next') nextMonth();
     
-    // Save state
+    
     sessionStorage.setItem('calendar_last_date', selectedDate.value);
 };
 
 const toggleSearch = () => {
     isSearchOpen.value = !isSearchOpen.value;
-    if (!isSearchOpen.value) searchQuery.value = ''; // Clear query on close
+    if (!isSearchOpen.value) searchQuery.value = ''; 
 };
 
 const getEventDotClass = (matchStr) => {
-    // Simplified: VISIT = peach (orange-ish), Others = primary (default/blue-ish)
+    
     return matchStr === 'VISIT' ? 'bg-accent-peach' : 'bg-primary';
 };
 
 
 const syncSelectedDateWithView = (newDate) => {
-    // If the new view month is the current real month, select "Today"
-    // Otherwise, select the 1st day of that month.
+    
+    
     const today = new Date();
     if (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() === today.getMonth()) {
         selectedDate.value = toLocalDateString(today);
@@ -527,7 +527,7 @@ const syncSelectedDateWithView = (newDate) => {
         const firstDay = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
         selectedDate.value = toLocalDateString(firstDay);
     }
-    // Update view reference
+    
     currentDate.value = newDate;
 };
 
@@ -551,7 +551,7 @@ const resetToToday = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// Swipe Logic
+
 const touchStartX = ref(0);
 const touchEndX = ref(0);
 
@@ -566,13 +566,13 @@ const onTouchEnd = (e) => {
 
 const handleSwipe = () => {
     const diff = touchStartX.value - touchEndX.value;
-    if (Math.abs(diff) > 50) { // Threshold 50px
-        if (diff > 0) nextMonth(); // Left swipe -> Next Month
-        else prevMonth(); // Right swipe -> Prev Month
+    if (Math.abs(diff) > 50) { 
+        if (diff > 0) nextMonth(); 
+        else prevMonth(); 
     }
 };
 
-// Check if a day is today
+
 const isToday = (day) => {
     const today = new Date();
     return day.date.getDate() === today.getDate() &&
@@ -581,27 +581,27 @@ const isToday = (day) => {
 };
 
 onMounted(async () => {
-    // 1. Prefer route param if available
+    
     if (route.params.familyId) {
         familyId.value = route.params.familyId;
     }
     
-    // Restore state if available
+    
     const savedDate = sessionStorage.getItem('calendar_last_date');
     if (savedDate) {
-        // Simple check if it's a valid date string
+        
         if (/^\d{4}-\d{2}-\d{2}$/.test(savedDate)) {
             selectedDate.value = savedDate;
-            // Also update view month to match the selected date
+            
             currentDate.value = new Date(savedDate); 
         }
     }
-    // 2. Fallback: If no route param but store has selection (e.g. direct nav bug?) -> Correct URL
+    
     else if (familyStore.selectedFamily?.id) {
          familyId.value = familyStore.selectedFamily.id;
          router.replace({ name: 'CalendarPage', params: { familyId: familyId.value } });
     }
-    // 3. Fallback: Fetch if nothing
+    
     else {
         await familyStore.fetchFamilies();
         if (familyStore.selectedFamily?.id) {
@@ -615,7 +615,7 @@ onMounted(async () => {
     }
 });
 
-// React to route changes
+
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
         familyId.value = newId;
@@ -623,7 +623,7 @@ watch(() => route.params.familyId, (newId) => {
     }
 });
 
-// React to store changes (Header dropdown)
+
 watch(() => familyStore.selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
         if (String(newFamily.id) !== String(route.params.familyId)) {
@@ -651,7 +651,7 @@ watch(selectedDate, (newVal) => {
 .ios-shadow {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
-/* Removed local font-family definition to use global one */
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   font-size: 28px;
@@ -670,19 +670,19 @@ watch(selectedDate, (newVal) => {
     background-color: #ec856b;
 }
 
-/* Slide Animations - Continuous (Overlapping) */
+
 .slide-next-enter-active, .slide-next-leave-active,
 .slide-prev-enter-active, .slide-prev-leave-active {
   transition: all 0.3s ease-out;
 }
 
-/* Ensure outgoing element overlaps for smooth slide */
+
 .slide-next-leave-active, .slide-prev-leave-active {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  pointer-events: none; /* Prevent clicks on leaving element */
+  pointer-events: none; 
 }
 
 .slide-next-enter-from {
@@ -699,7 +699,7 @@ watch(selectedDate, (newVal) => {
   transform: translateX(100%);
 }
 
-/* Swiper Picker Styles */
+
 .picker-swiper {
   height: 200px;
 }
@@ -707,7 +707,7 @@ watch(selectedDate, (newVal) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%; /* 40px */
+  height: 100%; 
   font-size: 16px;
   color: #94a3b8;
   transition: all 0.3s;

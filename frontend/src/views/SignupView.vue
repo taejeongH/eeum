@@ -148,7 +148,7 @@ const isEmailVerified = ref(false);
 const isLoading = ref(false);
 const errorMessage = ref('');
 
-// 이메일 인증 코드 전송
+
 const sendCode = async () => {
   if (!form.email) {
     errorMessage.value = '이메일을 입력해주세요.';
@@ -169,7 +169,7 @@ const sendCode = async () => {
   }
 };
 
-// 인증 코드 검증
+
 const verifyCode = async () => {
   if (!form.code) {
     errorMessage.value = '인증 코드를 입력해주세요.';
@@ -189,7 +189,7 @@ const verifyCode = async () => {
   }
 };
 
-// 비밀번호 유효성 검사 (8자 이상, 영문/숫자/특수문자 포함)
+
 const validatePassword = (password) => {
   const hasLetter = /[a-zA-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
@@ -198,7 +198,7 @@ const validatePassword = (password) => {
   return hasLetter && hasNumber && hasSpecial && isValidLength;
 };
 
-// 회원가입 요청
+
 const handleSignup = async () => {
   if (!validatePassword(form.password)) {
     errorMessage.value = '비밀번호는 8자 이상이어야 하며, 영문, 숫자, 특수문자를 모두 포함해야 합니다.';

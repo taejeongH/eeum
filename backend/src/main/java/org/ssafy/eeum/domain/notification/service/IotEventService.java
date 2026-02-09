@@ -29,7 +29,7 @@ public class IotEventService {
 
         String groupName = family.getGroupName();
         
-        // Find PATIENT from supporters
+        
         String dependentName = supporterRepository.findAllByFamily(family).stream()
                 .filter(s -> s.getRole() == Supporter.Role.PATIENT)
                 .findFirst()

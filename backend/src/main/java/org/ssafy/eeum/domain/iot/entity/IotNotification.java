@@ -26,7 +26,7 @@ public class IotNotification extends BaseEntity {
     private Family family;
 
     @Column(name = "kind", nullable = false, length = 30)
-    private String kind; // medication, schedule, image, voice 등
+    private String kind; 
 
     @Column(name = "message_id", nullable = false, length = 100, unique = true)
     private String messageId;

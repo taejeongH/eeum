@@ -190,26 +190,26 @@ const emit = defineEmits(['close', 'join-group', 'create-group-request'])
 const step = ref(props.initialStep)
 const selected = ref(null)
 
-// 모달이 열릴 때 초기 스텝 설정 (NoGroupView 등에서 직접 접근 시)
+
 watch(() => props.show, (newVal) => {
   if (newVal) {
     step.value = props.initialStep
-    // 스텝에 따라 선택 상태 초기화
+    
     if (props.initialStep === 1) selected.value = 'join'
     else if (props.initialStep === 2) selected.value = 'create'
     else selected.value = null
   }
 })
 
-/* step1 */
+
 const inviteCode = ref('')
 
-/* step2 */
+
 const groupName = ref('')
-const relation = ref('') // input으로 바뀌어도 문자열로 잘 저장됩니다.
+const relation = ref('') 
 const canCreate = computed(() => groupName.value && relation.value)
 
-/* swipe */
+
 let startY = 0
 let currentY = 0
 const sheet = ref(null)
@@ -225,7 +225,7 @@ const onTouchEnd = () => {
   else sheet.value.style.transform = ''
 }
 
-/* actions */
+
 const handleBack = () => {
   if (props.initialStep !== 0) {
     close();
@@ -241,8 +241,8 @@ const goNext = () => {
 const submitJoin = () => {
   let code = inviteCode.value.trim();
   
-  // URL에서 코드 추출 로직
-  // 예: http://localhost:5173/#/join?code=INVITE123
+  
+  
   if (code.includes('code=')) {
      const match = code.match(/[?&]code=([^&]+)/);
      if (match && match[1]) {
@@ -273,7 +273,7 @@ const close = () => {
   emit('close')
 }
 
-/* ui */
+
 const cardClass = (type) =>
   selected.value === type
     ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]'

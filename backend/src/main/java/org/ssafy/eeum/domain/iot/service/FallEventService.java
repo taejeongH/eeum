@@ -134,7 +134,7 @@ public class FallEventService {
 
     @Transactional
     public void handleVoiceResponse(Integer familyId, String sttContent) {
-        // 해당 그룹에서 가장 최근에 발생한 분석 중인 이벤트를 찾음
+        
         FallEvent event = fallEventRepository.findTopByFamilyIdAndStatusTypeOrderByCreatedAtDesc(
                 familyId, FallEvent.StatusType.UNDER_REVIEW)
                 .orElseThrow(() -> new CustomException(

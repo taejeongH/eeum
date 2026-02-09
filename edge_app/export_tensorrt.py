@@ -19,7 +19,7 @@ from typing import Optional, Union
 from ultralytics import YOLO
 import torch
 
-# 로깅 설정
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -35,11 +35,11 @@ def setup_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
-    # 모델 설정
+    
     parser.add_argument("--model", type=str, default="yolov8n-pose.pt", help="PyTorch 모델 경로 (.pt)")
     parser.add_argument("--imgsz", type=int, default=640, help="이미지 크기 (픽셀)")
     
-    # 내보내기 설정
+    
     parser.add_argument("--device", type=str, default="0", help="GPU 장치 인덱스 또는 'cpu'")
     parser.add_argument("--half", action="store_true", default=True, help="FP16 양자화 사용")
     parser.add_argument("--int8", action="store_true", help="INT8 양자화 사용 (캘리브레이션 필요)")
@@ -47,11 +47,11 @@ def setup_args():
     parser.add_argument("--opset", type=int, default=None, help="ONNX opset 버전")
     parser.add_argument("--simplify", action="store_true", default=True, help="ONNX 모델 단순화")
     
-    # 검증 설정
+    
     parser.add_argument("--verify", action="store_true", help="내보내기 후 엔진 검증")
     parser.add_argument("--test-image", type=str, help="추론 테스트를 위한 선택적 이미지 경로")
     
-    # 이전 버전과의 호환성을 위해 --fp32가 제공될 경우 FP16 비활성화
+    
     parser.add_argument("--fp32", action="store_true", help="FP16 비활성화 (FP32 사용)")
     
     return parser.parse_args()
@@ -81,7 +81,7 @@ def export_to_tensorrt(
     logger.info(f"🚀 모델 내보내기 시작: {model_path.name}")
     logger.info(f"대상 설정: imgsz={imgsz}, device={device}, half={half}, int8={int8}")
 
-    # GPU 사용 가능 여부 확인
+    
     if device != 'cpu' and not torch.cuda.is_available():
         logger.warning("CUDA를 사용할 수 없습니다. CPU에서 내보내면 TensorRT 엔진이 생성되지 않거나 실패할 수 있습니다.")
         device = 'cpu'
@@ -91,9 +91,9 @@ def export_to_tensorrt(
     try:
         model = YOLO(str(model_path))
         
-        # 내보내기 로직
-        # 참고: 최신 Ultralytics에서 workspace는 GiB 단위이지만 버전마다 다를 수 있음.
-        # YOLOv8 'engine' 형식 내보내기는 .engine 파일을 생성합니다.
+        
+        
+        
         engine_path_str = model.export(
             format="engine",
             imgsz=imgsz,
@@ -103,13 +103,13 @@ def export_to_tensorrt(
             workspace=workspace,
             opset=opset,
             simplify=simplify,
-            verbose=False # 자체 로깅을 위해 verbose는 False로 설정
+            verbose=False 
         )
         
         engine_path = Path(engine_path_str)
         elapsed = time.time() - start_time
         
-        # 성공 보고
+        
         print(f"\n{'='*70}")
         logger.info(f"✅ 내보내기 성공! (소요 시간: {elapsed:.1f}초)")
         print(f"{'='*70}")
@@ -138,7 +138,7 @@ def verify_engine(engine_path: Union[str, Path], test_image: Optional[str] = Non
     logger.info(f"🔍 TensorRT 엔진 검증 중: {engine_path.name}")
     
     try:
-        # 엔진 로드
+        
         model = YOLO(str(engine_path), task='pose')
         logger.info("  - 엔진 로드 성공")
         
@@ -164,7 +164,7 @@ def verify_engine(engine_path: Union[str, Path], test_image: Optional[str] = Non
 def main():
     args = setup_args()
     
-    # 하위 호환성을 위해 fp32 플래그 처리
+    
     if args.fp32:
         args.half = False
     
@@ -187,7 +187,7 @@ def main():
         logger.info("\n사용자에 의해 취소되었습니다.")
         return 1
     except Exception:
-        # 트레이스백은 함수 내부에서 이미 출력되거나 처리됨
+        
         return 1
         
     return 0

@@ -1,4 +1,4 @@
-# app/sse_fanout.py
+
 import asyncio
 from typing import Any, Set
 
@@ -17,7 +17,7 @@ def fanout_nowait(subscribers: Set[asyncio.Queue], envelope: Any) -> int:
             delivered += 1
             continue
         except asyncio.QueueFull:
-            # drop oldest 한번 시도
+            
             try:
                 _ = q.get_nowait()
             except Exception:

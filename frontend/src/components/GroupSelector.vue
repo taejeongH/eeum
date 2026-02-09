@@ -45,7 +45,7 @@ import { storeToRefs } from 'pinia';
 const familyStore = useFamilyStore();
 const { families, selectedFamily } = storeToRefs(familyStore);
 const isOpen = ref(false);
-const emit = defineEmits(['add-group-request']); // Removed group-selected
+const emit = defineEmits(['add-group-request']); 
 
 const selectGroup = (group) => {
   familyStore.selectFamily(group);
@@ -81,8 +81,8 @@ defineExpose({
 });
 
 onMounted(() => {
-  // Fetch only if empty or just simply refresh? 
-  // Probably safe to fetch to update list, but store logic handles preservation of selection.
+  
+  
   fetchGroups();
 });
 </script>

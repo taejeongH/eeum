@@ -134,11 +134,11 @@ const familyStore = useFamilyStore();
 const modalStore = useModalStore();
 const userStore = useUserStore();
 const albumStore = useAlbumStore();
-const allPhotos = ref([]); // 모든 불러온 사진 저장
-const photos = ref([]); // 필터링된 사진 저장
+const allPhotos = ref([]); 
+const photos = ref([]); 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
-// 공통 업로드 로직 사용
+
 const {
   fileInput,
   previewUrls,
@@ -149,7 +149,7 @@ const {
   handleUploadConfirm,
   handleUploadCancel
 } = usePhotoUpload(async () => {
-    // 성공 시 콜백
+    
     await fetchPhotos(true);
 });
 
@@ -165,7 +165,7 @@ const filterDateLocal = computed({
     }
 });
 
-// 쿼리에 따른 제목 업데이트
+
 const albumTitle = computed(() => {
     const uploader = route.query.uploader;
     const groupName = familyStore.selectedFamily?.name || '우리 가족';
@@ -173,10 +173,10 @@ const albumTitle = computed(() => {
 });
 
 const canManage = computed(() => {
-    // 1. 대표자 확인
+    
     const isRep = familyStore.families.find(f => String(f.id) === String(route.params.familyId))?.owner || false;
     
-    // 2. 본인 앨범 확인
+    
     const currentUploaderFilter = route.query.uploader;
     const myName = userStore.profile?.name;
     const isMyAlbum = currentUploaderFilter && myName && (currentUploaderFilter === myName);
@@ -185,7 +185,7 @@ const canManage = computed(() => {
 });
 
 const fetchPhotos = async (forceRefresh = false) => {
-    // URL의 familyId와 store의 selectedFamily 동기화
+    
     if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
         familyStore.selectFamilyById(route.params.familyId);
     }
@@ -194,14 +194,14 @@ const fetchPhotos = async (forceRefresh = false) => {
     
     const familyId = familyStore.selectedFamily.id;
     
-    // 즉시 표시를 위해 캐시된 데이터 먼저 시도
+    
     if (!forceRefresh) {
         const cached = albumStore.getCachedPhotos(familyId);
         if (cached) {
             allPhotos.value = cached;
             filterPhotos();
             
-            // 캐시가 충분히 최신인 경우(30초 미만) 백그라운드 호출 건너뜀
+            
             if (albumStore.isFresh(familyId, 30000)) {
                 return;
             }
@@ -217,7 +217,7 @@ const fetchPhotos = async (forceRefresh = false) => {
             data = response.data;
         }
 
-        // URL 처리
+        
         const processedPhotos = data.map(photo => {
             let url = photo.storageUrl || photo.imageUrl;
             if (url && !url.startsWith('http')) {
@@ -229,25 +229,25 @@ const fetchPhotos = async (forceRefresh = false) => {
             };
         });
         
-        // 최신순 정렬
+        
         processedPhotos.sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || 0);
             const dateB = new Date(b.createdAt || b.created_at || b.takenAt || 0);
             return dateB - dateA;
         });
 
-        // 처리된 사진 캐시 저장
+        
         albumStore.setCachedPhotos(familyId, processedPhotos);
         allPhotos.value = processedPhotos;
         
-        filterPhotos(); // 초기 필터 적용
+        filterPhotos(); 
     } catch (error) {
         Logger.error("앨범 사진 조회 실패:", error);
     }
 };
 
 const handleImageError = (event) => {
-    // 이미지 오류 시 처리
+    
     event.target.style.display = 'none';
 };
 
@@ -271,13 +271,13 @@ const filterPhotos = () => {
     photos.value = filtered;
 };
 
-// 선택 상태
+
 const isSelectionMode = ref(false);
 const selectedPhotos = ref([]);
 
 const toggleSelectionMode = () => {
     isSelectionMode.value = !isSelectionMode.value;
-    selectedPhotos.value = []; // 모드 전환 시 선택 초기화
+    selectedPhotos.value = []; 
 };
 
 const togglePhotoSelection = (photo) => {
@@ -295,12 +295,12 @@ const handlePhotoClick = (photo) => {
     if (isSelectionMode.value) {
         togglePhotoSelection(photo);
     } else {
-        // 현재 필터들을 컨텍스트로 함께 전달하며 상세 페이지 이동
+        
         router.push({
             name: 'PhotoDetail',
             params: { photoId: photo.photoId || photo.id },
             query: { 
-                ...route.query // uploader, date 등 전달
+                ...route.query 
             }
         });
     }
@@ -313,15 +313,15 @@ const deleteSelectedPhotos = async () => {
     if (!isConfirmed) return;
 
     try {
-        // 모든 선택된 사진 병렬 삭제
+        
         await Promise.all(selectedPhotos.value.map(id => deletePhoto(id)));
         
         await modalStore.openAlert("사진이 삭제되었습니다.");
         
-        // 목록 새로고침
+        
         await fetchPhotos(true);
         
-        // 편집 모드 종료
+        
         toggleSelectionMode();
     } catch (error) {
         Logger.error("삭제 실패:", error);
@@ -341,7 +341,7 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
     }
 });
 
-// 쿼리 변경 시 필터 다시 적용
+
 watch(() => route.query, () => {
     filterPhotos();
 }, { deep: true });
@@ -359,7 +359,7 @@ watch(() => route.query, () => {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* 이미지 페이드인 애니메이션 */
+
 .image-fade-in {
     animation: fadeIn 0.4s ease-out;
 }

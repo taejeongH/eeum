@@ -31,7 +31,7 @@ public class IotDeviceSyncController {
                         @AuthenticationPrincipal DeviceDetails deviceDetails,
                         @RequestParam String serialNumber) {
 
-                // 인증된 기기의 그룹 정보를 기반으로 목록 조회
+                
                 List<IotSimpleDeviceInfoResponseDTO> devices = iotDeviceService.getDevicesBySerialNumber(serialNumber);
                 List<org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto> members = iotSyncService
                                 .getFamilyMembers(deviceDetails.getGroupId());

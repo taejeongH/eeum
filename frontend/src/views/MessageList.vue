@@ -357,35 +357,35 @@ const refreshStartY = ref(0)
 const refreshPullDistance = ref(0)
 const canRefresh = ref(true)
 
-const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/'
+const S3_BASE_URL = 'https:
 
-// 이미지 URL 생성 함수 추가
-// 이미지 URL 생성 함수 추가
+
+
 const getFullImageUrl = (path, name) => {
   if (!path) {
-    return `https://ui-avatars.com/api/?name=${name || 'User'}&background=FF9B6A&color=fff&size=48`
+    return `https:
   }
-  // http로 시작하면(절대경로) 그대로 쓰고, 아니면 S3 주소를 붙임
+  
   return path.startsWith('http') ? path : `${S3_BASE_URL}${path}`
 }
 
-/* Swipe Logic */
+
 const messageSheet = ref(null)
 let startY = 0
 let currentY = 0
 
 const onTouchStart = (e) => {
-  // Only allow swipe if scrollTop is 0 (at the top)
+  
   if (messageSheet.value && messageSheet.value.scrollTop > 0) return
   startY = e.touches[0].clientY
 }
 
 const onTouchMove = (e) => {
-  if (startY === 0) return // Started not at top
+  if (startY === 0) return 
   currentY = e.touches[0].clientY
   const diff = currentY - startY
   if (diff > 0 && messageSheet.value) {
-     // visual feedback
+     
      messageSheet.value.style.transform = `translateY(${diff}px)`
   }
 }
@@ -402,9 +402,9 @@ const onTouchEnd = () => {
   currentY = 0
 }
 
-/* Pull-to-Refresh Handlers */
+
 const handleRefreshTouchStart = (e) => {
-    // Only refresh if at the very top
+    
     if (window.scrollY > 5 || isRefreshing.value || showMessageModal.value) {
         canRefresh.value = false;
         return;
@@ -449,7 +449,7 @@ const executeRefresh = async () => {
     }
 };
 
-// Computed
+
 const hasMessages = computed(() => messages.value.length > 0)
 
 const filteredMessages = computed(() => {
@@ -463,7 +463,7 @@ const filteredMessages = computed(() => {
   })
 })
 
-// Methods
+
 const toggleSearch = () => {
   isSearchOpen.value = !isSearchOpen.value
   if (!isSearchOpen.value) {
@@ -475,7 +475,7 @@ const openMessageModal = () => {
   showMessageModal.value = true
   newMessage.value = { content: '' }
   charCount.value = 0
-  // Reset transform if reused
+  
   if (messageSheet.value) messageSheet.value.style.transform = ''
 }
 
@@ -506,7 +506,7 @@ const sendMessage = async () => {
   try {
     await messageService.sendGroupMessage(familyId.value, newMessage.value.content)
     closeMessageModal()
-    // Refresh messages
+    
     await fetchMessages()
   } catch (error) {
     Logger.error('메시지 전송 실패:', error)
@@ -541,19 +541,19 @@ const formatTime = (timestamp) => {
   let date = new Date(timestamp)
   const now = new Date()
   
-  // [Timezone Fix] 
-  // If the date is in the future, it's likely a timezone mismatch (e.g., Server sent KST as UTC, causing +9h shift).
-  // We try to correct this by subtracting 9 hours.
+  
+  
+  
   if (date > now) {
      const correctedDate = new Date(date.getTime() - 9 * 60 * 60 * 1000)
-     // Use corrected date if it makes sense (is now in the past or close to now)
+     
      if (correctedDate <= now || (correctedDate - now) < 5 * 60 * 1000) { 
          date = correctedDate
      }
   }
 
   const diffMs = now - date
-  // Handle small clock skew (future within 1 min) by treating as 0
+  
   if (diffMs < 0) return '방금 전'
 
   const diffMins = Math.floor(diffMs / 60000)
@@ -614,7 +614,7 @@ const nextPage = () => {
   }
 }
 
-// 초기화
+
 const fetchFamilyDetails = async () => {
     if (!familyId.value) return;
     familyLoading.value = true;
@@ -639,7 +639,7 @@ const fetchFamilyDetails = async () => {
     }
 };
 
-// React to route changes
+
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
         familyId.value = newId;
@@ -648,10 +648,10 @@ watch(() => route.params.familyId, (newId) => {
     }
 });
 
-// React to store selection changes (Header dropdown)
+
 watch(() => familyStore.selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
-        // If the store changes but we are still on the old route, redirect
+        
         if (String(newFamily.id) !== String(route.params.familyId)) {
              router.replace({ name: 'FamilyMessages', params: { familyId: newFamily.id } });
         }
@@ -659,21 +659,21 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
 });
 
 
-// 초기화
+
 onMounted(async () => {
-  // 1. Prefer route param if present
+  
   if (route.params.familyId) {
       familyId.value = route.params.familyId;
   } 
-  // 2. Fallback to store if no param (though route usually has it)
+  
   else if (familyStore.selectedFamily?.id) {
       familyId.value = familyStore.selectedFamily.id;
-      // Update URL to match
+      
       router.replace({ name: 'FamilyMessages', params: { familyId: familyId.value } });
   }
 
   if (familyId.value) {
-    // API 호출 병렬 처리로 속도 개선
+    
     await Promise.all([
       fetchMessages(),
       fetchFamilyDetails()
@@ -693,7 +693,7 @@ onMounted(async () => {
   animation: spin 1s linear infinite;
 }
 
-/* Transitions */
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -724,7 +724,7 @@ onMounted(async () => {
 </style>
 
 <style scoped>
-/* Custom Scrollbar for Message Detail */
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -739,7 +739,7 @@ onMounted(async () => {
   background-color: #9ca3af;
 }
 
-/* Match CalendarPage icon style */
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   font-size: 28px;

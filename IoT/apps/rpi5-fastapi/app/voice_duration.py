@@ -1,4 +1,4 @@
-# ./app/voice_duration.py
+
 import json
 from .sh import async_sh
 

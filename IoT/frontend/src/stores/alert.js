@@ -3,8 +3,8 @@ import { ref } from 'vue';
 
 export const useAlertStore = defineStore('alert', () => {
     const alerts = ref([]);
-    const history = ref(JSON.parse(localStorage.getItem('alertHistory') || '[]')); // 알림 보관함 (영구 보관)
-    const chatHistory = ref([]); // 가족 메시지함 (실시간 동기화)
+    const history = ref(JSON.parse(localStorage.getItem('alertHistory') || '[]')); 
+    const chatHistory = ref([]); 
     const isConnected = ref(false);
     let eventSource = null;
     let reconnectTimer = null;
@@ -12,7 +12,7 @@ export const useAlertStore = defineStore('alert', () => {
     const connect = () => {
         if (eventSource) return;
 
-        // Clear any pending reconnect
+        
         if (reconnectTimer) clearTimeout(reconnectTimer);
 
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -26,7 +26,7 @@ export const useAlertStore = defineStore('alert', () => {
                 isConnected.value = true;
             };
 
-            // 핵심 알림 이벤트 처리
+            
             eventSource.addEventListener('alert', (event) => {
                 try {
                     const data = JSON.parse(event.data);
@@ -37,7 +37,7 @@ export const useAlertStore = defineStore('alert', () => {
                 }
             });
 
-            // Heartbeat 처리
+            
             eventSource.addEventListener('ping', () => {
                 console.log('SSE heartbeat (ping)');
             });
@@ -52,7 +52,7 @@ export const useAlertStore = defineStore('alert', () => {
 
                 reconnectTimer = setTimeout(() => {
                     console.log('[AlertStore] 재연결 시도 중...');
-                    connect(); // Recursive call safe due to eventSource check at top
+                    connect(); 
                 }, 5000);
             };
         } catch (e) {
@@ -81,35 +81,35 @@ export const useAlertStore = defineStore('alert', () => {
             timestamp: new Date().toISOString()
         };
 
-        // TTS for voice messages
+        
         if (alert.kind === 'voice' || alert.type === 'VOICE') {
-            // Note: Voice messages are handled by voiceStore via 'voice' event.
-            // We only trigger TTS here, do NOT add to chatHistory to avoid duplicates.
+            
+            
 
             const speakMessage = () => {
                 const text = `${alert.title || '가족'}님이 메시지를 보냈습니다. "${alert.content}"`;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'ko-KR';
-                utterance.rate = 0.9; // Slightly slower for elderly
+                utterance.rate = 0.9; 
                 window.speechSynthesis.speak(utterance);
             };
 
-            // Short delay to let the UI transition finish if needed
+            
             setTimeout(speakMessage, 500);
         }
 
-        // 1. 오버레이용 (일시적)
+        
         alerts.value.push(newAlert);
 
-        // 2. 보관함용 (영구적) - 메시지는 알림함에 넣지 않음
+        
         const isVoice = alert.kind === 'voice' || alert.type === 'VOICE';
         if (!isVoice) {
             history.value.unshift(newAlert);
-            if (history.value.length > 100) history.value.pop(); // 최대 100개 유지
+            if (history.value.length > 100) history.value.pop(); 
             saveHistory();
         }
 
-        // 오버레이 자동 제거
+        
         setTimeout(() => {
             removeAlert(id);
         }, 10000);
@@ -125,10 +125,10 @@ export const useAlertStore = defineStore('alert', () => {
     };
 
     const removeChatHistory = async (id) => {
-        // 1. Remove from local state immediately for snappy UI
+        
         chatHistory.value = chatHistory.value.filter(c => c.id !== id);
 
-        // 2. Tell the server to delete it so it doesn't come back on refresh
+        
         try {
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
             const token = localStorage.getItem('iotAccessToken');

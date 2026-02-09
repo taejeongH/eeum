@@ -35,7 +35,7 @@ public class MedicationAlarmRedisService {
                 occurrence = occurrence.plusDays(1);
             }
 
-            // 복약 기간 체크
+            
             if (plan.getEndDate() != null && occurrence.toLocalDate().isAfter(plan.getEndDate())) {
                 continue;
             }

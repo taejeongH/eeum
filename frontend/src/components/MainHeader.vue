@@ -222,13 +222,13 @@ const route = useRoute();
 const userStore = useUserStore();
 const familyStore = useFamilyStore();
 const modalStore = useModalStore();
-const { selectedFamily: selectedGroup } = storeToRefs(familyStore); // Alias for compatibility with existing template code
+const { selectedFamily: selectedGroup } = storeToRefs(familyStore); 
 
-// Emit modal state changes to parent (HomePage)
+
 const emit = defineEmits(['modal-state-change']);
 
 
-// Import IconCrown
+
 import IconCrown from '@/components/icons/IconCrown.vue';
 
 const groupSelectorRef = ref(null);
@@ -280,17 +280,17 @@ const toggleSettings = () => {
 };
 
 const handleGlobalClick = (event) => {
-    // Close Settings Menu
+    
     if (settingsMenu.value && !settingsMenu.value.contains(event.target)) {
         isSettingsOpen.value = false;
     }
-    // Close Group Selector
+    
     if (groupSelectorWrapper.value && !groupSelectorWrapper.value.contains(event.target)) {
         groupSelectorRef.value?.close();
     }
 }
 
-// Watch modal states and emit change
+
 watch(
   [isAddGroupModalOpen, isInviteModalOpen, isGroupCreateModalOpen],
   ([addGroup, invite, groupCreate]) => {
@@ -298,7 +298,7 @@ watch(
   }
 );
 
-// Persistence for isCollapsed
+
 watch(isCollapsed, (newVal) => {
   localStorage.setItem('headerCollapsed', JSON.stringify(newVal));
 });
@@ -306,13 +306,13 @@ watch(isCollapsed, (newVal) => {
 onMounted(async () => {
     document.addEventListener('click', handleGlobalClick);
     
-    // Load collapsed state
+    
     const savedCollapsed = localStorage.getItem('headerCollapsed');
     if (savedCollapsed !== null) {
       isCollapsed.value = JSON.parse(savedCollapsed);
     }
 
-    // Force refresh families to ensure updated DTO
+    
     await familyStore.fetchFamilies();
     
     if (!userStore.profile) {
@@ -336,7 +336,7 @@ const leaveGroup = async () => {
     try {
       await api.delete(`/families/${selectedGroup.value.id}/leave`);
       await modalStore.openAlert('그룹에서 성공적으로 탈퇴/삭제되었습니다.');
-      // Refreshing might reset store state if not persisted, but usually app reloads
+      
       window.location.reload(); 
     } catch (error) {
       Logger.error('그룹 탈퇴 실패:', error);
@@ -353,7 +353,7 @@ const handleCreateGroup = async (groupData) => {
       relation: groupData.relation
     };
     const response = await api.post('/families', payload);
-    // Fetch via store
+    
     await familyStore.fetchFamilies();
     familyStore.selectFamily(response.data);
     closeAddGroupModal();
@@ -368,7 +368,7 @@ const handleCreateGroup = async (groupData) => {
 const joinGroup = async (inviteCode) => {
   try {
     const response = await joinFamilyWithCode(inviteCode);
-     // Fetch via store
+     
     await familyStore.fetchFamilies(true);
     familyStore.selectFamily(response.data);
     await modalStore.openAlert('그룹에 성공적으로 참여했습니다!');
@@ -383,7 +383,7 @@ const joinGroup = async (inviteCode) => {
 };
 
 const toggleGroupSelector = () => groupSelectorRef.value?.toggle();
-// Remove handleGroupSelected as it's now handled by store state
+
 
 const fetchMembers = async () => {
   if (!selectedGroup.value) {
@@ -391,10 +391,10 @@ const fetchMembers = async () => {
     return;
   }
   try {
-    // 1. Fetch Members using Store Cache
+    
     const fetchedMembers = await familyStore.fetchMembers(selectedGroup.value.id);
     
-    // 2. Clone and sort members
+    
     const membersCopy = JSON.parse(JSON.stringify(fetchedMembers));
     
     const dependent = membersCopy.find(m => m.dependent);
@@ -414,7 +414,7 @@ const fetchMembers = async () => {
 };
 
 const syncSelectedIdWithRoute = () => {
-    // 1. Try to use route params if valid in current members
+    
     if (route.params.userId) {
         const isValid = members.value.some(m => String(m.userId) === String(route.params.userId));
         if (isValid) {
@@ -423,28 +423,28 @@ const syncSelectedIdWithRoute = () => {
         }
     }
 
-    // 2. Fallback: Default to dependent (usually first member logic handles dependent first)
-    // or first actual member if dependent is placeholder? 
-    // User wants dependent highlighted. Dependent is always sorted to top if exists.
-    // If no dependent (placeholder), maybe we still select placeholder if logic requires?
-    // But typically we select first available profile.
     
-    // Existing logic prioritizes finding FIRST member in the list to select.
-    // Since fetchMembers sorts dependent to front, members.value[0] is dependent or placeholder.
     
-    // If dependent exists (is not placeholder):
+    
+    
+    
+    
+    
+    
+    
+    
     const firstMember = members.value[0];
     if (firstMember && !firstMember.isPlaceholder) {
         selectedId.value = firstMember.userId;
     } else {
-        // If first is placeholder, find next actual member
+        
         const firstActual = members.value.find(m => !m.isPlaceholder);
         selectedId.value = firstActual ? firstActual.userId : null;
     }
     
-    // Optional: If the user is on a detail page and the group changes, 
-    // strictly speaking we should probably redirect, but let's stick to just fixing the highlight for now 
-    // as that's the explicit request.
+    
+    
+    
 };
 
 watch(() => route.params.userId, (newId) => {
@@ -456,14 +456,14 @@ watch(() => route.params.userId, (newId) => {
 watch(selectedGroup, (newGroup) => {
 
     if (newGroup) {
-        // fetchMembers handled below
+        
     }
     fetchMembers();
 }, { immediate: true });
 </script>
 
 <style scoped>
-/* Scrollbar hiding logic if needed, usually mostly handled by Tailwind classes or global styles */
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
