@@ -43,7 +43,7 @@ public class DeviceStatusService {
                 Family family = familyRepository.findById(groupId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-                // 기존 상태 조회 또는 신규 생성
+                
                 DeviceStatus status = deviceStatusRepository
                                 .findByMasterDeviceIdAndSlaveDeviceId(master.getId(), slave.getId())
                                 .orElseGet(() -> DeviceStatus.builder()
@@ -54,7 +54,7 @@ public class DeviceStatusService {
                                                 .lastSyncAt(LocalDateTime.now())
                                                 .build());
 
-                // 상태 변경 감지 (Offline → Online)
+                
                 if (status.getIsAlive() != null && !status.getIsAlive().equals(isAlive)) {
 
                 }

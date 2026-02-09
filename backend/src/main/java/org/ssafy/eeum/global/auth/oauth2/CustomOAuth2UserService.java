@@ -36,7 +36,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         log.info("OAuth2 Login: {}", registrationId);
 
-        // 카카오 로그인 처리
+        
         if ("kakao".equals(registrationId)) {
             return processKakaoUser(oAuth2User);
         }
@@ -47,10 +47,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private OAuth2User processKakaoUser(OAuth2User oAuth2User) {
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
-        // 카카오 사용자 ID
+        
         String kakaoId = attributes.get("id").toString();
 
-        // 카카오 계정 정보
+        
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
         Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
 
@@ -64,17 +64,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String kakaoProfileUrl = profile.get("profile_image_url") != null ? profile.get("profile_image_url").toString()
                 : null;
 
-        // 기존 소셜 계정 확인
+        
         SocialAccount socialAccount = socialAccountRepository
                 .findByProviderAndProviderUserId("KAKAO", kakaoId)
                 .orElse(null);
 
         User user;
         if (socialAccount != null) {
-            // 기존 사용자
+            
             user = socialAccount.getUser();
 
-            // 프로필 이미지가 없거나 외부 URL인 경우 S3 업로드 시도 (마이그레이션 로직)
+            
             String currentProfileImage = user.getProfileImage();
             if ((currentProfileImage == null || currentProfileImage.startsWith("http")) && kakaoProfileUrl != null) {
                 log.info("Migrating profile image to S3 for existing user ID: {}", user.getId());
@@ -84,12 +84,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 }
             }
 
-            // 정보 업데이트 (S3 키 또는 null이 전달됨)
+            
             user.updateFromKakao(nickname, email, currentProfileImage);
             userRepository.save(user);
             log.info("Existing user updated and migrated: {}", user.getId());
         } else {
-            // 신규 사용자
+            
             log.info("New User Detected. Processing Kakao profile...");
             String profileImage = null;
             if (kakaoProfileUrl != null) {
@@ -113,7 +113,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .build();
             user = userRepository.save(user);
 
-            // 소셜 계정 연동
+            
             socialAccount = SocialAccount.createKakaoAccount(user, kakaoId);
             socialAccountRepository.save(socialAccount);
             log.info("New user created with ID: {}", user.getId());

@@ -147,7 +147,7 @@ import { useUserStore } from '@/stores/user';
 import { useAlbumStore } from '@/stores/album';
 import { Logger } from '@/services/logger';
 
-// Swiper Imports
+
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import 'swiper/css';
 
@@ -188,7 +188,7 @@ const formatDate = (dateString) => {
 };
 
 const fetchPhotoDetail = async () => {
-    // URL의 familyId와 store의 selectedFamily 동기화
+    
     if (route.params.familyId && (!familyStore.selectedFamily || String(familyStore.selectedFamily.id) !== String(route.params.familyId))) {
         familyStore.selectFamilyById(route.params.familyId);
     }
@@ -199,15 +199,15 @@ const fetchPhotoDetail = async () => {
     const targetId = parseInt(route.params.photoId);
 
     try {
-        // Try to use cached data first
+        
         const cached = albumStore.getCachedPhotos(familyId);
         let rawPhotos = [];
         
         if (cached && cached.length > 0) {
-            // Use cached data - much faster!
+            
             rawPhotos = cached;
         } else {
-            // Fetch from API only if no cache
+            
             const response = await getPhotos(familyId);
             
             if (Array.isArray(response.data)) {
@@ -220,7 +220,7 @@ const fetchPhotoDetail = async () => {
                 rawPhotos = response.data.content;
             }
 
-            // Process URLs for all photos
+            
             rawPhotos = rawPhotos.map(p => {
                 let url = p.storageUrl || p.imageUrl;
                 if (url && !url.startsWith('http')) {
@@ -229,11 +229,11 @@ const fetchPhotoDetail = async () => {
                 return { ...p, displayUrl: url };
             });
             
-            // Cache the processed photos for future use
+            
             albumStore.setCachedPhotos(familyId, rawPhotos);
         }
         
-        // Apply Context Filters
+        
         const uploaderFilter = route.query.uploader;
         const dateFilter = route.query.date;
         const contextFilter = route.query.context;
@@ -249,7 +249,7 @@ const fetchPhotoDetail = async () => {
             });
         }
 
-        // Match sorting logic from GalleryPage.vue
+        
         rawPhotos.sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
             const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
@@ -257,7 +257,7 @@ const fetchPhotoDetail = async () => {
         });
 
         if (contextFilter === 'recent') {
-            // Keep original top 5 most recent if opened from "Recently Added"
+            
             rawPhotos = rawPhotos.slice(0, 5);
         }
 
@@ -283,7 +283,7 @@ const onSlideChange = (swiper) => {
     currentIndex.value = swiper.activeIndex;
     photo.value = allPhotos.value[currentIndex.value];
     const newPhotoId = photo.value.photoId || photo.value.id;
-    // Update URL while preserving context filters
+    
     router.replace({ 
         name: 'PhotoDetail', 
         params: { photoId: newPhotoId },
@@ -295,7 +295,7 @@ const toggleMenu = () => {
     showMenu.value = !showMenu.value;
 };
 
-// Close menu when clicking outside
+
 const closeMenu = (e) => {
     if (showMenu.value && moreMenu.value && !moreMenu.value.contains(e.target)) {
         showMenu.value = false;
@@ -338,7 +338,7 @@ const saveEdit = async () => {
     
     try {
         const payload = {
-            storageUrl: photo.value.storageUrl, // Keep existing
+            storageUrl: photo.value.storageUrl, 
             description: editForm.value.description,
             takenAt: editForm.value.takenAt
         };
@@ -346,7 +346,7 @@ const saveEdit = async () => {
         const photoId = photo.value.photoId || photo.value.id;
         await updatePhoto(photoId, payload);
         
-        // Update local state
+        
         photo.value.description = editForm.value.description;
         photo.value.takenAt = editForm.value.takenAt;
         
@@ -358,7 +358,7 @@ const saveEdit = async () => {
     }
 };
 
-// [NEW] Swipe to Close Logic
+
 const startY = ref(0);
 const currentY = ref(0);
 const isDragging = ref(false);
@@ -376,10 +376,10 @@ const handleTouchMove = (e) => {
     currentY.value = e.touches[0].clientY;
     const deltaY = currentY.value - startY.value;
     
-    // Only allow downward drag
+    
     if (deltaY > 0) {
         translateY.value = deltaY;
-        // Fade out as you drag down (1 -> 0.3)
+        
         opacity.value = Math.max(0.3, 1 - (deltaY / 500));
     }
 };
@@ -388,11 +388,11 @@ const handleTouchEnd = () => {
     if (!isDragging.value || isEditing.value) return;
     isDragging.value = false;
     
-    // Threshold to close: 100px
+    
     if (translateY.value > 100) {
         router.back();
     } else {
-        // Spring back
+        
         translateY.value = 0;
         opacity.value = 1;
     }

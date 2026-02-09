@@ -36,7 +36,7 @@ public class S3Service {
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
 
-    // Presigned URL 캐시 (Key: fileKey, Value: CachedUrl)
+    
     private final Map<String, CachedUrl> urlCache = new ConcurrentHashMap<>();
 
     private static class CachedUrl {
@@ -84,15 +84,15 @@ public class S3Service {
         }
 
         try {
-            // Fix deprecation warning for new URL(String)
+            
             URL url = java.net.URI.create(imageUrl).toURL();
 
-            // Use HttpURLConnection to handle User-Agent and connection settings
+            
             java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.setRequestProperty("User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            connection.setConnectTimeout(5000); // 5 seconds timeout
+            connection.setConnectTimeout(5000); 
             connection.setReadTimeout(5000);
 
             int responseCode = connection.getResponseCode();
@@ -104,7 +104,7 @@ public class S3Service {
             String originalFileName = "kakao_profile.jpg";
             String fileName = dirName + "/" + UUID.randomUUID() + "-" + originalFileName;
 
-            // Guess content type from response, default to jpeg
+            
             String contentType = connection.getContentType();
             if (contentType == null || contentType.isBlank()) {
                 contentType = "image/jpeg";
@@ -122,7 +122,7 @@ public class S3Service {
             }
 
             log.info("S3 URL 이미지 업로드 성공: {}", fileName);
-            return fileName; // Return the key
+            return fileName; 
         } catch (IOException e) {
             log.error("URL 이미지 업로드 실패: {}", e.getMessage());
             return null;
@@ -168,27 +168,27 @@ public class S3Service {
             return null;
         }
 
-        // 1. 캐시 확인
+        
         CachedUrl cached = urlCache.get(key);
         if (cached != null && cached.isValid()) {
             return cached.url;
         }
 
-        // 2. 캐시 미스 -> Presigned URL 생성
+        
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
                 .build();
 
         GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(10)) // 10분 유효
+                .signatureDuration(Duration.ofMinutes(10)) 
                 .getObjectRequest(getObjectRequest)
                 .build();
 
         PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest);
         String newUrl = presignedGetObjectRequest.url().toString();
 
-        // 3. 캐시에 저장 (유효기간을 1분 여유를 두고 9분으로 설정)
+        
         long expiryTime = System.currentTimeMillis() + Duration.ofMinutes(9).toMillis();
         urlCache.put(key, new CachedUrl(newUrl, expiryTime));
 

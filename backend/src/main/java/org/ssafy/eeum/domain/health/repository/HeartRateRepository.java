@@ -13,12 +13,12 @@ public interface HeartRateRepository extends JpaRepository<HeartRate, Long> {
            "FROM HeartRate h WHERE h.fallEvent.id = :eventId")
     org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO findAggregatedMetricsByFallEventId(@Param("eventId") Integer eventId);
 
-    // Find the single latest Heart Rate entry (already aggregated from mobile)
+    
     @Query("SELECT new org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO(" +
            "CAST(h.avgRate AS double), h.minRate, h.maxRate, 1L) " +
            "FROM HeartRate h WHERE h.family.id = :familyId ORDER BY h.measuredAt DESC LIMIT 1")
     java.util.Optional<org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO> findLatestByFamilyId(@Param("familyId") Integer familyId);
 
-    // Internal Use: Get Entity for timestamp check
+    
     java.util.Optional<HeartRate> findFirstByFamilyIdOrderByMeasuredAtDesc(Integer familyId);
 }

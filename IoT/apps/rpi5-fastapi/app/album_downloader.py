@@ -1,4 +1,4 @@
-# app/album_downloader.py
+
 import asyncio
 import hashlib
 import os
@@ -13,7 +13,7 @@ from .config import ALBUM_PATH
 logger = logging.getLogger(__name__)
 
 def _calc_backoff_sec(retry_count: int) -> float:
-    # 2,4,8,16,... 최대 300초
+    
     try:
         rc = max(0, int(retry_count))
     except Exception:
@@ -61,7 +61,7 @@ async def _download_one_album_item(state, it, tmp_path, final_path, url, pid):
         next_try_at=0.0,
     )
 
-    # 캐시 반영
+    
     c = state.album_cache.get(pid)
     if c is not None:
         c["local_path"] = final_path
@@ -109,7 +109,7 @@ async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int
                 final_path = os.path.join(root, f"{pid}{ext}")
 
                 try:
-                    # 시작 시점에 downloading 마크
+                    
                     try:
                         repo.set_download_status(
                             pid, "downloading",
@@ -121,7 +121,7 @@ async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int
                     except Exception:
                         pass
 
-                    # 실제 동시성은 sem이 제한
+                    
                     if sem:
                         async with sem:
                             await _download_one_album_item(state, it, tmp_path, final_path, url, pid)
@@ -150,7 +150,7 @@ async def download_album_loop(state, interval_sec: float = 1.0, batch_limit: int
                         pass
                     logger.warning("[album_dl] failed id=%s err=%s", pid, e)
 
-            # 병렬 태스크 생성 (batch_limit만큼), sem이 동시 다운로드 제한
+            
             tasks = [asyncio.create_task(_handle_one(it)) for it in items]
             await asyncio.gather(*tasks, return_exceptions=True)
 

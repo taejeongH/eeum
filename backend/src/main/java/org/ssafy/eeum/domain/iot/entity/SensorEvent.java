@@ -34,10 +34,10 @@ public class SensorEvent extends BaseEntity {
     private String serialNumber;
 
     @Column(name = "event_type", nullable = false, length = 30)
-    private String eventType; // fall_detected, motion_detected 등
+    private String eventType; 
 
     @Column(name = "kind", length = 20)
-    private String kind; // vision, sensor
+    private String kind; 
 
     @Column(name = "location", length = 50)
     private String location;

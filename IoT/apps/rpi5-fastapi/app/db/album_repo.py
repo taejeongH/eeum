@@ -1,4 +1,4 @@
-# app/db/album_repo.py
+
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -14,7 +14,7 @@ class AlbumRepo:
     def __init__(self, conn):
         self.conn = conn
 
-    # ---- sync cursor ----
+    
     def get_last_log_id(self) -> int:
         row = self.conn.execute("SELECT value FROM kv WHERE key=?", (_LAST_LOG_KEY,)).fetchone()
         if not row:
@@ -32,7 +32,7 @@ class AlbumRepo:
                 (_LAST_LOG_KEY, str(int(log_id))),
             )
 
-    # ---- queries ----
+    
     def get_photo(self, photo_id: int) -> Optional[Dict[str, Any]]:
         row = self.conn.execute(
             "SELECT p.id, p.url, p.description, p.taken_at, p.updated_at, p.user_id, "
@@ -61,7 +61,7 @@ class AlbumRepo:
         limit: int = 50,
         now: float | None = None,
         *,
-        rescue_sec: float = 600.0,   # stuck downloading rescue (10min)
+        rescue_sec: float = 600.0,   
     ) -> List[Dict[str, Any]]:
         if now is None:
             now = time.time()
@@ -93,7 +93,7 @@ class AlbumRepo:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    # ---- download state updates ----
+    
     def set_download_status(
         self,
         photo_id: int,
@@ -111,7 +111,7 @@ class AlbumRepo:
         now = time.time()
 
         with self.conn:
-            # row 보장(사진이 존재해야 함)
+            
             p = self.conn.execute("SELECT id FROM album_photos WHERE id=?", (int(photo_id),)).fetchone()
             if not p:
                 raise KeyError(f"photo not found: {photo_id}")
@@ -156,7 +156,7 @@ class AlbumRepo:
                     ),
                 )
 
-    # ---- core: apply sync delta ----
+    
     def apply_sync_delta(self, sync_data: Dict[str, Any]) -> Tuple[int, int, int]:
         """
         서버 payload(data)를 받아 DB에 반영.
@@ -179,21 +179,21 @@ class AlbumRepo:
         add_cnt = 0
         del_cnt = 0
 
-        with self.conn:  # transaction
-            # 1) deleted
+        with self.conn:  
+            
             if deleted:
                 q = ",".join(["?"] * len(deleted))
                 cur = self.conn.execute(f"DELETE FROM album_photos WHERE id IN ({q})", [int(x) for x in deleted])
                 del_cnt = int(cur.rowcount or 0)
 
-            # 2) added upsert
+            
             for it in added:
                 pid = int(it["id"])
                 url = str(it["url"])
                 desc = it.get("description")
                 taken_at = it.get("takenAt")
 
-                # user_id normalize
+                
                 uid = it.get("userId")
                 if uid is None:
                     uid = it.get("user_id")
@@ -215,7 +215,7 @@ class AlbumRepo:
                 )
                 add_cnt += 1
 
-                # download row 보장 + url 변경 시 pending
+                
                 d = self.conn.execute("SELECT status FROM album_downloads WHERE photo_id=?", (pid,)).fetchone()
                 if d is None:
                     self.conn.execute(
@@ -229,7 +229,7 @@ class AlbumRepo:
                             (now, pid),
                         )
 
-            # 3) cursor update
+            
             if new_log_id > 0:
                 self.set_last_log_id(new_log_id)
 

@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from pydub import AudioSegment
 from contextlib import asynccontextmanager
 
-# CosyVoice 전용 YAML 패치
+
 def super_patch_yaml():
     import yaml
     for loader in [yaml.Loader, yaml.SafeLoader, yaml.FullLoader, yaml.UnsafeLoader]:
@@ -21,7 +21,7 @@ def super_patch_yaml():
             setattr(loader, 'max_depth', 100)
 super_patch_yaml()
 
-# 로깅 설정 (파일 및 터미널 출력)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 경로 및 모델 설정
+
 COSYVOICE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'CosyVoice')
 sys.path.append(COSYVOICE_DIR)
 sys.path.append(os.path.join(COSYVOICE_DIR, 'third_party/Matcha-TTS'))
@@ -77,14 +77,14 @@ async def generate_tts(request: TtsRequest, x_api_key: str = Depends(verify_api_
     try:
         download_s3(request.bucket_name, request.sample_s3_url, t_down)
         
-        # 오디오 전처리 (16kHz, Mono)
+        
         audio = AudioSegment.from_file(t_down)
         audio.set_frame_rate(16000).set_channels(1).export(t_wav, format="wav")
         
-        # 목소리 정체성 보존을 위한 프롬프트 구성
+        
         prompt = f"You are a helpful assistant.<|endofprompt|>{request.sample_transcript}"
         
-        # AI 추론
+        
         outputs = cosyvoice.inference_zero_shot(request.text, prompt, t_wav, stream=False)
         
         for out in outputs:

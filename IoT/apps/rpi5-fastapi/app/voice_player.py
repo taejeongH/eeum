@@ -1,4 +1,4 @@
-# app/voice_player.py
+
 import asyncio
 import os
 import aiohttp
@@ -32,7 +32,7 @@ async def _emit_event(state, event_name: str, data: dict):
     """
     envelope = {"_event": event_name, "data": data}
     delivered = fanout_nowait(state.voice_subscribers, envelope)
-    # 구독자 없으면 delivered=0 (즉 "보내긴 했는데 받을 사람이 없음"을 로그로 확정)
+    
     try:
         logger.debug("[sse_voice] event=%s delivered=%d", event_name, int(delivered))
     except Exception:
@@ -49,7 +49,7 @@ async def emit_voice_new(state, vid: int, desc: str, sender: dict | None = None)
     await _emit_event(state, "voice", payload)
 
 async def emit_voice_done(state, vid: int, result: str):
-    # result: "done" | "skipped"
+    
     await _emit_event(state, "voice_done", {
         "id": int(vid),
         "result": str(result),
@@ -57,7 +57,7 @@ async def emit_voice_done(state, vid: int, result: str):
     })
 
 async def download_voice_to_local(state, vid: int, url: str) -> str:
-    # ---- vid 단위 직렬화 락: downloader_loop vs consumer(update_voice) 경쟁 방지 ----
+    
     lock: Optional[asyncio.Lock] = None
     try:
         lock = (getattr(state, "voice_dl_locks", None) or {}).get(int(vid))
@@ -72,7 +72,7 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
     async def _inner() -> str:
         path = voice_path(vid)
         if os.path.exists(path) and os.path.getsize(path) > 0:
-            # 이미 있으면 done 마크(일관성)
+            
             try:
                 if state.voice_repo:
                     state.voice_repo.set_download_status(
@@ -94,9 +94,9 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
         sem = getattr(state, "download_sem", None)
         tmp = path + ".tmp"
 
-        # 검증 파라미터
+        
         VERIFY_TIMEOUT_SEC = 1.2
-        # 시작 마크
+        
         if repo:
             try:
                 repo.set_download_status(
@@ -124,16 +124,16 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
                             h.update(chunk)
                 os.replace(tmp, path)
 
-                # ---- NEW: mp3 무결성/길이 검증 (깨진 파일이면 failed 처리 + 재시도) ----
+                
                 try:
-                    # 오디오 busy 여부와 무관하게 "다운로드 직후 1회"는 하는 게 안전함.
+                    
                     dur = await verify_mp3_quick(path, timeout_sec=VERIFY_TIMEOUT_SEC, min_dur_sec=0.05)
                     try:
                         state.voice_duration_cache[int(vid)] = float(dur)
                     except Exception:
                         pass
                 except Exception as e:
-                    # 깨진 파일 -> 삭제 + failed 마킹 + 백오프
+                    
                     try:
                         if os.path.exists(path):
                             os.remove(path)
@@ -159,7 +159,7 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
                             pass
                     raise RuntimeError(f"voice verify failed id={vid}: {e}")
 
-                # 성공 마크
+                
                 if repo:
                     try:
                         repo.set_download_status(
@@ -184,7 +184,7 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
                 except Exception:
                     pass
 
-                # 실패 마크(백오프)
+                
                 if repo:
                     try:
                         d = repo.get_download(int(vid)) if hasattr(repo, "get_download") else None
@@ -205,7 +205,7 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
                         pass
                 raise
 
-        # 다운로드 동시성 제한 (album과 공유)
+        
         if sem:
             async with sem:
                 return await _do()
@@ -224,7 +224,7 @@ async def download_then_emit_new(state, vid: int, url: str, desc: str, sender: d
     3) SSE voice 이벤트 emit
     """
     path = await download_voice_to_local(state, vid, url)
-    # ffprobe(duration)는 오디오 재생/ STT 중에는 경합이 심하니 쉬기
+    
     try:
         audio_busy = bool(getattr(state, "audio", None) and getattr(state.audio, "is_playing", False))
         stt_busy = bool(getattr(state, "stt_busy", False))
@@ -232,7 +232,7 @@ async def download_then_emit_new(state, vid: int, url: str, desc: str, sender: d
         if (not audio_busy) and (not stt_busy) and (not paused):
             dur = await get_mp3_duration_sec(path)
             logger.info("[voice] downloaded id=%s dur=%.2fs", vid, dur)
-            # ffprobe는 무거우므로, ACK에서 재호출하지 않게 캐시
+            
             try:
                 state.voice_duration_cache[int(vid)] = float(dur)
             except Exception:
@@ -266,7 +266,7 @@ async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: i
 
         await asyncio.sleep(float(interval_sec))
 
-        # 오디오 재생 중 / STT 중 / heavy_ops_pause면 다운로드로 I/O 경쟁하지 않게 쉬기
+        
         try:
             audio_busy = bool(getattr(state, "audio", None) and getattr(state.audio, "is_playing", False))
         except Exception:
@@ -290,8 +290,8 @@ async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: i
             async def _handle_one(it: dict):
                 vid = int(it["id"])
                 url = str(it["url"])
-                # 여기서는 다운로드만 수행
-                # SSE emit(voice)은 consumer._handle_update_voice()에서만 1회 수행해야 중복이 안 생김.
+                
+                
                 await download_only(state, vid, url)
 
             tasks = [asyncio.create_task(_handle_one(it)) for it in items]

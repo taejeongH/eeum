@@ -1,4 +1,4 @@
-# app/db/member_repo.py
+
 import time
 from typing import Any, Dict, List, Optional
 
@@ -23,7 +23,7 @@ class MemberRepo:
         self,
         members: List[Dict[str, Any]],
         *,
-        on_changed=None,  # fn(old_profile_url:str|None)
+        on_changed=None,  
     ) -> int:
         """
         members: [{"user_id":int,"name":str,"profile_image_url":str}, ...]
@@ -55,9 +55,9 @@ class MemberRepo:
                     old_name = str(old["name"] or "")
                     old_purl = str(old["profile_image_url"] or "")
                     if old_name == name and old_purl == purl:
-                        continue  # no-op
+                        continue  
 
-                    # changed -> delete cache first
+                    
                     if on_changed:
                         on_changed(old_purl or None)
 

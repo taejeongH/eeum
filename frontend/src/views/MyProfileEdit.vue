@@ -176,7 +176,7 @@ import { Logger } from '@/services/logger';
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
-const familyStore = useFamilyStore(); // Initialize familyStore
+const familyStore = useFamilyStore(); 
 const modalStore = useModalStore();
 const { profile: userProfile } = storeToRefs(userStore);
 
@@ -260,13 +260,13 @@ const handleFileChange = async (event) => {
   const file = event.target.files[0];
   if (file) {
     try {
-      // 1. 이미지 압축 시도 (최대 1600px, 퀄리티 0.7)
+      
       const compressedFile = await compressImage(file, 1600, 0.7);
       
-      // 2. 압축 후 용량 체크 (3MB 제한)
+      
       if (compressedFile.size > 3 * 1024 * 1024) {
         await modalStore.openAlert("이미지 용량이 너무 큽니다. (최대 3MB)", "업로드 실패");
-        event.target.value = ''; // 입력 초기화
+        event.target.value = ''; 
         return;
       }
 
@@ -286,7 +286,7 @@ const openAddressSearch = () => {
 watch(showAddressModal, (isShown) => {
   if (isShown) {
     document.body.style.overflow = 'hidden';
-    // Wait for render
+    
     setTimeout(() => {
       const container = document.getElementById('postcode-layer');
       
@@ -297,7 +297,7 @@ watch(showAddressModal, (isShown) => {
       }
 
       if (container) {
-        container.innerHTML = ''; // Clear
+        container.innerHTML = ''; 
         container.style.display = 'block';
         
         new window.daum.Postcode({
@@ -320,12 +320,12 @@ watch(showAddressModal, (isShown) => {
 
 
 const submitProfile = async () => {
-  // 1. 저장 중 중복 클릭 방지
+  
   if (isLoading.value) return;
   isLoading.value = true;
   errorMessage.value = '';
 
-  // 2. 생년월일 데이터 포맷팅
+  
   let birthDate = null;
   if (birthYear.value && birthMonth.value && birthDay.value) {
     const month = String(birthMonth.value).padStart(2, '0');
@@ -333,10 +333,10 @@ const submitProfile = async () => {
     birthDate = `${birthYear.value}-${month}-${day}`;
   }
 
-  // 3. 전체 주소 문자열 생성
+  
   const fullAddress = profile.value.address + (detailAddress.value ? ` ${detailAddress.value}` : '');
 
-  // 4. API 전송용 객체 생성
+  
   const requestDto = {
     name: profile.value.name,
     phone: profile.value.phone,
@@ -345,19 +345,19 @@ const submitProfile = async () => {
     address: fullAddress,
   };
 
-  // 5. FormData 생성 (이미지 포함 전송을 위함)
+  
   const formData = new FormData();
   formData.append('request', new Blob([JSON.stringify(requestDto)], { type: 'application/json' }));
   if (profileFile.value) formData.append('file', profileFile.value);
 
   try {
-    // 6. 서버에 프로필 업데이트 요청
+    
     await updateUserProfile(formData);
     
-    // 7. Pinia 스토어의 사용자 정보를 최신화 (홈 화면에서 바뀐 이름/사진을 바로 보여주기 위해)
+    
     await userStore.fetchUser(true);
     
-    // [Fix] 현재 선택된 가족의 멤버 리스트도 강제 갱신하여 헤더에 즉시 반영
+    
     if (familyStore.selectedFamily && familyStore.selectedFamily.id) {
         await familyStore.fetchMembers(familyStore.selectedFamily.id, true);
     }
@@ -365,7 +365,7 @@ const submitProfile = async () => {
     if (isInitialSetup.value) {
       router.push({ name: 'VoiceRegistration', query: { flow: 'initial' } });
     } else {
-      // Redirect to Member Detail Page (e.g., /members/4/7)
+      
       const familyId = familyStore.selectedFamily?.id;
       const userId = userStore.profile?.id;
       
@@ -373,7 +373,7 @@ const submitProfile = async () => {
     }
 
   } catch (error) {
-    // 에러 발생 시 처리
+    
     Logger.error("프로필 수정 실패:", error);
     errorMessage.value = error.response?.data?.message || '프로필 업데이트에 실패했습니다.';
   } finally {

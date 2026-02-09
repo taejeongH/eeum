@@ -29,132 +29,125 @@ import java.util.List;
 @Slf4j
 public class HealthService {
 
-        private final HealthMetricRepository healthMetricRepository;
-        private final FamilyRepository familyRepository;
-        private final org.ssafy.eeum.domain.family.repository.SupporterRepository supporterRepository;
-        private final org.ssafy.eeum.global.infra.fcm.FcmService fcmService;
-        private final HealthMetricPersistenceService healthMetricPersistenceService;
-        private final HeartRateRepository heartRateRepository;
-        private final FallEventRepository fallEventRepository;
+    private final HealthMetricRepository healthMetricRepository;
+    private final FamilyRepository familyRepository;
+    private final org.ssafy.eeum.domain.family.repository.SupporterRepository supporterRepository;
+    private final org.ssafy.eeum.global.infra.fcm.FcmService fcmService;
+    private final HealthMetricPersistenceService healthMetricPersistenceService;
+    private final HeartRateRepository heartRateRepository;
+    private final FallEventRepository fallEventRepository;
 
-        @Transactional
-        public void saveHealthMetrics(Integer groupId, List<HealthMetricRequestDTO> requests) {
-                Family family = familyRepository.findById(groupId)
-                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                                "가족 그룹을 찾을 수 없습니다."));
+    @Transactional
+    public void saveHealthMetrics(Integer groupId, List<HealthMetricRequestDTO> requests) {
+        Family family = familyRepository.findById(groupId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "가족 그룹을 찾을 수 없습니다."));
+        try {
+            List<HealthMetric> metrics = requests.stream()
+                    .map(dto -> dto.toEntity(family))
+                    .toList();
 
+            healthMetricPersistenceService.saveAllWithNewTransaction(metrics);
+        } catch (Exception e) {
+            log.error("Failed to save health metrics to DB (Schema/Constraint Issue). Skipping save.", e);
+        }
+    }
 
+    public org.ssafy.eeum.domain.health.entity.HealthMetric getPatientLatestMetrics(Integer groupId) {
+        Family family = familyRepository.findById(groupId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "가족 그룹을 찾을 수 없습니다."));
 
-                // 2. Save to DB in a separate transaction to avoid poisoning the main one
-                try {
-                    List<HealthMetric> metrics = requests.stream()
-                                    .map(dto -> dto.toEntity(family))
-                                    .toList();
-                    
-                    healthMetricPersistenceService.saveAllWithNewTransaction(metrics);
-                } catch (Exception e) {
-                    log.error("Failed to save health metrics to DB (Schema/Constraint Issue). Skipping save.", e);
-                }
+        supporterRepository
+                .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "그룹 내 피부양자를 찾을 수 없습니다."));
+
+        return healthMetricRepository.findFirstByFamilyOrderByRecordDateDesc(family)
+                .orElse(null);
+    }
+
+    @Transactional
+    public void requestMeasurement(Integer groupId) {
+        Family family = familyRepository.findById(groupId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "가족 그룹을 찾을 수 없습니다."));
+
+        org.ssafy.eeum.domain.family.entity.Supporter patient = supporterRepository
+                .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "그룹 내 피부양자를 찾을 수 없습니다."));
+
+        org.ssafy.eeum.domain.auth.entity.User user = patient.getUser();
+        if (user == null || user.getFcmToken() == null) {
+            throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
         }
 
-        public org.ssafy.eeum.domain.health.entity.HealthMetric getPatientLatestMetrics(Integer groupId) {
-                Family family = familyRepository.findById(groupId)
-                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                                "가족 그룹을 찾을 수 없습니다."));
-
-                supporterRepository
-                                .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
-                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                                "그룹 내 피부양자를 찾을 수 없습니다."));
-
-                // Get latest metric for this family
-                return healthMetricRepository.findFirstByFamilyOrderByRecordDateDesc(family)
-                                .orElse(null);
+        try {
+            fcmService.sendMessageTo(
+                    user.getFcmToken(),
+                    null,
+                    null,
+                    "CMD_MEASURE_HR",
+                    null,
+                    null,
+                    groupId,
+                    null,
+                    null);
+        } catch (FcmUnregisteredTokenException e) {
+            log.warn("FCM Token is invalid/unregistered. Removing token for user: {}", user.getId());
+            user.updateFcmToken(null);
         }
 
-        @Transactional
-        public void requestMeasurement(Integer groupId) {
-                Family family = familyRepository.findById(groupId)
-                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                                "가족 그룹을 찾을 수 없습니다."));
+        return;
+    }
 
-                org.ssafy.eeum.domain.family.entity.Supporter patient = supporterRepository
-                                .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
-                                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                                "그룹 내 피부양자를 찾을 수 없습니다."));
+    public org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO getLatestHeartRate(Integer groupId) {
+        return heartRateRepository.findLatestByFamilyId(groupId)
+                .orElse(null);
+    }
 
-                org.ssafy.eeum.domain.auth.entity.User user = patient.getUser();
-                if (user == null || user.getFcmToken() == null) {
-                        throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
-                }
+    public org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO getHeartRateResult(Integer eventId) {
+        org.ssafy.eeum.domain.iot.entity.FallEvent event = fallEventRepository.findById(eventId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "이벤트를 찾을 수 없습니다."));
 
-                // Send High Priority FCM to Trigger Measurement
-                // title, body, type, notificationId, route, familyId, groupName, eventId
-                try {
-                    fcmService.sendMessageTo(
-                                    user.getFcmToken(),
-                                    null,
-                                    null,
-                                    "CMD_MEASURE_HR", // Important: This type must be handled by Watch
-                                    null,
-                                    null,
-                                    groupId,
-                                    null,
-                                    null); // No Event ID for manual measurement
-                } catch (FcmUnregisteredTokenException e) {
-                    log.warn("FCM Token is invalid/unregistered. Removing token for user: {}", user.getId());
-                    user.updateFcmToken(null);
-                }
-                
-                return;
+        return heartRateRepository.findAggregatedMetricsByFallEventId(eventId);
+    }
+
+    public void requestHealthSync(Integer groupId) {
+        Family family = familyRepository.findById(groupId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "가족 그룹을 찾을 수 없습니다."));
+
+        org.ssafy.eeum.domain.family.entity.Supporter patient = supporterRepository
+                .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
+                        "그룹 내 피부양자를 찾을 수 없습니다."));
+
+        org.ssafy.eeum.domain.auth.entity.User user = patient.getUser();
+        if (user == null || user.getFcmToken() == null) {
+            throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
         }
 
-        public org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO getLatestHeartRate(Integer groupId) {
-             return heartRateRepository.findLatestByFamilyId(groupId)
-                     .orElse(null);
+        try {
+            fcmService.sendMessageTo(
+                    user.getFcmToken(),
+                    null,
+                    null,
+                    "CMD_SYNC_HEALTH",
+                    null,
+                    null,
+                    groupId,
+                    null,
+                    null);
+        } catch (FcmUnregisteredTokenException e) {
+            log.warn("FCM Token is invalid/unregistered. Removing token for user: {}", user.getId());
+            user.updateFcmToken(null);
         }
 
-        public org.ssafy.eeum.domain.health.dto.HeartRateResponseDTO getHeartRateResult(Integer eventId) {
-            org.ssafy.eeum.domain.iot.entity.FallEvent event = fallEventRepository.findById(eventId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "이벤트를 찾을 수 없습니다."));
+    }
 
-            return heartRateRepository.findAggregatedMetricsByFallEventId(eventId);
-        }
-
-        public void requestHealthSync(Integer groupId) {
-            Family family = familyRepository.findById(groupId)
-                            .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                            "가족 그룹을 찾을 수 없습니다."));
-
-            org.ssafy.eeum.domain.family.entity.Supporter patient = supporterRepository
-                            .findByFamilyAndRole(family, org.ssafy.eeum.domain.family.entity.Supporter.Role.PATIENT)
-                            .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
-                                            "그룹 내 피부양자를 찾을 수 없습니다."));
-
-            org.ssafy.eeum.domain.auth.entity.User user = patient.getUser();
-            if (user == null || user.getFcmToken() == null) {
-                    throw new CustomException(ErrorCode.ENTITY_NOT_FOUND, "피부양자의 기기 정보(토큰)가 없습니다.");
-            }
-
-            try {
-                fcmService.sendMessageTo(
-                                user.getFcmToken(),
-                                null,
-                                null,
-                                "CMD_SYNC_HEALTH",
-                                null,
-                                null,
-                                groupId,
-                                null,
-                                null);
-            } catch (FcmUnregisteredTokenException e) {
-                log.warn("FCM Token is invalid/unregistered. Removing token for user: {}", user.getId());
-                user.updateFcmToken(null);
-            }
-            
-        }
-
-        @Transactional
+    @Transactional
     public void saveHeartRate(HeartRateRequestDTO request) {
         Family family = familyRepository.findById(request.getFamilyId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "가족 그룹을 찾을 수 없습니다."));
@@ -162,7 +155,7 @@ public class HealthService {
         FallEvent fallEvent = null;
         if (request.getRelatedId() != null) {
             fallEvent = fallEventRepository.findById(request.getRelatedId())
-                    .orElse(null); // Optional: Link if exists, otherwise null
+                    .orElse(null);
         }
 
         HeartRate heartRate = HeartRate.builder()
@@ -178,20 +171,15 @@ public class HealthService {
 
     }
 
-    /**
-     * Check if the latest heart rate is abnormal
-     * Returns true if abnormal, false if normal or no recent data
-     */
     public boolean isHeartRateAbnormal(Integer groupId) {
         return heartRateRepository.findFirstByFamilyIdOrderByMeasuredAtDesc(groupId)
                 .map(hr -> {
-                     // Check if data is within last 2 minutes
-                     if (hr.getMeasuredAt().isBefore(java.time.LocalDateTime.now().minusMinutes(2))) {
-                         return false; 
-                     }
-                     
-                     boolean abnormal = hr.getAvgRate() < 50 || hr.getAvgRate() > 120;
-                     return abnormal;
+                    if (hr.getMeasuredAt().isBefore(java.time.LocalDateTime.now().minusMinutes(2))) {
+                        return false;
+                    }
+
+                    boolean abnormal = hr.getAvgRate() < 50 || hr.getAvgRate() > 120;
+                    return abnormal;
                 })
                 .orElse(false);
     }

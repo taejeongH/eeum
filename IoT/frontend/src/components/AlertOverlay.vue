@@ -7,9 +7,9 @@ const alertStore = useAlertStore();
 const { alerts } = storeToRefs(alertStore);
 
 const handleDismiss = (id) => {
-    // 1. Remove from floating overlay
+    
     alertStore.removeAlert(id);
-    // 2. Also remove from history sidebar
+    
     alertStore.removeHistory(id);
 };
 </script>

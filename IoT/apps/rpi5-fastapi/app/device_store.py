@@ -1,4 +1,4 @@
-# device_store.py
+
 import asyncio
 import logging
 from typing import Any, Dict, Optional
@@ -22,7 +22,7 @@ class DeviceStore:
         self._token_lock = asyncio.Lock()
         self._id2kind = self._build_index()
 
-        # 초기 상태 로그
+        
         try:
             tok = self.token_store.get().get("token")
             logger.info("[DeviceStore] initialized: token_present=%s", bool(tok))
@@ -39,7 +39,7 @@ class DeviceStore:
 
     def doc(self) -> Dict[str, Any]:
         return self.store.get()
-    # ---------- read ----------
+    
     def get_kind(self, device_id: str) -> Optional[str]:
         return self._id2kind.get(device_id)
     
@@ -69,7 +69,7 @@ class DeviceStore:
                 "alive": bool(info.get("online")),
             })
         return link
-    # ---------- write (save only when changed) ----------
+    
     async def async_set_token(self, token: str) -> None:
         async with self._token_lock:
             tdoc = self.token_store.get()
@@ -122,7 +122,7 @@ class DeviceStore:
         return True
 
     async def _async_save(self) -> None:
-        # 저장 충돌 방지
+        
         async with self._save_lock:
             await asyncio.to_thread(self.store.save)
         logger.debug("[DeviceStore] device.json saved")

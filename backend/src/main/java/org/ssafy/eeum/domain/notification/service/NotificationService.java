@@ -114,7 +114,7 @@ public class NotificationService {
                 NotificationDelivery delivery = notificationDeliveryRepository
                                 .findByUserAndNotification(user, notification)
                                 .orElseGet(() -> {
-                                        // Delivery가 없으면 새로 생성 (테스트 알림 등 예외 상황 대비)
+                                        
                                         return NotificationDelivery.builder()
                                                         .notification(notification)
                                                         .user(user)

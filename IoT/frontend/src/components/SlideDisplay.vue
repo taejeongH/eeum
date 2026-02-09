@@ -39,7 +39,7 @@ const currentSlide = computed(() => store.currentSlide)
 </script>
 
 <style scoped>
-/* Seamless Crossfade Transition */
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 2000ms ease-in-out;

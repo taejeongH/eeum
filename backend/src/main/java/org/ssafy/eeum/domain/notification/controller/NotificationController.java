@@ -42,7 +42,7 @@ public class NotificationController {
                 requestDto.getType(),
                 null);
 
-        // 2. 알림 전송 (FCM)
+        
         notificationService.sendNotification(notificationId, requestDto.getTargetUserId());
         return ResponseEntity.ok("알림이 생성되고 전송되었습니다 (ID: " + notificationId + ")");
     }
@@ -60,10 +60,10 @@ public class NotificationController {
     @PostMapping("/fall-test/{familyId}")
     public ResponseEntity<String> triggerFallDetection(
             @org.springframework.web.bind.annotation.PathVariable Integer familyId) {
-        // 1. Trigger Heart Rate Measurement (Simulating Stage 1 Fall)
+        
         healthService.requestMeasurement(familyId);
 
-        // 2. Trigger Notification
+        
         fallDetectionService.handleFallDetection(familyId, "테스트 낙상 감지 발생! (심박수 측정 요청됨)", null);
 
         return ResponseEntity.ok("낙상 감지 및 심박수 측정 요청이 발생했습니다. 워치와 서버 로그를 확인하세요.");

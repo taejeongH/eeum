@@ -188,14 +188,14 @@ const cycleTypes = [
 ];
 
 const days = ['월', '화', '수', '목', '금', '토', '일'];
-// Bitmasks: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64
+
 const dayBitmasks = [1, 2, 4, 8, 16, 32, 64]; 
 
 const form = reactive({
   medicineName: '',
   cycleType: 'DAILY',
   cycleValue: '',
-  daysOfWeek: 0, // Bitmask
+  daysOfWeek: 0, 
   startDate: new Date().toISOString().split('T')[0],
   endDate: '',
   isLifetime: false,
@@ -219,7 +219,7 @@ const resetForm = () => {
   form.notificationTimes = ['09:00'];
 };
 
-// Watch for initialData changes to populate form (Edit Mode)
+
 watch(() => props.initialData, (newData) => {
   if (newData) {
     form.medicineName = newData.medicineName;
@@ -228,15 +228,15 @@ watch(() => props.initialData, (newData) => {
     form.daysOfWeek = newData.daysOfWeek;
     form.startDate = newData.startDate;
     form.endDate = newData.endDate || '';
-    form.isLifetime = !newData.endDate; // If no end date, it's lifetime
-    // Ensure deep copy of array to avoid reference issues
+    form.isLifetime = !newData.endDate; 
+    
     form.notificationTimes = newData.notificationTimes ? [...newData.notificationTimes] : ['09:00'];
   } else {
     resetForm();
   }
 }, { immediate: true });
 
-// Also watch 'show' to reset if opening fresh without initialData
+
 watch(() => props.show, (isShow) => {
   if (isShow && !props.initialData) {
     resetForm();
@@ -282,7 +282,7 @@ const submit = async () => {
     return;
   }
   
-  // Clone and emit
+  
   const payload = JSON.parse(JSON.stringify(form));
   emit('add-medication', payload);
   resetForm();
@@ -304,7 +304,7 @@ const submit = async () => {
   background: #a1a1aa;
 }
 
-/* Match ConfirmModal transitions exactly */
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;

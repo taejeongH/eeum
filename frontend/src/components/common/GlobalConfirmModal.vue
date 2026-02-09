@@ -64,7 +64,7 @@ const handleCancel = () => {
 };
 
 const handleBackdropClick = () => {
-  // Option: Close on backdrop click (acts as cancel)
+  
   if (store.type === 'alert') {
     store.close(true);
   } else {

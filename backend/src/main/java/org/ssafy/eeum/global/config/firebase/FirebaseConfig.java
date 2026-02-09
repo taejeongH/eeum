@@ -16,7 +16,7 @@ public class FirebaseConfig {
 
     @Bean
     public FirebaseApp firebaseApp() throws IOException {
-        // 이미 초기화된 앱이 있는지 확인
+        
         List<FirebaseApp> firebaseApps = FirebaseApp.getApps();
         if (firebaseApps != null && !firebaseApps.isEmpty()) {
             for (FirebaseApp app : firebaseApps) {

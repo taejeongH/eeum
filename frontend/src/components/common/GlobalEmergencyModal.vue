@@ -269,9 +269,9 @@ import { useModalStore } from '@/stores/modal';
 import { useNotificationStore } from '@/stores/notification';
 import { Logger } from '@/services/logger';
 
-// Icons using render functions
 
-// Icons using render functions
+
+
 const IconFall = { render: () => h('svg', { class: 'w-full h-full', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [ h('path', { d: 'M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2l2 2' }) ]) };
 const IconEmergency = { render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' }) ]) };
 const IconWalk = { render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M13.5 4.5L11 2m0 0l-2.5 2.5M11 2v4m-1 4l-2 3m2-3l1 2 2-3m-3 0V6' }) ]) };
@@ -284,14 +284,14 @@ const emergencyStore = useEmergencyStore();
 const modalStore = useModalStore();
 const notificationStore = useNotificationStore();
 
-// View State: 'main', 'history', 'live'
+
 const currentView = ref('main');
 const videoPlayer = ref(null);
 const fullscreenContainer = ref(null);
 const isFullscreen = ref(false);
 const showControls = ref(true);
 
-// Video Controls State
+
 const isPlaying = ref(true);
 const currentTime = ref(0);
 const duration = ref(0);
@@ -328,7 +328,7 @@ const formatTime = (seconds) => {
 const seekVideo = (e) => {
     if (!videoPlayer.value || !duration.value) return;
     
-    // Support both Mouse and Touch events
+    
     const event = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
     const clientX = event.clientX;
     
@@ -339,7 +339,7 @@ const seekVideo = (e) => {
     const percentage = x / rect.width;
     
     videoPlayer.value.currentTime = duration.value * percentage;
-    // Force immediate update of reactive state for better responsiveness
+    
     currentTime.value = videoPlayer.value.currentTime;
 };
 
@@ -351,9 +351,9 @@ const toggleControls = () => {
 
 const toggleFullscreen = () => {
     isFullscreen.value = !isFullscreen.value;
-    showControls.value = true; // Reset controls when toggling fullscreen
+    showControls.value = true; 
     
-    // [NEW] Android Native Orientation Control
+    
     if (window.AndroidBridge && window.AndroidBridge.setOrientation) {
         if (isFullscreen.value) {
             window.AndroidBridge.setOrientation('landscape');
@@ -361,7 +361,7 @@ const toggleFullscreen = () => {
             window.AndroidBridge.setOrientation('portrait');
         }
     } else if (screen.orientation && screen.orientation.lock) {
-        // Standard Web API Fallback
+        
         if (isFullscreen.value) {
             screen.orientation.lock('landscape').catch(() => {});
         } else {
@@ -372,7 +372,7 @@ const toggleFullscreen = () => {
 
 const closeVideoView = () => {
     if (isFullscreen.value) {
-        toggleFullscreen(); // This will reset orientation and isFullscreen state
+        toggleFullscreen(); 
     }
     currentView.value = 'main';
     videoUrl.value = null;
@@ -381,7 +381,7 @@ const closeVideoView = () => {
 const elapsedSeconds = ref(0);
 const occurrenceTime = ref('');
 
-// Generate Occurrence Time from timestamp
+
 const updateOccurrenceTime = () => {
     const timestamp = emergencyStore.emergencyData?.timestamp || Date.now();
     occurrenceTime.value = new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
@@ -390,16 +390,16 @@ const updateOccurrenceTime = () => {
 const formattedMinutes = computed(() => Math.floor(elapsedSeconds.value / 60).toString().padStart(2, '0'));
 const formattedSeconds = computed(() => (elapsedSeconds.value % 60).toString().padStart(2, '0'));
 
-// Data Binding Fallbacks
+
 const groupName = computed(() => {
     const gn = emergencyStore.emergencyData?.groupName;
-    if (!gn || gn === '가족 그룹') return '나의 가족'; // Better fallback
+    if (!gn || gn === '가족 그룹') return '나의 가족'; 
     return gn;
 });
 
 const dependentName = computed(() => {
     const dn = emergencyStore.emergencyData?.dependentName;
-    if (!dn || dn === '피부양자 확인 불가') return '대상자 정보 없음'; // Clearer fallback
+    if (!dn || dn === '피부양자 확인 불가') return '대상자 정보 없음'; 
     return dn;
 });
 
@@ -429,7 +429,7 @@ let timerInterval;
 
 watch(() => emergencyStore.isVisible, (visible) => {
   if (visible) {
-    currentView.value = 'main'; // Reset view
+    currentView.value = 'main'; 
     if (emergencyStore.emergencyData?.timestamp) {
         const diff = Math.floor((Date.now() - emergencyStore.emergencyData.timestamp) / 1000);
         elapsedSeconds.value = diff > 0 ? diff : 0;
@@ -439,11 +439,11 @@ watch(() => emergencyStore.isVisible, (visible) => {
     
     updateOccurrenceTime();
     
-    // [NEW] Fetch Heart Rate if Fall
+    
     if (emergencyStore.emergencyData?.type === 'FALL' || emergencyStore.emergencyData?.type === 'EMERGENCY') {
         fetchHeartRate();
     } else {
-        heartRateData.value = null; // Reset
+        heartRateData.value = null; 
     }
     
     timerInterval = setInterval(() => {
@@ -469,12 +469,12 @@ const callEmergency = async () => {
     window.location.href = 'tel:01076132359';
 };
 
-// [NEW] Video Logic
+
 const videoUrl = ref(null);
 const videoLoading = ref(false);
 const videoError = ref(null);
 
-// [Optimization] Frame Throttling Variables
+
 let pendingFrameBlob = null;
 let renderRequestId = null;
 const liveFrameUrl = ref(null);
@@ -516,10 +516,10 @@ const stopRenderLoop = () => {
 };
 
 const fetchHeartRate = async () => {
-    heartRateData.value = null; // Reset to null or '--'
+    heartRateData.value = null; 
     heartRateLoading.value = true;
     
-    // Only fetch for Fall-related events
+    
     const type = eventType.value;
     if (type !== 'FALL' && type !== 'EMERGENCY') {
         heartRateLoading.value = false;
@@ -529,10 +529,10 @@ const fetchHeartRate = async () => {
     const eventId = emergencyStore.emergencyData?.eventId;
     const familyId = emergencyStore.emergencyData?.familyId;
 
-    // Safety: Early return if IDs are missing or invalid string "null"
+    
     if (!eventId || eventId === 'null' || !familyId || familyId === 'null') {
         Logger.warn("⚠️ 심박수 조회 실패: Event ID 또는 Family ID 누락:", { eventId, familyId });
-        heartRateData.value = 96; // Fallback
+        heartRateData.value = 96; 
         heartRateLoading.value = false;
         return;
     }
@@ -540,7 +540,7 @@ const fetchHeartRate = async () => {
     try {
         let result = null;
         if (eventId) {
-            // Try fetching by Event ID first
+            
             const response = await getHeartRateResult(eventId);
             if (response && response.data && response.data.avgRate > 0) {
                 result = response.data;
@@ -549,7 +549,7 @@ const fetchHeartRate = async () => {
             }
         }
         
-        // Fallback: If no event-specific HR, try getting latest for family
+        
         if (!result && familyId) {
              const response = await getLatestHeartRate(familyId);
              if (response && response.data) result = response.data;
@@ -559,7 +559,7 @@ const fetchHeartRate = async () => {
         if (result && result.avgRate > 0) {
             heartRateData.value = result.avgRate;
         } else {
-            heartRateData.value = 96; // HARDCODED FOR TEST
+            heartRateData.value = 96; 
         }
     } catch (e) {
         Logger.error("심박수 조회 실패:", e);
@@ -571,7 +571,7 @@ const fetchHeartRate = async () => {
 const handleLiveError = (e) => {
     const errorMsg = "실시간 영상을 로드할 수 없습니다.";
     Logger.error("🔴 실시간 영상 로드 오류:", e);
-    // alert(`${errorMsg}\nURL: ${videoUrl.value}`);
+    
     videoError.value = errorMsg;
     videoUrl.value = null;
 };
@@ -583,15 +583,15 @@ const openVideo = async (view) => {
     videoError.value = null;
     videoLoading.value = true;
     
-    // Clear existing retry timer if any
+    
     if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
     }
 
-    // Close existing WS if any
+    
     if (ws.value) {
-        shouldReconnect.value = false; // Prevent trigger onclose
+        shouldReconnect.value = false; 
         ws.value.close();
         ws.value = null;
     }
@@ -599,10 +599,10 @@ const openVideo = async (view) => {
     if (view === 'live') {
         shouldReconnect.value = true;
         const familyId = emergencyStore.emergencyData?.familyId;
-        // In real scenario, we might need deviceId from familyData or somewhere.
-        // For now, let's assume familyId or a specific deviceId logic.
-        // Based on previous code, it used familyData.streamingUrl or fallback.
-        // Now we need the Backend WebSocket URL.
+        
+        
+        
+        
         
         try {
             const familyData = await getFamilyDetails(familyId);
@@ -614,35 +614,35 @@ const openVideo = async (view) => {
             if (familyData && familyData.streamingUrl) {
                 const sUrl = familyData.streamingUrl.trim();
                 
-                // Use production domain for streaming relay
+                
                 const hardwareIp = "i14a105.p.ssafy.io";
                 const isSecure = window.location.protocol === 'https:';
                 
-                // If we are on HTTPS, we MUST use WSS. 
-                // Note: Direct IP over WSS usually requires a valid domain/cert, 
-                // but we will try to be protocol-consistent.
+                
+                
+                
                 const wsProtocol = isSecure ? 'wss' : 'ws';
                 
                 if (sUrl.startsWith('http://') || sUrl.startsWith('https://') || sUrl.startsWith('ws://') || sUrl.startsWith('wss://')) {
-                     // Legacy support - but we OVERRIDE with the new IP as requested
-                     wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
                      
-                     // Extract ID if possible. If it's "falls" or similar internal path, use emulator default
+                     wsUrl = `${wsProtocol}:
+                     
+                     
                      const extractedId = sUrl.match(/\/device\/([^/]+)/)?.[1];
                      targetDeviceId = (extractedId && extractedId !== 'falls') ? extractedId : "EEUM-J105";
                      Logger.warn("레거시 오버라이드 | 타겟 ID:", targetDeviceId, "출처:", sUrl);
                 } else {
-                    // Case B: Serial Number + Custom IP for now
+                    
                     targetDeviceId = sUrl;
-                    wsUrl = `${wsProtocol}://${hardwareIp}/api/ws/stream`;
+                    wsUrl = `${wsProtocol}:
 
                 }
             } else {
-                // Fallback
+                
                 targetDeviceId = "EEUM-J105"; 
                 const isSecure = window.location.protocol === 'https:';
                 const wsProtocol = isSecure ? 'wss' : 'ws';
-                wsUrl = `${wsProtocol}://i14a105.p.ssafy.io/api/ws/stream`;
+                wsUrl = `${wsProtocol}:
                 Logger.warn("⚠️ 스트리밍 URL 없음, 프로덕션 폴백 사용:", wsUrl);
             }
 
@@ -653,7 +653,7 @@ const openVideo = async (view) => {
             
             ws.value.onopen = () => {
 
-                startRenderLoop(); // Start smooth rendering
+                startRenderLoop(); 
                 if (targetDeviceId) {
                     ws.value.send(JSON.stringify({
                         type: "REGISTER_VIEWER",
@@ -663,7 +663,7 @@ const openVideo = async (view) => {
             };
             
             ws.value.onmessage = (event) => {
-                // Buffer the latest frame (dropping intermediate ones if flooding)
+                
                 if (event.data instanceof Blob) {
                     pendingFrameBlob = event.data;
                 }
@@ -696,7 +696,7 @@ const openVideo = async (view) => {
     
     if (view === 'history') {
         const eventId = emergencyStore.emergencyData?.eventId;
-        // const eventId = 40;
+        
         
         if (!eventId) {
             videoError.value = '이벤트 ID가 없어 영상을 조회할 수 없습니다.';
@@ -704,7 +704,7 @@ const openVideo = async (view) => {
         }
 
         try {
-            // API 호출
+            
              const response = await getFallVideo(eventId);
              
              if (response.data && response.data.videoUrl) {
@@ -716,7 +716,7 @@ const openVideo = async (view) => {
         } catch (err) {
             Logger.error('영상 로드 실패:', err);
             
-            // 상세 에러 정보 로깅
+            
             if (err.response) {
                 Logger.error("에러 상태:", err.response.status);
                 Logger.error("에러 데이터:", err.response.data);
@@ -726,7 +726,7 @@ const openVideo = async (view) => {
                      return;
                  }
                 
-                // 그 외 서버 에러 메시지 표시
+                
                 if (err.response.data && err.response.data.message) {
                     videoError.value = `오류: ${err.response.data.message}`;
                     return;
@@ -748,7 +748,7 @@ onUnmounted(() => {
   if (ws.value) ws.value.close();
 });
 
-// Watch to close WS if view changes away from live
+
 watch(currentView, (newView) => {
     if (newView !== 'live') {
         if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -761,7 +761,7 @@ watch(currentView, (newView) => {
     }
 });
 
-// [NEW] 오알람 처리 로직 (Confirm Modal 연동)
+
 const handleFalseAlarm = async () => {
   const isConfirmed = await modalStore.openConfirm(
     '오알람으로 처리하시겠습니까?', 
@@ -777,7 +777,7 @@ const handleFalseAlarm = async () => {
   }
 };
 
-// Swipe to Dismiss Logic
+
 const startY = ref(0);
 const currentY = ref(0);
 const isSwiping = ref(false);

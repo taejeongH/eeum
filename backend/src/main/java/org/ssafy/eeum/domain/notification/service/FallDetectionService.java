@@ -48,7 +48,7 @@ public class FallDetectionService {
                 .filter(s -> s.getRole() == Supporter.Role.CAREGIVER)
                 .filter(s -> s.getEmergencyPriority() != null && s.getEmergencyPriority() >= 1 && s.getEmergencyPriority() <= 3)
                 .sorted(Comparator.comparingInt(s -> s.getEmergencyPriority()))
-                .map(s -> new CaregiverInfo(s.getUser().getId(), s.getUser().getName())) // Extract needed data eagerly
+                .map(s -> new CaregiverInfo(s.getUser().getId(), s.getUser().getName())) 
                 .collect(Collectors.toList());
 
         if (caregivers.isEmpty()) {
@@ -66,7 +66,7 @@ public class FallDetectionService {
         }
 
         try {
-            // 이미 누군가 읽었다면 중단
+            
             if (notificationService.isAnyRead(notificationId)) {
                 return;
             }
@@ -75,7 +75,7 @@ public class FallDetectionService {
             log.info("[알림] {}순위 보호자({})에게 발송", index + 1, currentCaregiver.userName());
             notificationService.sendNotification(notificationId, currentCaregiver.userId());
 
-            // 30초 후 다음 보호자 확인/알림 예약
+            
             scheduler.schedule(() -> {
                 try {
                     notifyCaregiver(caregivers, index + 1, notificationId);

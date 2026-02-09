@@ -46,7 +46,7 @@
 import { ref, computed } from 'vue'
 
 const props = defineProps({
-  members: Array,          // 그룹 멤버 리스트
+  members: Array,          
   modelValue: [String, Number],
 })
 

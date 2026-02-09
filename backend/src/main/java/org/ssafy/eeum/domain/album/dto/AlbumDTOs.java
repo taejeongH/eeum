@@ -38,9 +38,9 @@ public class AlbumDTOs {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class IotAlbumSyncResponseDTO {
-        // 새로 추가되거나 수정된 사진들
+        
         private List<AlbumSyncItemResponseDTO> added;
-        // 삭제된 사진들의 ID 리스트
+        
         private List<Integer> deleted;
     }
 

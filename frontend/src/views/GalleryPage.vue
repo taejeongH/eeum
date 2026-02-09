@@ -141,7 +141,7 @@ import { usePhotoUpload } from '@/composables/usePhotoUpload';
 import IconCalendar from '@/components/icons/IconCalendar.vue';
 import { Logger } from '@/services/logger';
 
-// Swiper 설정
+
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import { EffectCreative } from 'swiper/modules';
 import 'swiper/css';
@@ -160,7 +160,7 @@ const handleModalStateChange = (isOpen) => {
   isModalOpen.value = isOpen;
 };
 
-// 공통 업로드 로직 사용
+
 const {
   fileInput,
   previewUrls,
@@ -171,7 +171,7 @@ const {
   handleUploadConfirm,
   handleUploadCancel
 } = usePhotoUpload(async () => {
-    // 성공 시 콜백
+    
     await fetchAlbumPhotos();
 });
 
@@ -191,7 +191,7 @@ const selectedDateProxy = computed({
 const recentPhotos = computed(() => {
     if (!photos.value || photos.value.length === 0) return [];
     
-    // 최신순 정렬
+    
     return [...photos.value]
         .sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
@@ -199,7 +199,7 @@ const recentPhotos = computed(() => {
             const diff = dateB - dateA;
             if (diff !== 0) return diff;
 
-            // 동일 시간인 경우 처리
+            
             const createdA = new Date(a.createdAt || a.created_at || 0);
             const createdB = new Date(b.createdAt || b.created_at || 0);
             const diffCreated = createdB - createdA;
@@ -210,11 +210,11 @@ const recentPhotos = computed(() => {
         .slice(0, 5);
 });
 
-// API 데이터를 기반으로 계산된 앨범 목록
+
 const albums = computed(() => {
     if (photos.value.length === 0) return [];
     
-    // 1. 전체 사진 앨범
+    
     const allPhotosAlbum = { 
         id: 'all', 
         title: '전체 사진', 
@@ -222,7 +222,7 @@ const albums = computed(() => {
         cover: photos.value[0]?.displayUrl 
     };
 
-    // 2. 업로더별 그룹핑
+    
     const groups = {};
     photos.value.forEach(photo => {
         const name = photo.uploaderName || '익명';
@@ -233,7 +233,7 @@ const albums = computed(() => {
     });
 
     const uploaderAlbums = Object.keys(groups).map((name, index) => {
-        // 최신 사진을 커버로 사용하기 위해 정렬
+        
         const groupPhotos = groups[name].sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
             const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
@@ -262,7 +262,7 @@ const albums = computed(() => {
 
 const S3_BASE_URL = 'https://eeum-s3-bucket.s3.ap-northeast-2.amazonaws.com/';
 
-// 반응형 familyId
+
 const familyId = ref(null);
 
 const fetchAlbumPhotos = async () => {
@@ -272,7 +272,7 @@ const fetchAlbumPhotos = async () => {
         const response = await getPhotos(familyId.value);
 
         let rawPhotos = [];
-        // 다양한 응답 구조 대응
+        
         if (Array.isArray(response.data)) {
             rawPhotos = response.data;
         } else if (response.data && Array.isArray(response.data.data)) {
@@ -286,7 +286,7 @@ const fetchAlbumPhotos = async () => {
             rawPhotos = [];
         }
 
-        // URL 처리 및 초기 가공
+        
         const processed = rawPhotos.map(photo => {
             let url = photo.storageUrl || photo.imageUrl;
             if (url && !url.startsWith('http')) {
@@ -298,7 +298,7 @@ const fetchAlbumPhotos = async () => {
             };
         });
 
-        // 전체 정렬: 최신순
+        
         processed.sort((a, b) => {
             const dateA = new Date(a.createdAt || a.created_at || a.takenAt || a.taken_at || 0);
             const dateB = new Date(b.createdAt || b.created_at || b.takenAt || b.taken_at || 0);
@@ -334,11 +334,11 @@ const goToPhotoDetail = (photo) => {
 };
 
 onMounted(() => {
-    // 1. 라우트 파라미터 우선
+    
     if (route.params.familyId) {
         familyId.value = route.params.familyId;
     } 
-    // 2. 스토어 상태 사용
+    
     else if (familyStore.selectedFamily?.id) {
         familyId.value = familyStore.selectedFamily.id;
         router.replace({ name: 'GalleryPage', params: { familyId: familyId.value } });
@@ -349,7 +349,7 @@ onMounted(() => {
     }
 });
 
-// 라우트 파라미터 변경 감지
+
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
         familyId.value = newId;
@@ -357,7 +357,7 @@ watch(() => route.params.familyId, (newId) => {
     }
 });
 
-// 스토어 가족 선택 변경 감지 (헤더 드롭다운)
+
 watch(() => familyStore.selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
         if (String(newFamily.id) !== String(route.params.familyId)) {
@@ -397,7 +397,7 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Swiper 활성 슬라이드 효과 */
+
 .swiper-slide:not(.swiper-slide-active) .custom-overlay {
   opacity: 1;
 }
@@ -407,7 +407,7 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
   transition: all 0.3s ease;
 }
 
-/* 이미지 페이드인 애니메이션 */
+
 .image-fade-in {
     animation: fadeIn 0.4s ease-out;
 }

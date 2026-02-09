@@ -72,10 +72,10 @@ public class FamilyMemberDetailResponseDto {
                 .gender(user.getGender())
                 .address(user.getAddress())
                 .profileImage(user.getProfileImage())
-                // 피부양자인 경우에만 혈액형, 기저질환 반환
+                
                 .bloodType(isPatient ? user.getBloodType() : null)
                 .chronicDiseases(isPatient ? user.getChronicDiseasesList() : null)
-                // 부양자인 경우에만 응급 우선순위, 관계 반환
+                
                 .emergencyPriority(isPatient ? null : supporter.getEmergencyPriority())
                 .relationship(isPatient ? null : supporter.getRelationship())
                 .isDependent(isPatient)

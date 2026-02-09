@@ -22,7 +22,7 @@ public class SocialAccount {
     private User user;
 
     @Column(nullable = false, length = 20)
-    private String provider; // KAKAO
+    private String provider; 
 
     @Column(name = "provider_user_id", nullable = false, length = 255)
     private String providerUserId;

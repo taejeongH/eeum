@@ -113,24 +113,24 @@ onMounted(async () => {
 });
 
 const handleNotiClick = async (noti) => {
-  // 모달 데이터 준비 (기존 데이터 보존하며 추가 정보 입력)
+  
   const modalData = {
     ...noti,
     groupName: familyStore.selectedFamily?.name || '우리 가족',
     dependentName: familyStore.selectedFamily?.dependentName || '피부양자'
   };
   
-  // 모달 열기
+  
   notificationStore.openModal(modalData);
   
-  // 읽지 않은 알림이면 읽음 처리
+  
   if (!noti.isRead) {
     await notificationStore.markAsRead(noti.id);
   }
 };
 
-// 경로 파라미터(familyId)가 변경될 때마다 데이터를 새로 가져옵니다.
-// (컴포넌트가 재사용되는 경우 onMounted가 다시 호출되지 않기 때문)
+
+
 watch(() => route.params.familyId, async (newFamilyId) => {
   if (newFamilyId) {
 
@@ -138,9 +138,9 @@ watch(() => route.params.familyId, async (newFamilyId) => {
   }
 }, { immediate: true });
 
-// Grouping and Filtering Logic
+
 const groupedNotifications = computed(() => {
-  // 1. Filter
+  
   const filtered = (notificationStore.notifications || []).filter(n => {
     if (activeFilter.value === 'ALL') return true;
     if (activeFilter.value === 'EMERGENCY') return n.type === 'EMERGENCY' || n.type === 'FALL';
@@ -149,7 +149,7 @@ const groupedNotifications = computed(() => {
     return true;
   });
 
-  // 2. Group by Date
+  
   const groups = {};
   filtered.forEach(item => {
     const label = getDateLabel(item.createdAt);
@@ -161,7 +161,7 @@ const groupedNotifications = computed(() => {
     dateLabel,
     items: groups[dateLabel]
   })).sort((a, b) => {
-    // Basic heuristic to keep Today at top, then Yesterday
+    
     if (a.dateLabel === '오늘') return -1;
     if (b.dateLabel === '오늘') return 1;
     if (a.dateLabel === '어제') return -1;
@@ -174,7 +174,7 @@ const getDateLabel = (dateStr) => {
   const date = new Date(dateStr);
   const now = new Date();
   
-  // Normalize dates to midnight for comparison
+  
   const dMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   

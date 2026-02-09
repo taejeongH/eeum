@@ -53,9 +53,9 @@ const props = defineProps({
 });
 
 const members = ref([]);
-const maxVisibleMembers = 5; // 최대 표시 멤버 수
+const maxVisibleMembers = 5; 
 
-// "More" 버튼을 위해 표시될 멤버 목록
+
 const visibleMembers = computed(() => {
   if (members.value.length <= maxVisibleMembers) {
     return members.value;
@@ -79,7 +79,7 @@ const fetchMembers = async (id) => {
 };
 
 const showAllMembers = () => {
-  // TODO: 여기에 모든 멤버를 보여주는 로직 (예: 모달 열기 또는 다른 페이지로 이동) 구현
+  
   modalStore.openAlert('더보기 버튼 클릭 - 모든 멤버 보기 기능 구현 예정');
 };
 

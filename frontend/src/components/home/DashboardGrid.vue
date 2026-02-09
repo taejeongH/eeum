@@ -41,11 +41,11 @@ const modalStore = useModalStore();
 const familyStore = useFamilyStore();
 
 
-// Icons as mock components for simplicity in this snippet, 
-// normally would import or use inline SVG efficiently
+
+
 const MedicationIcon = { template: `<div class="w-6 h-6 rounded-full bg-[#ffe0b2]"></div>` };
 const ActivityIcon = { template: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>` };
-const VitalsIcon = { template: `<div class="w-6 h-6 rounded-full bg-[#b2dfdb]"></div>` }; // Placeholder 
+const VitalsIcon = { template: `<div class="w-6 h-6 rounded-full bg-[#b2dfdb]"></div>` }; 
 const FamilyIcon = { template: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>` };
 
 const items = ref([
@@ -75,7 +75,7 @@ const handleCardClick = (item) => {
   if (item.route === 'medication') {
     router.push(`/families/${familyId}/medications`);
   } else if (item.route && item.route.startsWith('/')) {
-    // For routes like /health-detail, prepend /families/:familyId
+    
     router.push(`/families/${familyId}${item.route}`);
   } else if (item.route) {
     router.push(item.route);
@@ -83,20 +83,20 @@ const handleCardClick = (item) => {
 };
 
 const startDrag = (index) => {
-  // Long press logic
+  
   longPressTimer = setTimeout(() => {
     draggedIndex.value = index;
-    // Haptic feedback if available (Mobile only)
+    
     if (navigator.vibrate) navigator.vibrate(50);
-  }, 500); // 500ms long press
+  }, 500); 
 };
 
 const endDrag = () => {
   clearTimeout(longPressTimer);
   if (draggedIndex.value !== null) {
-      // Mock swap logic: Move to end for demo purposes or just reset
-      // To implement real swap, we need drop targets. 
-      // For now, let's just "shake" or reset to show interaction.
+      
+      
+      
       draggedIndex.value = null;
   }
 };

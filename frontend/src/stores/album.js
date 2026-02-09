@@ -4,7 +4,7 @@ import { ref } from 'vue'
 export const useAlbumStore = defineStore('album', () => {
     const cachedPhotos = ref({})
     const lastFetchTime = ref({})
-    const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000 
 
     const setCachedPhotos = (familyId, photos) => {
         cachedPhotos.value[familyId] = photos
@@ -17,7 +17,7 @@ export const useAlbumStore = defineStore('album', () => {
 
         if (!cached || !fetchTime) return null
 
-        // Check if cache is still valid
+        
         if (Date.now() - fetchTime > CACHE_DURATION) {
             return null
         }

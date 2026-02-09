@@ -82,14 +82,14 @@ public class IotDeviceService {
                 IotDevice device = iotDeviceRepository.findById(deviceId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-                // 해당 기기가 속한 그룹의 멤버인지 확인
+                
                 supporterRepository.findByUserAndFamily(userDetails.getUser(), device.getFamily())
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
                 String oldLocation = device.getLocationType();
                 device.updateInfo(updateDto.getDeviceName(), updateDto.getLocationType());
 
-                // 위치가 변경되었을 경우 기기에 알림 발행
+                
                 if (updateDto.getLocationType() != null && !updateDto.getLocationType().equals(oldLocation)) {
                         eventPublisher.publishEvent(
                                         IotDeviceEvent.updated(device.getSerialNumber(), device.getLocationType()));
@@ -101,11 +101,11 @@ public class IotDeviceService {
                 IotDevice device = iotDeviceRepository.findById(deviceId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
-                // 해당 기기가 속한 그룹의 멤버인지 확인
+                
                 supporterRepository.findByUserAndFamily(userDetails.getUser(), device.getFamily())
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-                // 삭제 전 기기에 알림 발행
+                
                 eventPublisher.publishEvent(IotDeviceEvent.deleted(device.getSerialNumber()));
 
                 iotDeviceRepository.delete(device);

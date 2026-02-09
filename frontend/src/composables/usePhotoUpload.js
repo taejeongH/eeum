@@ -27,7 +27,7 @@ export function usePhotoUpload(onUploadSuccess) {
         previewUrls.value = files.map(file => URL.createObjectURL(file));
         showPreviewModal.value = true;
 
-        // 동일한 파일을 다시 선택할 수 있도록 입력 값 초기화
+        
         event.target.value = '';
     };
 
@@ -39,16 +39,16 @@ export function usePhotoUpload(onUploadSuccess) {
         try {
             const familyId = familyStore.selectedFamily.id;
 
-            // 이미지 압축 적용 (비동기 병렬 처리)
+            
             const compressedFiles = await Promise.all(
                 selectedFiles.value.map(file => compressImage(file))
             );
 
             if (compressedFiles.length === 1) {
-                // 단일 업로드
+                
                 await uploadFile(familyId, compressedFiles[0], description);
             } else {
-                // 다중 업로드 (S3 병렬 업로드 + 메타데이터 일괄 저장)
+                
                 await bulkUploadFiles(familyId, compressedFiles, description);
             }
 

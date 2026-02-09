@@ -22,38 +22,38 @@ public enum ErrorCode {
     EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH006", "이메일 발송에 실패했습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH007", "유효하지 않은 리프레시 토큰입니다."),
 
-    // Family 관련 에러 코드
+    
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY001", "유저를 찾을 수 없습니다."),
     FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY002", "가족 그룹을 찾을 수 없습니다."),
     SUPPORTER_NOT_FOUND(HttpStatus.NOT_FOUND, "FAMILY003", "가족 구성원 정보를 찾을 수 없습니다."),
     NOT_FAMILY_REPRESENTATIVE(HttpStatus.FORBIDDEN, "FAMILY004", "가족 대표자만 이 작업을 수행할 수 있습니다."),
     INVALID_EMERGENCY_PRIORITY(HttpStatus.BAD_REQUEST, "FAMILY005", "응급 우선순위는 1에서 4 사이여야 합니다."),
 
-    // IOT
+    
     VIDEO_NOT_READY(HttpStatus.BAD_REQUEST, "IOT001", "비디오가 아직 준비되지 않았거나 처리 중입니다."),
     ALREADY_FAMILY_MEMBER(HttpStatus.BAD_REQUEST, "FAMILY006", "이미 해당 가족 그룹의 멤버입니다."),
     ALREADY_FAMILY_REPRESENTATIVE(HttpStatus.BAD_REQUEST, "FAMILY007", "이미 해당 가족 그룹의 대표자입니다."),
     INVALID_INVITE_CODE(HttpStatus.NOT_FOUND, "FAMILY008", "유효하지 않은 초대 코드입니다."),
     FORBIDDEN_FAMILY_ACCESS(HttpStatus.FORBIDDEN, "FAMILY009", "해당 가족 그룹에 접근할 권한이 없습니다."),
 
-    // 일정
+    
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE001", "존재하지 않는 일정입니다."),
     INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "SCHEDULE002", "종료일은 시작일보다 빠를 수 없습니다."),
     RESERVED_TITLE(HttpStatus.BAD_REQUEST, "SCHEDULE003", "'EXCLUDED'는 사용할 수 없는 일정 제목입니다."),
     NOT_SCHEDULE_CREATOR(HttpStatus.FORBIDDEN, "SCHEDULE004", "일정 등록자만 수정/삭제할 수 있습니다."),
 
-    // IoT 관련 에러 코드
+    
     IOT_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT001", "존재하지 않는 IoT 기기입니다."),
     IOT_DEVICE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT002", "기기에 할당된 그룹 정보를 찾을 수 없습니다."),
     IOT_INVALID_PAIRING_CODE(HttpStatus.NOT_FOUND, "IOT003", "유효하지 않거나 만료된 페어링 코드입니다."),
     IOT_UNREGISTERED_SERIAL_NUMBER(HttpStatus.NOT_FOUND, "IOT004", "등록되지 않은 기기 시리얼 번호입니다."),
     IOT_MASTER_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "IOT005", "마스터 기기 정보가 등록 목록에 없거나 찾을 수 없습니다."),
 
-    // 알림 관련 에러 코드
+    
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI001", "알림 정보를 찾을 수 없습니다."),
     DELIVERY_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI002", "알림 수신 정보를 찾을 수 없습니다."),
 
-    // 목소리 관련 에러 코드
+    
     VOICE_SAMPLE_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE001", "목소리 샘플이 없습니다."),
     VOICE_MODEL_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE002", "학습된 목소리 모델이 없습니다."),
     INVALID_AUDIO_DURATION(HttpStatus.BAD_REQUEST, "VOICE003", "녹음 길이는 3초 이상 10초 이하여야 합니다.");

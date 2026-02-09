@@ -272,7 +272,7 @@ const birth = ref({
 });
 
 
-// Voice registration state
+
 const voiceSamples = ref([
   { id: 1, text: "안녕하세요, 저는 김철수입니다. 만나서 반갑습니다.", isRecorded: false },
   { id: 2, text: "오늘 날씨가 참 좋네요. 산책이라도 다녀올까요?", isRecorded: false },
@@ -287,7 +287,7 @@ const isRecording = ref(false);
 const completedCount = computed(() => voiceSamples.value.filter(s => s.isRecorded).length);
 const progressPercentage = computed(() => (completedCount.value / voiceSamples.value.length) * 100);
 
-// Formatting Phone
+
 watch(() => form.value.phone, (newPhone) => {
   const digits = newPhone.replace(/\D/g, '');
   let formatted = '';
@@ -315,7 +315,7 @@ const nextStep = async () => {
   if (isLastProfileStep.value) {
     await saveProfile();
   } else if (currentStep.value === 4) {
-    // Current placeholder logic - go to completion
+    
     router.push('/setup-complete');
   } else {
     currentStep.value++;
@@ -344,16 +344,16 @@ const openRecorder = (sample) => {
 
 const toggleRecord = () => {
   if (isRecording.value) {
-    // Stop recording
+    
     isRecording.value = false;
     if (selectedSample.value) {
       selectedSample.value.isRecorded = true;
       setTimeout(() => {
-        selectedSample.value = null; // Close modal after short delay
+        selectedSample.value = null; 
       }, 500);
     }
   } else {
-    // Start recording
+    
     isRecording.value = true;
   }
 };
@@ -378,7 +378,7 @@ const saveProfile = async () => {
     await updateUserProfile(formData);
     await userStore.fetchUser(true);
     
-    // Proceed to placeholder voice step
+    
     currentStep.value = 4;
   } catch (error) {
     modalStore.openAlert("프로필 저장 중 오류가 발생했습니다.");
@@ -422,7 +422,7 @@ watch(showAddressModal, (isShown) => {
 });
 
 onMounted(async () => {
-    // Pre-fill if some info exists
+    
     if (!userStore.profile) await userStore.fetchUser();
     if (userStore.profile) {
         form.value.name = userStore.profile.name || '';

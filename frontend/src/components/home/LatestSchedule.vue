@@ -50,7 +50,7 @@ const router = useRouter();
 const familyStore = useFamilyStore();
 const latestSchedule = ref(null);
 
-// Always focus on Today for the Home page widget
+
 const today = new Date();
 const monthStr = computed(() => (today.getMonth() + 1) + '월');
 const dayStr = computed(() => today.getDate());
@@ -63,19 +63,19 @@ const fetchLatestSchedule = async () => {
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
 
-    // Fetch schedules for the current month
+    
     const response = await api.get(`/families/${familyId}/schedules`, {
       params: { year, month }
     });
     
     const schedules = response.data.data || [];
     
-    // Format today as YYYY-MM-DD
+    
     const dateStr = today.getFullYear() + '-' + 
                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                     String(today.getDate()).padStart(2, '0');
     
-    // Filter for today
+    
     const daySchedules = schedules.filter(s => s.startAt && s.startAt.startsWith(dateStr));
     
     if (daySchedules.length > 0) {
@@ -113,7 +113,7 @@ onMounted(() => {
 const goToCalendar = () => {
   const familyId = familyStore.selectedFamily?.id;
   if (familyId) {
-    // Force reset to today when navigating from Home
+    
     const todayStr = new Date().getFullYear() + '-' + 
                     String(new Date().getMonth() + 1).padStart(2, '0') + '-' + 
                     String(new Date().getDate()).padStart(2, '0');

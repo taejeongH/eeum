@@ -33,7 +33,7 @@ public class VoiceService {
     private final VoiceScriptRepository scriptRepository;
     private final VoiceSampleRepository sampleRepository;
     private final VoiceTaskRepository taskRepository;
-    private final org.ssafy.eeum.domain.auth.repository.UserRepository userRepository; // Inject UserRepository
+    private final org.ssafy.eeum.domain.auth.repository.UserRepository userRepository; 
     private final S3Service s3Service;
     private final VoiceAiClient voiceAiClient;
 
@@ -44,7 +44,7 @@ public class VoiceService {
             "묻고 더블로 가!",
             "어이가 없네.");
 
-    // 대본 목록 조회
+    
     public List<VoiceScript> getScripts() {
         return scriptRepository.findAll();
     }
@@ -329,7 +329,7 @@ public class VoiceService {
 
             if (statusOrUrl == null || "FAILED".equals(statusOrUrl) || "ERROR".equals(statusOrUrl)) {
                 log.error("[TTS Sync Test] 음성 생성 응답 대기/실패 (상태: {})", statusOrUrl);
-                // 일시적 에러(null, ERROR) 및 진짜 실패(FAILED) 상황
+                
                 if ("FAILED".equals(statusOrUrl)) {
                     if (task != null) {
                         task.fail(VoiceTask.TaskStatus.FAILED);
@@ -337,7 +337,7 @@ public class VoiceService {
                     }
                     throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
                 }
-                // null이나 ERROR는 통신 장애일 가능성이 높으므로 실패 처리하지 않고 계속 진행 (continue)
+                
                 continue;
             }
 
@@ -380,7 +380,7 @@ public class VoiceService {
         String refText;
 
         if (samples.isEmpty()) {
-            // Fallback to Default Voice Model (Hardcoded to prevent DB lookup failure)
+            
             refWavKey = DEFAULT_SAMPLE_PATH;
             refText = DEFAULT_SAMPLE_TRANSCRIPT;
             log.info("[TTS] User {} has no voice model. Using Default Sample (Fallback): {}", userId, refWavKey);

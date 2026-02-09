@@ -1,4 +1,4 @@
-# app/stt_service.py
+
 import os
 import wave
 import time
@@ -39,7 +39,7 @@ def _looks_like_garbage(t: str) -> bool:
         return True
     if len(t) <= 1:
         return True
-    # 같은 글자 반복 ("롯롯"은 set={'롯'}라서 여기 걸리게)
+    
     if len(set(t)) == 1:
         return True
     return False
@@ -84,7 +84,7 @@ class FasterWhisperSTT:
         """
         out = f"/tmp/eeum_stt_proc_{int(time.time()*1000)}.wav"
 
-        # 기본값: 한국어 음성(대부분)에서 안정적으로 먹는 대역 + 무음 게이트
+        
         af = "highpass=f=180,lowpass=f=3400,agate=threshold=-45dB:attack=5:release=500"
         r = await async_sh(
             [
@@ -93,7 +93,7 @@ class FasterWhisperSTT:
                 "-y",
                 "-i", wav_path,
                 "-af", af,
-                # Whisper 입력 안정화(샘플레이트 튐 방지)
+                
                 "-ar", "16000",
                 "-ac", "1",
                 "-c:a", "pcm_s16le",
@@ -140,7 +140,7 @@ class FasterWhisperSTT:
                     segs = list(segments)
                     txt = "".join([s.text for s in segs]).strip()
 
-                    # 평균 no_speech / avg_logprob 추출(있으면)
+                    
                     ns = []
                     lp = []
                     for s in segs:
@@ -160,31 +160,31 @@ class FasterWhisperSTT:
                     if not t:
                         return -10_000
 
-                    s = max(len(t), 6)   # 짧은 발화 보호
+                    s = max(len(t), 6)   
 
-                    # 긴급 키워드 가산점(현장용)
+                    
                     if any(k in t for k in ("도와", "살려", "도움", "119", "응급")):
                         s += 50
 
-                    # 너무 자신없으면 감점
+                    
                     if isinstance(avg_logprob, (int, float)):
                         if avg_logprob < -1.2:
                             s -= 30
                         elif avg_logprob < -1.0:
                             s -= 15
 
-                    # 무음 확률이 높으면 감점
+                    
                     if isinstance(avg_no_speech, (int, float)) and avg_no_speech > 0.6:
                         s -= 40
 
                     return s
 
-                # 1) 엄격
+                
                 t1, ns1, lp1 = run_pass(STT_NO_SPEECH_THRESHOLD or 0.60, STT_LOG_PROB_THRESHOLD or -0.80)
-                # 2) 완화(초반 작은 목소리 구제)
+                
                 t2, ns2, lp2 = run_pass(0.80, -1.30)
 
-                # 점수로 선택
+                
                 if score(t2, ns2, lp2) > score(t1, ns1, lp1):
                     txt, avg_no_speech = t2, ns2
                 else:
@@ -231,10 +231,10 @@ async def record_with_vad(
     min_speech_sec: float = 0.25,
     end_silence_sec: float = 1.3,
     discard_head_sec: float = 0.0,
-    pre_roll_sec: float = 0.20,      # 프리롤
-    start_speech_streak: int = 2,    # 연속 speech로 시작 확정
-    max_speech_sec: float = 5.0,     # 말 시작 후 최대 길이 캡
-    start_guard_sec: float = 0.0,    # 시작 후 N초 동안 VAD 판단 무시(에코 가드)
+    pre_roll_sec: float = 0.20,      
+    start_speech_streak: int = 2,    
+    max_speech_sec: float = 5.0,     
+    start_guard_sec: float = 0.0,    
 ) -> tuple[bool, str]:
     """
     단순 VAD 녹음:
@@ -252,10 +252,10 @@ async def record_with_vad(
     )
 
     vad = webrtcvad.Vad(vad_level)
-    bytes_per_sample = 2  # s16le
+    bytes_per_sample = 2  
     frame_bytes = int(sample_rate * (frame_ms / 1000.0) * bytes_per_sample)
 
-    # --- 프리롤 링버퍼(앞부분 잘림 방지) ---
+    
     try:
         pre_frames = int((float(pre_roll_sec) * 1000.0) / float(frame_ms))
     except Exception:
@@ -263,7 +263,7 @@ async def record_with_vad(
     pre_frames = max(0, pre_frames)
     prebuf = deque(maxlen=max(1, pre_frames) if pre_frames > 0 else 0)
 
-    # --- speech 시작 확정 streak ---
+    
     try:
         start_speech_streak = int(start_speech_streak)
     except Exception:
@@ -272,7 +272,7 @@ async def record_with_vad(
     speech_streak = 0
     speech_start_ts: float | None = None
 
-    # --- speech 시작 이후 최대 길이 캡 ---
+    
     try:
         max_speech_sec = float(max_speech_sec)
     except Exception:
@@ -280,7 +280,7 @@ async def record_with_vad(
     if max_speech_sec < 0:
         max_speech_sec = 0.0
 
-    # --- 시작 구간 VAD 무시(에코 가드) ---
+    
     try:
         start_guard_sec = float(start_guard_sec)
     except Exception:
@@ -322,13 +322,13 @@ async def record_with_vad(
             except asyncio.TimeoutError:
                 continue
 
-            # 프리롤 버퍼는 항상 쌓음(프리롤 켜져있을 때만)
+            
             if pre_frames > 0:
                 prebuf.append(chunk)
 
-            # --- RMS(에너지) 게이트 ---
-            # VAD가 팬/환경소음에 속는 케이스가 많아서,
-            # 프레임 에너지가 너무 낮으면 speech로 취급하지 않음.
+            
+            
+            
             try:
                 fr_rms = int(audioop.rms(chunk, 2))
             except Exception:
@@ -339,38 +339,38 @@ async def record_with_vad(
                 is_speech = vad.is_speech(chunk, sample_rate)
             now = time.time()
 
-            # NEW: 시작 직후 에코/노이즈 구간은 VAD 판단을 무시하되,
-            # 오디오는 prebuf에 계속 쌓이므로 사용자가 빨리 말해도 앞부분 살릴 수 있음.
+            
+            
             if (not speech_started) and start_guard_sec > 0 and ((now - t0) < start_guard_sec):
                 continue
 
-            # --- streak 기반 speech 시작 확정 ---
+            
             if is_speech:
                 speech_streak += 1
             else:
                 speech_streak = 0
 
             started_this_frame = False
-            # speech 시작 확정(연속 speech 도달 시점)
+            
             if (not speech_started) and (speech_streak >= start_speech_streak):
                 speech_started = True
                 speech_start_ts = now
                 last_voice_ts = now
                 started_this_frame = True
 
-                # 프리롤 붙이기(앞 음절 잘림 방지)
+                
                 if pre_frames > 0 and len(prebuf) > 0:
                     for fr in prebuf:
                         speech_bytes.extend(fr)
-                # 프리롤을 붙였으면 버퍼는 비워 중복/누적 방지
+                
                 try:
                     prebuf.clear()
                 except Exception:
                     pass
 
-            # speech 시작 이후: 계속 저장(무음 포함) + voice_frames 집계
+            
             if speech_started:
-                # 중요: 시작 프레임은 이미 prebuf로 포함됐을 수 있으므로 중복 저장 방지
+                
                 if not started_this_frame:
                     speech_bytes.extend(chunk)
                 if is_speech:
@@ -381,7 +381,7 @@ async def record_with_vad(
                 if (now - last_voice_ts) >= end_silence_sec:
                     break
 
-            # --- 말 시작 후 최대 길이 캡(노이즈로 안 끊기는 것 방지) ---
+            
             if speech_started and speech_start_ts is not None and max_speech_sec > 0:
                 if (now - speech_start_ts) >= max_speech_sec:
                     break
@@ -392,10 +392,10 @@ async def record_with_vad(
         )
 
         min_frames = max(1, int((min_speech_sec * 1000) / frame_ms))
-        # speech_started가 True고 voice_frames가 조금이라도 있으면 "짧은 응답"으로라도 진행
+        
         if voice_frames < min_frames:
             if speech_started and voice_frames > 0:
-                # 그냥 저장하고 ok로 넘기자 (짧은 응답이라도 whisper가 텍스트를 뽑을 수 있음)
+                
                 pass
             else:
                 return (False, "no_speech")
@@ -406,7 +406,7 @@ async def record_with_vad(
             wf.setframerate(sample_rate)
             wf.writeframes(bytes(speech_bytes))
 
-        # --- tail suppress (컷 X, 꼬리만 눌러서 STT 헛자막 방지) ---
+        
         try:
             tmp_out = f"/tmp/eeum_gate_{int(time.time()*1000)}.wav"
             af_tail = "agate=threshold=-38dB:attack=10:release=900"

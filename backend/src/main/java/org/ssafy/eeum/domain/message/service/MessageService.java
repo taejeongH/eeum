@@ -35,14 +35,14 @@ public class MessageService {
         private final FamilyRepository familyRepository;
         private final UserRepository userRepository;
         private final SupporterRepository supporterRepository;
-        private final IotSyncService iotSyncService; // Handled
+        private final IotSyncService iotSyncService; 
         private final S3Service s3Service;
         private final VoiceLogRepository voiceLogRepository;
         private final MessageTtsAsyncService messageTtsAsyncService;
 
         @Transactional
         public MessageResponseDto send(Integer groupId, Integer senderUserId, MessageRequestDto requestDto) {
-                // 기본 검증 로직
+                
                 Family group = familyRepository.findById(groupId)
                                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND));
 
@@ -52,7 +52,7 @@ public class MessageService {
                 supporterRepository.findByUserAndFamily(sender, group)
                                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
 
-                // 메시지 객체 생성
+                
                 Message message = Message.builder()
                                 .group(group)
                                 .sender(sender)
@@ -61,10 +61,10 @@ public class MessageService {
                                 .isSynced(false)
                                 .build();
 
-                // 메시지 먼저 저장
+                
                 Message saved = messageRepository.save(message);
 
-                // 비동기로 TTS 생성 및 후속 처리 요청
+                
                 messageTtsAsyncService.processTtsAsync(saved.getId(), senderUserId, requestDto.getContent(), groupId);
 
                 Supporter senderSupporter = supporterRepository.findByUserAndFamily(sender, group)

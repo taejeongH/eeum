@@ -26,11 +26,7 @@ public class SensorEventService {
     private final FamilyRepository familyRepository;
     private final FallEventService fallEventService;
 
-    /**
-     * MQTT 센서 이벤트 처리 (중복 방지 포함)
-     * 
-     * @param deviceEventId 기기에서 보낸 이벤트 ID (기기별로 고유)
-     */
+    
     @Transactional
     public SensorEvent handleSensorEvent(
             Integer groupId,
@@ -43,24 +39,24 @@ public class SensorEventService {
             LocalDateTime detectedAt,
             String eventData) {
 
-        // 1. 고유 이벤트 ID 생성 (serial_number + device_event_id)
+        
         String eventId = SensorEvent.generateEventId(serialNumber, deviceEventId);
 
-        // 2. 중복 체크
+        
         if (sensorEventRepository.existsByEventId(eventId)) {
             return sensorEventRepository.findByEventId(eventId)
                     .orElseThrow();
         }
 
-        // 3. 기기 조회
+        
         IotDevice device = iotDeviceRepository.findBySerialNumber(serialNumber)
                 .orElseThrow(() -> new CustomException(ErrorCode.IOT_DEVICE_NOT_FOUND));
 
-        // 4. 가족 조회
+        
         Family family = familyRepository.findById(groupId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
-        // 5. 센서 이벤트 저장
+        
         SensorEvent sensorEvent = SensorEvent.builder()
                 .eventId(eventId)
                 .device(device)
@@ -76,7 +72,7 @@ public class SensorEventService {
                 .build();
 
         sensorEventRepository.save(sensorEvent);
-        // 6. 낙상 이벤트인 경우 FallEvent 생성
+        
         if ("fall_detected".equals(eventType)) {
             createFallEventFromSensor(sensorEvent);
         }
@@ -84,13 +80,11 @@ public class SensorEventService {
         return sensorEvent;
     }
 
-    /**
-     * 센서 이벤트 → FallEvent 변환
-     */
+    
     private void createFallEventFromSensor(SensorEvent sensorEvent) {
         FallEvent fallEvent = FallEvent.builder()
                 .family(sensorEvent.getFamily())
-                .severity(1) // 초기 심각도
+                .severity(1) 
                 .statusType(FallEvent.StatusType.UNDER_REVIEW)
                 .build();
 
@@ -100,11 +94,7 @@ public class SensorEventService {
 
     }
 
-    /**
-     * 이벤트 ID로 음성 응답 연동
-     * 
-     * @param deviceEventId 기기에서 보낸 이벤트 ID
-     */
+    
     @Transactional
     public void linkVoiceResponseToEvent(String serialNumber, String deviceEventId, String sttContent) {
         String eventId = SensorEvent.generateEventId(serialNumber, deviceEventId);
@@ -113,7 +103,7 @@ public class SensorEventService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND,
                         "센서 이벤트를 찾을 수 없습니다: " + eventId));
 
-        // FallEvent 업데이트 로직 호출
+        
         fallEventService.handleVoiceResponse(
                 sensorEvent.getFamily().getId(),
                 sttContent);

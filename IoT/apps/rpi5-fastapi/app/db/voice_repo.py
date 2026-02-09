@@ -1,4 +1,4 @@
-# app/db/voice_repo.py
+
 import time
 from typing import Optional, List, Dict, Any, Tuple
 
@@ -80,7 +80,7 @@ class VoiceRepo:
         limit: int = 20,
         now: float | None = None,
         *,
-        rescue_sec: float = 600.0,  # 10min
+        rescue_sec: float = 600.0,  
     ) -> List[Dict[str, Any]]:
         if now is None:
             now = time.time()
@@ -181,8 +181,8 @@ class VoiceRepo:
 
         now = time.time()
 
-        with self.conn:  # transaction
-            # 1) deleted
+        with self.conn:  
+            
             if deleted:
                 ids = [int(x) for x in deleted]
                 q = ",".join(["?"] * len(ids))
@@ -193,7 +193,7 @@ class VoiceRepo:
                 del_cnt = int(cur.rowcount or 0)
                 deleted_ids = ids
 
-            # 2) added upsert + inserted 판정
+            
             for it in added:
                 if not isinstance(it, dict) or "id" not in it or "url" not in it:
                     continue
@@ -210,7 +210,7 @@ class VoiceRepo:
                 except Exception:
                     uid = None
 
-                # 신규 여부 판정: INSERT OR IGNORE 후 rowcount 체크
+                
                 cur = self.conn.execute(
                     "INSERT OR IGNORE INTO voice_messages("
                     "id,url,description,status,created_at,user_id"
@@ -220,7 +220,7 @@ class VoiceRepo:
                 if int(cur.rowcount or 0) > 0:
                     inserted_ids.append(vid)
                 else:
-                    # 기존이면 내용만 갱신(created_at/status는 유지)
+                    
                     self.conn.execute(
                         "UPDATE voice_messages SET url=?, description=?, user_id=? WHERE id=?",
                         (url, desc, uid, vid),
@@ -228,7 +228,7 @@ class VoiceRepo:
 
                 add_cnt += 1
 
-                # download row 보장
+                
                 d = self.conn.execute("SELECT status FROM voice_downloads WHERE voice_id=?", (vid,)).fetchone()
                 if d is None:
                     self.conn.execute(
@@ -236,7 +236,7 @@ class VoiceRepo:
                         (vid, "pending", now),
                     )
 
-            # 3) cursor update
+            
             if new_log_id > 0:
                 self.set_last_log_id(new_log_id)
 

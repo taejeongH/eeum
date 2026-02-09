@@ -49,7 +49,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const finishSetup = () => {
-  // Clear any setup-related state if needed
+  
   router.replace('/home');
 };
 </script>

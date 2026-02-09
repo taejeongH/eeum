@@ -28,7 +28,7 @@ async def preload_stt_engine(model_size: str):
     hf_root = (os.getenv("HF_HOME") or "").strip() or None
     cpu_threads = 2
 
-    # 부팅 시점: 다운로드 절대 안 함. 로컬 캐시로만 로딩 시도.
+    
     try:
         engine = FasterWhisperSTT(
             model_size=model_size,
@@ -61,31 +61,31 @@ async def async_main():
 
     state = MonitorState()
 
-    # ---- download concurrency gate ----
+    
     dl_conc = int(os.getenv("DL_CONCURRENCY", "3"))
     state.download_sem = asyncio.Semaphore(dl_conc)
     logger.info("[BOOT] download concurrency=%s", dl_conc)
 
-    # ---- shared aiohttp session ----
-    # 커넥션 풀/keep-alive 재사용 + 동시 다운로드 제한 가능
+    
+    
     connector = aiohttp.TCPConnector(
-        limit=50,              # 전체 동시 연결 수 (환경에 맞게)
-        limit_per_host=10,     # 호스트당 동시 연결
-        ttl_dns_cache=300,     # DNS 캐시
+        limit=50,              
+        limit_per_host=10,     
+        ttl_dns_cache=300,     
         enable_cleanup_closed=True,
     )
-    # 세션 기본 timeout(요청에서 override 가능)
+    
     timeout = aiohttp.ClientTimeout(total=15.0)
     state.http_session = aiohttp.ClientSession(
         connector=connector,
         timeout=timeout,
-        raise_for_status=False,    # 여기서는 요청마다 처리(로그 남기고 raise)
+        raise_for_status=False,    
     )
 
-    # tiny/base 선택
-    STT_MODEL = os.getenv("EEUM_STT_MODEL", "tiny")  # tiny or base
+    
+    STT_MODEL = os.getenv("EEUM_STT_MODEL", "tiny")  
     state.stt_engine = await preload_stt_engine(STT_MODEL)
-    # 캐시 없으면, Wi-Fi 붙을 때 1회 캐싱 시도하도록 플래그 세팅
+    
     state.stt_cache_missing = (state.stt_engine is None)
     state.stt_cache_attempted = False
     logger.info("[STT] engine ready model=%s offline=%s", STT_MODEL, os.getenv("EEUM_STT_OFFLINE", "0"))
@@ -116,7 +116,7 @@ async def async_main():
         host=HOST,
         port=PORT,
         log_level=level,
-        access_log=False,   # 필요하면 True
+        access_log=False,   
     )
     server = uvicorn.Server(config)
     
@@ -126,7 +126,7 @@ async def async_main():
         len(state.album_cache),
         len(state.slide_playlist),
     )
-    # DEFAULT 문구 캐시 준비(없으면 생성 시도)
+    
     for msg in (DEFAULT_TTS_MESSAGE or []):
         r = await ensure_tts_mp3(msg, DEFAULT_TTS_PATH, timeout_sec=5.0)
         if r.ok and r.path:
@@ -139,11 +139,11 @@ async def async_main():
         logger.info("[HTTP] server starting")
         await server.serve()
     finally:
-        # ---- best-effort cleanup (covers: crash before lifespan shutdown) ----
-        # 1) background tasks spawned in main.py (state.tasks)
+        
+        
         try:
             tasks = list((getattr(state, "tasks", {}) or {}).values())
-            # cancel pending tasks
+            
             for t in tasks:
                 try:
                     if t and (not t.done()):
@@ -152,7 +152,7 @@ async def async_main():
                     pass
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
-            # clear task registry
+            
             try:
                 state.tasks.clear()
             except Exception:
@@ -160,28 +160,28 @@ async def async_main():
         except Exception:
             logger.debug("[CLEANUP] state.tasks cancel failed (ignore)", exc_info=True)
 
-        # 2) stop audio manager if running (best-effort)
+        
         try:
             if getattr(state, "audio", None):
                 await state.audio.stop()
         except Exception:
             logger.debug("[CLEANUP] audio stop failed (ignore)", exc_info=True)
 
-        # 3) shared aiohttp session
+        
         try:
             if getattr(state, "http_session", None) and (not state.http_session.closed):
                 await state.http_session.close()
         except Exception:
             logger.debug("[CLEANUP] http_session close failed (ignore)", exc_info=True)
 
-        # 4) connector close (may still exist even if session failed mid-init)
+        
         try:
             if connector is not None and (not connector.closed):
                 await connector.close()
         except Exception:
             logger.debug("[CLEANUP] connector close failed (ignore)", exc_info=True)
 
-        # 5) DB close
+        
         try:
             if getattr(state, "db", None):
                 state.db.close()

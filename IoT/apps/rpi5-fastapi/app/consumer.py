@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class DeviceCommandTopic:
     device_id: str
-    action: str   # "update" | "alarm"
-    tail: str     # action 뒤 나머지 경로(없으면 "")
+    action: str   
+    tail: str     
 
 def _is_pir_motion(ev: Event) -> bool:
     return (
@@ -80,7 +80,7 @@ async def consume_events(state: MonitorState):
         except Exception as e:
             logger.exception("[consumer] unexpected error while handling ev=%s", ev)
 
-# --------- MQTT --------
+
 async def consume_mqtt_inbound(state: MonitorState):
     loop = asyncio.get_running_loop()
     while True:
@@ -124,7 +124,7 @@ def _extract_alarm_text(payload: dict) -> str:
         v = payload.get(k)
         if isinstance(v, str) and v.strip():
             return v.strip()
-    # 혹시 data 안에 들어오는 케이스 방어
+    
     data = payload.get("data")
     if isinstance(data, dict):
         for k in ("content", "message", "description", "text", "title"):
@@ -162,12 +162,12 @@ def _normalize_alert_envelope(payload: dict) -> dict | None:
     except Exception:
         sent_at = float(time.time())
 
-    # content: 명세 필수. 없으면 extract로 생성
+    
     content = payload.get("content")
     if not isinstance(content, str) or not content.strip():
         content = _extract_alarm_text(payload) or ("복약 알림이 있어요" if kind == "medication" else "일정 알림이 있어요")
 
-    # data: dict 보장
+    
     data = payload.get("data")
     if not isinstance(data, dict):
         data = {}
@@ -218,10 +218,10 @@ async def _handle_update_voice(state: MonitorState, payload: dict, info: DeviceC
 
     inserted_ids = res.get("inserted_ids") or []
     if not inserted_ids:
-        # 진짜 신규가 없으면: 다운로드/emit/TTS 모두 스킵
+        
         return
 
-    # 신규만 다운로드+emit
+    
     for vid in inserted_ids:
         try:
             v = state.voice_repo.get(int(vid))
@@ -251,7 +251,7 @@ async def _handle_update_voice(state: MonitorState, payload: dict, info: DeviceC
         except Exception as e:
             logger.warning("[voice] download/emit failed id=%s err=%s", vid, e)
 
-    # TTS도 "신규(inserted)" 있을 때만
+    
     if _should_play_alarm_tts(state, "voice"):
         path = get_default_tts_path("voice")
         if path:
@@ -274,7 +274,7 @@ async def _handle_alarm(state: MonitorState, payload: dict) -> None:
         })
         return
 
-    # alerts SSE는 event/data를 그대로 내보내기 위해 envelope 형태로 push
+    
     delivered = fanout_nowait(state.alert_subscribers, {"_event": "alert", "data": env})
     try:
         logger.debug("[sse_alert] delivered=%d kind=%s msg_id=%s",
@@ -315,11 +315,11 @@ async def consume_commands(state: MonitorState):
 
             info = parse_device_topic(cmd.topic)
             if info is None:
-                # 관심 없는 토픽이면 무시
+                
                 logger.debug("[commands] ignore topic=%s payload=%s", cmd.topic, cmd.payload)
                 continue
 
-            # 내 장치가 아니면 무시(또는 로그만)
+            
             if my_id and info.device_id != my_id:
                 logger.debug(
                     "[commands] ignore other device device_id=%s my_id=%s topic=%s",
@@ -352,7 +352,7 @@ async def consume_commands(state: MonitorState):
             logger.exception("[commands] unexpected error")
 
 def parse_device_topic(topic: str) -> Optional[DeviceCommandTopic]:
-    # 기대 형태: eeum/device/{device_id}/{action}[/{tail...}]
+    
     parts = topic.strip("/").split("/")
     if len(parts) < 4:
         return None
@@ -360,7 +360,7 @@ def parse_device_topic(topic: str) -> Optional[DeviceCommandTopic]:
         return None
 
     device_id = parts[2]
-    action = parts[3]  # update or alarm
+    action = parts[3]  
     if action not in ("update", "alarm"):
         return None
 

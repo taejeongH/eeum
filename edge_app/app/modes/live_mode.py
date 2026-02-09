@@ -37,22 +37,22 @@ class LiveMode(BaseMode):
         self.jpeg_quality = jpeg_quality
         self.pipeline: Optional[LivePipeline] = None
         
-        # Engines
+        
         from ..config import ABNORMAL_TIMEOUT_S
         self.presence_engine = PresenceEngine(PresenceParams(
             enter_hits=5, exit_hits=10, min_quality=0.10, cool_down_s=0.5
         ))
         self.level1_engine = Level1Engine(Level1Params(
             abnormal_timeout_s=ABNORMAL_TIMEOUT_S,
-            ghost_timeout_s=10.0  # 테스트용: abnormal_timeout과 동일하게 설정
+            ghost_timeout_s=10.0  
         ))
         self.clip_recorder = ClipRecorder()
         
-        # Clients
+        
         self.server_client = ServerClient()
         self.device_state = get_device_state()
         
-        # State
+        
         self.last_level1_event: Optional[Dict[str, Any]] = None
         self.local_incident_ts: Optional[float] = None
         self.local_last_level1_event: Optional[Dict[str, Any]] = None
@@ -67,14 +67,14 @@ class LiveMode(BaseMode):
                 jpeg_quality=self.jpeg_quality,
                 source_id="cam0"
             )
-            # 상태 초기화
+            
             self.level1_engine.reset_all()
             self.presence_engine.reset()
             self.last_level1_event = None
             self.local_incident_ts = None
             
-            # [Note] Streaming is now handled centrally by WebSocketStreamer in main.py
-            # This ensures stable connection across mode changes.
+            
+            
             
             self.is_running = True
             return True
@@ -105,14 +105,14 @@ class LiveMode(BaseMode):
         if self.pipeline is None:
             return None, None, None, None
 
-        # 변경: raw_frame을 같이 받는다
+        
         obs, overlay_jpg, raw_frame = self.pipeline.step(overlay="smooth")
 
         if obs is None:
             return None, overlay_jpg, raw_frame, None
 
-        # [Note] Frame relay is handled by AppController -> WebSocketStreamer
-        # We just return the raw_frame to the controller.
+        
+        
 
         ts_now = float(obs["ts"])
 
@@ -120,7 +120,7 @@ class LiveMode(BaseMode):
         if pe is not None:
             self._handle_presence_event(pe, ts_now)
 
-        # Clip은 "원본"으로 저장하는 게 보통 더 좋다 (서버/디버깅 관점)
+        
         if raw_frame is not None:
             meta = {
                 "frame_index": int(obs.get("frame_index", -1)),
@@ -135,7 +135,7 @@ class LiveMode(BaseMode):
         if ev is not None:
             self._handle_fall_event(ev, obs, ts_now)
 
-        # raw_frame을 컨트롤러가 raw_jpg로 인코딩해서 /stream_raw로 뿌리게 된다
+        
         return obs, overlay_jpg, raw_frame, None
 
     def _handle_presence_event(self, pe: Dict[str, Any], ts_now: float):
@@ -152,7 +152,7 @@ class LiveMode(BaseMode):
             },
             "ts": ts_now,
         }
-        # RPI로 전송
+        
         self.server_client.send_event_rpi(payload)
 
     def _handle_fall_event(self, ev: Dict[str, Any], obs: Dict[str, Any], ts_now: float):
@@ -169,15 +169,15 @@ class LiveMode(BaseMode):
 
         elif et == "level1":
             logger.warning(f"[FALL DETECTED] {ev}")
-            self.last_level1_event = ev # API 노출용 저장
+            self.last_level1_event = ev 
             
-            # 토큰 확인
+            
             access_token = self.device_state.ensure_valid_token(self.server_client)
             if not access_token:
                 logger.error("Token invalid. Cannot send fall event to Server.")
-                access_token = "" # 전송 실패하더라도 로직 진행
+                access_token = "" 
 
-            # Payload 준비
+            
             current_event_id = ev.get("event_id") or f"level1_{time.strftime('%Y%m%d_%H%M%S')}"
             ev["event_id"] = current_event_id
             
@@ -195,18 +195,18 @@ class LiveMode(BaseMode):
                 },
             }
             
-            # 1. RPI 전송
+            
             try:
                 self.server_client.send_event_rpi(payload)
             except Exception as e:
                 logger.error(f"Failed to send to RPI: {e}")
 
-            # 2. Server 전송 (Presigned URL 획득)
+            
             presigned_url, video_path = None, None
             if access_token:
                 try:
                     res = self.server_client.send_event_server(payload, access_token=access_token)
-                    # [방어 로직] 반환값이 튜플/리스트이고 길이가 2인지 확인하여 Unpacking Error 방지
+                    
                     if res and isinstance(res, (tuple, list)) and len(res) == 2:
                         presigned_url, video_path = res
                     else:
@@ -214,12 +214,12 @@ class LiveMode(BaseMode):
                 except Exception as e:
                     logger.error(f"Failed to send to Server: {e}")
 
-            # 3. Clip 저장 및 업로드
+            
             if self.local_incident_ts is not None:
                 from ..config import CLIP_PRE_SEC, CLIP_POST_SEC
 
                 level1_ts = float(ev.get("ts", ts_now))
-                abn_ts = float(self.local_incident_ts)  # 이미 None 아님
+                abn_ts = float(self.local_incident_ts)  
 
                 t_start = abn_ts - float(CLIP_PRE_SEC)
                 t_end = abn_ts + float(CLIP_POST_SEC)
@@ -232,7 +232,7 @@ class LiveMode(BaseMode):
 
                 if not clip_path:
                     logger.warning("Clip save skipped/failed (cooldown or no frames in range)")
-                    return  # 또는 그냥 넘어가도 됨
+                    return  
 
                 if clip_path and presigned_url and video_path:
                     logger.info(f"Uploading clip: {clip_path} -> {video_path}")
@@ -243,7 +243,7 @@ class LiveMode(BaseMode):
                             timeout=120.0
                         )
 
-                        # 업로드 성공 알림(토큰 있을 때만)
+                        
                         if access_token:
                             self.server_client.send_video_upload_success(
                                 video_path=video_path,

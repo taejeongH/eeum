@@ -176,26 +176,15 @@ public class IotSyncService {
                 .toList();
     }
 
-    /**
-     * 데이터 업데이트 알림 요청 (즉시 전송)
-     * 1. Redis에 활성 가족 및 kind 목록 추가
-     * 2. 즉시 MQTT 전송 (1개라도 생기면 바로 보냄)
-     */
+    
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    /**
-     * 데이터 업데이트 알림 요청 (이벤트 발행)
-     * 트랜잭션 커밋 후 실제 처리를 위해 이벤트를 발행합니다.
-     */
+    
     public void notifyUpdate(Integer familyId, String kind) {
         eventPublisher.publishEvent(new org.ssafy.eeum.domain.iot.event.IotSyncEvent(familyId, kind));
     }
 
-    /**
-     * 트랜잭션 커밋 후 실행되는 알림 처리 핸들러
-     * 1. Redis에 활성 가족 및 kind 목록 추가
-     * 2. 즉시 MQTT 전송
-     */
+    
     @org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
     public void handleSyncEvent(org.ssafy.eeum.domain.iot.event.IotSyncEvent event) {
         Integer familyId = event.getFamilyId();
@@ -206,14 +195,14 @@ public class IotSyncService {
         String activeFamilyKey = "sync:active_families";
         String activeKindsKey = "sync:family:" + familyIdStr + ":kinds";
 
-        // 1. 활성 가족 및 kind 목록에 추가
+        
         redisService.addToSet(activeFamilyKey, familyIdStr);
         redisService.addToSet(activeKindsKey, kind);
 
-        // 2. 카운트 증가
+        
         redisService.increment(countKey);
 
-        // 3. 즉시 전송
+        
         sendBatchNotification(familyId, kind);
     }
 
@@ -223,7 +212,7 @@ public class IotSyncService {
         String timeKey = "sync:family:" + familyIdStr + ":" + kind + ":last_sent";
         String msgId = java.util.UUID.randomUUID().toString();
 
-        // MQTT payload 구성
+        
         Map<String, Object> payload = new HashMap<>();
         payload.put("msg_id", msgId);
         payload.put("kind", kind);
@@ -239,22 +228,18 @@ public class IotSyncService {
                         device.getSerialNumber(), msgId, kind);
             }
 
-            // 상태 초기화
+            
             redisService.deleteData(countKey);
             redisService.setDataWithExpiration(timeKey, String.valueOf(System.currentTimeMillis()),
-                    24 * 60 * 60 * 1000L); // 24시간 유지
+                    24 * 60 * 60 * 1000L); 
 
         } catch (Exception e) {
             log.error("Failed to send batch notification: {}", e.getMessage());
         }
     }
 
-    /**
-     * 주기적 확인 (10분마다 실행)
-     * 이 스케줄러는 단순히 "확인"하는 트리거 역할입니다.
-     * 실제 전송 조건은 (마지막 전송으로부터 1시간 경과) 여부입니다.
-     */
-    @Scheduled(fixedRate = 10 * 60 * 1000) // 10분 주기 체크
+    
+    @Scheduled(fixedRate = 10 * 60 * 1000) 
     public void checkPeriodicUpdates() {
         String activeFamilyKey = "sync:active_families";
         java.util.Set<Object> families = redisService.getSetMembers(activeFamilyKey);
@@ -284,16 +269,16 @@ public class IotSyncService {
                     String lastSentStr = redisService.getData(timeKey);
                     long lastSent = lastSentStr != null ? Long.parseLong(lastSentStr) : 0;
 
-                    // 1시간 지났는지 확인
+                    
                     if (now - lastSent >= oneHour) {
                         String countStr = redisService.getData(countKey);
                         int count = countStr != null ? Integer.parseInt(countStr) : 0;
 
                         if (count > 0) {
-                            // 데이터가 있으면 전송 (내부에서 초기화됨)
+                            
                             sendBatchNotification(familyId, kind);
                         } else {
-                            // 데이터가 0개면 전송하지 않고 시간만 초기화 (1시간 뒤에 다시 체크)
+                            
                             redisService.setDataWithExpiration(timeKey, String.valueOf(now), 24 * 60 * 60 * 1000L);
                         }
                     }

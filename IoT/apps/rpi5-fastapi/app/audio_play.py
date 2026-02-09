@@ -1,4 +1,4 @@
-# app/audio_play.py
+
 import asyncio
 import logging
 import os
@@ -59,7 +59,7 @@ async def _warmup_output_device(*, out_dev: str, rate_hz: int, channels: int, ms
     - 비용은 0.2초 정도, 1회만 수행.
     """
     frames = int(rate_hz * (ms / 1000.0))
-    # s16le: 2 bytes/sample
+    
     bytes_len = frames * channels * 2
     silent = b"\x00" * bytes_len
 
@@ -199,7 +199,7 @@ class AudioPlayback:
         3) ffmpeg는 SIGTERM(또는 terminate) 후 짧게 대기
         4) aplay는 terminate하지 말고 짧게 기다렸다가, 너무 오래 걸릴 때만 terminate/kill
         """
-        # 1) pump 중지(파이프 끊김)
+        
         if self.pump_task and not self.pump_task.done():
             self.pump_task.cancel()
             try:
@@ -207,10 +207,10 @@ class AudioPlayback:
             except Exception:
                 pass
 
-        # 2) aplay 자연 종료 유도(EOF)
+        
         await self._soft_close_aplay_stdin()
 
-        # 3) ffmpeg 종료
+        
         try:
             if self.ffmpeg and self.ffmpeg.returncode is None:
                 try:
@@ -221,7 +221,7 @@ class AudioPlayback:
             pass
 
     async def stop(self):
-        # --- HDMI 안정성: 기본은 soft stop 우선 ---
+        
         soft = _env_bool("AUDIO_SOFT_STOP", True)
         if soft:
             await self._soft_stop()
@@ -243,7 +243,7 @@ class AudioPlayback:
                 except Exception:
                     pass
 
-        # soft stop이면 aplay terminate를 최대한 피한다(HDMI drop 방지)
+        
         if not soft:
             for p in (self.ffmpeg, self.aplay):
                 try:
@@ -252,15 +252,15 @@ class AudioPlayback:
                 except Exception:
                     pass
         else:
-            # ffmpeg만 정리 시도(필요하면)
+            
             try:
                 if self.ffmpeg and self.ffmpeg.returncode is None:
                     self.ffmpeg.terminate()
             except Exception:
                 pass
 
-        # 프로세스 wait: soft면 aplay는 조금 더 기다린다(자연 drain)
-        # (HDMI 쪽이 "끊김" 대신 "정상 종료"로 인식하도록)
+        
+        
         try:
             if self.ffmpeg:
                 await asyncio.wait_for(self.ffmpeg.wait(), timeout=1.0)
@@ -274,12 +274,12 @@ class AudioPlayback:
         try:
             if self.aplay:
                 if soft:
-                    # 짧게만 기다림(너무 오래 hang 방지)
+                    
                     await asyncio.wait_for(self.aplay.wait(), timeout=2.5)
                 else:
                     await asyncio.wait_for(self.aplay.wait(), timeout=1.0)
         except Exception:
-            # 정말 안 끝나면 그때만 terminate/kill
+            
             try:
                 if self.aplay and self.aplay.returncode is None:
                     self.aplay.terminate()
@@ -311,12 +311,12 @@ class AudioPlayback:
                     except Exception:
                         pass
 
-            # ffmpeg는 보통 이미 끝나있음. 정상 종료 기다리기
+            
             try:
                 if self.ffmpeg and self.ffmpeg.returncode is None:
                     await asyncio.wait_for(self.ffmpeg.wait(), timeout=2.0)
             except Exception:
-                # ffmpeg가 이상하게 붙어있으면 그때만 정리
+                
                 try:
                     if self.ffmpeg and self.ffmpeg.returncode is None:
                         self.ffmpeg.terminate()
@@ -328,20 +328,20 @@ class AudioPlayback:
                     except Exception:
                         pass
 
-            # 핵심: aplay는 stdin EOF 후에도 장치 버퍼를 비우며 재생한다.
-            # 따라서 terminate하지 말고 "충분히 기다린다".
+            
+            
             try:
                 if self.aplay and self.aplay.returncode is None:
-                    # duration 기반 timeout (최소 15s, 최대 180s)
+                    
                     if self.src_duration_sec and self.src_duration_sec > 0:
                         timeout_sec = float(self.src_duration_sec) + 8.0
                         timeout_sec = max(15.0, min(180.0, timeout_sec))
                     else:
-                        # duration을 모르겠으면 기존보다 넉넉히(혹시 긴 파일)
+                        
                         timeout_sec = 60.0
                     await asyncio.wait_for(self.aplay.wait(), timeout=timeout_sec)
             except Exception:
-                # 너무 오래 걸리면 그때만 종료
+                
                 try:
                     if self.aplay and self.aplay.returncode is None:
                         self.aplay.terminate()
@@ -375,13 +375,13 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0, start_delay_ms: 
     if start_delay_ms and start_delay_ms > 0:
         await asyncio.sleep(start_delay_ms / 1000.0)
 
-    # ---- ffmpeg probe 안정화(voice mp3 변칙 대응) ----
-    # 기존: probesize=32k, analyzeduration=0 은 "빠르지만" 일부 mp3에서 불안정할 수 있음
-    # HDMI drop/무음/디코드 에러 완화용으로 기본값을 조금 올리고, env로 조절 가능하게.
+    
+    
+    
     probesize = os.getenv("AUDIO_FFPROBE_PROBESIZE", "256k").strip() or "256k"
     analyzedur = os.getenv("AUDIO_FFMPEG_ANALYZE_DURATION", "200k").strip() or "200k"
 
-    # duration은 재생 안정성(기다리는 시간)용이라 실패해도 OK
+    
     dur_sec = await _probe_audio_duration_sec(path, timeout_sec=2.0)
 
     out_dev = (AUDIO_OUT_DEVICE or "default").strip() or "default"
@@ -431,16 +431,16 @@ async def start_mp3_playback(path: str, *, volume: float = 1.0, start_delay_ms: 
     if aplay.stdin is None:
         raise RuntimeError("aplay.stdin is None")
 
-    # ffmpeg filter:
-    # - 프리롤: adelay로 앞부분 잘림 흡수
-    # - 볼륨: volume
-    # - 채널: mono 강제면 -ac 로 맞추는 게 가장 단순
+    
+    
+    
+    
     if channels == 2:
         delay = f"{preroll_ms}|{preroll_ms}"
     else:
         delay = f"{preroll_ms}"
 
-    # resample 안정화(클럭 드리프트/언더런 완화)
+    
     base = f"aresample=async=1:first_pts=0"
     if preroll_ms > 0:
         af = f"adelay={delay},{base},afade=t=in:ss=0:d=0.03,volume={volume:.2f}"

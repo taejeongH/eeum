@@ -55,12 +55,12 @@ const parsedSummary = computed(() => {
     const summary = healthStore.currentReport?.summary;
     if (!summary) return '데이터 분석 중...';
     
-    // 1. If it's already an object (and has 'text' field)
+    
     if (typeof summary === 'object') {
         return summary.text || '요약 정보를 가져올 수 없습니다.';
     }
     
-    // 2. If it's a JSON string, try to parse it
+    
     if (typeof summary === 'string' && summary.trim().startsWith('{')) {
         try {
             const parsed = JSON.parse(summary);
@@ -88,19 +88,19 @@ const lastSyncTime = computed(() => {
 
 const fetchData = async () => {
     try {
-        await familyStore.fetchFamilies(); // Already cached
+        await familyStore.fetchFamilies(); 
         const familyId = familyStore.selectedFamily?.id;
         if (!familyId) return;
 
-        // Use cached members from store
+        
         const members = await familyStore.fetchMembers(familyId);
         
-        // 1. Try to find dependent from family list first (if DTO has it)
+        
         const currentFamily = familyStore.families.find(f => f.id === familyId);
         if (currentFamily?.dependentName) {
             dependentName.value = currentFamily.dependentName;
         } else {
-            // 2. Fallback: Find dependent from member list
+            
             const dependent = members.find(m => m.dependent || m.isDependent);
             if (dependent) {
                 dependentName.value = dependent.name;

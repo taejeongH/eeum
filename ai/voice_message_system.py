@@ -4,7 +4,7 @@ from datetime import datetime
 import torchaudio
 from pydub import AudioSegment
 
-# Matcha-TTS 경로 추가
+
 sys.path.append('third_party/Matcha-TTS')
 from cosyvoice.cli.cosyvoice import AutoModel
 
@@ -34,22 +34,22 @@ class VoiceMessageSystem:
         """
         file_ext = os.path.splitext(audio_path)[1].lower()
         
-        # 이미 WAV 형식이면 그대로 반환
+        
         if file_ext == '.wav':
             return audio_path
         
         print(f"  '{file_ext}' 파일을 WAV로 변환 중...")
         
         try:
-            # 파일명 생성
+            
             filename = os.path.basename(audio_path)
             wav_filename = os.path.splitext(filename)[0] + '_converted.wav'
             wav_path = os.path.join(self.temp_dir, wav_filename)
             
-            # 오디오 로드 및 변환
+            
             audio = AudioSegment.from_file(audio_path)
             
-            # WAV로 내보내기 (16kHz, mono 권장)
+            
             audio = audio.set_frame_rate(16000).set_channels(1)
             audio.export(wav_path, format='wav')
             
@@ -73,7 +73,7 @@ class VoiceMessageSystem:
                 print(f"⚠ 경고: {audio_path} 파일을 찾을 수 없습니다.")
                 continue
             
-            # WAV로 변환 (필요한 경우)
+            
             try:
                 wav_path = self.convert_to_wav(audio_path)
                 self.voice_samples[name] = {
@@ -114,7 +114,7 @@ class VoiceMessageSystem:
         prompt_text = f"You are a helpful assistant.<|endofprompt|>{sample['transcript']}"
         
         try:
-            # WAV로 변환된 경로 사용
+            
             wav_audio_path = sample['audio_path']
             
             for i, output in enumerate(self.cosyvoice.inference_zero_shot(
@@ -164,10 +164,10 @@ class VoiceMessageSystem:
 
 
 if __name__ == "__main__":
-    # 시스템 초기화
+    
     system = VoiceMessageSystem()
     
-    # 5개의 샘플 등록 (m4a, mp3, wav 모두 가능!)
+    
     voice_samples = [
         {
             'name': '인사',
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     
     system.register_voice_samples(voice_samples)
     
-    # 단일 메시지 전송
+    
     print("\n" + "="*50)
     print("단일 메시지 전송 예시")
     print("="*50)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         sample_name='격려'
     )
     
-    # 여러 메시지 한 번에 전송
+    
     print("\n" + "="*50)
     print("여러 메시지 일괄 전송 예시")
     print("="*50)
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     
     results = system.send_multiple_messages(messages_to_send)
     
-    # 결과 확인
+    
     print("\n생성된 파일들:")
     for r in results:
         if r['success']:

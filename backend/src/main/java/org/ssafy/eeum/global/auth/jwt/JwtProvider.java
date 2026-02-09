@@ -55,7 +55,7 @@ public class JwtProvider {
     }
 
     public String createDeviceAccessToken(Integer groupId) {
-        // 기기는 토큰 갱신 이슈를 최소화하기 위해 1년(365일) 동안 유효하도록 설정
+        
         long oneYear = 1000L * 60 * 60 * 24 * 365;
         return createToken(0, "GROUP:" + groupId, "ROLE_DEVICE", groupId, oneYear);
     }

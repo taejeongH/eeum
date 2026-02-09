@@ -40,7 +40,7 @@ public class MessageTtsAsyncService {
         }
 
         try {
-            // Case 1: Deferred processing (Task ID returned)
+            
             if (voiceUrl != null && voiceUrl.startsWith("TASK_ID:")) {
                 Integer taskId = Integer.parseInt(voiceUrl.substring(8));
                 log.info("[TTS Async] messageId: {} TTS generation delayed. Waiting (Task ID: {}).", messageId, taskId);
@@ -51,26 +51,26 @@ public class MessageTtsAsyncService {
                         messageRepository.save(msg);
                     });
                 });
-                // REMOVED: return; -> Proceed to Log Creation (VoiceUrl will be null here,
-                // effectively Text-Only for now)
+                
+                
 
-                // [MODIFIED] Return immediately to prevent sending "Text-Only" notification.
-                // The actual notification will be sent by VoiceWebhookController when TTS is
-                // completed.
+                
+                
+                
                 return;
             }
 
-            // Case 2: Immediate completion or Text-only fallback
+            
             Message message = messageRepository.findById(messageId).orElse(null);
             if (message != null) {
-                // If we have a voice URL (success), update the message
+                
                 if (voiceUrl != null) {
                     String voiceKey = voiceService.extractS3Key(voiceUrl);
                     message.updateVoiceUrl(voiceKey);
                     messageRepository.save(message);
                 }
 
-                // Create VoiceLog (Triggers IoT Sync for both Voice and Text messages)
+                
                 VoiceLog voiceLog = VoiceLog.builder()
                         .groupId(groupId)
                         .voiceId(messageId)
@@ -78,7 +78,7 @@ public class MessageTtsAsyncService {
                         .build();
                 voiceLogRepository.save(voiceLog);
 
-                // Notify IoT
+                
                 iotSyncService.notifyUpdate(groupId, "voice");
 
                 log.info("[TTS Async] Message processing completed. ID: {}, HasVoice: {}", messageId,

@@ -1,4 +1,4 @@
-# app/http.py
+
 import aiohttp
 import logging
 from typing import Any, Dict
@@ -18,7 +18,7 @@ async def async_http_get_json(
 
     session = getattr(state, "http_session", None)
     if session is None or session.closed:
-        # 여기서 임시 세션 만들면 정책이 깨짐 -> 바로 실패 처리
+        
         logger.error(
             "[http] shared session missing/closed (BUG) url=%s session=%s closed=%s",
             url,

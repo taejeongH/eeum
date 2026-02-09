@@ -1,7 +1,7 @@
 <script setup>
 import { useSamsungHealth } from '../composables/useSamsungHealth.js';
 
-// 💡 여기서 반드시 fetchHeartRate를 꺼내와야 템플릿에서 쓸 수 있습니다.
+
 const { heartRate, isLoading, fetchHeartRate } = useSamsungHealth();
 </script>
 

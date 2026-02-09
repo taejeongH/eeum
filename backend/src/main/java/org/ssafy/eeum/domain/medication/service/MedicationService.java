@@ -94,7 +94,7 @@ public class MedicationService {
                     mqttService.sendAlarm(device.getSerialNumber(), "medication", content, data);
                 }
 
-                // 다음 알람 예약
+                
                 medicationAlarmRedisService.scheduleAlarm(plan);
 
             } catch (Exception e) {
@@ -108,11 +108,11 @@ public class MedicationService {
             case DAILY:
                 return true;
             case WEEKLY:
-                // daysOfWeek는 비트마스크 (Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64)
+                
                 int dayBit = 1 << (today.getDayOfWeek().getValue() - 1);
                 return (plan.getDaysOfWeek() & dayBit) != 0;
             case INTERVAL:
-                // start_date부터 cycle_value(일수) 간격으로 체크
+                
                 long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(plan.getStartDate(), today);
                 int interval = Integer.parseInt(plan.getCycleValue());
                 return daysBetween >= 0 && daysBetween % interval == 0;
@@ -194,7 +194,7 @@ public class MedicationService {
             throw new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS);
         }
         
-        // Update fields
+        
         medicationPlan.update(
                 request.getMedicineName(),
                 request.getCycleType(),
@@ -204,13 +204,13 @@ public class MedicationService {
                 request.getStartDate(),
                 request.getEndDate());
 
-        // Update Times (Clear and Re-add)
+        
         medicationPlan.getNotificationTimes().clear();
         for (java.time.LocalTime time : request.getNotificationTimes()) {
             medicationPlan.addNotificationTime(time);
         }
 
-        // Redis 스케줄 갱신
+        
         medicationAlarmRedisService.cancelAlarms(medicationId);
         medicationAlarmRedisService.scheduleAlarm(medicationPlan);
     }

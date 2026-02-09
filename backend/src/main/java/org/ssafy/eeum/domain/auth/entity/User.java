@@ -11,9 +11,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays; // Added import
+import java.util.Arrays; 
 import java.util.List;
-import java.util.StringJoiner; // Added import
+import java.util.StringJoiner; 
 
 @Entity
 @Table(name = "users")
@@ -120,7 +120,7 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void updateHealthInfo(String bloodType, List<String> chronicDiseases) { // Changed parameter type
+    public void updateHealthInfo(String bloodType, List<String> chronicDiseases) { 
         if (bloodType != null) {
             this.bloodType = bloodType;
         }
@@ -131,7 +131,7 @@ public class User {
             }
             this.chronicDiseases = sj.toString();
         } else if (chronicDiseases != null && chronicDiseases.isEmpty()) {
-            this.chronicDiseases = null; // Clear if an empty list is passed
+            this.chronicDiseases = null; 
         }
         this.updatedAt = LocalDateTime.now();
     }

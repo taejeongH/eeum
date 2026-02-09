@@ -58,7 +58,7 @@ public class TtsCleanupScheduler {
 
                 String resultOrStatus = voiceAiClient.checkJobStatus(jobId);
 
-                // 실패 처리
+                
                 if (resultOrStatus == null || "ERROR".equals(resultOrStatus)) {
                     log.warn("[TTS Cleanup) Job {} 응답 지연 또는 통신 에러 (상태: {}). 다음 주기에 재시도합니다.", jobId, resultOrStatus);
                     continue;
@@ -75,7 +75,7 @@ public class TtsCleanupScheduler {
                     continue;
                 }
 
-                // 완료 처리
+                
                 if (resultOrStatus.startsWith("http")) {
                     String s3Key = resultOrStatus;
                     if (task.getType() != VoiceTask.TaskType.TRAINING) {
@@ -111,7 +111,7 @@ public class TtsCleanupScheduler {
                 message.updateVoiceUrl(task.getResultUrl());
                 messageRepository.save(message);
 
-                // [ADDED] VoiceLog Creation for Polling Logic
+                
                 org.ssafy.eeum.domain.voice.entity.VoiceLog voiceLog = org.ssafy.eeum.domain.voice.entity.VoiceLog
                         .builder()
                         .groupId(message.getGroup().getId())
@@ -140,11 +140,11 @@ public class TtsCleanupScheduler {
         int count = (task.getPollCount() == null) ? 0 : task.getPollCount();
 
         if (count < 10)
-            return secondsSinceLastPoll >= 10; // 초기 10회는 10초마다
+            return secondsSinceLastPoll >= 10; 
         if (count < 30)
-            return secondsSinceLastPoll >= 60; // 이후 20회는 1분마다
+            return secondsSinceLastPoll >= 60; 
         if (count < 60)
-            return secondsSinceLastPoll >= 300; // 이후 30회는 5분마다
-        return secondsSinceLastPoll >= 3600; // 그 이후는 한 시간마다
+            return secondsSinceLastPoll >= 300; 
+        return secondsSinceLastPoll >= 3600; 
     }
 }

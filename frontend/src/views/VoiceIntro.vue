@@ -86,7 +86,7 @@ const toggleRecording = () => {
 const startRecording = () => {
     isRecording.value = true;
     
-    // Auto-stop simulation after 3 seconds and go to step 1
+    
     setTimeout(() => {
         if(isRecording.value) stopRecording();
     }, 3000);
@@ -94,7 +94,7 @@ const startRecording = () => {
 
 const stopRecording = () => {
     isRecording.value = false;
-    // Navigate to actual registration steps
+    
     const familyId = familyStore.selectedFamily?.id;
     if (familyId) {
         router.push(`/families/${familyId}/voice-register`);
@@ -114,6 +114,6 @@ const stopRecording = () => {
     100% { transform: scale(0.8); opacity: 0.4; }
 }
 .mic-shadow {
-    box-shadow: 0 10px 25px -5px rgba(231, 111, 81, 0.4); /* Primary color shadow approx */
+    box-shadow: 0 10px 25px -5px rgba(231, 111, 81, 0.4); 
 }
 </style>

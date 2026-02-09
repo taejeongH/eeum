@@ -1,4 +1,4 @@
-# app/tts_service.py
+
 import os
 import re
 import time
@@ -10,7 +10,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import Optional
 from app.config import DEFAULT_TTS_PATH, DEFAULT_TTS_BY_KIND
-from gtts import gTTS  # 인터넷 필요
+from gtts import gTTS  
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +20,12 @@ def _safe_slug(text: str, max_len: int = 64) -> str:
     return (s[:max_len] or "tts")
 
 def _text_hash(text: str) -> str:
-    # 파일명 충돌 방지용: 짧고 안정적인 해시(앞 10자면 충분)
+    
     h = hashlib.sha256((text or "").encode("utf-8")).hexdigest()
     return h[:10]
 
 def _is_valid_cached_mp3(path: str, *, min_bytes: int = 1024) -> bool:
-    # 깨진/빈 파일을 cache_hit로 잘못 판단하지 않도록 최소 크기 검사
+    
     try:
         return os.path.exists(path) and os.path.getsize(path) >= int(min_bytes)
     except Exception:
@@ -76,7 +76,7 @@ async def ensure_tts_mp3(
     os.makedirs(out_dir, exist_ok=True)
     _cleanup_old_tmp(out_dir, older_than_sec=300.0, max_remove=20)
     slug = _safe_slug(text)
-    # ★ slug만 쓰면 서로 다른 문장이 같은 파일명으로 수렴할 수 있음 -> 해시를 붙여 충돌 방지
+    
     h = _text_hash(text)
     path = os.path.join(out_dir, f"{slug}.{h}.mp3")
     tmp = path + f".tmp.{uuid.uuid4().hex}"
@@ -88,7 +88,7 @@ async def ensure_tts_mp3(
         t0 = time.time()
         tts = gTTS(text=text, lang=lang)
         tts.save(tmp)
-        # 저장 성공한 tmp만 최종 반영(원자적)
+        
         os.replace(tmp, path)
         return time.time() - t0
 
@@ -100,7 +100,7 @@ async def ensure_tts_mp3(
         logger.warning("[tts] generate timeout slug=%s timeout=%.1fs", slug, float(timeout_sec))
         return TTSResult(ok=False, path=None, message="timeout", generated=False)
     except Exception as e:
-        # 인터넷/Wi-Fi 끊김 포함
+        
         try:
             if os.path.exists(tmp):
                 os.remove(tmp)
@@ -118,7 +118,7 @@ def get_default_tts_path(kind: str) -> str | None:
     if not msg:
         return None
     slug = _safe_slug(msg)
-    # default 파일은 기존 규칙 유지(프로비저닝된 파일명과 호환)
+    
     path = os.path.join(DEFAULT_TTS_PATH, f"{slug}.mp3")
     if not _is_valid_cached_mp3(path, min_bytes=1024):
         logger.warning("[default_tts] missing file kind=%s msg=%r path=%s", kind, msg, path)

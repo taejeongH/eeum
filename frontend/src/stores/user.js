@@ -9,11 +9,11 @@ export const useUserStore = defineStore('user', () => {
   const isAuthenticated = computed(() => !!profile.value);
 
   async function fetchUser(force = false) {
-    // [Cache Check] 강제 갱신이 아니고 이미 프로필이 있다면 skip
+    
     if (!force && profile.value) return true;
 
     try {
-      // 배경에서 조용히 업데이트 (silent header 사용)
+      
       const response = await getUserProfile({ headers: { silent: true } });
       profile.value = response.data;
       return true;

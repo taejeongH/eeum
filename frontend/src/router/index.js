@@ -41,7 +41,7 @@ const routes = [
   },
   {
     path: '/login',
-    name: 'login', // 소문자 login으로 통일
+    name: 'login', 
     component: LoginView
   },
   {
@@ -223,19 +223,19 @@ const router = createRouter({
   routes,
 });
 
-// 전역 가드 설정
+
 router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   const userStore = useUserStore();
 
-  // 1. 로그인 상태인 경우
+  
   if (token) {
     if (to.name === 'login') {
       return next({ name: 'HomePage' });
     }
 
-    // 초기 설정 대상인지 확인 (프로필 이름이 비어있는 경우)
-    // 데이터 로드가 안되어 있으면 시도
+    
+    
     if (!userStore.profile) {
       await userStore.fetchUser();
     }
@@ -250,7 +250,7 @@ router.beforeEach(async (to, from, next) => {
     return next();
   }
 
-  // 2. 비로그인 상태
+  
   if (to.name !== 'login' && to.name !== 'onboarding' && to.name !== 'signup' && to.name !== 'FindAccount') {
     return next({ name: 'login' });
   }

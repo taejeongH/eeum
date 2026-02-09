@@ -21,10 +21,10 @@
 </template>
 
 <script setup>
-// Props usually not needed for pure icon wrapper if using Tailwind classes for size/color
-// But we allow passing class
+
+
 </script>
 
 <style scoped>
-/* Optional specific styles if needed */
+
 </style>

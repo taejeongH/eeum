@@ -21,7 +21,7 @@ onUnmounted(() => {
 </template>
 
 <style>
-/* Global Reset or specific styles if needed */
+
 html, body, #app {
   width: 100%;
   height: 100%;

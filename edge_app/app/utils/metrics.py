@@ -31,14 +31,14 @@ class MetricsCollector:
         self.log_path = Path(log_path)
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # 메트릭 저장소
+        
         self.counters = defaultdict(int)
         self.timings = defaultdict(list)
         self.start_time = time.time()
         self.frame_count = 0
         
-        # 시간 추적 (abnormal_enter → level1 레이턴시 측정)
-        self.pending_events = {}  # event_id -> timestamp
+        
+        self.pending_events = {}  
         
     def record_event(self, event_type: str, metadata: Dict[str, Any] = None):
         """
@@ -59,14 +59,14 @@ class MetricsCollector:
         if metadata:
             event_data.update(metadata)
         
-        # 레이턴시 추적
+        
         if event_type == "abnormal_enter":
             event_id = self.counters[event_type]
             self.pending_events[event_id] = time.time()
             event_data["event_id"] = event_id
             
         elif event_type == "level1":
-            # 가장 최근 pending 이벤트와 매칭
+            
             if self.pending_events:
                 event_id = max(self.pending_events.keys())
                 start_ts = self.pending_events.pop(event_id)
@@ -74,7 +74,7 @@ class MetricsCollector:
                 self.timings["abnormal_to_level1"].append(latency)
                 event_data["latency_ms"] = latency * 1000
         
-        # JSONL로 저장
+        
         with open(self.log_path, "a") as f:
             f.write(json.dumps(event_data, ensure_ascii=False) + "\n")
     
@@ -92,7 +92,7 @@ class MetricsCollector:
             "event_breakdown": dict(self.counters),
         }
         
-        # 레이턴시 통계
+        
         if self.timings["abnormal_to_level1"]:
             latencies = self.timings["abnormal_to_level1"]
             summary["latency_stats"] = {
@@ -102,7 +102,7 @@ class MetricsCollector:
                 "samples": len(latencies),
             }
         
-        # FPS 통계
+        
         if self.timings["fps"]:
             fps_list = self.timings["fps"]
             summary["fps_stats"] = {
@@ -111,7 +111,7 @@ class MetricsCollector:
                 "max": round(max(fps_list), 1),
             }
         
-        # 정확도 계산 (level1 / abnormal_enter)
+        
         if self.counters["abnormal_enter"] > 0:
             accuracy = self.counters["level1"] / self.counters["abnormal_enter"]
             summary["accuracy"] = {
@@ -119,7 +119,7 @@ class MetricsCollector:
                 "false_positive_rate": round((1 - accuracy) * 100, 1),
             }
         
-        # False positive 추정 (abnormal_enter - level1 확정 안 된 것)
+        
         unconfirmed = len(self.pending_events)
         if unconfirmed > 0:
             summary["pending_events"] = unconfirmed
@@ -145,19 +145,19 @@ class MetricsCollector:
         print(f"[METRICS] 요약 - {summary['elapsed_time_sec']}초 경과")
         print("="*60)
         
-        # 이벤트 분포
+        
         print(f"전체 이벤트: {summary['total_events']}")
         for event_type, count in summary['event_breakdown'].items():
             print(f"  - {event_type}: {count}")
         
-        # 정확도
+        
         if "accuracy" in summary:
             acc = summary["accuracy"]
             print(f"\n정확도:")
             print(f"  - Level1 비율: {acc['level1_rate']}%")
             print(f"  - 거짓 양성: {acc['false_positive_rate']}%")
         
-        # 레이턴시
+        
         if "latency_stats" in summary:
             lat = summary["latency_stats"]
             print(f"\n레이턴시 (abnormal → level1):")
@@ -165,14 +165,14 @@ class MetricsCollector:
             print(f"  - 범위: {lat['min_ms']}~{lat['max_ms']}ms")
             print(f"  - 샘플: {lat['samples']}")
         
-        # FPS
+        
         if "fps_stats" in summary:
             fps = summary["fps_stats"]
             print(f"\n처리 FPS:")
             print(f"  - 평균: {fps['avg']}")
             print(f"  - 범위: {fps['min']}~{fps['max']}")
         
-        # Pending
+        
         if "pending_events" in summary:
             print(f"\n⚠️  대기 중인 이벤트: {summary['pending_events']}")
         
@@ -197,12 +197,12 @@ class MetricsCollector:
         return str(output_path)
 
 
-# 사용 예제
+
 if __name__ == "__main__":
-    # 테스트
+    
     metrics = MetricsCollector()
     
-    # 시뮬레이션
+    
     for i in range(10):
         metrics.record_event("abnormal_enter", {"confidence": 0.8})
         time.sleep(0.5)
@@ -213,8 +213,8 @@ if __name__ == "__main__":
         
         metrics.record_fps(25 + (i % 5))
     
-    # 요약 출력
+    
     metrics.print_summary(force=True)
     
-    # JSON 내보내기
+    
     metrics.export_json()

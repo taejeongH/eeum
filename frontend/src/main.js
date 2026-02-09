@@ -16,19 +16,19 @@ app.use(router);
 
 app.mount("#app");
 
-// [NEW] Global Error Handler
+
 app.config.errorHandler = (err, instance, info) => {
     Logger.error(`Global Error: ${info}`, err);
 };
 
-// [NEW] Promise Rejection Handler
+
 window.addEventListener('unhandledrejection', (event) => {
     Logger.warn(`Unhandled Promise Rejection:`, event.reason);
 });
 
 
 
-// [NEW] 앱 마운트 완료 후 초기 로더 제거
+
 const loader = document.getElementById('initial-loader');
 if (loader) {
 

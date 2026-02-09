@@ -221,11 +221,11 @@ const familyId = ref(route.params.familyId);
 const medications = ref([]);
 const isLoading = ref(true);
 const isModalOpen = ref(false);
-const viewMode = ref('LIST'); // 'LIST' or 'SCHEDULE'
+const viewMode = ref('LIST'); 
 
 const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
-// Color Palette for deterministic assignment
+
 const colorPalette = [
   { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
   { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
@@ -244,36 +244,36 @@ const colorPalette = [
 ];
 
 const getMedicationColor = (id) => {
-    // Deterministic color based on ID
+    
     if (!id) return colorPalette[0];
     const index = id % colorPalette.length;
     return colorPalette[index];
 };
 
-// Generate Weekly Schedule Data
+
 const weeklySchedule = computed(() => {
     const schedule = {};
-    // Initialize empty slots for each day
+    
     weekDays.forEach(day => {
-        schedule[day] = {}; // Key: time (hour), Value: Array of meds
+        schedule[day] = {}; 
     });
 
     medications.value.forEach(med => {
-        // Find applicable days
+        
         let applicableDays = [];
         if (med.cycleType === 'DAILY') {
             applicableDays = weekDays;
         } else if (med.cycleType === 'WEEKLY') {
-            // Bitmask decode
+            
             const mask = med.daysOfWeek;
-            const masks = [1, 2, 4, 8, 16, 32, 64]; // Mon-Sun
+            const masks = [1, 2, 4, 8, 16, 32, 64]; 
             applicableDays = weekDays.filter((_, idx) => (mask & masks[idx]) !== 0);
         }
 
-        // Add to schedule for each notification time
+        
         if (med.notificationTimes) {
             med.notificationTimes.forEach(time => {
-                const hour = parseInt(time.split(':')[0], 10); // Simple grouping by hour for visualization
+                const hour = parseInt(time.split(':')[0], 10); 
                 
                 applicableDays.forEach(day => {
                     if (!schedule[day][hour]) {
@@ -289,7 +289,7 @@ const weeklySchedule = computed(() => {
         }
     });
 
-    // Final sort for each hour bucket to ensure minutes are ordered
+    
     weekDays.forEach(day => {
         Object.keys(schedule[day]).forEach(hour => {
             schedule[day][hour].sort((a, b) => a.exactTime.localeCompare(b.exactTime));
@@ -299,13 +299,13 @@ const weeklySchedule = computed(() => {
     return schedule;
 });
 
-// Compute Active Hours (sorted unique hours that have meds)
+
 const activeHours = computed(() => {
     const hours = new Set();
     const schedule = weeklySchedule.value;
     weekDays.forEach(day => {
         Object.keys(schedule[day] || {}).forEach(h => {
-             // ensure it has items
+             
              if (schedule[day][h] && schedule[day][h].length > 0) {
                  hours.add(parseInt(h, 10));
              }
@@ -360,7 +360,7 @@ const handleAddMedication = async (medData) => {
         await modalStore.openAlert('추가되었습니다.');
 
         closeModal();
-        fetchMedications(); // Refresh list
+        fetchMedications(); 
     } catch (error) {
         Logger.error('Failed to add medication:', error);
         await modalStore.openAlert('추가에 실패했습니다.');
@@ -368,7 +368,7 @@ const handleAddMedication = async (medData) => {
 };
 
 onMounted(() => {
-    // Sync if needed
+    
     if (!familyId.value && selectedFamily.value) {
         familyId.value = selectedFamily.value.id;
         router.replace({ name: 'MedicationList', params: { familyId: familyId.value } });
@@ -379,7 +379,7 @@ onMounted(() => {
     }
 });
 
-// Watch Route Changes
+
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
         familyId.value = newId;
@@ -387,7 +387,7 @@ watch(() => route.params.familyId, (newId) => {
     }
 });
 
-// Watch Store Changes (Group Selector)
+
 watch(selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
         if (String(newFamily.id) !== String(route.params.familyId)) {
@@ -396,7 +396,7 @@ watch(selectedFamily, (newFamily) => {
     }
 });
 
-// Utilities
+
 const getCycleLabel = (type) => {
     const map = { 'DAILY': '매일', 'WEEKLY': '매주' };
     return map[type] || type;

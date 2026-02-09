@@ -122,12 +122,12 @@ const startPrecesionMeasuring = async () => {
         avgCount.value = 0;
         currentEventId.value = null;
         
-        // 1. 워치 측정 명령 전송 (Event ID 없음)
+        
         if (familyStore.selectedFamily?.id) {
             await healthService.requestMeasurement(familyStore.selectedFamily.id);
         }
 
-        // 2. 30초 카운트다운 시작
+        
         timerInterval = setInterval(() => {
             timer.value--;
             if (timer.value <= 0) {
@@ -151,7 +151,7 @@ const finishMeasurement = async () => {
     }
 
     try {
-        // 백엔드에 결과 요청 (최근 측정값)
+        
         const data = await healthService.getLatestHeartRate(familyStore.selectedFamily.id);
         if (data) {
             heartRate.value = Math.round(data.avgRate || 0);

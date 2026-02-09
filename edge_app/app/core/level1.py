@@ -74,25 +74,25 @@ class Level1Params:
     level1_hold_s: float = 1.0
     level1_cooldown_s: float = 25.0
 
-    # 오탐 줄이는 핵심: 단발 신호가 아니라 "짧은 지속" 요구
-    enter_confirm_s: float = 0.35          # 0.3~0.5 권장
-    enter_confirm_need: int = 2            # 아래 3개(드랍/자세/어깨) 중 N개 만족해야 ABNORMAL
-    posture_persist_s: float = 0.25        # posture_signal이 이 정도는 연속이어야 인정
-    shoulder_drop_persist_s: float = 0.20  # shoulder_drop도 연속성 요구
+    
+    enter_confirm_s: float = 0.35          
+    enter_confirm_need: int = 2            
+    posture_persist_s: float = 0.25        
+    shoulder_drop_persist_s: float = 0.20  
 
-    # timeout으로 Level1 올릴 때 "confirm" 없으면 막기
+    
     timeout_requires_confirm: bool = True
 
-    # ABNORMAL 진입 직후는 값 튐이 많아서 회복 판정 금지(오탐/튐 방지)
+    
     recover_grace_s: float = 0.8
 
-    # ABNORMAL 중 "붕괴 confirm" 조건(둘 중 하나 만족하면 confirm)
-    confirm_aspect_rel: float = 0.65       # baseline 대비 이 비율보다 작아진 적이 있으면
-    confirm_aspect_abs: float = 1.0        # 또는 절대 aspect가 이보다 작아진 적이 있으면
+    
+    confirm_aspect_rel: float = 0.65       
+    confirm_aspect_abs: float = 1.0        
 
-    height_baseline_window_s: float = 3.0     # 서있는 높이 baseline용
-    height_ratio_th: float = 0.65             # baseline 대비 65% 이하로 줄면 붕괴
-    height_persist_s: float = 0.20            # 연속 유지 시간
+    height_baseline_window_s: float = 3.0     
+    height_ratio_th: float = 0.65             
+    height_persist_s: float = 0.20            
 
 
 class Level1Engine:
@@ -139,15 +139,15 @@ class Level1Engine:
         self.level1_ts: Optional[float] = None
         self.cooldown_until_ts: float = 0.0
 
-        # 오탐 줄이는 핵심 상태들
+        
         self.enter_acc_s: float = 0.0
         self.posture_acc_s: float = 0.0
         self.shoulder_acc_s: float = 0.0
 
-        # timeout Level1을 막기 위한 confirm latch
+        
         self.abnormal_confirmed: bool = False
 
-        self.height_hist = deque()   # (ts, h)
+        self.height_hist = deque()   
         self.height_acc_s: float = 0.0
         self.baseline_h_at_enter: Optional[float] = None
 
@@ -186,12 +186,12 @@ class Level1Engine:
 
         self.present_streak = 0
 
-        # 유지
+        
         cooldown_until = self.cooldown_until_ts
         self.level1_ts = None
         self.cooldown_until_ts = cooldown_until
 
-        # 새로 추가된 누적/confirm 리셋
+        
         self.enter_acc_s = 0.0
         self.posture_acc_s = 0.0
         self.shoulder_acc_s = 0.0
@@ -553,7 +553,7 @@ class Level1Engine:
                 self.is_ghost_mode = False
                 self.ghost_start_ts = None
                 
-                # Confidence Score 계산
+                
                 conf_score, conf_detail = self._calculate_confidence(abnormal_duration=time_since_abnormal)
 
                 return {
@@ -598,28 +598,28 @@ class Level1Engine:
             if time_since_abnormal < self.p.recover_grace_s:
                 return None
 
-            # ---- Recovery (only) patch ----
+            
             base = self.baseline_at_enter if self.baseline_at_enter is not None else baseline
 
-            # 1) posture 회복 기준 완화: 0.90 -> 0.80(권장)  (파라미터 안 건드리려면 하드코딩)
+            
             recover_ratio = min(self.p.aspect_recover_ratio, 0.80)
             recovered_posture = (base is not None and aspect > base * recover_ratio)
 
-            # 2) upward 기준 완화 + 방향 안정화: 순간 튐 방지로 "조금만 위로"도 인정
+            
             recovered_upward = (vy is not None and vy < -0.12)
 
-            # 3) move 기준 완화 (제자리 기상 케이스)
+            
             recovered_move = (center_move is not None and center_move > 0.03)
 
-            # 4) 회복 판정: posture만으로도 회복 누적 가능하게 열어주되,
-            #    posture가 애매하면 upward 또는 move라도 있으면 인정
+            
+            
             recovered_now = recovered_posture or (recovered_upward and (recovered_posture or recovered_move))
 
-            # 5) 누적/감쇠: 한번 회복이 시작되면 조금 흔들려도 바로 0으로 리셋하지 않게 "감쇠"로 변경
+            
             if recovered_now:
                 self.recover_acc_s += dt
             else:
-                # 기존 0.0 리셋 대신, 서서히 감소(회복 직전 튐 방지)
+                
                 self.recover_acc_s = max(0.0, self.recover_acc_s - dt * 1.5)
 
 
@@ -680,28 +680,28 @@ class Level1Engine:
 
         s = self.abnormal_stats
         
-        # 1. 신호 강도 (40점)
-        # 1-1. 속도 (20점): 0.5 ~ 1.5 (정규화 단위/초) 매핑
+        
+        
         max_vy = s.get("max_vy", 0.0)
-        score_vy = min(20.0, max(0.0, (max_vy - 0.5) * 20.0))  # 0.5->0점, 1.5->20점
+        score_vy = min(20.0, max(0.0, (max_vy - 0.5) * 20.0))  
 
-        # 1-2. 자세 (20점): 1.0 ~ 0.4 (가로세로비) 매핑 (작을수록 누운 것)
+        
         min_aspect = s.get("min_aspect", 1.0)
-        # aspect 1.0(서있음/앉음) -> 0점, aspect 0.4(완전 누움) -> 20점
+        
         score_posture = min(20.0, max(0.0, (1.0 - min_aspect) * 33.3)) 
         
         score_signal = score_vy + score_posture
 
-        # 2. 정지 상태 (40점)
-        # abnormal 기간 동안 정지 상태 비율
+        
+        
         total_count = s.get("count", 1)
         still_count = s.get("still_count", 0)
         ratio_still = still_count / total_count if total_count > 0 else 0.0
         score_still = ratio_still * 40.0
 
-        # 3. 탐지 품질 (20점)
+        
         avg_quality = s.get("quality_sum", 0.0) / total_count if total_count > 0 else 0.0
-        score_qual = min(20.0, avg_quality * 20.0) # quality 1.0 -> 20점
+        score_qual = min(20.0, avg_quality * 20.0) 
 
         total_score = score_signal + score_still + score_qual
         
@@ -719,15 +719,15 @@ class Level1Engine:
 
 @dataclass
 class PresenceParams:
-    enter_hits: int = 5          # 연속 N프레임 "있음"이면 enter 확정
-    exit_hits: int = 10          # 연속 N프레임 "없음"이면 exit 확정
-    min_quality: float = 0.10    # has_person True여도 quality 낮으면 absent 취급
-    cool_down_s: float = 0.5     # 이벤트 연속 발사 방지(선택)
+    enter_hits: int = 5          
+    exit_hits: int = 10          
+    min_quality: float = 0.10    
+    cool_down_s: float = 0.5     
 
 class PresenceEngine:
     def __init__(self, p: PresenceParams):
         self.p = p
-        self.state = "ABSENT"   # ABSENT | PRESENT
+        self.state = "ABSENT"   
         self.present_cnt = 0
         self.absent_cnt = 0
         self.last_emit_ts: float = 0.0
@@ -763,7 +763,7 @@ class PresenceEngine:
             self.absent_cnt += 1
             self.present_cnt = 0
 
-        # 쿨다운(선택)
+        
         if self.p.cool_down_s > 0 and (ts - self.last_emit_ts) < self.p.cool_down_s:
             return None
 

@@ -24,10 +24,10 @@ public class StreamingHandler extends BinaryWebSocketHandler {
 
     private final AtomicInteger logCounter = new AtomicInteger(0);
 
-    // Device Session: deviceId -> Session
+    
     private final Map<String, WebSocketSession> deviceSessions = new ConcurrentHashMap<>();
 
-    // Viewer Sessions: deviceId -> Set<Session> (1:N Broadcasting)
+    
     private final Map<String, Set<WebSocketSession>> viewerSessions = new ConcurrentHashMap<>();
 
     private final org.ssafy.eeum.domain.iot.repository.IotDeviceRepository iotDeviceRepository;
@@ -41,7 +41,7 @@ public class StreamingHandler extends BinaryWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         log.info("WebSocket connected: {} | Client IP: {}", session.getId(), session.getRemoteAddress());
 
-        // [Logic Update] Handle Query Parameters (e.g., ?familyId=8)
+        
         try {
             java.net.URI uri = session.getUri();
             if (uri != null && uri.getQuery() != null) {
@@ -57,7 +57,7 @@ public class StreamingHandler extends BinaryWebSocketHandler {
                 }
             }
 
-            // [TEST MODE] Fallback removed as per request
+            
             if (!session.getAttributes().containsKey("deviceId")) {
                 log.info(
                         "ℹ️ No identity found in QueryParams. Connection maintained without subscribing to any device.");
@@ -106,7 +106,7 @@ public class StreamingHandler extends BinaryWebSocketHandler {
     }
 
     private void registerViewerByDeviceId(WebSocketSession session, String deviceId) {
-        // Ensure the set is thread-safe
+        
         viewerSessions.computeIfAbsent(deviceId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
         viewerSessions.get(deviceId).add(session);
 
@@ -117,16 +117,16 @@ public class StreamingHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        // Handle control messages (Register Device / Register Viewer)
+        
         String payload = message.getPayload();
-        log.info("Received Text Message from {}: {}", session.getId(), payload); // [LOG] Log all text messages
+        log.info("Received Text Message from {}: {}", session.getId(), payload); 
 
         try {
             JsonNode json = objectMapper.readTree(payload);
 
-            // Check if type exists
+            
             if (!json.has("type")) {
-                // If it's just connection check or ping, ignore
+                
                 return;
             }
 
@@ -143,15 +143,15 @@ public class StreamingHandler extends BinaryWebSocketHandler {
                 log.info("Device registered: {} (Session: {})", deviceId, session.getId());
 
             } else if ("REGISTER_VIEWER".equals(type)) {
-                // [FIX] Ignore redundant registration if already registered (e.g. by QueryParam
-                // or Fallback)
+                
+                
                 if (session.getAttributes().containsKey("deviceId")) {
                     String currentDevice = (String) session.getAttributes().get("deviceId");
                     log.warn("Ignored redundant REGISTER_VIEWER request. Already watching: {}", currentDevice);
                     return;
                 }
 
-                // Logic moved to helper methods, but we support dynamic switching if needed
+                
                 if (json.has("familyId")) {
                     int fid = json.get("familyId").asInt();
                     registerViewerByFamilyId(session, fid);
@@ -167,12 +167,12 @@ public class StreamingHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
-        // [DEBUG] Check if Jetson is sending data (Log every 30th frame)
+        
         if (logCounter.get() % 30 == 0) {
             log.info("Received binary frame from: {} (Size: {} bytes)", session.getId(), message.getPayloadLength());
         }
 
-        // Relay binary data (JPEG Frame) from Device to Viewers
+        
         String role = (String) session.getAttributes().get("role");
         String deviceId = (String) session.getAttributes().get("deviceId");
 
@@ -187,15 +187,15 @@ public class StreamingHandler extends BinaryWebSocketHandler {
                 for (WebSocketSession viewer : viewers) {
                     if (viewer.isOpen()) {
                         try {
-                            // [Throttle] Limit to ~20 FPS (50ms interval) to prevent client/network
-                            // overload
+                            
+                            
                             Long lastSent = (Long) viewer.getAttributes().getOrDefault("lastSentTime", 0L);
                             if (currentTime - lastSent < 50) {
                                 continue;
                             }
                             viewer.getAttributes().put("lastSentTime", currentTime);
 
-                            // [Log Sample] Log only every 30th frame to reduce server I/O
+                            
                             if (logCounter.incrementAndGet() % 30 == 0) {
                                 log.info("Sending binary frame to viewer: {} (Size: {} bytes)", viewer.getId(),
                                         payload.remaining());

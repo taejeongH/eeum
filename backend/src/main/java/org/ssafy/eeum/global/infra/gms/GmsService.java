@@ -35,7 +35,7 @@ public class GmsService {
                                                         "WARNING")));
                 }
 
-                // Prepare context for AI
+                
                 StringBuilder context = new StringBuilder(
                                 "당신은 전문 패밀리 헬스 어드바이저입니다. 아래의 건강 데이터를 분석하여 노인(피부양자)을 위한 따뜻하고 전문적인 리포트를 작성해주세요.\n\n");
                 for (org.ssafy.eeum.domain.health.entity.HealthMetric m : metrics) {
@@ -98,7 +98,7 @@ public class GmsService {
                                                         .get("message");
                                         String content = (String) message.get("content");
 
-                                        // Basic JSON extraction if content has markers
+                                        
                                         if (content.contains("```json")) {
                                                 content = content.substring(content.indexOf("```json") + 7);
                                                 content = content.substring(0, content.indexOf("```"));

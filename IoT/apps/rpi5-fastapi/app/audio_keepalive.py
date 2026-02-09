@@ -1,4 +1,4 @@
-# app/audio_keepalive.py
+
 import asyncio
 import time
 import logging
@@ -32,14 +32,14 @@ async def audio_keepalive_loop(state):
         if getattr(state, "fall_active", False):
             continue
 
-        # 재생 중이면 스킵
+        
         try:
             if getattr(state, "audio", None) and getattr(state.audio, "is_playing", False):
                 continue
         except Exception:
             pass
 
-        # STT/무거운 작업 중이면 스킵
+        
         if getattr(state, "stt_busy", False):
             continue
         if getattr(state, "heavy_ops_pause", False):

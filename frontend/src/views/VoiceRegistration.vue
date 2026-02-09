@@ -268,8 +268,8 @@ const modalStore = useModalStore();
 
 const isInitialSetup = computed(() => route.query.flow === 'initial');
 
-// State
-const currentMode = ref('script'); // 'script' | 'free'
+
+const currentMode = ref('script'); 
 const voiceSamples = ref([]);
 const selectedSample = ref(null);
 const showHelpModal = ref(false);
@@ -282,17 +282,17 @@ const recordingDuration = ref(0);
 const recordingTimer = ref(null);
 const recordedBlob = ref(null);
 
-// Free Talk State
+
 const transcribedText = ref('');
-const sttError = ref(false); // New state for STT error
+const sttError = ref(false); 
 const isFreeTalkSaved = ref(false);
 const showLimitModal = ref(false);
 const serverSampleCount = ref(0);
 
-// Computeds
+
 const completedCount = computed(() => Math.max(voiceSamples.value.filter(s => s.isRecorded).length, serverSampleCount.value));
 
-// Watchers
+
 watch(currentMode, (newMode) => {
     if (isRecording.value) {
         if (recorder.value && recorder.value.state !== 'inactive') {
@@ -308,7 +308,7 @@ watch(currentMode, (newMode) => {
     isFreeTalkSaved.value = false;
 });
 
-// Lifecycle
+
 onMounted(async () => {
     await fetchScripts();
 });
@@ -317,7 +317,7 @@ onUnmounted(() => {
     stopStream();
 });
 
-// Methods
+
 const fetchScripts = async () => {
     try {
         isLoading.value = true;
@@ -534,7 +534,7 @@ const resetFreeTalk = () => {
 
 const goToSettings = () => router.push('/settings/voice');
 
-// Initial Setup handlers
+
 const handleSkip = () => router.push('/home');
 const handleCompleteSetup = () => router.push('/home');
 </script>

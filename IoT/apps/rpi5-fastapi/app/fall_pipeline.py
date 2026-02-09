@@ -1,4 +1,4 @@
-# app/fall_pipeline.py
+
 import time
 import asyncio
 import logging
@@ -53,7 +53,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
         await state.audio.cancel_many(kinds=["schedule", "medication", "voice"])
         state.audio.block_below_prio = int(AudioPrio.FALL)
 
-        # Fall 파이프라인 동안 무거운 작업 쉬게
+        
         try:
             state.heavy_ops_pause = True
         except Exception:
@@ -78,7 +78,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
                 getattr(state, "fall_level", None),
             )
 
-        # 1) TTS
+        
         stage("ASK_TTS", why="start")
 
         ask_text = (DEFAULT_TTS_MESSAGE[0] if DEFAULT_TTS_MESSAGE else "괜찮으세요? 도와드릴까요?")
@@ -90,11 +90,11 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
             timeout_sec=min(10.0, remaining()),
         )
 
-        # NOTE: 여기서 오래 쉬면 사용자가 빨리 말할 때 앞 음절이 "녹음 시작 전"에 나가서 잘림
-        # 에코는 record_with_vad(start_guard_sec)에서 VAD 판단만 무시하게 처리한다.
+        
+        
         await asyncio.sleep(0.02)
 
-        # 2) STT(녹음+인식)
+        
         stage("WAIT_STT", why="record_with_vad")
 
         if state.stt_busy:
@@ -120,7 +120,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
                         pre_roll_sec=0.70,
                         start_speech_streak=1,
                         max_speech_sec=5.5,
-                        # 에코 가드: 시작 후 N초는 VAD판단만 무시(오디오는 prebuf로 보존)
+                        
                         start_guard_sec=float(FALL_ECHO_GUARD_SEC or 0.0),
                     ),
                     timeout=min(12.0, remaining()),
@@ -157,7 +157,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
             finally:
                 state.stt_busy = False
 
-        # 3) MQTT publish
+        
         stage("DONE", why="publish_response")
         state.fall_answer_text = stt_text if stt_ok else None
 
@@ -196,7 +196,7 @@ async def run_fall_tts_stt_pipeline(state, *, deadline_sec: float = 35.0) -> Non
     except Exception:
         logger.exception("[fall] pipeline crashed")
     finally:
-        # 슬라이드/무거운작업/오디오 게이트 원복
+        
         try:
             state.slide_playing = True
             state.slide_tick_event.set()

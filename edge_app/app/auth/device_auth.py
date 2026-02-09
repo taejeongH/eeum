@@ -18,7 +18,7 @@ class DeviceAuth:
     - QR 코드 토큰 생성
     """
     
-    TOKEN_EXPIRY = 180  # 3분
+    TOKEN_EXPIRY = 180  
     TOKEN_LENGTH = 32
     
     @staticmethod
@@ -40,7 +40,7 @@ class DeviceAuth:
     def verify_token(provided_token: str, stored_hash: str) -> bool:
         """토큰 검증"""
         provided_hash = DeviceAuth.hash_token(provided_token)
-        # 상수 시간 비교로 타이밍 공격 방지
+        
         return secrets.compare_digest(provided_hash, stored_hash)
     
     @staticmethod
@@ -49,8 +49,8 @@ class DeviceAuth:
         return (time.time() - token_created_at) < DeviceAuth.TOKEN_EXPIRY
 
 
-# 임시 토큰 저장소 (실제로는 Redis 권장)
-_qr_token_store = {}  # token -> (created_at, device_id)
+
+_qr_token_store = {}  
 
 
 def create_qr_token() -> Tuple[str, float]:

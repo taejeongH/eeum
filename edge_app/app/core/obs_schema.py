@@ -66,11 +66,11 @@ def build_observation(
             "has_person": bool(has_person),
             "bbox": bbox_norm,
             "conf": float(box_conf),
-            "keypoints_raw": kps,     # 추가: 원본
-            "keypoints_smooth": None, # 추가 (스무딩에서 채움)
-            "keypoints": kps,         # 기존 유지 (호환성)
+            "keypoints_raw": kps,     
+            "keypoints_smooth": None, 
+            "keypoints": kps,         
             "quality_score": float(quality),
-            "frame_shape": (frame_h, frame_w),  # EMA 프레임 크기 변화 감지용
+            "frame_shape": (frame_h, frame_w),  
         }
     )
     return obs

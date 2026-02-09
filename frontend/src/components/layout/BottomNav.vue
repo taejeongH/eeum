@@ -154,7 +154,7 @@ const updateActiveTab = () => {
     } else if (route.path.includes('/realtime-heart-rate')) {
         activeTab.value = 'menu';
     } else {
-        // default or handle other routes
+        
     }
 };
 
@@ -185,10 +185,10 @@ const setActive = (tab) => {
   } else if (tab === 'home') {
       router.push('/home');
   } else if (tab === 'message') {
-      // Navigate to family messages
-      // Check if we're already on a message page, if so don't navigate
+      
+      
       if (!route.path.startsWith('/families') || !route.path.includes('/messages')) {
-        // Get familyId from store
+        
         const familyId = familyStore.selectedFamily?.id;
         
         if (familyId) {
@@ -213,7 +213,7 @@ const setActive = (tab) => {
           modalStore.openAlert("가족 정보를 찾을 수 없습니다.");
       }
   } else if (tab !== 'home') {
-     // Mock navigation feedback
+     
   }
 };
 
@@ -266,7 +266,7 @@ const handleLogout = async () => {
   );
   
   if (confirmed) {
-    // Clear tokens and profile
+    
     localStorage.removeItem('accessToken');
     localStorage.removeItem('familyId');
     localStorage.removeItem('currentFamilyId');
@@ -274,12 +274,12 @@ const handleLogout = async () => {
     
     userStore.clearUser();
     
-    // [NEW] Android Native Logout
+    
     if (window.AndroidBridge && window.AndroidBridge.logout) {
       window.AndroidBridge.logout();
     }
     
-    // Redirect to login or onboarding
+    
     router.push('/login');
   }
 };
