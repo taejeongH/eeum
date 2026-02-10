@@ -29,10 +29,20 @@ def _register_temp_for_windows():
 
 class AppController:
     """
-    - latest_jpeg_overlay: 스켈레톤/오버레이 포함 스트림
-    - latest_jpeg_raw: 선 없는 원본 스트림
+    애플리케이션의 메인 컨트롤러 클래스입니다.
+    카메라 제어, AI 모델 처리 루프 관리, 스트리밍용 프레임 버퍼링,
+    재생(Replay) 및 녹화(Recording) 기능을 총괄합니다.
+
+    - latest_jpeg_overlay: 스켈레톤/오버레이가 포함된 분석용 이미지
+    - latest_jpeg_raw: 선이나 박스가 없는 원본 이미지
     """
     def __init__(self, model_factory):
+        """
+        컨트롤러를 초기화합니다.
+        
+        Args:
+            model_factory: YOLO 모델을 생성하는 팩토리 함수
+        """
         self.model_factory = model_factory
 
         self.camera_manager = CameraManager()
@@ -46,11 +56,11 @@ class AppController:
         self.processing_mode: str = "initial"
         self.latest_obs: Optional[Dict[str, Any]] = None
 
-        # ✅ 두 개로 분리
+        # 프레임 버퍼: 오버레이 버전과 원본 버전 분리
         self.latest_jpeg_overlay: Optional[bytes] = None
         self.latest_jpeg_raw: Optional[bytes] = None
 
-        # ✅ 스트림도 각각 카운터/condition 분리 (간단/안전)
+        # 스트리밍 동기화를 위한 카운터와 Condition 객체
         self.frame_count_overlay = 0
         self.frame_count_raw = 0
         self.cond_overlay = threading.Condition()
@@ -58,12 +68,12 @@ class AppController:
 
         self.current_mode: Optional[BaseMode] = None
 
-        # Replay
+        # 리플레이 설정
         self.replay_thread = None
         self.replay_stop_event = threading.Event()
         self.replay_running = False
 
-        # Recording
+        # 레코딩(JSONL) 설정
         self.record_lock = threading.Lock()
         self.record_fp = None
         self.record_path = None
@@ -71,6 +81,7 @@ class AppController:
         _register_temp_for_windows()
 
     def start(self):
+        """백그라운드 처리 스레드와 카메라를 시작합니다."""
         if self.background_thread and self.background_thread.is_alive():
             return
 
@@ -82,6 +93,7 @@ class AppController:
         self.background_thread.start()
 
     def stop(self):
+        """카메라와 처리 루프를 중지하고 리소스를 정리합니다."""
         logger.info("Stopping background processing loop")
         self.stop_event.set()
         if self.background_thread:
@@ -96,6 +108,7 @@ class AppController:
         self.camera_manager.release()
 
     def _initialize_mode_instance(self):
+        """현재 상태(등록 여부 등)에 따라 적절한 실행 모드(QR 또는 Live)를 초기화합니다."""
         cap = self.camera_manager.ensure_opened() and self.camera_manager.get_cap()
         if not cap:
             logger.error("Camera setup failed")
@@ -126,6 +139,7 @@ class AppController:
         return mode
 
     def _processing_loop(self):
+        """메인 프레임 처리 루프입니다. 현재 모드의 step()을 호출하고 결과를 버퍼링합니다."""
         while not self.stop_event.is_set():
             if self.replay_running:
                 time.sleep(0.1)
@@ -148,11 +162,10 @@ class AppController:
 
             try:
                 if self.current_mode:
-                    # ✅ LiveMode.step()가 (obs, overlay_jpg, raw_frame, frame) 형태로 리턴한다고 가정
-                    #    (너가 LiveMode를 그렇게 바꿔야 함)
+                    # 현재 모드에서 프레임 분석 수행
                     obs, overlay_jpg, raw_frame, _ = self.current_mode.step()
 
-                    # raw_frame -> raw_jpg 인코딩
+                    # 원본 프레임을 JPEG로 인코딩 (스트리밍용)
                     raw_jpg = None
                     if raw_frame is not None:
                         ok, enc = cv2.imencode(
@@ -167,7 +180,7 @@ class AppController:
                         if obs is not None:
                             self.latest_obs = obs
 
-                    # ✅ overlay jpeg 갱신
+                    # 갱신된 오버레이 이미지를 버퍼에 저장하고 대기 중인 스레드에 알림
                     if overlay_jpg is not None:
                         with self.state_lock:
                             self.latest_jpeg_overlay = overlay_jpg
@@ -175,7 +188,7 @@ class AppController:
                             self.frame_count_overlay += 1
                             self.cond_overlay.notify_all()
 
-                    # ✅ raw jpeg 갱신
+                    # 갱신된 원본 이미지를 버퍼에 저장하고 대기 중인 스레드에 알림
                     if raw_jpg is not None:
                         with self.state_lock:
                             self.latest_jpeg_raw = raw_jpg
@@ -198,15 +211,17 @@ class AppController:
             time.sleep(0.001)
 
     def set_processing_mode(self, mode: str):
+        """현재 처리 모드 이름을 설정합니다."""
         with self.state_lock:
             self.processing_mode = mode
 
     def get_latest_obs(self):
+        """가장 최근에 생성된 관측(Observation) 데이터를 반환합니다."""
         with self.state_lock:
             return self.latest_obs
 
-    # ✅ overlay용 wait
     def wait_for_overlay_frame(self, last_count: int, timeout: float = 1.0) -> Tuple[Optional[bytes], int]:
+        """새로운 오버레이 프레임이 생성될 때까지 대기합니다."""
         with self.cond_overlay:
             if self.frame_count_overlay <= last_count:
                 if not self.cond_overlay.wait(timeout=timeout):
@@ -214,8 +229,8 @@ class AppController:
         with self.state_lock:
             return self.latest_jpeg_overlay, self.frame_count_overlay
 
-    # ✅ raw용 wait
     def wait_for_raw_frame(self, last_count: int, timeout: float = 1.0) -> Tuple[Optional[bytes], int]:
+        """새로운 원본 프레임이 생성될 때까지 대기합니다."""
         with self.cond_raw:
             if self.frame_count_raw <= last_count:
                 if not self.cond_raw.wait(timeout=timeout):
@@ -223,8 +238,9 @@ class AppController:
         with self.state_lock:
             return self.latest_jpeg_raw, self.frame_count_raw
 
-    # --- Recording (기존 그대로) ---
+    # --- 실시간 관측 데이터 기록 (JSONL) ---
     def start_recording(self):
+        """관측 데이터 기록을 시작합니다."""
         import os
         os.makedirs(RUNS_DIR, exist_ok=True)
         fname = time.strftime("obs_%Y%m%d_%H%M%S.jsonl")
@@ -238,6 +254,7 @@ class AppController:
         return path
 
     def stop_recording(self):
+        """관측 데이터 기록을 중지합니다."""
         path = None
         with self.record_lock:
             if self.record_fp:
@@ -248,14 +265,16 @@ class AppController:
         return path
 
     def _write_record(self, obs):
+        """파일에 관측 데이터를 기록합니다."""
         with self.record_lock:
             if self.record_fp:
                 import json
                 self.record_fp.write(json.dumps(obs, ensure_ascii=False) + "\n")
                 self.record_fp.flush()
 
-    # --- Replay (기존 그대로) ---
+    # --- 리플레이 제어 ---
     def start_replay(self, path: str, fps: float):
+        """지정된 파일로부터 리플레이를 시작합니다."""
         if self.replay_running:
             return False
 
@@ -263,14 +282,15 @@ class AppController:
         self.replay_stop_event.clear()
 
         def on_frame(obs, jpg):
+            """리플레이 스레드로부터 수신한 프레임을 버퍼에 갱신합니다."""
             with self.state_lock:
                 self.latest_obs = obs
-                # replay는 overlay만 있다고 가정
                 self.latest_jpeg_overlay = jpg
             with self.cond_overlay:
                 self.frame_count_overlay += 1
                 self.cond_overlay.notify_all()
 
+        from ..utils.replay import start_replay_thread
         self.replay_thread = start_replay_thread(
             path=path,
             fps=fps,
@@ -283,12 +303,15 @@ class AppController:
         return True
 
     def stop_replay(self):
+        """실행 중인 리플레이를 중지하고 이전 모드로 복귀합니다."""
         if self.replay_running:
             self.replay_stop_event.set()
             if self.replay_thread:
                 self.replay_thread.join(timeout=2.0)
             self.replay_running = False
 
+            # 원래 실행 중이던 모드로 상태 전환
+            from ..modes.live_mode import LiveMode
             if self.current_mode:
                 mode_name = "live" if isinstance(self.current_mode, LiveMode) else "qr"
                 self.set_processing_mode(mode_name)
@@ -297,3 +320,21 @@ class AppController:
 
             return True
         return False
+
+    def get_status(self):
+        """컨트롤러와 현재 모드, 장치의 상태 정보를 모아서 반환합니다."""
+        mode_status = {}
+        if self.current_mode:
+            try:
+                mode_status = self.current_mode.get_status()
+            except:
+                pass
+
+        return {
+            "device_id": DEVICE_ID,
+            "location_id": LOCATION_ID,
+            "processing_mode": self.processing_mode,
+            "replay_running": self.replay_running,
+            "is_registered": self.device_state.is_registered(),
+            **mode_status
+        }

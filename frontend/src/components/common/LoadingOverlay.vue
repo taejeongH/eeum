@@ -1,11 +1,14 @@
 <template>
   <Transition name="fade">
+    <!-- 전역 로딩 오버레이 영역 -->
     <div v-if="shouldShow" class="loading-overlay">
       <div class="loader-content">
+        <!-- 로고 및 애니메이션 컨테이너 -->
         <div class="logo-container">
           <img src="@/assets/eeum_logo2.png" alt="IEUM Logo" class="loader-logo" />
           <div class="logo-glow"></div>
         </div>
+        <!-- 로딩 상태 표시바 및 텍스트 -->
         <div class="status-indicator">
           <div class="shimmer-bar"></div>
           <p class="mt-4 text-gray-800 font-semibold text-lg tracking-tight">
@@ -24,21 +27,24 @@ const uiStore = useUiStore();
 const shouldShow = ref(false);
 let timer = null;
 
-watch(() => uiStore.isLoading, (loading) => {
-  if (loading) {
-    // 300ms 지연 후 로딩 화면 표시 (너무 빠른 요청은 무시)
-    timer = setTimeout(() => {
-      shouldShow.value = true;
-    }, 300);
-  } else {
-    // 로딩이 끝나면 타이머 제거 및 즉시 숨김
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
+watch(
+  () => uiStore.isLoading,
+  (loading) => {
+    if (loading) {
+      /** 300ms 지연 후 로딩 화면 표시 (너무 빠른 요청은 무시) */
+      timer = setTimeout(() => {
+        shouldShow.value = true;
+      }, 300);
+    } else {
+      /** 로딩이 끝나면 타이머 제거 및 즉시 숨김 */
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      shouldShow.value = false;
     }
-    shouldShow.value = false;
-  }
-});
+  },
+);
 </script>
 
 <style scoped>
@@ -84,7 +90,7 @@ watch(() => uiStore.isLoading, (loading) => {
   position: absolute;
   width: 80px;
   height: 80px;
-  background: var(--color-primary, #FF9D00);
+  background: var(--color-primary, #ff9d00);
   filter: blur(30px);
   opacity: 0.2;
   border-radius: 50%;
@@ -111,24 +117,43 @@ watch(() => uiStore.isLoading, (loading) => {
   position: absolute;
   width: 40%;
   height: 100%;
-  background: var(--color-primary, #FF9D00);
+  background: var(--color-primary, #ff9d00);
   left: -40%;
   animation: shimmer 1.5s infinite ease-in-out;
 }
 
+/** 로고 상하 부유 애니메이션 */
 @keyframes logo-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
+/** 프로그레스바 시머(Shimmer) 효과 */
 @keyframes shimmer {
-  0% { left: -40%; }
-  100% { left: 100%; }
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
+/** 글로우 효과 펄스 애니메이션 */
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.15; }
-  50% { transform: scale(1.4); opacity: 0.3; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.15;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.3;
+  }
 }
 
 .fade-enter-active,
