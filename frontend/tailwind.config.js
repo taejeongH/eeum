@@ -1,34 +1,52 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        primary: "var(--color-primary)",
-        "primary-light": "var(--color-primary-light)",
-        "primary-soft": "var(--color-primary-soft)",
-        "text-title": "var(--text-title)",
-        "text-body": "var(--text-body)",
-        "text-sub": "var(--text-sub)",
-        "border-default": "var(--border-default)",
-        "bg-page": "var(--bg-page)",
-        primaryBg: "#FFF6EF",
-        "background-light": "#FFFBF7",
-        "background-dark": "#1A1614",
-        emergency: "#f20d0d",
+        primary: 'var(--color-primary)',
+        'primary-light': 'var(--color-primary-light)',
+        'primary-soft': 'var(--color-primary-soft)',
+        'text-title': 'var(--text-title)',
+        'text-body': 'var(--text-body)',
+        'text-sub': 'var(--text-sub)',
+        'border-default': 'var(--border-default)',
+        'bg-page': 'var(--bg-page)',
+        primaryBg: '#FFF6EF',
+        'background-light': '#FFFBF7',
+        'background-dark': '#1A1614',
+        emergency: '#f20d0d',
         // 달력 설정
-        "surface-light": "#FFFFFF",
-        "surface-dark": "#26221F",
-        "accent-peach": "#FFD8B1",
-        "accent-sage": "#D4E6D9",
-        "accent-lavender": "#E6E1F9",
+        'surface-light': '#FFFFFF',
+        'surface-dark': '#26221F',
+        'accent-peach': '#FFD8B1',
+        'accent-sage': '#D4E6D9',
+        'accent-lavender': '#E6E1F9',
         // 달력설정
+        health: {
+          heart: '#FF5252', // Red for Heart Rate
+          steps: '#4CAF50', // Green for Steps
+          cal: '#FF9800', // Orange for Calories
+          time: '#9C27B0', // Purple for Active Time
+          sugar: '#FF9800', // Orange for Blood Glucose (matches calories)
+          oxygen: '#2196F3', // Blue for SpO2
+          pressure: '#F44336', // Red for Blood Pressure
+        },
       },
       fontFamily: {
-        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'sans-serif'],
+        sans: [
+          'Pretendard',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'system-ui',
+          'Roboto',
+          'Helvetica Neue',
+          'Segoe UI',
+          'Apple SD Gothic Neo',
+          'Noto Sans KR',
+          'Malgun Gothic',
+          'sans-serif',
+        ],
         display: ['Lexend', 'sans-serif'],
       },
     },

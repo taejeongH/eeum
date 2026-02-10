@@ -49,8 +49,9 @@
   /* 16px */
 
   /* Font */
-  --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont,
-    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-main:
+    'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR',
+    sans-serif;
 }
 
 /* ===============================
@@ -95,22 +96,22 @@
   }
 
   /* Date/Time Input Improvements */
-  input[type="date"].eeum-input,
-  input[type="time"].eeum-input {
+  input[type='date'].eeum-input,
+  input[type='time'].eeum-input {
     min-height: 52px;
     background-color: #fff;
     cursor: pointer;
   }
 
-  input[type="date"]::-webkit-calendar-picker-indicator,
-  input[type="time"]::-webkit-calendar-picker-indicator {
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
     cursor: pointer;
     opacity: 0.6;
     transition: opacity 0.2s;
   }
 
-  input[type="date"]::-webkit-calendar-picker-indicator:hover,
-  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  input[type='date']::-webkit-calendar-picker-indicator:hover,
+  input[type='time']::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
   }
 

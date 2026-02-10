@@ -15,7 +15,7 @@ export const useFamilyStore = defineStore('family', () => {
       if (!selectedFamily.value && families.value.length > 0) {
         const savedId = localStorage.getItem('selectedFamilyId');
         if (savedId) {
-          const savedFamily = families.value.find(f => String(f.id) === String(savedId));
+          const savedFamily = families.value.find((f) => String(f.id) === String(savedId));
           if (savedFamily) selectedFamily.value = savedFamily;
         }
         if (!selectedFamily.value) selectedFamily.value = families.value[0];
@@ -35,14 +35,15 @@ export const useFamilyStore = defineStore('family', () => {
         if (!selectedFamily.value) {
           const savedId = localStorage.getItem('selectedFamilyId');
           if (savedId) {
-            const savedFamily = families.value.find(f => String(f.id) === String(savedId));
+            const savedFamily = families.value.find((f) => String(f.id) === String(savedId));
             if (savedFamily) {
               selectedFamily.value = savedFamily;
             }
           }
         }
 
-        const exists = selectedFamily.value && families.value.find(f => f.id === selectedFamily.value.id);
+        const exists =
+          selectedFamily.value && families.value.find((f) => f.id === selectedFamily.value.id);
         if (!selectedFamily.value || !exists) {
           selectedFamily.value = families.value[0];
         } else {
@@ -77,17 +78,16 @@ export const useFamilyStore = defineStore('family', () => {
     } else {
       localStorage.removeItem('selectedFamilyId');
       if (window.AndroidBridge && window.AndroidBridge.saveSelectedFamilyId) {
-        window.AndroidBridge.saveSelectedFamilyId("");
+        window.AndroidBridge.saveSelectedFamilyId('');
       }
     }
   }
 
   function selectFamilyById(familyId) {
     if (!familyId) return;
-    const family = families.value.find(f => String(f.id) === String(familyId));
+    const family = families.value.find((f) => String(f.id) === String(familyId));
     if (family) {
       selectFamily(family);
-
     }
   }
 
@@ -125,7 +125,7 @@ export const useFamilyStore = defineStore('family', () => {
     try {
       const response = await api.post('/families/join', inviteCode, {
         headers: { 'Content-Type': 'text/plain' },
-        transformRequest: [(data) => data]
+        transformRequest: [(data) => data],
       });
       await fetchFamilies(true); // 리스트 강제 갱신
 
@@ -153,7 +153,9 @@ export const useFamilyStore = defineStore('family', () => {
     }
 
     try {
-      const response = await api.get(`/families/${familyId}/members`, { headers: { silent: true } });
+      const response = await api.get(`/families/${familyId}/members`, {
+        headers: { silent: true },
+      });
       membersCache.value[familyId] = response.data;
       return response.data;
     } catch (error) {
@@ -161,6 +163,16 @@ export const useFamilyStore = defineStore('family', () => {
       return membersCache.value[familyId] || []; // 에러 시 기존 캐시라도 반환
     }
   }
+
+  /**
+   * 보양이(피보호자) 정보 Getter
+   * 현재 선택된 가족의 멤버 중 dependent가 true인 멤버 반환
+   */
+  const dependent = computed(() => {
+    if (!selectedFamily.value) return null;
+    const members = membersCache.value[selectedFamily.value.id] || [];
+    return members.find((m) => m.dependent || m.isDependent);
+  });
 
   return {
     families,
@@ -173,6 +185,7 @@ export const useFamilyStore = defineStore('family', () => {
     selectFamilyById,
     clearFamily,
     createFamily,
-    joinFamily
+    joinFamily,
+    dependent,
   };
 });
