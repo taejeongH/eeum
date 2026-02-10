@@ -34,6 +34,15 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     @Value("${app.emulator-host:10.0.2.2}")
     private String emulatorHost;
 
+    /**
+     * 로그인 성공 후 토큰을 생성하고 타겟 URL로 리다이렉트합니다.
+     * 
+     * @summary 로그인 성공 후처리 실행
+     * @param request        HTTP 요청 객체
+     * @param response       HTTP 응답 객체
+     * @param authentication 인증 객체
+     * @throws IOException 입출력 예외
+     */
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException {

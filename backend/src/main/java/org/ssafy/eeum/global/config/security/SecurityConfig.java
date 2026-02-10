@@ -25,10 +25,9 @@ import org.ssafy.eeum.global.auth.oauth2.CustomOAuth2UserService;
 import java.util.List;
 
 /**
- * 애플리케이션의 보안 설정을 담당하는 클래스입니다.
- * JWT 기반 인증, OAuth2 로그인, CORS 및 접근 권한 등을 설정합니다.
+ * 애플리케이션의 전반적인 보안 정책(인증, 인가, CORS 등)을 설정하는 핵심 구성 클래스입니다.
  * 
- * @summary Spring Security 설정
+ * @summary Spring Security 설정 클래스
  */
 @Configuration
 @EnableWebSecurity
@@ -54,7 +53,7 @@ public class SecurityConfig {
         }
 
         /**
-         * Swagger UI 콘텐츠 등 보안 필터를 거치지 않아도 되는 정적 리소스 경로를 설정합니다.
+         * 정적 리소스(Swagger UI, Favicon 등)에 대해 보안 필터링을 제외하도록 설정합니다.
          * 
          * @summary 웹 보안 무시 경로 설정
          * @return WebSecurityCustomizer 객체
@@ -71,12 +70,12 @@ public class SecurityConfig {
         }
 
         /**
-         * Spring Security의 HTTP 보안 설정을 구성합니다.
+         * HTTP 보안 정책(인증 경로, 필터 순서, 예외 처리 등)을 정의합니다.
          * 
-         * @summary SecurityFilterChain 설정
+         * @summary SecurityFilterChain 구성
          * @param http HttpSecurity 객체
-         * @return 구성된 SecurityFilterChain
-         * @throws Exception 설정 오류 시 발생
+         * @return 구성된 SecurityFilterChain 객체
+         * @throws Exception 보안 설정 중 오류 발생 시
          */
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

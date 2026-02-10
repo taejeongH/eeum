@@ -10,9 +10,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
- * Redis 데이터베이스 및 캐시 연동을 위한 설정 클래스입니다.
+ * Redis 데이터베이스 및 캐시 연동을 위한 상세 설정 클래스입니다.
  * 
- * @summary Redis 서비스 설정
+ * @summary Redis 서비스 설정 클래스
  */
 @Configuration
 public class RedisConfig {
@@ -29,7 +29,7 @@ public class RedisConfig {
     private String password;
 
     /**
-     * Redis 연결을 위한 ConnectionFactory를 생성합니다. (Lettuce 라이브러리 사용)
+     * Redis 연결을 위한 ConnectionFactory를 생성합니다. (Lettuce 라이브러리 기반)
      * 
      * @summary Redis 연결 팩토리 생성
      * @return RedisConnectionFactory 객체
@@ -49,10 +49,10 @@ public class RedisConfig {
     }
 
     /**
-     * Redis 작업을 위한 RedisTemplate을 설정합니다. Key/Value 직렬화 방식을 지정합니다.
+     * Redis 작업을 위한 RedisTemplate을 설정합니다. Key/Value의 직렬화 전략을 지정합니다.
      * 
      * @summary Redis 템플릿 Bean 생성
-     * @return RedisTemplate 객체
+     * @return 구성된 RedisTemplate 객체
      */
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {

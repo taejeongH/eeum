@@ -123,6 +123,7 @@ public class JwtProvider {
     /**
      * 공통 토큰 생성 로직입니다.
      * 
+     * @summary 공통 토큰 생성 로직
      * @param userId     사용자 식별자 (기기일 경우 0)
      * @param email      사용자 이메일 또는 기기 그룹 식별자
      * @param role       권한 정보 (UserRole/DeviceRole)

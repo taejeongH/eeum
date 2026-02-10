@@ -37,10 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.ssafy.eeum.domain.iot.dto.MqttAlarmMessageDTO;
 
 /**
- * MQTT 프로토콜을 이용한 실시간 메시징 및 IoT 기기 제어를 담당하는 서비스입니다.
- * 기기 상태 모니터링, 센서 이벤트 수집, 기기 설정 동기화 등을 처리합니다.
+ * MQTT 프로토콜을 이용해 IoT 기기와 실시간 메시지를 주고받으며 기기를 제어하는 서비스 클래스입니다.
  * 
- * @summary MQTT 통합 서비스
+ * @summary MQTT 통합 관리 서비스
  */
 @Slf4j
 @Service
@@ -80,9 +79,10 @@ public class MqttService {
     }
 
     /**
-     * MQTT 채널로부터 수집된 메시지를 토픽별로 분류하여 적절한 핸들러로 라우팅합니다.
+     * MQTT 채널을 통해 수신된 메시지를 분석하여 토픽별 핸들러로 라우팅합니다.
      * 
-     * @param message 수신된 MQTT 메시지
+     * @summary MQTT 메시지 수신 및 라우팅
+     * @param message 수신된 MQTT 메시지 객체
      */
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMessage(Message<?> message) {

@@ -40,6 +40,8 @@ logging:
 eeum:
   swagger-url: http://localhost:8080
   webhook-url: https://i14a105.p.ssafy.io/api/voice/webhook/tts
+  log:
+    max-payload-length: 500
 
 app:
   cors:

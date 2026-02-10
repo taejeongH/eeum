@@ -9,6 +9,11 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+/**
+ * Firebase Cloud Messaging(FCM)를 통해 푸시 알림 전송을 담당하는 서비스 클래스입니다.
+ * 
+ * @summary FCM 알림 전송 서비스
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -18,19 +23,19 @@ public class FcmService {
     private static final String UNREGISTERED_ERROR = "UNREGISTERED";
 
     /**
-     * 특정 토큰을 가진 디바이스로 단일 알림 메시지를 전송합니다.
+     * 특정 디바이스 토큰으로 단일 푸시 알림을 전송합니다.
      * 
      * @summary 단일 FCM 메시지 전송
      * @param token          대상 디바이스 토큰
      * @param title          알림 제목
      * @param body           알림 내용
-     * @param type           알림 타입 (기본값: DEFAULT)
-     * @param notificationId DB에 저장된 알림 ID
-     * @param route          이동할 앱 내 경로
+     * @param type           알림 타입 (DEFAULT, FALL 등)
+     * @param notificationId DB에 저장된 알림 식별자
+     * @param route          앱 내 이동 경로
      * @param familyId       가족 식별자
      * @param groupName      가족 그룹명
-     * @param eventId        이벤트(예: 낙상) 식별자
-     * @throws FcmUnregisteredTokenException 토큰이 더 이상 유효하지 않을 경우 발생
+     * @param eventId        관련 이벤트 식별자 (낙상 등)
+     * @throws FcmUnregisteredTokenException 토큰이 만료되었을 때 발생
      */
     public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route,
             Integer familyId, String groupName, Integer eventId) {
@@ -49,9 +54,9 @@ public class FcmService {
     }
 
     /**
-     * 여러 개의 토큰을 가진 디바이스들로 멀티캐스트 알림을 전송합니다.
+     * 여러 개의 토큰을 가진 디바이스들로 푸시 알림을 전송합니다.
      * 
-     * @summary 멀티캐스트 FCM 메시지 전송
+     * @summary 다중 FCM 메시지 전송
      * @param tokens         대상 디바이스 토큰 리스트
      * @param title          알림 제목
      * @param body           알림 내용
@@ -68,13 +73,15 @@ public class FcmService {
         }
 
         try {
-            MulticastMessage message = createMulticastMessage(validTokens, title, body, type, notificationId, route,
-                    familyId);
-            BatchResponse response = FirebaseMessaging.getInstance().sendMulticast(message);
-            log.info("FCM 멀티캐스트 메시지 전송 성공. 성공 개수: {}", response.getSuccessCount());
+            List<Message> messages = validTokens.stream()
+                    .map(token -> createMessage(token, title, body, type, notificationId, route, familyId, null, null))
+                    .collect(Collectors.toList());
+
+            BatchResponse response = FirebaseMessaging.getInstance().sendEach(messages);
+            log.info("FCM 다중 메시지 전송 성공. 성공 개수: {}", response.getSuccessCount());
             logFailures(response);
         } catch (FirebaseMessagingException e) {
-            log.error("FCM 멀티캐스트 메시지 전송 실패", e);
+            log.error("FCM 다중 메시지 전송 실패", e);
         }
     }
 
@@ -86,17 +93,6 @@ public class FcmService {
                 .setAndroidConfig(createAndroidConfig());
 
         addData(builder::putData, title, body, type, notificationId, route, familyId, groupName, eventId);
-        return builder.build();
-    }
-
-    private MulticastMessage createMulticastMessage(List<String> tokens, String title, String body, String type,
-            Long notificationId,
-            String route, Integer familyId) {
-        MulticastMessage.Builder builder = MulticastMessage.builder()
-                .addAllTokens(tokens)
-                .setAndroidConfig(createAndroidConfig());
-
-        addData(builder::putData, title, body, type, notificationId, route, familyId, null, null);
         return builder.build();
     }
 

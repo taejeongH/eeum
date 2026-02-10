@@ -4,6 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+/**
+ * 애플리케이션 전역에서 사용되는 에러 코드와 메시지, HTTP 상태 코드를 정의하는 열거형 클래스입니다.
+ * 
+ * @summary 전역 에러 코드 정의
+ */
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {

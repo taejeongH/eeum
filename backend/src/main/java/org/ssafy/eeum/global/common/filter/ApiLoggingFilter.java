@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
@@ -21,6 +22,8 @@ import java.io.IOException;
 @Slf4j
 @Component
 public class ApiLoggingFilter extends OncePerRequestFilter {
+    @Value("${eeum.log.max-payload-length:500}")
+    private int maxPayloadLength;
 
     /**
      * 요청을 가로채서 로깅 처리를 수행합니다.
@@ -66,16 +69,16 @@ public class ApiLoggingFilter extends OncePerRequestFilter {
         String clientIp = getClientIp(request);
         int status = response.getStatus();
 
-        // 요청 페이로드 추출 (최대 1000자 제한)
+        // 요청 페이로드 추출
         String requestPayload = new String(request.getContentAsByteArray());
-        if (requestPayload.length() > 500) {
-            requestPayload = requestPayload.substring(0, 500) + "... [생략됨]";
+        if (requestPayload.length() > maxPayloadLength) {
+            requestPayload = requestPayload.substring(0, maxPayloadLength) + "... [생략됨]";
         }
 
-        // 응답 페이로드 추출 (최대 1000자 제한)
+        // 응답 페이로드 추출
         String responsePayload = new String(response.getContentAsByteArray());
-        if (responsePayload.length() > 500) {
-            responsePayload = responsePayload.substring(0, 500) + "... [생략됨]";
+        if (responsePayload.length() > maxPayloadLength) {
+            responsePayload = responsePayload.substring(0, maxPayloadLength) + "... [생략됨]";
         }
 
         log.info(

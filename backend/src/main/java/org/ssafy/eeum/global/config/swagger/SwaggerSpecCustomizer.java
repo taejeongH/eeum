@@ -13,8 +13,7 @@ import org.ssafy.eeum.global.common.response.RestApiResponse;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 
 /**
- * SwaggerApiSpec 어노테이션을 파싱하여 Swagger UI에 반영하는 커스텀마이저 클래스입니다.
- * 성공 응답 및 에러 응답 예시를 동적으로 생성합니다.
+ * SwaggerApiSpec 어노테이션을 분석하여 Swagger UI에 동적인 응답 예시를 반영하는 클래스입니다.
  * 
  * @summary Swagger 명세 커스텀마이저
  */
@@ -22,12 +21,12 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 public class SwaggerSpecCustomizer implements OperationCustomizer {
 
     /**
-     * SwaggerApiSpec 어노테이션 정보를 바탕으로 API Operation을 커스터마이징합니다.
+     * SwaggerApiSpec 어노테이션 정보를 바탕으로 API 오퍼레이션의 명세를 수정합니다.
      * 
-     * @summary API 명세 커스터마이징 실행
-     * @param operation     Swagger Operation 객체
-     * @param handlerMethod 대상 컨트롤러 메서드 정보
-     * @return 수정된 Operation 객체
+     * @summary API 명세 커스터마이징 수행
+     * @param operation     Swagger 오퍼레이션 객체
+     * @param handlerMethod 대상 핸들러 메서드 정보
+     * @return 수정 완료된 Operation 객체
      */
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {

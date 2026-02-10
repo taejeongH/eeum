@@ -16,6 +16,11 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
+/**
+ * JWT 서명 및 검증에 사용되는 RSA 키 쌍(Public/Private Key)을 파일로부터 로드하는 유틸리티 클래스입니다.
+ * 
+ * @summary RSA 키 로드 유틸리티
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

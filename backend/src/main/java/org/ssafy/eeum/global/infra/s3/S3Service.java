@@ -27,6 +27,11 @@ import java.util.UUID;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Amazon S3를 통한 파일 업로드, 조회용 Presigned URL 생성 등의 기능을 제공하는 서비스 클래스입니다.
+ * 
+ * @summary S3 파일 관리 서비스
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -58,6 +63,7 @@ public class S3Service {
         boolean isValid() {
             return System.currentTimeMillis() < expiryTime;
         }
+
     }
 
     /**

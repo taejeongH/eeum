@@ -8,8 +8,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Swagger API 명세를 상세 설정하기 위한 커스텀 어노테이션입니다.
- * 요약, 상세 설명, 성공 코드 및 메시지, 발생 가능 에러를 정의할 수 있습니다.
+ * Swagger API 명세를 컨트롤러 메서드별로 상세 설정하기 위한 커스텀 어노테이션입니다.
  * 
  * @summary Swagger 명세 설정 어노테이션
  */

@@ -16,7 +16,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.ssafy.eeum.domain.health.entity.HealthMetric;
 
 /**
- * GMS(Gemini/GPT Multi-Service)를 통해 AI 기반 건강 리포트 생성 및 감성 분석을 제공하는 서비스입니다.
+ * GMS(Gemini/GPT Multi-Service)를 통해 AI 기반 건강 리포트 생성 및 음성 감성 분석 기능을 제공하는 서비스
+ * 클래스입니다.
  * 
  * @summary AI 인프라 연동 서비스
  */
@@ -35,10 +36,11 @@ public class GmsService {
         private String model;
 
         /**
-         * 수집된 건강 지표 데이터를 바탕으로 AI 건강 리포트를 생성합니다.
+         * 수집된 건강 데이터를 분석하여 AI 건강 리포트(요약, 점수, 조언 등)를 생성합니다.
          * 
-         * @param metrics 수집된 건강 지표 리스트
-         * @return AI가 생성한 건강 리포트 (요약, 점수, 항목별 상세 내용 등)
+         * @summary 건강 리포트 생성
+         * @param metrics 분석할 건강 지표 리스트
+         * @return 분석 결과가 담긴 맵 객체
          */
         public Map<String, Object> generateHealthReport(
                         List<HealthMetric> metrics) {
@@ -137,10 +139,11 @@ public class GmsService {
         }
 
         /**
-         * 사용자의 음성 텍스트를 분석하여 위급 상황 여부를 판단합니다.
+         * 사용자의 발화 텍스트를 분석하여 위급 상황(EMERGENCY) 여부를 판단합니다.
          * 
-         * @param text 사용자의 발화 텍스트
-         * @return 위급 상황이면 true(EMERGENCY), 안전한 상황이면 false(SAFE)
+         * @summary 음성 감성 분석
+         * @param text 분석할 텍스트 내용
+         * @return 위급 상황 여부 (true: EMERGENCY, false: SAFE)
          */
         public boolean analyzeSentiment(String text) {
                 try {

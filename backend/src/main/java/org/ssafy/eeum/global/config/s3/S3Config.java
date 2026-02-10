@@ -10,10 +10,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /**
- * AWS S3 연동을 위한 설정 클래스입니다.
- * S3Client 및 Presigner를 Bean으로 등록합니다.
+ * Amazon S3(Simple Storage Service) 연동을 위한 클라이언트 및 Presigner 설정 클래스입니다.
  * 
- * @summary Amazon S3 서비스 설정
+ * @summary Amazon S3 서비스 설정 클래스
  */
 @Configuration
 public class S3Config {
@@ -28,10 +27,10 @@ public class S3Config {
         private String region;
 
         /**
-         * S3 파일 업로드 및 관리를 위한 S3Client를 생성합니다.
+         * S3 객체 업로드 및 관리를 위한 S3Client를 생성하여 Bean으로 등록합니다.
          * 
          * @summary S3 Client Bean 생성
-         * @return S3Client 객체
+         * @return 구성된 S3Client 객체
          */
         @Bean
         public S3Client s3Client() {
@@ -43,10 +42,10 @@ public class S3Config {
         }
 
         /**
-         * S3 Presigned URL 생성을 위한 S3Presigner를 생성합니다.
+         * S3 Presigned URL 생성을 위한 S3Presigner를 생성하여 Bean으로 등록합니다.
          * 
          * @summary S3 Presigned URL Bean 생성
-         * @return S3Presigner 객체
+         * @return 구성된 S3Presigner 객체
          */
         @Bean
         public S3Presigner s3Presigner() {

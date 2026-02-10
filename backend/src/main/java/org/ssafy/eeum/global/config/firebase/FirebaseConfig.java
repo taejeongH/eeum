@@ -12,10 +12,9 @@ import java.io.InputStream;
 import java.util.List;
 
 /**
- * Firebase Messaging(FCM) 설정을 위한 클래스입니다.
- * 프로젝트의 serviceAccountKey.json 파일을 사용하여 FirebaseApp을 초기화합니다.
+ * Firebase Cloud Messaging(FCM) 서비스를 사용하기 위한 FirebaseApp 설정 클래스입니다.
  * 
- * @summary Firebase 서비스 설정
+ * @summary Firebase 연동 설정 클래스
  */
 @Configuration
 public class FirebaseConfig {
@@ -24,12 +23,11 @@ public class FirebaseConfig {
     private String configPath;
 
     /**
-     * FirebaseApp을 초기화하고 Bean으로 등록합니다.
-     * 이미 초기화된 경우 기존 객체를 반환합니다.
+     * JSON 설정 파일을 기반으로 FirebaseApp을 초기화하여 Bean으로 등록합니다.
      * 
-     * @summary FirebaseApp Bean 생성
-     * @return 초기화된 FirebaseApp 객체
-     * @throws IOException 설정 파일 읽기 실패 시 발생
+     * @summary FirebaseApp 초기화 및 등록
+     * @return 초기화 완료된 FirebaseApp 객체
+     * @throws IOException 설정 파일 접근 실패 시 발생
      */
     @Bean
     public FirebaseApp firebaseApp() throws IOException {

@@ -13,10 +13,9 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 /**
- * OpenAPI(Swagger)를 사용한 API 문서 자동화를 위한 설정 클래스입니다.
- * 문서의 메타데이터, 서버 정보, 보안 스키마 등을 가로챕니다.
+ * OpenAPI(Swagger)를 활용하여 REST API 문서 자동화를 지원하는 설정 클래스입니다.
  * 
- * @summary Swagger API 문서 설정
+ * @summary Swagger API 문서 구성 클래스
  */
 @Configuration
 public class SwaggerConfig {
@@ -25,10 +24,10 @@ public class SwaggerConfig {
         private String swaggerUrl;
 
         /**
-         * OpenAPI 설정을 정의합니다. 서버 주소, 보안 요구사항, 컴포넌트 등을 구성합니다.
+         * OpenAPI 설정을 정의합니다. 서버 정보, 보안 요구사항, 컴포넌트 스캔 등을 구성합니다.
          * 
-         * @summary OpenAPI Bean 생성
-         * @return OpenAPI 객체
+         * @summary OpenAPIBean 생성
+         * @return 구성된 OpenAPI 객체
          */
         @Bean
         public OpenAPI openAPI() {

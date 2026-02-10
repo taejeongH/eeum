@@ -7,12 +7,25 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * Spring Security의 UserDetails 인터페이스를 구현한 IoT 기기 전용 상세 정보 클래스입니다.
+ * 기기의 시리얼 번호와 소속 그룹 정보를 관리합니다.
+ * 
+ * @summary IoT 기기 상세 정보 객체
+ */
 public class DeviceDetails implements UserDetails {
 
     private final String serialNumber;
     private final Integer groupId;
     private final Collection<? extends GrantedAuthority> authorities;
 
+    /**
+     * 기기 시리얼 번호와 그룹 ID를 전달받아 객체를 생성합니다.
+     * 
+     * @summary 생성자 (기본)
+     * @param serialNumber 기기 시리얼 번호
+     * @param groupId      소속 가족 그룹 식별자
+     */
     public DeviceDetails(String serialNumber, Integer groupId) {
         this.serialNumber = serialNumber;
         this.groupId = groupId;

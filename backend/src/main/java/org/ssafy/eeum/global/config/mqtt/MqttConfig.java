@@ -19,10 +19,10 @@ import java.security.cert.X509Certificate;
 import java.util.UUID;
 
 /**
- * MQTT 통신(Eclipse Paho V5)을 위한 설정 클래스입니다.
- * 센서 데이터 수신 및 제어 메시지 송신을 위한 채널과 어댑터를 설정합니다.
+ * Eclipse Paho V5 클라이언트를 이용한 MQTT(Message Queuing Telemetry Transport) 프로토콜 설정
+ * 클래스입니다.
  * 
- * @summary MQTT 서비스 설정
+ * @summary MQTT 통신 설정 클래스
  */
 @Slf4j
 @Configuration
@@ -47,9 +47,9 @@ public class MqttConfig {
     private String[] inboundTopics;
 
     /**
-     * MQTT 연결 옵션을 설정합니다. SSL/TLS 설정 및 사용자 인증 정보를 포함합니다.
+     * MQTT 브로커 연결을 위한 옵션(URL, 인증, SSL/TLS 등)을 구성합니다.
      * 
-     * @summary MQTT 연결 옵션 설정
+     * @summary MQTT 연결 옵션 구성
      * @return MqttConnectionOptions 객체
      */
     @Bean

@@ -6,9 +6,9 @@ import org.springframework.context.annotation.Configuration;
 import org.ssafy.eeum.global.common.filter.ApiLoggingFilter;
 
 /**
- * API 요청 및 응답 로깅을 위한 필터 설정 클래스입니다.
+ * API 요청 및 응답 로깅을 위한 필터를 설정하는 클래스입니다.
  * 
- * @summary API 로깅 설정
+ * @summary API 로깅 설정 클래스
  */
 @Configuration
 public class LogConfig {
