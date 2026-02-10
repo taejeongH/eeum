@@ -10,92 +10,132 @@
       가족들에게 알림이 전송돼요.
     </p>
 
-    <!-- Progress -->
+    <!-- 진행률 표시 -->
     <div class="mt-6 mb-8">
       <div class="h-2 w-full rounded-full bg-[var(--color-primary-soft)]">
         <div class="h-2 w-3/4 rounded-full bg-[var(--color-primary)]"></div>
       </div>
-      <p class="mt-2 text-xs text-[var(--color-primary)]">
-        단계 3 / 4 · 비상 연락망 설정
-      </p>
+      <p class="mt-2 text-xs text-[var(--color-primary)]">단계 3 / 4 · 비상 연락망 설정</p>
     </div>
 
-    <!-- Priority Slots -->
+    <!-- 연락처 우선순위 슬롯 영역 -->
     <div class="grid grid-cols-3 gap-3 mb-8">
-      <div 
-        v-for="(priority, index) in [1, 2, 3]" 
+      <div
+        v-for="(priority, index) in [1, 2, 3]"
         :key="priority"
         @click="selectSlot(index)"
         class="relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer aspect-[3/4]"
         :class="[
-          contactSlots[index] ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] border-solid' : 'border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-          selectedSlotIndex === index ? 'ring-2 ring-offset-2 ring-[var(--color-primary)]' : ''
+          contactSlots[index]
+            ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] border-solid'
+            : 'border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50',
+          selectedSlotIndex === index ? 'ring-2 ring-offset-2 ring-[var(--color-primary)]' : '',
         ]"
       >
-        <div class="absolute top-2 left-2 w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm"
-             :class="contactSlots[index] ? 'text-[var(--color-primary)]' : ''"
+        <div
+          class="absolute top-2 left-2 w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm"
+          :class="contactSlots[index] ? 'text-[var(--color-primary)]' : ''"
         >
           {{ priority }}
         </div>
 
         <template v-if="contactSlots[index]">
           <div class="w-12 h-12 rounded-full mb-2 bg-white p-0.5 shadow-sm">
-            <img :src="contactSlots[index].profileImage || '/default-profile.png'" class="w-full h-full rounded-full object-cover">
+            <img
+              :src="contactSlots[index].profileImage || '/default-profile.png'"
+              class="w-full h-full rounded-full object-cover"
+            />
           </div>
           <span class="text-sm font-bold text-gray-800 text-center leading-tight break-keep px-1">
             {{ contactSlots[index].name }}
           </span>
-           <button 
-             @click="(e) => removeContact(index, e)"
-             class="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md text-red-500 hover:bg-red-50 transition-colors z-10"
-           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          <button
+            @click="(e) => removeContact(index, e)"
+            class="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md text-red-500 hover:bg-red-50 transition-colors z-10"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
           </button>
         </template>
-        
+
         <template v-else>
-          <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 mb-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+          <div
+            class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 mb-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              ></path>
+            </svg>
           </div>
           <span class="text-xs text-gray-400 font-medium">선택</span>
         </template>
       </div>
     </div>
 
-    <!-- Member List -->
+    <!-- 가족 멤버 목록 영역 -->
     <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-5 mb-8">
       <h3 class="text-sm font-bold text-gray-600 mb-4 px-1">가족 멤버 목록</h3>
       <div class="grid grid-cols-4 gap-3">
         <template v-for="member in availableMembers" :key="member.userId">
-          <button 
+          <button
             @click="addContact(member)"
             :disabled="isSelected(member)"
             class="flex flex-col items-center gap-1.5 group disabled:opacity-40"
           >
-            <div class="relative w-14 h-14 rounded-full p-0.5 bg-white ring-1 ring-gray-200 transition-all group-hover:ring-gray-300 group-disabled:ring-gray-100">
-               <img :src="member.profileImage || '/default-profile.png'" class="w-full h-full rounded-full object-cover">
-               <div v-if="isSelected(member)" class="absolute inset-0 bg-white/60 rounded-full flex items-center justify-center">
-                 <svg class="w-6 h-6 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
-               </div>
+            <div
+              class="relative w-14 h-14 rounded-full p-0.5 bg-white ring-1 ring-gray-200 transition-all group-hover:ring-gray-300 group-disabled:ring-gray-100"
+            >
+              <img
+                :src="member.profileImage || '/default-profile.png'"
+                class="w-full h-full rounded-full object-cover"
+              />
+              <div
+                v-if="isSelected(member)"
+                class="absolute inset-0 bg-white/60 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-[var(--color-primary)]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2.5"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+              </div>
             </div>
-            <span class="text-xs font-medium text-gray-600 truncate w-full text-center">{{ member.name }}</span>
+            <span class="text-xs font-medium text-gray-600 truncate w-full text-center">{{
+              member.name
+            }}</span>
           </button>
         </template>
-        <!-- If no members -->
-        <div v-if="availableMembers.length === 0" class="col-span-4 py-4 text-center text-xs text-gray-400 bg-gray-50 rounded-xl">
-           선택 가능한 멤버가 없습니다.
+        <!-- 멤버가 없을 경우 표시 -->
+        <div
+          v-if="availableMembers.length === 0"
+          class="col-span-4 py-4 text-center text-xs text-gray-400 bg-gray-50 rounded-xl"
+        >
+          선택 가능한 멤버가 없습니다.
         </div>
       </div>
     </div>
 
-    <!-- Navigation Buttons -->
+    <!-- 하단 버튼 영역 -->
     <div class="mt-10">
-      <button 
-        @click="goNext" 
-        class="eeum-btn-primary"
-      >
-        다음 단계로 →
-      </button>
+      <button @click="goNext" class="eeum-btn-primary">다음 단계로 →</button>
     </div>
   </div>
 </template>
@@ -116,71 +156,94 @@ const familyStore = useFamilyStore();
 const userStore = useUserStore();
 const setupStore = useGroupSetupStore();
 
-// Bind to store state
+/** 스토어 상태 바인딩 */
 const { contactSlots } = storeToRefs(setupStore);
 
-const selectedSlotIndex = ref(0); // Default to first slot
+const selectedSlotIndex = ref(0);
 const members = ref([]);
 
-// Available members - currently showing all members
+/** 사용 가능한 멤버 - 현재는 모든 멤버를 표시함 */
 const availableMembers = computed(() => {
-    return members.value;
+  return members.value;
 });
 
+/**
+ * 멤버가 이미 비상 연락망에 등록되어 있는지 확인합니다.
+ * @param {Object} member
+ * @returns {boolean}
+ */
 const isSelected = (member) => {
-    return contactSlots.value.some(contact => contact && contact.userId === member.userId);
+  return contactSlots.value.some((contact) => contact && contact.userId === member.userId);
 };
 
+/**
+ * 편집할 연락처 슬롯을 선택합니다.
+ * @param {number} index
+ */
 const selectSlot = (index) => {
-    selectedSlotIndex.value = index;
+  selectedSlotIndex.value = index;
 };
 
+/**
+ * 선택된 슬롯에 가족 멤버를 비상 연락처로 등록합니다.
+ * @param {Object} member
+ */
 const addContact = (member) => {
-    // Fill the currently selected slot
-    if (selectedSlotIndex.value !== null) {
-        contactSlots.value[selectedSlotIndex.value] = member;
-        
-        // Auto-advance to next empty slot if available
-        const nextEmptyIndex = contactSlots.value.findIndex(slot => slot === null);
-        if (nextEmptyIndex !== -1) {
-            selectedSlotIndex.value = nextEmptyIndex;
-        }
-    }
+  /** 현재 선택된 슬롯을 채움 */
+  if (selectedSlotIndex.value !== null) {
+    contactSlots.value[selectedSlotIndex.value] = member;
+    autoAdvanceSlot();
+  }
 };
 
+/**
+ * 연락처 등록 후 다음 빈 슬롯으로 자동 선택 이동합니다.
+ */
+const autoAdvanceSlot = () => {
+  const nextEmptyIndex = contactSlots.value.findIndex((slot) => slot === null);
+  if (nextEmptyIndex !== -1) {
+    selectedSlotIndex.value = nextEmptyIndex;
+  }
+};
+
+/**
+ * 비상 연락처 슬롯에서 멤버를 제거합니다.
+ * @param {number} index
+ * @param {Event} event
+ */
 const removeContact = (index, event) => {
-    event.stopPropagation(); // Prevent slot selection when clicking remove
-    if (contactSlots.value[index]) {
-        contactSlots.value[index] = null;
-        selectedSlotIndex.value = index; // Select the emptied slot
-    }
+  event.stopPropagation(); /** 제거 클릭 시 슬롯 선택 방지 */
+  if (contactSlots.value[index]) {
+    contactSlots.value[index] = null;
+    selectedSlotIndex.value = index; /** 비워진 슬롯 선택 */
+  }
 };
 
 onMounted(async () => {
-    const familyId = route.params.familyId;
-    if (familyId) {
-        setupStore.initData(familyId);
-        
-        try {
-            // 1. Fetch available members (UI options)
-            const membersResponse = await api.get(`/families/${familyId}/members`);
-            members.value = membersResponse.data.filter(m => !m.isPlaceholder);
-        } catch (error) {
-            Logger.error("데이터 조회 실패:", error);
-        }
+  const familyId = route.params.familyId;
+  if (familyId) {
+    setupStore.initData(familyId);
+
+    try {
+      const membersResponse = await api.get(`/families/${familyId}/members`);
+      members.value = membersResponse.data.filter((m) => !m.isPlaceholder);
+    } catch (error) {
+      Logger.error('데이터 조회 실패:', error);
     }
+  }
 });
 
 const goBack = () => {
   router.back();
 };
 
+/**
+ * 다음 단계(복약 정보 입력)로 이동합니다.
+ */
 const goNext = () => {
-    // Save/Sync is handled by store state. Actual persistence happens at end?
-    // Or we can save step by step. For now, just navigate.
-    router.push({
-        name: 'GroupEditStep4',
-        params: { familyId: route.params.familyId }
-    });
+  router.push({
+    name: 'GroupEditStep4',
+    params: { familyId: route.params.familyId },
+  });
 };
 </script>

@@ -6,15 +6,25 @@
       @click.self="$emit('cancel')"
     >
       <transition name="pop">
-        <div
-          v-if="show"
-          class="bg-white w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl"
-        >
+        <div v-if="show" class="bg-white w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl">
           <div class="px-8 pt-10 pb-8 text-center">
-            <!-- Icon/Visual -->
-            <div class="w-16 h-16 bg-red-50 text-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <!-- 아이콘 및 시각적 요소 -->
+            <div
+              class="w-16 h-16 bg-red-50 text-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-6"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-8 w-8"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
               </svg>
             </div>
 
@@ -49,16 +59,16 @@
 defineProps({
   show: {
     type: Boolean,
-    required: true
+    required: true,
   },
   title: {
     type: String,
-    default: '알림'
+    default: '알림',
   },
   message: {
     type: String,
-    default: '정말로 진행하시겠습니까?'
-  }
+    default: '정말로 진행하시겠습니까?',
+  },
 });
 
 defineEmits(['confirm', 'cancel']);

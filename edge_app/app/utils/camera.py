@@ -1,4 +1,3 @@
-
 import os
 import sys
 import cv2
@@ -12,10 +11,8 @@ logger = logging.getLogger(__name__)
 
 class CameraManager:
     """
-    카메라 장치 관리 클래스
-    - 플랫폼별 카메라 열기
-    - 해상도/FPS 설정
-    - 카메라 객체 재사용 및 해제
+    카메라 장치(VideoCapture)의 생명주기와 설정을 관리하는 클래스입니다.
+    OS별 최적의 백엔드 선택 및 해상도, 오토포커스 등의 하드웨어 설정을 담당합니다.
     """
     
     def __init__(self):
@@ -26,8 +23,8 @@ class CameraManager:
     
     def open_camera(self) -> cv2.VideoCapture:
         """
-        OS에 맞는 backend로 카메라를 열어서 반환.
-        이미 열려있다면 기존 핸들을 반환하거나 재설정.
+        현재 운영체제에 적합한 백엔드를 사용하여 카메라를 엽니다.
+        Windows는 CAP_DSHOW/CAP_MSMF를, Linux는 CAP_V4L2를 우선 사용합니다.
         """
         if self.cap is not None and self.cap.isOpened():
             return self.cap
@@ -39,13 +36,13 @@ class CameraManager:
 
         c = None
         if sys.platform.startswith("win"):
-            # Windows: DSHOW 우선 시도 후 MSMF
+            # Windows: DSHOW 우선 시도 후 실패 시 MSMF 시도
             c = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
             if not c.isOpened():
                 c.release()
                 c = cv2.VideoCapture(cam_index, cv2.CAP_MSMF)
         else:
-            # Linux/Mac (Jetson including)
+            # Linux/Jetson: V4L2 백엔드 사용
             if cam_device:
                 c = cv2.VideoCapture(cam_device, cv2.CAP_V4L2)
             else:
@@ -53,10 +50,10 @@ class CameraManager:
 
         if c and c.isOpened():
             self.cap = c
-            # 기본 설정 적용
+            # 기본 해상도 및 FPS 설정 적용
             self.configure(self.current_w, self.current_h, self.current_fps)
             
-            # 실제 설정된 값 로깅
+            # 실제 적용된 해상도 로깅 (하드웨어 제약으로 다를 수 있음)
             aw = int(c.get(cv2.CAP_PROP_FRAME_WIDTH))
             ah = int(c.get(cv2.CAP_PROP_FRAME_HEIGHT))
             logger.info(f"Camera opened successfully. Request=({self.current_w}x{self.current_h}), Actual=({aw}x{ah})")
@@ -67,11 +64,10 @@ class CameraManager:
         return self.cap
 
     def ensure_opened(self) -> bool:
-        """카메라가 열려있는지 확인하고, 닫혀있다면 연다."""
+        """카메라가 열려 있는지 확인하고, 닫혀 있다면 재연결을 시도합니다."""
         if self.cap is not None and self.cap.isOpened():
             return True
         
-        # 닫혀있다면 재시도
         if self.cap is not None:
             try:
                 self.cap.release()
@@ -83,8 +79,7 @@ class CameraManager:
 
     def configure(self, width: int, height: int, fps: int = 15):
         """
-        해상도 및 FPS 설정
-        (이미 열린 카메라에 적용)
+        카메라의 해상도, 버퍼 크기 및 프레임 레이트를 설정합니다.
         """
         if self.cap is None or not self.cap.isOpened():
             return
@@ -94,11 +89,10 @@ class CameraManager:
         self.current_fps = fps
 
         self.cap.set(cv2.CAP_PROP_FPS, fps)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # 지연 방지를 위해 버퍼 크기를 최소화
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
-        # 확인용
         aw = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         ah = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         if aw != width or ah != height:
@@ -106,34 +100,28 @@ class CameraManager:
     
     def try_autofocus(self):
         """
-        카메라 오토포커스 시도 (QR 모드용)
-        
-        V4L2 카메라가 지원하는 경우에만 작동.
+        카메라의 오토포커스(Auto-focus)를 시도합니다 (QR 스캔 모드 등에 유용).
+        V4L2 드라이버가 지원하는 장치에서만 유효하게 작동합니다.
         """
         if self.cap is None or not self.cap.isOpened():
             return
         
         try:
-            # 1. 오토포커스 활성화 시도
+            # 자동 초점 활성화 시도
             af_supported = self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
             if af_supported:
                 logger.info("[Camera] Autofocus enabled")
-            else:
-                logger.debug("[Camera] Autofocus not supported")
             
-            # 2. 수동 초점 거리를 중간값(근거리)으로 설정 시도
-            # 일반적으로 0(무한대)~255(최근거리) 범위
+            # 수동 초점을 중간/근거리 범위로 조정 시도 (장치마다 값의 범위가 다를 수 있음)
             focus_set = self.cap.set(cv2.CAP_PROP_FOCUS, 180)
             if focus_set:
                 logger.info("[Camera] Manual focus set to 180 (close range)")
-            else:
-                logger.debug("[Camera] Manual focus control not supported")
                 
         except Exception as e:
             logger.warning(f"[Camera] Focus control failed: {e}")
     
     def release(self):
-        """카메라 자원 해제"""
+        """카메라 점유를 해제하고 자원을 반납합니다."""
         if self.cap is not None:
             try:
                 self.cap.release()
@@ -143,4 +131,5 @@ class CameraManager:
         logger.info("Camera released.")
 
     def get_cap(self) -> Optional[cv2.VideoCapture]:
+        """현재 사용 중인 비디오 캡처 객체를 반환합니다."""
         return self.cap
