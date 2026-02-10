@@ -68,7 +68,7 @@ ESP32 기반 서브 디바이스(센서/주변기기) 코드,
 
 ### 네트워크 / 공유
 
-- [Jetson Orin Nano ↔ RPi Wi-Fi 공유 (nftables NAT)](docs/Jetson_Orin_Nano_RPi_와이파이_유선공유_nftables.md)
+- [Jetson Orin Nano <-> RPi Wi-Fi 공유 (nftables NAT)](docs/Jetson_Orin_Nano_RPi_와이파이_유선공유_nftables.md)
 - [일반 Wi-Fi 연결 시 자동 시간 동기화 (rdate)](docs/일반_와이파이_연결시_자동_시간동기화_rdate.md)
 
 ### 개발 환경
