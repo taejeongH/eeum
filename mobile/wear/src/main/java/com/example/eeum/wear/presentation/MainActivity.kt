@@ -23,19 +23,27 @@ import androidx.health.services.client.MeasureClient
 import androidx.health.services.client.data.*
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
-import kotlinx.coroutines.guava.await // Guava ListenbleFuture await
-import androidx.lifecycle.lifecycleScope // lifecycleScope import
-import kotlinx.coroutines.launch // launch import
+import kotlinx.coroutines.guava.await
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
-
+/**
+ * Wear OS 메인 액티비티
+ *
+ * 심박수 측정 UI를 표시하고 권한을 관리하며, 핸드폰 앱으로부터의 요청을 처리합니다.
+ * - 심박수 실시간 표시 및 상태 업데이트
+ * - 포그라운드 서비스 시작/중지 제어
+ * - 화면 켜짐 유지 및 잠금 해제 처리 (긴급 상황 대응)
+ */
 class MainActivity : ComponentActivity() {
 
     private lateinit var measureClient: MeasureClient
 
-    // HR 상태 관리를 위한 State
+    // 심박수 상태 관리를 위한 State
     private var heartRate by mutableStateOf(0.0)
-    private var statusText by mutableStateOf("Initializing...")
+    private var statusText by mutableStateOf("초기화 중...")
 
+    // 권한 요청 런처
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -43,8 +51,8 @@ class MainActivity : ComponentActivity() {
         if (allGranted) {
             registerHeartRateSensor()
         } else {
-            statusText = "Permission Denied"
-            Log.e(TAG, "Permissions denied: ${permissions.filter { !it.value }.keys}")
+            statusText = "권한 거부됨"
+            Log.e(TAG, "권한 거부됨: ${permissions.filter { !it.value }.keys}")
         }
     }
 
@@ -63,10 +71,13 @@ class MainActivity : ComponentActivity() {
         checkPermissionAndStart()
     }
 
-    // ... (기타 함수들 생략)
+    /**
+     * 권한 확인 및 센서 등록 시작
+     */
     private fun checkPermissionAndStart() {
         val permissions = mutableListOf(Manifest.permission.BODY_SENSORS)
         
+        // Android 13 이상에서 알림 및 백그라운드 센서 권한 추가
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
             permissions.add(Manifest.permission.BODY_SENSORS_BACKGROUND)
@@ -83,9 +94,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * 심박수 센서 등록
+     */
     private fun registerHeartRateSensor() {
-        Log.w(TAG, "Registering Heart Rate Sensor...")
-        statusText = "Measuring..."
+        Log.w(TAG, "심박수 센서 등록 중...")
+        statusText = "측정 중..."
         
         lifecycleScope.launch {
             try {
@@ -95,20 +109,21 @@ class MainActivity : ComponentActivity() {
                         DataType.HEART_RATE_BPM,
                         hrCallback
                     )
-                    Log.w(TAG, "✅ HR Callback registered successfully")
+                    Log.w(TAG, "✅ 심박수 콜백 등록 성공")
                 } else {
-                    statusText = "HR Not Supported"
+                    statusText = "심박수 미지원"
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error registering sensor", e)
-                statusText = "Error: ${e.message}"
+                Log.e(TAG, "센서 등록 에러", e)
+                statusText = "에러: ${e.message}"
             }
         }
     }
 
+    // 심박수 데이터 수신 콜백
     private val hrCallback = object : MeasureCallback {
         override fun onAvailabilityChanged(dataType: DeltaDataType<*, *>, availability: Availability) {
-            Log.d(TAG, "Availability changed: $availability")
+            Log.d(TAG, "가용성 변경: $availability")
         }
 
         override fun onDataReceived(data: DataPointContainer) {
@@ -119,14 +134,19 @@ class MainActivity : ComponentActivity() {
                 // UI 스레드에서 상태 업데이트 보장
                 runOnUiThread {
                     heartRate = latestHr
-                    statusText = "Measuring..."
+                    statusText = "측정 중..."
                 }
-                Log.d(TAG, "HR Updated: $latestHr")
+                Log.d(TAG, "심박수 업데이트: $latestHr")
                 sendHeartRateToPhone(latestHr)
             }
         }
     }
 
+    /**
+     * 핸드폰으로 심박수 데이터 전송
+     *
+     * @param hr 측정된 심박수
+     */
     private fun sendHeartRateToPhone(hr: Double) {
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
@@ -140,10 +160,10 @@ class MainActivity : ComponentActivity() {
                     com.google.android.gms.tasks.Tasks.await(
                         messageClient.sendMessage(node.id, "/heart-rate", payload)
                     )
-                    Log.d(TAG, "Sent HR $hr to ${node.displayName}")
+                    Log.d(TAG, "데이터 전송 성공 ($hr) -> ${node.displayName}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send HR to phone", e)
+                Log.e(TAG, "데이터 전송 실패", e)
             }
         }
     }
@@ -156,9 +176,9 @@ class MainActivity : ComponentActivity() {
     private fun unregisterHeartRateSensor() {
         try {
             measureClient.unregisterMeasureCallbackAsync(DataType.HEART_RATE_BPM, hrCallback)
-            Log.d(TAG, "HR Sensor unregistered")
+            Log.d(TAG, "심박수 센서 해제됨")
         } catch (e: Exception) {
-            Log.e(TAG, "Error unregistering sensor", e)
+            Log.e(TAG, "센서 해제 에러", e)
         }
     }
 
@@ -172,19 +192,24 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    /**
+     * 인텐트 처리
+     *
+     * 서비스 시작/중지 요청을 처리합니다.
+     */
     private fun handleIntent(intent: Intent) {
         val action = intent.getStringExtra("action")
         
         if (action == "start_service") {
-            Log.d(TAG, "Starting HeartRateService via Activity")
-            statusText = "Measuring..."
+            Log.d(TAG, "액티비티를 통해 HeartRateService 시작")
+            statusText = "측정 중..."
             
-            // 1. Force Screen ON and Show over Lock Screen
+            // 1. 화면 켜짐 유지 및 잠금 해제 (긴급 상황)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
                 setShowWhenLocked(true)
                 setTurnScreenOn(true)
                 
-                // Request Keyguard Dismissal (Important for pattern/PIN locks)
+                // Keyguard 해제 요청 (패턴/핀 잠금 시 중요)
                 val keyguardManager = getSystemService(android.app.KeyguardManager::class.java)
                 keyguardManager?.requestDismissKeyguard(this, null)
             } else {
@@ -197,40 +222,40 @@ class MainActivity : ComponentActivity() {
             }
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             
-            // 2. Start Service
+            // 2. 서비스 시작
             val serviceIntent = Intent(this, HeartRateService::class.java)
             startForegroundService(serviceIntent)
             
-            // 3. Set 30 Seconds Timeout (Auto Stop)
+            // 3. 30초 후 자동 중지 (배터리 절약)
             lifecycleScope.launch {
-                kotlinx.coroutines.delay(30000L) // 30 Seconds
-                Log.d(TAG, "30 Seconds passed, stopping measurement automatically")
+                kotlinx.coroutines.delay(30000L) // 30초
+                Log.d(TAG, "30초 경과, 자동 측정 중지")
                 window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                statusText = "Timeout: Stopped"
+                statusText = "시간 초과: 중지됨"
                 
-                // Stop Service as well to save battery
+                // 서비스 중지
                 val serviceIntent = Intent(this@MainActivity, HeartRateService::class.java)
                 stopService(serviceIntent)
-                // unregister listener in activity too
+                // 액티비티 리스너도 해제
                 unregisterHeartRateSensor()
             }
         } else if (action == "stop_service") {
-            Log.d(TAG, "Stopping HeartRateService via Activity")
-            statusText = "Stopped"
+            Log.d(TAG, "액티비티를 통해 HeartRateService 중지")
+            statusText = "중지됨"
             
-            // 1. Release Screen Lock (Returns to normal timeout)
+            // 1. 화면 켜짐 유지 해제
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             
-            // 2. Stop Service
+            // 2. 서비스 중지
             val serviceIntent = Intent(this, HeartRateService::class.java)
             stopService(serviceIntent)
         }
     }
-
-    // Coroutine Scope Helper (lifecycleScope는 Activity 멤버이므로 직접 호출 가능하지만,
-    // import가 안 되어 있을 수 있어 명시적으로 추가하지 않음 - Activity 멤버 사용)
 }
 
+/**
+ * Wear OS 앱 UI
+ */
 @Composable
 fun WearApp(hr: Double, status: String) {
     MaterialTheme {
@@ -244,8 +269,9 @@ fun WearApp(hr: Double, status: String) {
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colors.primary,
-                text = "Heart Rate:\n${hr.toInt()} BPM\n\n$status"
+                text = "심박수:\n${hr.toInt()} BPM\n\n$status"
             )
         }
     }
 }
+

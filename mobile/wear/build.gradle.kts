@@ -9,8 +9,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.eeum"
-        minSdk = 30
-        targetSdk = 34
+        minSdk = 30 // Wear OS 3.0 이상 권장
+        targetSdk = 34 // Wear OS 타겟 버전
         versionCode = 1
         versionName = "1.0"
     }
@@ -35,23 +35,41 @@ android {
 }
 
 dependencies {
-    implementation(libs.play.services.wearable)
-    implementation(platform(libs.androidx.compose.bom))
+    // ------------------------------------------------------------
+    // 1. Wear OS & UI
+    // ------------------------------------------------------------
+    implementation(libs.play.services.wearable) // Google Play Services (Wearable)
+    implementation(platform(libs.androidx.compose.bom)) // Compose BOM
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    // Wear OS 전용 Material Design 및 Foundation
     implementation(libs.wear.compose.material)
     implementation(libs.wear.compose.foundation)
+    
+    // ------------------------------------------------------------
+    // 2. Android Core & Utils
+    // ------------------------------------------------------------
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.health.services.client)
-    implementation(libs.kotlinx.coroutines.guava)
-    implementation(libs.kotlinx.coroutines.play.services)
-    implementation(libs.kotlinx.coroutines.android) // lifecycleScope 사용을 위해 필요할 수 있음
-    implementation(libs.androidx.lifecycle.runtime.ktx) // lifecycleScope
-    implementation(libs.androidx.lifecycle.service) // LifecycleService
-    implementation(libs.androidx.concurrent.futures)
+    implementation(libs.androidx.lifecycle.runtime.ktx) // LifecycleScope
 
+    // ------------------------------------------------------------
+    // 3. Health Services (심박수 측정 등)
+    // ------------------------------------------------------------
+    implementation(libs.androidx.health.services.client) // Health Services Client
+    implementation(libs.androidx.lifecycle.service) // LifecycleService (백그라운드 서비스용)
+    implementation(libs.androidx.concurrent.futures) // ListenableFuture 변환용
 
+    // ------------------------------------------------------------
+    // 4. Coroutines
+    // ------------------------------------------------------------
+    implementation(libs.kotlinx.coroutines.guava) // Guava ListenableFuture 변환 지원
+    implementation(libs.kotlinx.coroutines.play.services) // Play Services Task 변환 지원
+    implementation(libs.kotlinx.coroutines.android) 
+
+    // ------------------------------------------------------------
+    // 5. Testing
+    // ------------------------------------------------------------
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)

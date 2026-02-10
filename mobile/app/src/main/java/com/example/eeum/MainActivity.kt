@@ -26,18 +26,32 @@ import kotlinx.coroutines.launch
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.tasks.await
 
+/**
+ * 메인 액티비티
+ *
+ * 애플리케이션의 진입점으로, 다음 기능들을 담당합니다:
+ * 1. WebView 초기화 및 화면 표시
+ * 2. 권한 요청 및 관리 (카메라, 마이크, 알림 등)
+ * 3. FCM 토큰 발급 및 알림 처리
+ * 4. Wear OS 기기 연결 상태 확인
+ * 5. 주기적인 건강 데이터 동기화 작업 예약
+ */
 class MainActivity : ComponentActivity() {
 
     private lateinit var healthManager: SamsungHealthManager
     private var fcmToken: String = ""
     
+    // 알림 클릭으로 앱 진입 시 임시 저장 변수
     @Volatile private var pendingNotificationId: String? = null
     @Volatile private var pendingNotificationType: String? = null
     @Volatile private var pendingFamilyId: String? = null
     
+    // 알림 이벤트 흐름 (WebView로 전달)
     val notificationEvent = MutableSharedFlow<String>()
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    
+    // 파일 첨부(이미지 선택) 런처
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris ->
@@ -49,6 +63,9 @@ class MainActivity : ComponentActivity() {
         private var instance: MainActivity? = null
         var isAppInForeground: Boolean = false
         
+        /**
+         * 알림 이벤트를 WebView로 전송
+         */
         fun emitNotification(notificationId: String, type: String? = "NORMAL", familyId: String? = "", title: String? = "", message: String? = "", groupName: String? = "") {
             instance?.let { activity ->
                 activity.lifecycleScope.launch {
@@ -57,11 +74,17 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /**
+         * 상단 알림 모두 제거
+         */
         fun clearNotifications(context: Context) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             notificationManager.cancelAll()
         }
 
+        /**
+         * 즉시 건강 데이터 동기화 트리거
+         */
         fun triggerImmediateHealthSync(context: Context, familyId: String? = null) {
             val inputData = androidx.work.Data.Builder()
             familyId?.let { inputData.putString("family_id", it) }
@@ -76,10 +99,13 @@ class MainActivity : ComponentActivity() {
                 androidx.work.ExistingWorkPolicy.REPLACE,
                 immediateRequest
             )
-            Log.i("MainActivity", "🚀 Triggered Immediate Health Sync (Family: $familyId)")
+            Log.i("MainActivity", "🚀 즉시 건강 동기화 요청 (Family: $familyId)")
         }
     }
 
+    /**
+     * 앱이 실행 중일 때 새로운 인텐트 수신 처리 (알림 클릭 등)
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -118,6 +144,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         instance = this
 
+        // 인텐트 데이터 추출 (알림 클릭으로 실행된 경우)
         pendingNotificationId = intent.getStringExtra("notificationId")
         pendingNotificationType = intent.getStringExtra("type") ?: "NORMAL"
         pendingFamilyId = intent.getStringExtra("familyId") ?: ""
@@ -125,6 +152,7 @@ class MainActivity : ComponentActivity() {
         val pendingMessage = intent.getStringExtra("body") ?: intent.getStringExtra("message") ?: ""
         val pendingGroupName = intent.getStringExtra("groupName") ?: ""
 
+        // WebView 로딩 대기 후 알림 이벤트 발생
         if (pendingNotificationId != null) {
              lifecycleScope.launch {
                  delay(1000)
@@ -137,12 +165,13 @@ class MainActivity : ComponentActivity() {
         healthManager = SamsungHealthManager(this)
         WebView.setWebContentsDebuggingEnabled(true)
 
+        // FCM 토큰 수신
         FirebaseMessaging.getInstance().token.addOnSuccessListener {
             fcmToken = it
-            Log.d("FCM", "✅ FCM TOKEN SUCCESS: $it")
+            Log.d("FCM", "✅ FCM 토큰 발급 성공: $it")
         }
 
-        // Wearable PING Test
+        // Wearable 연결 테스트 PING
         lifecycleScope.launch {
             delay(3000) 
             try {
@@ -153,12 +182,12 @@ class MainActivity : ComponentActivity() {
                         val messageClient = Wearable.getMessageClient(this@MainActivity)
                         nodes.forEach { node ->
                             messageClient.sendMessage(node.id, "/emergency/start", null)
-                                .addOnSuccessListener { Log.d("Wearable", "Message sent successfully") }
+                                .addOnSuccessListener { Log.d("Wearable", "메시지 전송 성공") }
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("Wearable", "Error sending message", e)
+                Log.e("Wearable", "메시지 전송 오류", e)
             }
         }
 
@@ -188,15 +217,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // 권한 요청
         val permissions = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.CALL_PHONE, Manifest.permission.RECORD_AUDIO)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         requestPermissions(permissions.toTypedArray(), 1001)
         
+        // 주기적 건강 동기화 작업 예약
         schedulePeriodicHealthSync()
     }
 
+    /**
+     * 주기적 건강 데이터 동기화 작업 예약 (1시간 주기)
+     */
     private fun schedulePeriodicHealthSync() {
         val syncRequest = androidx.work.PeriodicWorkRequestBuilder<HealthSyncWorker>(
             1, java.util.concurrent.TimeUnit.HOURS
@@ -210,6 +244,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * 웹뷰 - 네이티브 브릿지 인터페이스
+ *
+ * JavaScript에서 Android 네이티브 기능을 호출할 수 있도록 연결합니다.
+ */
 class HealthJsBridge(
     private val activity: ComponentActivity,
     private val healthManager: SamsungHealthManager,
@@ -309,7 +348,7 @@ class HealthJsBridge(
                 messageClient.sendMessage(node.id, path, null).await()
             }
         } catch (e: Exception) {
-            Log.e("BRIDGE", "Failed to send message", e)
+            Log.e("BRIDGE", "메시지 전송 실패", e)
         }
     }
 
@@ -319,6 +358,9 @@ class HealthJsBridge(
     }
 }
 
+/**
+ * WebView 화면 구성
+ */
 @Composable
 fun WebViewScreen(
     activity: ComponentActivity,
@@ -374,10 +416,10 @@ fun WebViewScreen(
                     allowFileAccessFromFileURLs = true
                     allowUniversalAccessFromFileURLs = true
                     
-                    // [IMPORTANT] 실시간 영상(HTTP) 로드를 위한 Mixed Content 허용
+                    // [중요] 실시간 영상(HTTP) 로드를 위한 Mixed Content 허용
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     
-                    // [IMPORTANT] 자동 재생 허용
+                    // [중요] 자동 재생 허용
                     mediaPlaybackRequiresUserGesture = false
                 }
 
