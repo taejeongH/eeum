@@ -15,35 +15,31 @@ const apiClient = axios.create({
   timeout: 5000, // 5초 타임아웃 (서버 응답 없을 시 무한 로딩 방지)
 });
 
-// [중요] 모든 요청에 토큰을 자동으로 붙여주는 인터셉터입니다.
+// 모든 요청에 토큰을 자동으로 붙여주는 인터셉터
 apiClient.interceptors.request.use(
   (config) => {
-    // [NEW] 전역 로딩 시작 (silent 옵션이 있으면 건너뜀)
+    // 전역 로딩 시작 (silent 옵션이 있으면 건너뜀)
     const uiStore = useUiStore();
     if (!config.silent && !config.headers?.silent) {
       uiStore.startLoading();
     } else {
       // 헤더에 silent가 있으면 실제 요청 선에서 제거 (서버 전송 방지)
       if (config.headers?.silent) delete config.headers.silent;
-      config.isSilent = true; // 응답에서도 참조하기 위함
+      config.isSilent = true;
     }
 
-    // 1. localStorage 또는 sessionStorage에서 토큰 확인
+    // localStorage 또는 sessionStorage에서 토큰 확인
     let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
-    // ... (rest of the code follows)
-
-    // 2. [NEW] 모바일 앱: AndroidBridge에서 토큰 가져오기 (fallback)
+    // 모바일 앱: AndroidBridge에서 토큰 가져오기 (fallback)
     if (!token && window.AndroidBridge?.getAccessToken) {
       const nativeToken = window.AndroidBridge.getAccessToken();
       if (nativeToken && nativeToken !== 'null' && nativeToken.length > 0) {
         token = nativeToken;
-        // [Safety] 인터셉터에서 로컬스토리지를 직접 수정하지 않습니다. (App.vue의 restoreSession이 담당)
       }
     }
 
     if (token) {
-      // 반드시 Bearer 뒤에 한 칸 공백이 있어야 합니다.
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -51,10 +47,10 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
-// [NEW] 토큰 만료 처리 및 재발급 로직
+// 토큰 만료 처리 및 재발급 로직
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -71,7 +67,7 @@ const processQueue = (error, token = null) => {
 
 apiClient.interceptors.response.use(
   (response) => {
-    // [NEW] 전역 로딩 종료
+    // 전역 로딩 종료
     const uiStore = useUiStore();
     if (!response.config?.isSilent) {
       uiStore.finishLoading();
@@ -81,8 +77,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Detailed Error Logging
-    Logger.error(`🌐 [API 오류] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error);
+    // 에러 로깅
+    Logger.error(
+      `🌐 [API 오류] ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
+      error,
+    );
     if (error.response) {
       Logger.error(`   상태 코드: ${error.response.status}`, error.response.data);
     } else if (error.request) {
@@ -91,12 +90,13 @@ apiClient.interceptors.response.use(
       Logger.error(`   메시지: ${error.message}`);
     }
 
-
-
     // 401 에러이고, 재시도 플래그가 없으며, 재발급 요청 자체가 아닌 경우
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/reissue')) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes('/auth/reissue')
+    ) {
       if (isRefreshing) {
-        // 이미 재발급 중이면 큐에 넣어 대기
         return new Promise((resolve, reject) => {
           failedQueue.push({
             resolve: (token) => {
@@ -114,19 +114,18 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-
-        const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
+        const refreshToken =
+          localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
         if (!refreshToken) {
-          throw new Error("No refresh token available");
+          throw new Error('No refresh token available');
         }
 
-        // API 호출: 토큰 재발급
         const { data } = await apiClient.post('/auth/reissue', {
-          refreshToken: refreshToken
+          refreshToken: refreshToken,
         });
 
         const newAccessToken = data.accessToken;
-        const newRefreshToken = data.refreshToken; // Rotate된 Refresh Token
+        const newRefreshToken = data.refreshToken;
 
         if (newAccessToken) {
           localStorage.setItem('accessToken', newAccessToken);
@@ -134,7 +133,6 @@ apiClient.interceptors.response.use(
             localStorage.setItem('refreshToken', newRefreshToken);
           }
 
-          // Native Bridge에도 저장
           if (window.AndroidBridge && window.AndroidBridge.saveAccessToken) {
             window.AndroidBridge.saveAccessToken(newAccessToken);
           }
@@ -145,10 +143,10 @@ apiClient.interceptors.response.use(
           processQueue(null, newAccessToken);
           return apiClient(originalRequest);
         } else {
-          throw new Error("No token returned");
+          throw new Error('No token returned');
         }
       } catch (err) {
-        Logger.error("❌ 토큰 갱신 실패:", err);
+        Logger.error('❌ 토큰 갱신 실패:', err);
         processQueue(err, null);
 
         // 로그아웃 처리
@@ -159,10 +157,9 @@ apiClient.interceptors.response.use(
 
         if (window.AndroidBridge) {
           if (window.AndroidBridge.logout) window.AndroidBridge.logout();
-          if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken(""); // Explicitly clear token
+          if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken('');
         }
 
-        // [SAFETY] 에러 발생 시에도 로딩 상태 해제 보장
         const uiStore = useUiStore();
         uiStore.finishLoading();
 
@@ -173,20 +170,20 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // [NEW] 전역 에러 핸들링 (404 등)
+    // 전역 에러 핸들링 (404 등)
     if (error.response?.status === 404) {
       const modalStore = useModalStore();
-      modalStore.openAlert("요청하신 페이지나 정보를 찾을 수 없습니다. (404 Not Found)", "오류");
+      modalStore.openAlert('요청하신 페이지나 정보를 찾을 수 없습니다. (404 Not Found)', '오류');
     }
 
-    // [NEW] 전역 로딩 종료
+    // 전역 로딩 종료
     const uiStore = useUiStore();
     if (!error.config?.isSilent) {
       uiStore.finishLoading();
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export const getUserProfile = () => {
@@ -201,7 +198,6 @@ export const updateUserProfile = (data) => {
   });
 };
 
-// ... 나머지 함수들
 export const joinFamilyWithCode = (inviteCode) => {
   return apiClient.post('/families/join', inviteCode, {
     headers: {
@@ -219,14 +215,12 @@ export const logout = () => {
   return apiClient.post('/auth/logout');
 };
 
-// [NEW] 토큰 재발급 API (수동 호출용)
+// 토큰 재발급 API (수동 호출용)
 export const reissueToken = () => {
   return apiClient.post('/auth/reissue');
 };
 
-// Account Recovery APIs
 export const findEmail = (data) => {
-  // data: { name, phone }
   return apiClient.post('/auth/find/email', data);
 };
 
@@ -246,7 +240,6 @@ export const login = (credentials) => {
   return apiClient.post('/auth/login', credentials);
 };
 
-
 export default apiClient;
 
 export const getNotificationHistory = async (familyId) => {
@@ -262,7 +255,7 @@ export const getNotificationHistory = async (familyId) => {
 export const getFallVideo = async (eventId) => {
   try {
     const response = await apiClient.get(`/falls/${eventId}/video`);
-    return response.data; // Expected: { videoUrl: "..." }
+    return response.data;
   } catch (error) {
     Logger.error(`낙상 영상 조회 실패 (Event ID: ${eventId}):`, error);
     throw error;
@@ -279,7 +272,6 @@ export const getFamilyDetails = async (familyId) => {
   }
 };
 
-// IoT Device Management APIs
 export const generatePairingCode = async (familyId) => {
   try {
     const response = await apiClient.post(`/families/${familyId}/iot/pair/code`);
@@ -330,13 +322,12 @@ export const deleteIotDevice = async (familyId, deviceId) => {
   }
 };
 
-// Heart Rate APIs
 export const getLatestHeartRate = async (familyId) => {
   try {
     const response = await apiClient.get('/health/heart-rate/latest', {
-      params: { groupId: familyId }
+      params: { groupId: familyId },
     });
-    return response.data; // { avgRate: 85, minRate: ... }
+    return response.data;
   } catch (error) {
     Logger.error(`최신 심박수 조회 실패 (ID: ${familyId}):`, error);
     throw error;
@@ -346,7 +337,7 @@ export const getLatestHeartRate = async (familyId) => {
 export const getHeartRateResult = async (eventId) => {
   try {
     const response = await apiClient.get(`/health/heart-rate/${eventId}`);
-    return response.data; // { avgRate: 110, ... }
+    return response.data;
   } catch (error) {
     Logger.error(`심박수 결과 조회 실패 (Event ID: ${eventId}):`, error);
     throw error;
