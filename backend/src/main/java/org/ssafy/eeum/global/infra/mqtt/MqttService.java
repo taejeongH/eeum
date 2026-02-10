@@ -36,6 +36,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 import org.ssafy.eeum.domain.iot.dto.MqttAlarmMessageDTO;
 
+/**
+ * MQTT 프로토콜을 이용한 실시간 메시징 및 IoT 기기 제어를 담당하는 서비스입니다.
+ * 기기 상태 모니터링, 센서 이벤트 수집, 기기 설정 동기화 등을 처리합니다.
+ * 
+ * @summary MQTT 통합 서비스
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -73,6 +79,11 @@ public class MqttService {
         publish(topic, jsonPayload);
     }
 
+    /**
+     * MQTT 채널로부터 수집된 메시지를 토픽별로 분류하여 적절한 핸들러로 라우팅합니다.
+     * 
+     * @param message 수신된 MQTT 메시지
+     */
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMessage(Message<?> message) {
         String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
@@ -88,16 +99,17 @@ public class MqttService {
         log.debug("MQTT Message Received - Topic: {}, Payload: {}", topic, payload);
 
         try {
+            // 토픽에 따른 분기 처리
             if ("eeum/response".equals(topic)) {
-                handleResponse(payload);
+                handleResponse(payload); // 음성 응답 처리
             } else if ("eeum/event".equals(topic)) {
-                handleEvent(payload);
+                handleEvent(payload); // 센서 이벤트 처리
             } else if ("eeum/update".equals(topic)) {
-                handleUpdate(payload);
+                handleUpdate(payload); // 기기 업데이트 확인 처리
             } else if ("eeum/status".equals(topic)) {
-                handleStatus(payload);
+                handleStatus(payload); // 기기 온라인/오프라인 상태 처리
             } else if ("eeum/responsenull".equals(topic)) {
-                handleResponseNull(payload);
+                handleResponseNull(payload); // LLM 테스트용 응답 처리
             }
         } catch (Exception e) {
             log.error("Error handling MQTT message for topic {}: {}", topic, e.getMessage());

@@ -15,6 +15,12 @@ import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * OAuth2 로그인 성공 시 호출되는 핸들러입니다.
+ * 인증된 사용자 정보를 기반으로 JWT 토큰(Access/Refresh)을 생성하고 프론트엔드로 리다이렉트합니다.
+ * 
+ * @summary OAuth2 로그인 성공 핸들러
+ */
 @Component
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
@@ -24,6 +30,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
+
+    @Value("${app.emulator-host:10.0.2.2}")
+    private String emulatorHost;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -38,15 +47,15 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // Redis 저장
         redisTemplate.opsForValue().set("RT:" + oAuth2User.getEmail(), refreshToken, 14, TimeUnit.DAYS);
 
-        // 로컬 여부 판정 (10.0.2.2 등 특수 환경 대응)
+        // 로컬 여부 판정
         String referer = request.getHeader("Referer");
         String origin = request.getHeader("Origin");
-        boolean isEmulator = (referer != null && referer.contains("10.0.2.2"))
-                || (origin != null && origin.contains("10.0.2.2"));
+        boolean isEmulator = (referer != null && referer.contains(emulatorHost))
+                || (origin != null && origin.contains(emulatorHost));
 
         String baseRedirectUrl = frontendUrl;
         if (isEmulator && frontendUrl.contains("localhost")) {
-            baseRedirectUrl = frontendUrl.replace("localhost", "10.0.2.2");
+            baseRedirectUrl = frontendUrl.replace("localhost", emulatorHost);
         }
 
         String targetUrl = UriComponentsBuilder.fromUriString(baseRedirectUrl)

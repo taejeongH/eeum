@@ -14,6 +14,12 @@ import org.ssafy.eeum.global.error.model.ErrorCode;
 
 import java.util.stream.Collectors;
 
+/**
+ * 애플리케이션 전역에서 발생하는 예외를 중앙 집중식으로 처리하는 클래스입니다.
+ * 각 예외 타입을 기반으로 적절한 HTTP 상태 코드와 통일된 응답 형식을 반환합니다.
+ * 
+ * @summary 전역 예외 처리기
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {

@@ -19,6 +19,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.stream.Collectors;
 
+/**
+ * JWT(JSON Web Token)의 생성, 파싱 및 유효성 검증을 담당하는 클래스입니다.
+ * 비대칭 키(RS256) 방식을 사용하여 보안성을 높였으며, 사용자 및 IoT 기기용 토큰을 구분하여 처리합니다.
+ * 
+ * @summary JWT 제공 및 관리 서비스
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -114,6 +120,16 @@ public class JwtProvider {
         return createToken(0, "GROUP:" + groupId, DEVICE_ROLE, groupId, jwtProperties.getRefreshTokenExpiration());
     }
 
+    /**
+     * 공통 토큰 생성 로직입니다.
+     * 
+     * @param userId     사용자 식별자 (기기일 경우 0)
+     * @param email      사용자 이메일 또는 기기 그룹 식별자
+     * @param role       권한 정보 (UserRole/DeviceRole)
+     * @param groupId    기기 소속 그룹 ID (사용자일 경우 null)
+     * @param expiration 토큰 만료 시간 (ms)
+     * @return 생성된 JWT 문자열
+     */
     private String createToken(Number userId, String email, String role, Integer groupId, long expiration) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
@@ -124,10 +140,10 @@ public class JwtProvider {
                 .claim(AUTH_CLAIM, role)
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(privateKey, Jwts.SIG.RS256);
+                .signWith(privateKey, Jwts.SIG.RS256); // RS256 비대칭 키 서명
 
         if (groupId != null) {
-            builder.claim(GROUP_ID_CLAIM, groupId);
+            builder.claim(GROUP_ID_CLAIM, groupId); // IoT 기기용 그룹 정보 추가
         }
 
         return builder.compact();
