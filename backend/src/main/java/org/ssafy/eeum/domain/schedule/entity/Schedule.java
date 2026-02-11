@@ -9,6 +9,12 @@ import org.ssafy.eeum.global.common.model.BaseEntity;
 
 import java.time.LocalDateTime;
 
+/**
+ * 가족 일정 정보를 담는 엔티티 클래스입니다.
+ * 일정의 기본 정보, 반복 설정, 방문 정보 및 연관된 가족/생성자 정보를 관리합니다.
+ * 
+ * @summary 가족 일정 엔티티
+ */
 @Entity
 @Table(name = "schedules")
 @Getter

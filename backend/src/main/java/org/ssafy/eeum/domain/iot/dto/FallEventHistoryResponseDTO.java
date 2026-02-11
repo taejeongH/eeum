@@ -7,6 +7,12 @@ import org.ssafy.eeum.domain.iot.entity.FallEvent;
 
 import java.time.LocalDateTime;
 
+/**
+ * 사용자에게 반환되는 낙상 이벤트 이력 응답 DTO 클래스입니다.
+ * 심각도, 영상 주소, 처리 상태 및 AI 분석 결과 등을 포함합니다.
+ * 
+ * @summary 낙상 이벤트 이력 응답 DTO
+ */
 @Getter
 @Builder
 @Schema(description = "낙상 이벤트 이력 응답 DTO")

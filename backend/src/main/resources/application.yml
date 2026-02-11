@@ -38,7 +38,7 @@ logging:
     org.springframework.security.oauth2: info
 
 eeum:
-  swagger-url: http://localhost:8080
+  swagger-url: https://i14a105.p.ssafy.io
   webhook-url: https://i14a105.p.ssafy.io/api/voice/webhook/tts
   log:
     max-payload-length: 500

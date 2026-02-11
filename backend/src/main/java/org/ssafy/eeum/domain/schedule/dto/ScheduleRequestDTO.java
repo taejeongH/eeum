@@ -9,6 +9,11 @@ import org.ssafy.eeum.domain.schedule.entity.RepeatType;
 
 import java.time.LocalDateTime;
 
+/**
+ * 일정 등록 및 수정을 위한 요청 데이터 전달 객체(DTO)입니다.
+ * 
+ * @summary 일정 요청 DTO
+ */
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

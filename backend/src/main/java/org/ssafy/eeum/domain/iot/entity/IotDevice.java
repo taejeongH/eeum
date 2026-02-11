@@ -6,15 +6,25 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
+import java.time.LocalDateTime;
+
+/**
+ * IoT 기기 정보를 관리하는 엔티티 클래스입니다.
+ * 기기 시리얼 번호, 이름, 설치 위치 및 활성화 상태 등을 관리합니다.
+ * 소프트 딜리트(SQLDelete) 기능을 지원합니다.
+ * 
+ * @summary IoT 기기 엔티티
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "iot_devices")
 @SQLDelete(sql = "UPDATE iot_devices SET deleted_at = NOW() WHERE id = ?")
-@org.hibernate.annotations.SQLRestriction("deleted_at IS NULL")
+@SQLRestriction("deleted_at IS NULL")
 public class IotDevice extends BaseEntity {
 
     @Id
@@ -22,7 +32,7 @@ public class IotDevice extends BaseEntity {
     private Integer id;
 
     @Column(name = "deleted_at")
-    private java.time.LocalDateTime deletedAt;
+    private LocalDateTime deletedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)

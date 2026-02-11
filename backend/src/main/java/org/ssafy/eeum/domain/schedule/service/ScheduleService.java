@@ -39,6 +39,12 @@ import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
 
+/**
+ * 가족 일정과 관련된 비즈니스 로직을 처리하는 서비스 클래스입니다.
+ * 일정의 조회, 등록, 수정, 삭제 및 반복 일정 계산, 알림 전송 등을 담당합니다.
+ * 
+ * @summary 가족 일정 관리 서비스
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,6 +59,14 @@ public class ScheduleService {
     private final IotDeviceRepository iotDeviceRepository;
     private final SupporterRepository supporterRepository;
 
+    /**
+     * 사용자가 해당 가족 그룹의 구성원인지 권한을 확인합니다.
+     * 
+     * @summary 가족 그룹 접근 권한 확인
+     * @param userId   사용자 식별자
+     * @param familyId 가족 그룹 식별자
+     * @throws CustomException 권한이 없거나 엔티티가 없을 경우 발생
+     */
     private void checkFamilyAccess(Integer userId, Integer familyId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
@@ -64,7 +78,21 @@ public class ScheduleService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN_FAMILY_ACCESS));
     }
 
-    // 월간 일정 조회
+    /**
+     * 특정 월의 모든 가족 일정을 조회합니다.
+     * 캐시 및 다양한 필터링(카테고리, 키워드 등)을 지원합니다.
+     * 
+     * @summary 월간 일정 목록 조회
+     * @param userId       요청자 식별자
+     * @param familyId     가족 그룹 식별자
+     * @param year         조회 연도
+     * @param month        조회 월
+     * @param category     필터링할 카테고리 (선택)
+     * @param keyword      검색어 (선택)
+     * @param targetPerson 대상자 이름 (선택)
+     * @param isVisited    방문 여부 필터 (선택)
+     * @return 필터링된 일정 응답 DTO 리스트
+     */
     public List<ScheduleResponseDTO> getMonthlySchedules(Integer userId, Integer familyId, int year, int month,
             String category,
             String keyword, String targetPerson, Boolean isVisited) {
@@ -95,6 +123,16 @@ public class ScheduleService {
         return result;
     }
 
+    /**
+     * 단일 일정의 상세 정보를 조회합니다.
+     * 가상 ID를 분석하여 원본 또는 개별 발생 일정을 반환합니다.
+     * 
+     * @summary 일정 상세 정보 조회
+     * @param userId     요청자 식별자
+     * @param familyId   가족 그룹 식별자
+     * @param scheduleId 일정 식별자 (DB ID 또는 가상 ID)
+     * @return 일정 상세 정보 DTO
+     */
     public ScheduleResponseDTO getSchedule(Integer userId, Integer familyId, String scheduleId) {
         checkFamilyAccess(userId, familyId);
         if (scheduleId.contains("_")) {
@@ -276,7 +314,15 @@ public class ScheduleService {
                 .build();
     }
 
-    // 일정 등록
+    /**
+     * 새로운 일정을 등록합니다.
+     * 시작 시간이 종료 시간보다 늦을 수 없으며, 예약된 일관된 필터 키워드는 제목으로 사용할 수 없습니다.
+     * 
+     * @summary 신규 일정 등록
+     * @param userId   생성자 식별자
+     * @param familyId 가족 그룹 식별자
+     * @param dto      일정 등록 정보 DTO
+     */
     @Transactional
     public void createSchedule(Integer userId, Integer familyId, ScheduleRequestDTO dto) {
         if (dto.getStartAt().isAfter(dto.getEndAt())) {
@@ -314,7 +360,16 @@ public class ScheduleService {
         iotSyncService.notifyUpdate(familyId, "schedule");
     }
 
-    // 일정 수정
+    /**
+     * 기존 일정을 수정합니다.
+     * 반복 일정의 특정 발생(가상 ID)을 수정할 경우, 예외 일정을 생성하여 처리합니다.
+     * 
+     * @summary 일정 정보 수정
+     * @param userId     수정 요청자 식별자
+     * @param familyId   가족 그룹 식별자
+     * @param scheduleId 일정 식별자 (DB ID 또는 가상 ID)
+     * @param dto        일정 수정 정보 DTO
+     */
     @Transactional
     public void updateSchedule(Integer userId, Integer familyId, String scheduleId, ScheduleRequestDTO dto) {
         if (dto.getStartAt().isAfter(dto.getEndAt())) {
@@ -408,7 +463,16 @@ public class ScheduleService {
         }
     }
 
-    // 일정 삭제
+    /**
+     * 일정을 삭제합니다.
+     * 단일 삭제 또는 반복 일정 전체 삭제 옵션을 제공합니다.
+     * 
+     * @summary 일정 삭제 처리
+     * @param userId     삭제 요청자 식별자
+     * @param familyId   가족 그룹 식별자
+     * @param scheduleId 일정 식별자
+     * @param deleteAll  반복 일정 전체 삭제 여부
+     */
     @Transactional
     public void deleteSchedule(Integer userId, Integer familyId, String scheduleId, boolean deleteAll) {
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
@@ -464,7 +528,16 @@ public class ScheduleService {
         }
     }
 
-    // 방문 상태 변경
+    /**
+     * 일정의 방문 여부 상태를 변경합니다.
+     * 반복 일정의 일부일 경우 독립된 일정으로 분리하여 상태를 기록합니다.
+     * 
+     * @summary 방문 상태 업데이트
+     * @param userId     요청자 식별자
+     * @param familyId   가족 그룹 식별자
+     * @param scheduleId 일정 식별자
+     * @param visited    방문 완료 여부
+     */
     @Transactional
     public void updateVisitStatus(Integer userId, Integer familyId, String scheduleId, boolean visited) {
         ParsedScheduleId parsedId = parseScheduleId(scheduleId);
@@ -567,12 +640,22 @@ public class ScheduleService {
         }
     }
 
+    /**
+     * 매일 오전 8시에 오늘의 일정을 조회하여 가족 구성원들에게 알림을 보냅니다.
+     * 
+     * @summary 당일 일정 모닝 알람 전송
+     */
     @Transactional
     @Scheduled(cron = "0 0 8 * * *")
     public void sendDailyScheduleAlarm() {
         sendScheduleAlarmForDate(LocalDate.now(), "오늘");
     }
 
+    /**
+     * 매일 오후 8시에 내일의 일정을 미리 알림으로 전송합니다.
+     * 
+     * @summary 익일 일정 사전 알람 전송
+     */
     @Transactional
     @Scheduled(cron = "0 0 20 * * *")
     public void sendNextDayScheduleAlarm() {
@@ -627,6 +710,14 @@ public class ScheduleService {
         }
     }
 
+    /**
+     * 사용자의 생일 정보를 바탕으로 반복되는 생일 일정을 등록합니다.
+     * 앱 내 가족 통계나 알림에서 사용됩니다.
+     * 
+     * @summary 생일 일정 자동 등록
+     * @param user   생일 대상 사용자
+     * @param family 대상 가족 그룹
+     */
     @Transactional
     public void addBirthdaySchedule(User user, Family family) {
         if (user.getBirthDate() == null) {

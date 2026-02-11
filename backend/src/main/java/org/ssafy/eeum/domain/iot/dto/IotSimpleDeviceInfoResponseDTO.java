@@ -7,6 +7,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.iot.entity.IotDevice;
 
+/**
+ * 기기 초기화 및 목록 조회 시 사용되는 요약된 기기 정보 DTO 클래스입니다.
+ * 시리얼 번호, 별칭, 설치 위치 및 타입을 포함합니다.
+ * 
+ * @summary 기기 간략 정보 응답 DTO
+ */
 @Getter
 @Builder
 @NoArgsConstructor

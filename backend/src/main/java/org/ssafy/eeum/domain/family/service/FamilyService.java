@@ -22,6 +22,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * 가족 그룹과 관련된 데이터 처리 및 비즈니스 로직을 담당하는 서비스 클래스입니다.
+ * 가족 생성, 가입, 상세 정보 조회, 멤버 관리 및 초대코드 생성 등을 처리합니다.
+ * 
+ * @summary 가족 관리 서비스
+ */
 @Service
 @RequiredArgsConstructor
 public class FamilyService {
@@ -38,6 +44,14 @@ public class FamilyService {
 
         // ... existing methods ...
 
+        /**
+         * 특정 가족 그룹의 상세 정보를 조회합니다.
+         * 가족 멤버 리스트, 보호 대상자, 대표자 정보 및 IoT 기기 기반의 스트리밍 경로를 포함합니다.
+         * 
+         * @summary 가족 그룹 상세 정보 조회
+         * @param familyId 가족 그룹 식별자
+         * @return 가족 상세 정보 응답 DTO
+         */
         @Transactional(readOnly = true)
         public FamilyDetailResponseDto getFamilyDetails(Integer familyId) {
                 Family family = familyRepository.findById(familyId)
@@ -73,11 +87,11 @@ public class FamilyService {
                 // If multiple, pick first. If none, use family.getStreamingUrl() (fallback) or
                 // null
                 String streamingTarget = family.getStreamingUrl();
-                List<org.ssafy.eeum.domain.iot.entity.IotDevice> devices = iotDeviceRepository
+                List<IotDevice> devices = iotDeviceRepository
                                 .findAllByFamilyId(familyId);
 
                 // [Logic Update] Prioritize valid JETSON devices
-                for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
+                for (IotDevice device : devices) {
                         if ("JETSON".equalsIgnoreCase(device.getDeviceType())) {
                                 String sn = device.getSerialNumber();
                                 // Filter out garbage data like 'falls'
@@ -101,6 +115,15 @@ public class FamilyService {
                                 .build();
         }
 
+        /**
+         * 새로운 가족 그룹을 생성합니다.
+         * 생성한 사용자는 해당 그룹의 대표자(방장)가 되며, 고유한 초대코드를 발급받습니다.
+         * 
+         * @summary 신규 가족 그룹 생성
+         * @param userId                 생성 요청자 식별자
+         * @param createFamilyRequestDto 가족 생성 정보 DTO
+         * @return 생성된 가족 정보 결과 DTO
+         */
         @Transactional
         public CreateFamilyResponseDto createFamily(String userId, CreateFamilyRequestDto createFamilyRequestDto) {
                 User user = userRepository.findById(Integer.parseInt(userId))
@@ -126,12 +149,20 @@ public class FamilyService {
                                 .relationship(createFamilyRequestDto.getRelationship())
                                 .build();
                 supporterRepository.save(supporter);
-                
+
                 scheduleService.addBirthdaySchedule(user, savedFamily);
 
                 return CreateFamilyResponseDto.of(savedFamily);
         }
 
+        /**
+         * 현재 로그인한 사용자가 속한 모든 가족 그룹 목록을 조회합니다.
+         * 각 그룹에서의 역할 및 보호 대상자 정보를 포함합니다.
+         * 
+         * @summary 가입된 가족 그룹 목록 조회
+         * @param userId 사용자 식별자
+         * @return 소속 가족 그룹 간략 정보 리스트
+         */
         @Transactional(readOnly = true)
         public List<FamilySimpleResponseDto> findMyFamilies(String userId) {
                 User user = userRepository.findById(Integer.parseInt(userId))
@@ -166,6 +197,14 @@ public class FamilyService {
                                 .collect(Collectors.toList());
         }
 
+        /**
+         * 가족 그룹에 속한 모든 멤버 리스트(프로필 이미지 포함)를 상세 조회합니다.
+         * 
+         * @summary 가족 멤버 목록 상세 조회
+         * @param userId   요청자 식별자
+         * @param familyId 가족 그룹 식별자
+         * @return 가족 멤버 DTO 리스트
+         */
         @Transactional(readOnly = true)
         public List<FamilyMemberDto> getFamilyMembers(String userId, Integer familyId) {
                 User user = userRepository.findById(Integer.parseInt(userId))
@@ -188,6 +227,15 @@ public class FamilyService {
                                 .collect(Collectors.toList());
         }
 
+        /**
+         * 특정 가족 멤버의 상세 프로필 정보를 조회합니다.
+         * 
+         * @summary 개별 가족 멤버 상세 조회
+         * @param userId       요청자 식별자
+         * @param familyId     가족 그룹 식별자
+         * @param memberUserId 조회 대상 멤버 식별자
+         * @return 멤버 상세 정보 응답 DTO
+         */
         @Transactional(readOnly = true)
         public FamilyMemberDetailResponseDto getFamilyMemberDetails(String userId, Integer familyId,
                         Integer memberUserId) {
@@ -212,6 +260,14 @@ public class FamilyService {
                 return responseDto;
         }
 
+        /**
+         * 초대코드를 통해 해당 가족 그룹의 이름과 초대자 정보를 확인합니다.
+         * 가입 전에 정보를 미리 보여주는 용도로 사용됩니다.
+         * 
+         * @summary 초대 코드 정보 확인
+         * @param inviteCode 초대 코드
+         * @return 초대 정보 응답 DTO
+         */
         @Transactional(readOnly = true)
         public InviteInfoResponseDto getInviteInfo(String inviteCode) {
                 Family family = familyRepository.findByInviteCode(inviteCode)
@@ -253,6 +309,14 @@ public class FamilyService {
                 return code.toString();
         }
 
+        /**
+         * 가족 그룹에서 탈퇴하거나, 대표자인 경우 그룹 자체를 해체합니다.
+         * 
+         * @summary 가족 그룹 탈퇴 및 해체
+         * @param userId   사용자 식별자
+         * @param familyId 가족 그룹 식별자
+         * @return 탈퇴 후 상태 정보 응답 DTO
+         */
         @Transactional
         public LeaveFamilyResponseDto leaveFamily(String userId, Integer familyId) {
                 User user = userRepository.findById(Integer.parseInt(userId))
@@ -282,6 +346,17 @@ public class FamilyService {
                 }
         }
 
+        /**
+         * 가족 그룹의 정보를 수정합니다.
+         * 그룹명 변경, 보호 대상자 지정/해제, 비상 연락 우선순위 변경 등을 처리합니다.
+         * 대표자(방장) 권한이 필요합니다.
+         * 
+         * @summary 가족 그룹 설정 정보 업데이트
+         * @param authenticatedUserId 요청자(대표자) 식별자
+         * @param familyId            가족 그룹 식별자
+         * @param requestDto          수정할 정보 DTO
+         * @return 수정 결과 응답 DTO
+         */
         @Transactional
         public UpdateFamilyResponseDto updateFamily(String authenticatedUserId, Integer familyId,
                         UpdateFamilyRequestDto requestDto) {
@@ -370,6 +445,15 @@ public class FamilyService {
                 return family.getInviteCode();
         }
 
+        /**
+         * 가족 초대 코드를 재발급합니다.
+         * 기존 코드는 더 이상 사용할 수 없게 되며, 보안을 위해 사용됩니다.
+         * 
+         * @summary 초대 코드 재발급
+         * @param authenticatedUserId 요청자(대표자) 식별자
+         * @param familyId            가족 그룹 식별자
+         * @return 새로 발급된 초대 코드
+         */
         @Transactional
         public String regenerateInviteCode(String authenticatedUserId, Integer familyId) {
                 User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
@@ -393,6 +477,14 @@ public class FamilyService {
                 return newInviteCode;
         }
 
+        /**
+         * 대표자 권한으로 특정 멤버를 가족 그룹에서 강제 제외합니다.
+         * 
+         * @summary 가족 멤버 강제 퇴장 처리
+         * @param authenticatedUserId 요청자(대표자) 식별자
+         * @param familyId            가족 그룹 식별자
+         * @param memberUserId        내보낼 멤버 식별자
+         */
         @Transactional
         public void deleteFamilyMember(String authenticatedUserId, Integer familyId, Integer memberUserId) {
                 User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
@@ -419,6 +511,14 @@ public class FamilyService {
                 supporterRepository.delete(supporterToDelete);
         }
 
+        /**
+         * 초대코드를 사용하여 특정 가족 그룹에 가입합니다.
+         * 
+         * @summary 가족 그룹 가입
+         * @param authenticatedUserId 요청자 식별자
+         * @param inviteCode          초대 코드
+         * @return 가입 완료된 가족의 간략 정보 DTO
+         */
         @Transactional
         public FamilySimpleResponseDto joinFamily(String authenticatedUserId, String inviteCode) {
                 User authenticatedUser = userRepository.findById(Integer.parseInt(authenticatedUserId))
@@ -451,6 +551,14 @@ public class FamilyService {
                 return FamilySimpleResponseDto.of(family);
         }
 
+        /**
+         * 현재 로그인한 사용자가 해당 가족 그룹 내에서의 호칭/관계 정보를 업데이트합니다.
+         * 
+         * @summary 나의 가족 관계 정보 수정
+         * @param authenticatedUserId 사용자 식별자
+         * @param familyId            가족 그룹 식별자
+         * @param requestDto          수정할 관계 정보 DTO
+         */
         @Transactional
         public void updateMyRelationship(String authenticatedUserId, Integer familyId,
                         UpdateMemberRelationshipRequestDto requestDto) {

@@ -8,6 +8,12 @@ import lombok.NoArgsConstructor;
 import org.ssafy.eeum.domain.family.entity.Family;
 import org.ssafy.eeum.global.common.model.BaseEntity;
 
+/**
+ * IoT 기기로 전송된 알림 메시지 이력을 관리하는 엔티티 클래스입니다.
+ * 음성 메시지, 이미지 전송 등 기기에 전달된 각종 알림의 읽음 여부를 추적합니다.
+ * 
+ * @summary 기기용 알림 이력 엔티티
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -47,6 +53,11 @@ public class IotNotification extends BaseEntity {
         this.isRead = false;
     }
 
+    /**
+     * 알림을 읽음 상태로 변경합니다.
+     * 
+     * @summary 알림 읽음 처리
+     */
     public void markAsRead() {
         this.isRead = true;
     }
