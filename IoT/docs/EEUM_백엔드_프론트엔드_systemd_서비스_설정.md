@@ -18,6 +18,7 @@ WorkingDirectory=/home/a105/eeum
 EnvironmentFile=/home/a105/eeum/.env
 Environment=LOG_LEVEL=DEBUG
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/a105/eeum
 
 ExecStart=/home/a105/eeum/.venv/bin/python3 /home/a105/eeum/main.py
 
