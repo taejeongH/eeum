@@ -24,14 +24,14 @@ export default function () {
 
   // analyze API는 POST 방식이며 groupId와 date를 쿼리 파라미터로 받음
   let res = http.post(
-    `${BASE_URL}/analyze?groupId=${groupId}&date=${today}`,
+    `${BASE_URL}/health/analyze?groupId=${groupId}&date=${today}`,
     null,
     params,
   );
 
   check(res, {
     "analysis status is 200": (r) => r.status === 200,
-    "has report data": (r) => r.json().data !== null,
+    "has report data": (r) => r.status === 200 && r.json().data !== null,
   });
 
   sleep(5); // 분석은 무거운 작업이므로 긴 간격을 둠

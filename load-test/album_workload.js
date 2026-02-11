@@ -3,7 +3,7 @@ import { check, sleep } from "k6";
 
 // 앨범 조회 및 업로드 준비 부하 테스트
 export let options = {
-  vus: 20,
+  vus: 1000,
   duration: "1m",
 };
 
