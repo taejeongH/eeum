@@ -52,6 +52,8 @@ def register(app: FastAPI, state: MonitorState) -> None:
 
     @app.post("/eeum/token")
     async def set_token(req: TokenReq):
+        """토큰 저장 후 MQTT 활성화 + initial sync 예약"""
+        
         await state.device_store.async_set_token(req.token)
 
         if state.mqtt is None:

@@ -69,6 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_voice_downloads_status ON voice_downloads(status)
 CREATE INDEX IF NOT EXISTS idx_voice_downloads_updated_at ON voice_downloads(updated_at);
 INSERT OR IGNORE INTO kv(key, value) VALUES ('album.last_log_id', '0');
 INSERT OR IGNORE INTO kv(key, value) VALUES ('voice.last_log_id', '0');
+INSERT OR IGNORE INTO kv(key, value) VALUES ('slideshow.last_seq', '0');
 """
 
 class AppDB:

@@ -14,6 +14,12 @@ from app.sync_utils import now_ts
 logger = logging.getLogger(__name__)
 
 def _should_skip_keepalive(state) -> bool:
+    """
+    keepalive tick을 스킵해야 하는지 판단합니다.
+    
+    :param state: 전역 상태
+    :returns: 스킵 여부(True면 keepalive 수행하지 않음)
+    """
     if getattr(state, "shutting_down", False):
         return True
     if getattr(state, "fall_active", False):
@@ -34,12 +40,16 @@ def _should_skip_keepalive(state) -> bool:
 
     return False
 
-async def audio_keepalive_loop(state):
+async def audio_keepalive_loop(state) -> None:
     """
     오디오 출력 장치를 주기적으로 깨워 HDMI/출력 드랍을 완화합니다.
 
+    설정:
+    - AUDIO_KEEPALIVE_SEC <= 0 이면 비활성화
+    - 출력 디바이스/샘플레이트/채널/웜업 길이는 config 값 사용
+
     :param state: 전역 상태
-    :return: 없음
+    :returns: None
     """
     sec = float(AUDIO_KEEPALIVE_SEC or 0)
     if sec <= 0:

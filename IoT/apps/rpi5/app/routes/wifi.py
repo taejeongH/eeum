@@ -25,6 +25,7 @@ class WifiDeleteProfileIn(BaseModel):
 def register(app: FastAPI, state: MonitorState) -> None:
     """
     Wi-Fi 관련 API 라우트를 등록합니다.
+    
     :param app: FastAPI
     :param state: MonitorState
     :return: None

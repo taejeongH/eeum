@@ -196,7 +196,16 @@ class AudioPlayback:
     ffmpeg_stderr_task: Optional[asyncio.Task] = None
     aplay_stderr_task: Optional[asyncio.Task] = None
     src_duration_sec: Optional[float] = None
+    """
+    ffmpeg -> aplay 파이프라인 기반 오디오 재생 핸들.
 
+    :param ffmpeg: ffmpeg 디코딩 프로세스
+    :param aplay: ALSA 출력 프로세스
+    :param pump_task: ffmpeg stdout → aplay stdin 전달 태스크
+    :param ffmpeg_stderr_task: ffmpeg stderr drain 태스크 (옵션)
+    :param aplay_stderr_task: aplay stderr drain 태스크 (옵션)
+    :param src_duration_sec: 소스 오디오 길이(초, 없으면 None)
+    """
     async def _close_aplay_stdin_eof(self) -> None:
         try:
             if self.aplay and self.aplay.stdin:

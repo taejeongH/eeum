@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Dict, Any
 from fastapi import FastAPI
 from pydantic import BaseModel
 from app.api_common import queue_put_drop_oldest
@@ -13,16 +13,18 @@ class DebugFallReq(BaseModel):
 class DebugAlarmReq(BaseModel):
     kind: Literal["medication", "schedule"] = "schedule"
     content: str = "Test alarm"
+    data: Dict[str, Any] = {}
     sent_at: float | None = None
     msg_id: str | None = None
 
 def register(app: FastAPI, state: MonitorState, *, enabled: bool) -> None:
     """
-    디버그 전용 라우트를 등록합니다(옵션).
-    :param app: FastAPI
-    :param state: MonitorState
-    :param enabled: 활성화 여부
-    :return: None
+    디버그 전용 라우트를 FastAPI 앱에 등록합니다.
+
+    :param app: 라우트를 등록할 FastAPI 인스턴스
+    :param state: 전역 상태(MonitorState). 내부 큐(state.queue/state.cmd_queue)에 이벤트/커맨드를 enqueue 합니다.
+    :param enabled: 디버그 라우트 활성화 여부
+    :returns: None
     """
     if not enabled:
         return
@@ -49,6 +51,7 @@ def register(app: FastAPI, state: MonitorState, *, enabled: bool) -> None:
         payload = {
             "kind": body.kind,
             "content": body.content,
+            "data": dict(body.data or {}),
             "sent_at": float(body.sent_at) if body.sent_at is not None else float(now),
         }
         if body.msg_id:
