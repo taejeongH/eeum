@@ -10,11 +10,24 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
+/**
+ * Spring Security의 UserDetails와 OAuth2User 인터페이스를 구현한 클래스입니다.
+ * 인증된 사용자의 상세 정보 및 소셜 로그인 속성을 통합 관리합니다.
+ * 
+ * @summary 커스텀 사용자 상세 정보 객체
+ */
 public class CustomUserDetails implements UserDetails, OAuth2User {
 
     private final User user;
     private final Map<String, Object> attributes;
 
+    /**
+     * 사용자 엔티티와 소셜 로그인 속성을 전달받아 객체를 생성합니다.
+     * 
+     * @summary 생성자 (사용자 + 속성)
+     * @param user       사용자 엔티티
+     * @param attributes 소셜 로그인 속성 맵
+     */
     public CustomUserDetails(User user, Map<String, Object> attributes) {
         this.user = user;
         this.attributes = attributes;

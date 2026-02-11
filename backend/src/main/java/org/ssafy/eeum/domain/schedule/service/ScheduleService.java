@@ -659,14 +659,14 @@ public class ScheduleService {
                 .build();
 
         scheduleRepository.save(schedule);
-        
+
         // Robust Cache Invalidation: Clear cache for the birth month in multiple years
         // to ensure visibility in the current calendar view period.
         int currentYear = LocalDate.now().getYear();
         invalidateCache(family.getId(), user.getBirthDate().withYear(currentYear));
         invalidateCache(family.getId(), user.getBirthDate().withYear(currentYear + 1));
         invalidateCache(family.getId(), user.getBirthDate()); // Clear original birth year month too
-        
+
         iotSyncService.notifyUpdate(family.getId(), "schedule");
     }
 }

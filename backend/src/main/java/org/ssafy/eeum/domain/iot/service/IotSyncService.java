@@ -23,12 +23,17 @@ import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
 import org.ssafy.eeum.global.infra.mqtt.MqttService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto;
+import org.ssafy.eeum.domain.iot.event.IotSyncEvent;
 import org.ssafy.eeum.global.infra.redis.RedisService;
 import org.ssafy.eeum.global.infra.s3.S3Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -46,7 +51,7 @@ public class IotSyncService {
     private final RedisService redisService;
     private final FamilyRepository familyRepository;
 
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @Transactional(readOnly = true)
     public IotSyncDto getSyncData(Integer familyId, String kind, Integer clientLastLogId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
@@ -58,10 +63,10 @@ public class IotSyncService {
             lastLogId = "image".equals(kind) ? family.getLastMediaLogId() : family.getLastVoiceLogId();
         }
 
-        List<Integer> deletedIds = new java.util.ArrayList<>();
+        List<Integer> deletedIds = new ArrayList<>();
         Map<Integer, Integer> addedMap = new HashMap<>();
 
-        List<org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto> members = getFamilyMembers(familyId);
+        List<IotFamilyMemberDto> members = getFamilyMembers(familyId);
 
         if ("image".equals(kind)) {
             List<MediaLog> logs = mediaLogRepository
@@ -158,14 +163,14 @@ public class IotSyncService {
         return null;
     }
 
-    public List<org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto> getFamilyMembers(Integer familyId) {
+    public List<IotFamilyMemberDto> getFamilyMembers(Integer familyId) {
         Family family = familyRepository.findById(familyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FAMILY_NOT_FOUND));
 
         return family.getSupporters().stream()
                 .map(supporter -> {
-                    org.ssafy.eeum.domain.auth.entity.User user = supporter.getUser();
-                    return org.ssafy.eeum.domain.iot.dto.IotFamilyMemberDto.builder()
+                    User user = supporter.getUser();
+                    return IotFamilyMemberDto.builder()
                             .userId(user.getId())
                             .name(user.getName())
                             .profileImageUrl(
@@ -181,14 +186,14 @@ public class IotSyncService {
      * 1. Redis에 활성 가족 및 kind 목록 추가
      * 2. 즉시 MQTT 전송 (1개라도 생기면 바로 보냄)
      */
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 데이터 업데이트 알림 요청 (이벤트 발행)
      * 트랜잭션 커밋 후 실제 처리를 위해 이벤트를 발행합니다.
      */
     public void notifyUpdate(Integer familyId, String kind) {
-        eventPublisher.publishEvent(new org.ssafy.eeum.domain.iot.event.IotSyncEvent(familyId, kind));
+        eventPublisher.publishEvent(new IotSyncEvent(familyId, kind));
     }
 
     /**
@@ -196,8 +201,8 @@ public class IotSyncService {
      * 1. Redis에 활성 가족 및 kind 목록 추가
      * 2. 즉시 MQTT 전송
      */
-    @org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
-    public void handleSyncEvent(org.ssafy.eeum.domain.iot.event.IotSyncEvent event) {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleSyncEvent(IotSyncEvent event) {
         Integer familyId = event.getFamilyId();
         String kind = event.getKind();
 
@@ -221,7 +226,7 @@ public class IotSyncService {
         String familyIdStr = familyId.toString();
         String countKey = "sync:family:" + familyIdStr + ":" + kind + ":count";
         String timeKey = "sync:family:" + familyIdStr + ":" + kind + ":last_sent";
-        String msgId = java.util.UUID.randomUUID().toString();
+        String msgId = UUID.randomUUID().toString();
 
         // MQTT payload 구성
         Map<String, Object> payload = new HashMap<>();
@@ -257,7 +262,7 @@ public class IotSyncService {
     @Scheduled(fixedRate = 10 * 60 * 1000) // 10분 주기 체크
     public void checkPeriodicUpdates() {
         String activeFamilyKey = "sync:active_families";
-        java.util.Set<Object> families = redisService.getSetMembers(activeFamilyKey);
+        Set<Object> families = redisService.getSetMembers(activeFamilyKey);
 
         if (families == null || families.isEmpty())
             return;
@@ -271,7 +276,7 @@ public class IotSyncService {
                 Integer familyId = Integer.parseInt(familyIdStr);
 
                 String activeKindsKey = "sync:family:" + familyIdStr + ":kinds";
-                java.util.Set<Object> kinds = redisService.getSetMembers(activeKindsKey);
+                Set<Object> kinds = redisService.getSetMembers(activeKindsKey);
 
                 if (kinds == null || kinds.isEmpty())
                     continue;

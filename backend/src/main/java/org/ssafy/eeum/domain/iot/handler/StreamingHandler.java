@@ -17,6 +17,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.HashMap;
+import java.util.List;
+import org.ssafy.eeum.domain.iot.entity.IotDevice;
+import org.ssafy.eeum.domain.iot.repository.IotDeviceRepository;
 
 @Slf4j
 @Component
@@ -30,10 +34,10 @@ public class StreamingHandler extends BinaryWebSocketHandler {
     // Viewer Sessions: deviceId -> Set<Session> (1:N Broadcasting)
     private final Map<String, Set<WebSocketSession>> viewerSessions = new ConcurrentHashMap<>();
 
-    private final org.ssafy.eeum.domain.iot.repository.IotDeviceRepository iotDeviceRepository;
+    private final IotDeviceRepository iotDeviceRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public StreamingHandler(org.ssafy.eeum.domain.iot.repository.IotDeviceRepository iotDeviceRepository) {
+    public StreamingHandler(IotDeviceRepository iotDeviceRepository) {
         this.iotDeviceRepository = iotDeviceRepository;
     }
 
@@ -69,7 +73,7 @@ public class StreamingHandler extends BinaryWebSocketHandler {
     }
 
     private Map<String, String> parseQueryParams(String query) {
-        Map<String, String> queryPairs = new java.util.HashMap<>();
+        Map<String, String> queryPairs = new HashMap<>();
         String[] pairs = query.split("&");
         for (String pair : pairs) {
             int idx = pair.indexOf("=");
@@ -85,9 +89,9 @@ public class StreamingHandler extends BinaryWebSocketHandler {
     private void registerViewerByFamilyId(WebSocketSession session, int familyId) {
         String targetDeviceId = null;
         try {
-            java.util.List<org.ssafy.eeum.domain.iot.entity.IotDevice> devices = iotDeviceRepository
+            List<IotDevice> devices = iotDeviceRepository
                     .findAllByFamilyId(familyId);
-            for (org.ssafy.eeum.domain.iot.entity.IotDevice device : devices) {
+            for (IotDevice device : devices) {
                 if ("JETSON".equalsIgnoreCase(device.getDeviceType()) && device.getSerialNumber() != null) {
                     targetDeviceId = device.getSerialNumber();
                     log.info("Found Jetson device for Family {} via QueryParam: {}", familyId, targetDeviceId);
@@ -213,7 +217,8 @@ public class StreamingHandler extends BinaryWebSocketHandler {
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-        log.error("WebSocket Transport Error: Session={}, Error={}", session.getId(), exception.getMessage(), exception);
+        log.error("WebSocket Transport Error: Session={}, Error={}", session.getId(), exception.getMessage(),
+                exception);
         super.handleTransportError(session, exception);
     }
 

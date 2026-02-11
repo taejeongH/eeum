@@ -11,10 +11,8 @@ import org.ssafy.eeum.domain.message.entity.Message;
 import org.ssafy.eeum.domain.message.repository.MessageRepository;
 import org.ssafy.eeum.domain.voice.entity.VoiceLog;
 import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
+import org.ssafy.eeum.domain.voice.repository.VoiceTaskRepository;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
-
-import org.ssafy.eeum.global.error.exception.CustomException;
-import org.ssafy.eeum.global.error.model.ErrorCode;
 
 @Slf4j
 @Service
@@ -25,7 +23,7 @@ public class MessageTtsAsyncService {
     private final MessageRepository messageRepository;
     private final VoiceLogRepository voiceLogRepository;
     private final IotSyncService iotSyncService;
-    private final org.ssafy.eeum.domain.voice.repository.VoiceTaskRepository taskRepository;
+    private final VoiceTaskRepository taskRepository;
 
     @Async
     @Transactional

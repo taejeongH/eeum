@@ -3,6 +3,7 @@ package org.ssafy.eeum.global.auth.handler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -14,6 +15,12 @@ import org.ssafy.eeum.global.auth.model.CustomUserDetails;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * OAuth2 로그인 성공 시 호출되는 핸들러입니다.
+ * 인증된 사용자 정보를 기반으로 JWT 토큰(Access/Refresh)을 생성하고 프론트엔드로 리다이렉트합니다.
+ * 
+ * @summary OAuth2 로그인 성공 핸들러
+ */
 @Component
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
@@ -21,9 +28,24 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final JwtProvider jwtProvider;
     private final RedisTemplate<String, String> redisTemplate;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
+    @Value("${app.emulator-host:10.0.2.2}")
+    private String emulatorHost;
+
+    /**
+     * 로그인 성공 후 토큰을 생성하고 타겟 URL로 리다이렉트합니다.
+     * 
+     * @summary 로그인 성공 후처리 실행
+     * @param request        HTTP 요청 객체
+     * @param response       HTTP 응답 객체
+     * @param authentication 인증 객체
+     * @throws IOException 입출력 예외
+     */
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
+            Authentication authentication) throws IOException {
 
         CustomUserDetails oAuth2User = (CustomUserDetails) authentication.getPrincipal();
         Integer userId = oAuth2User.getId();
@@ -37,23 +59,17 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 로컬 여부 판정
         String referer = request.getHeader("Referer");
         String origin = request.getHeader("Origin");
-        boolean isLocalRequest = (referer != null && (referer.contains("localhost") || referer.contains("10.0.2.2")))
-                || (origin != null && (origin.contains("localhost") || origin.contains("10.0.2.2")));
+        boolean isEmulator = (referer != null && referer.contains(emulatorHost))
+                || (origin != null && origin.contains(emulatorHost));
 
-        String targetUrl;
-        if (isLocalRequest) {
-            // [핵심] Hash 모드(#)를 사용하는 프론트엔드 대응: fragment 사용
-            // Android Emulator (10.0.2.2)에서 접속한 경우, 리다이렉트도 10.0.2.2로 보내야 함
-            String host = (referer != null && referer.contains("10.0.2.2")) ? "10.0.2.2" : "localhost";
-            
-            targetUrl = UriComponentsBuilder.fromUriString("http://" + host + ":5173/")
-                    .fragment("/login?accessToken=" + accessToken) 
-                    .build().toUriString();
-        } else {
-            targetUrl = UriComponentsBuilder.fromUriString("https://i14a105.p.ssafy.io/")
-                    .fragment("/login?accessToken=" + accessToken)
-                    .build().toUriString();
+        String baseRedirectUrl = frontendUrl;
+        if (isEmulator && frontendUrl.contains("localhost")) {
+            baseRedirectUrl = frontendUrl.replace("localhost", emulatorHost);
         }
+
+        String targetUrl = UriComponentsBuilder.fromUriString(baseRedirectUrl)
+                .fragment("/login?accessToken=" + accessToken)
+                .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }

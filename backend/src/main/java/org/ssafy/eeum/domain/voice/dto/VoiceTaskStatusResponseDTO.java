@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 import org.ssafy.eeum.domain.voice.entity.VoiceTask;
+import org.ssafy.eeum.domain.auth.entity.User;
+
+import java.util.List;
 
 @Getter
 @Builder
@@ -19,7 +22,7 @@ public class VoiceTaskStatusResponseDTO {
     private boolean isModelCreated;
 
     @Schema(description = "목소리 샘플 목록")
-    private java.util.List<VoiceSampleResponseDTO> samples;
+    private List<VoiceSampleResponseDTO> samples;
 
     @Schema(description = "대표 목소리 샘플 ID")
     private Integer representativeSampleId;
@@ -28,8 +31,8 @@ public class VoiceTaskStatusResponseDTO {
     private String trainingJobId;
 
     public static VoiceTaskStatusResponseDTO of(long sampleCount, VoiceTask task,
-            org.ssafy.eeum.domain.auth.entity.User user,
-            java.util.List<VoiceSampleResponseDTO> sampleDtos) {
+            User user,
+            List<VoiceSampleResponseDTO> sampleDtos) {
         String status = "NOT_STARTED";
         boolean isCreated = false;
         Integer repId = null;

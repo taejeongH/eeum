@@ -9,8 +9,14 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Redis 메모리 데이터베이스에 접근하여 데이터를 저장하고 조회하는 공통 서비스 클래스입니다.
+ * 
+ * @summary Redis 공통 조작 서비스
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -19,6 +25,15 @@ public class RedisService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 리스트 형태의 데이터를 JSON으로 직렬화하여 Redis에 저장합니다.
+     * 
+     * @summary 리스트 데이터 저장
+     * @param <T>      리스트 요소 타입
+     * @param key      저장할 키
+     * @param list     저장할 리스트
+     * @param duration 만료 시간
+     */
     public <T> void setList(String key, List<T> list, Duration duration) {
         try {
             String value = objectMapper.writeValueAsString(list);
@@ -66,7 +81,7 @@ public class RedisService {
         redisTemplate.opsForSet().add(key, value);
     }
 
-    public java.util.Set<Object> getSetMembers(String key) {
+    public Set<Object> getSetMembers(String key) {
         return redisTemplate.opsForSet().members(key);
     }
 

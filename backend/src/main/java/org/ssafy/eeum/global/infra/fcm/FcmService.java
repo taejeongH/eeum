@@ -5,14 +5,39 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Firebase Cloud Messaging(FCM)를 통해 푸시 알림 전송을 담당하는 서비스 클래스입니다.
+ * 
+ * @summary FCM 알림 전송 서비스
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FcmService {
 
+    private static final String DEFAULT_TYPE = "DEFAULT";
+    private static final String UNREGISTERED_ERROR = "UNREGISTERED";
+
+    /**
+     * 특정 디바이스 토큰으로 단일 푸시 알림을 전송합니다.
+     * 
+     * @summary 단일 FCM 메시지 전송
+     * @param token          대상 디바이스 토큰
+     * @param title          알림 제목
+     * @param body           알림 내용
+     * @param type           알림 타입 (DEFAULT, FALL 등)
+     * @param notificationId DB에 저장된 알림 식별자
+     * @param route          앱 내 이동 경로
+     * @param familyId       가족 식별자
+     * @param groupName      가족 그룹명
+     * @param eventId        관련 이벤트 식별자 (낙상 등)
+     * @throws FcmUnregisteredTokenException 토큰이 만료되었을 때 발생
+     */
     public void sendMessageTo(String token, String title, String body, String type, Long notificationId, String route,
             Integer familyId, String groupName, Integer eventId) {
         if (token == null || token.isEmpty()) {
@@ -20,105 +45,107 @@ public class FcmService {
         }
 
         try {
-            Message.Builder messageBuilder = Message.builder()
-                    .setToken(token)
-                    .putData("type", type != null ? type : "DEFAULT");
-
-            if (title != null) {
-                messageBuilder.putData("title", title);
-            }
-            if (body != null) {
-                messageBuilder.putData("body", body);
-            }
-
-            if (notificationId != null) {
-                messageBuilder.putData("notificationId", String.valueOf(notificationId));
-            }
-
-            if (familyId != null) {
-                messageBuilder.putData("familyId", String.valueOf(familyId));
-            }
-
-            if (groupName != null) {
-                messageBuilder.putData("groupName", groupName);
-            }
-
-            if (route != null) {
-                messageBuilder.putData("route", route);
-            }
-
-            if (eventId != null) {
-                messageBuilder.putData("eventId", String.valueOf(eventId));
-            }
-
-            Message message = messageBuilder
-                    .setAndroidConfig(AndroidConfig.builder()
-                            .setPriority(AndroidConfig.Priority.HIGH)
-                            .build())
-                    .build();
-
+            Message message = createMessage(token, title, body, type, notificationId, route, familyId, groupName,
+                    eventId);
             String response = FirebaseMessaging.getInstance().send(message);
-            log.info("Successfully sent message: " + response);
+            log.info("FCM 메시지 전송 성공: {}", response);
         } catch (FirebaseMessagingException e) {
-            if ("UNREGISTERED".equals(e.getMessagingErrorCode().name())) {
-                log.warn("FCM token is unregistered. Marking for cleanup: {}", token);
-                throw new FcmUnregisteredTokenException(token, "FCM token is unregistered", e);
-            }
-            log.error("Failed to send FCM message", e);
+            handleFirebaseMessagingException(e, token);
         }
     }
 
+    /**
+     * 여러 개의 토큰을 가진 디바이스들로 푸시 알림을 전송합니다.
+     * 
+     * @summary 다중 FCM 메시지 전송
+     * @param tokens         대상 디바이스 토큰 리스트
+     * @param title          알림 제목
+     * @param body           알림 내용
+     * @param type           알림 타입
+     * @param notificationId 알림 식별자
+     * @param route          이동할 앱 경로
+     * @param familyId       가족 식별자
+     */
     public void sendMulticast(List<String> tokens, String title, String body, String type, Long notificationId,
             String route, Integer familyId) {
-        if (tokens == null || tokens.isEmpty()) {
-            return;
-        }
-
-        // 유효한 토큰만 필터링
-        List<String> validTokens = tokens.stream()
-                .filter(t -> t != null && !t.isEmpty())
-                .collect(Collectors.toList());
-
+        List<String> validTokens = filterValidTokens(tokens);
         if (validTokens.isEmpty()) {
             return;
         }
 
         try {
-            com.google.firebase.messaging.MulticastMessage.Builder builder = MulticastMessage.builder()
-                    .addAllTokens(validTokens)
-                    .putData("title", title)
-                    .putData("body", body)
-                    .putData("type", type != null ? type : "DEFAULT");
+            List<Message> messages = validTokens.stream()
+                    .map(token -> createMessage(token, title, body, type, notificationId, route, familyId, null, null))
+                    .collect(Collectors.toList());
 
-            if (notificationId != null) {
-                builder.putData("notificationId", String.valueOf(notificationId));
-            }
-
-            if (familyId != null) {
-                builder.putData("familyId", String.valueOf(familyId));
-            }
-
-            if (route != null) {
-                builder.putData("route", route);
-            }
-
-            MulticastMessage message = builder
-                    .setAndroidConfig(AndroidConfig.builder()
-                            .setPriority(AndroidConfig.Priority.HIGH)
-                            .build())
-                    .build();
-
-            BatchResponse response = FirebaseMessaging.getInstance().sendMulticast(message);
-            log.info("Successfully sent multicast message. Success count: " + response.getSuccessCount());
-
-            if (response.getFailureCount() > 0) {
-                log.warn("List of tokens that caused failures: " + response.getResponses().stream()
-                        .filter(r -> !r.isSuccessful())
-                        .map(SendResponse::getException)
-                        .collect(Collectors.toList()));
-            }
+            BatchResponse response = FirebaseMessaging.getInstance().sendEach(messages);
+            log.info("FCM 다중 메시지 전송 성공. 성공 개수: {}", response.getSuccessCount());
+            logFailures(response);
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send multicast FCM message", e);
+            log.error("FCM 다중 메시지 전송 실패", e);
+        }
+    }
+
+    private Message createMessage(String token, String title, String body, String type, Long notificationId,
+            String route,
+            Integer familyId, String groupName, Integer eventId) {
+        return Message.builder()
+                .setToken(token)
+                .setAndroidConfig(createAndroidConfig())
+                .putAllData(createDataMap(title, body, type, notificationId, route, familyId, groupName, eventId))
+                .build();
+    }
+
+    private Map<String, String> createDataMap(String title, String body, String type,
+            Long notificationId, String route, Integer familyId, String groupName, Integer eventId) {
+        Map<String, String> data = new HashMap<>();
+        data.put("type", type != null ? type : DEFAULT_TYPE);
+        if (title != null)
+            data.put("title", title);
+        if (body != null)
+            data.put("body", body);
+        if (notificationId != null)
+            data.put("notificationId", String.valueOf(notificationId));
+        if (familyId != null)
+            data.put("familyId", String.valueOf(familyId));
+        if (groupName != null)
+            data.put("groupName", groupName);
+        if (route != null)
+            data.put("route", route);
+        if (eventId != null)
+            data.put("eventId", String.valueOf(eventId));
+        return data;
+    }
+
+    private AndroidConfig createAndroidConfig() {
+        return AndroidConfig.builder()
+                .setPriority(AndroidConfig.Priority.HIGH)
+                .build();
+    }
+
+    private List<String> filterValidTokens(List<String> tokens) {
+        if (tokens == null)
+            return List.of();
+        return tokens.stream()
+                .filter(t -> t != null && !t.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private void handleFirebaseMessagingException(FirebaseMessagingException e, String token) {
+        if (UNREGISTERED_ERROR.equals(e.getMessagingErrorCode().name())) {
+            log.warn("FCM 토큰이 등록 해제되었습니다. 정리를 위해 표시함: {}", token);
+            throw new FcmUnregisteredTokenException(token, "FCM 토큰이 등록 해제되었습니다.", e);
+        }
+        log.error("FCM 메시지 전송 실패", e);
+    }
+
+    private void logFailures(BatchResponse response) {
+        if (response.getFailureCount() > 0) {
+            List<String> errorMessages = response.getResponses().stream()
+                    .filter(r -> !r.isSuccessful())
+                    .map(r -> r.getException().getMessage())
+                    .collect(Collectors.toList());
+            log.warn("FCM 멀티캐스트 전송 실패 ({}건): {}", response.getFailureCount(), errorMessages);
         }
     }
 }

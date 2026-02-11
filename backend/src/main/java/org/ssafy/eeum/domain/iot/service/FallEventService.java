@@ -86,13 +86,11 @@ public class FallEventService {
             response.put("eventId", String.valueOf(event.getId()));
         }
 
-
-
         return response;
     }
 
     @Transactional
-    public java.util.Map<String, String> initiateFallLog(Integer familyId) {
+    public Map<String, String> initiateFallLog(Integer familyId) {
         String fileName = "fall/" + familyId + "/" + UUID.randomUUID() + ".mp4";
 
         Family family = familyRepository.findById(familyId)
@@ -110,7 +108,7 @@ public class FallEventService {
         String url = s3Service.generatePresignedUrl(fileName, "video/mp4");
         healthService.requestMeasurement(familyId);
 
-        java.util.Map<String, String> response = new java.util.HashMap<>();
+        Map<String, String> response = new HashMap<>();
         response.put("presignedUrl", url);
         response.put("videoPath", fileName);
         response.put("eventId", String.valueOf(event.getId()));
@@ -140,10 +138,7 @@ public class FallEventService {
                 .orElseThrow(() -> new CustomException(
                         ErrorCode.ENTITY_NOT_FOUND));
 
-
-
         boolean gmsAnalysisResult = gmsService.analyzeSentiment(sttContent);
-
 
         boolean isSentimentEmergency = sttContent.contains("EMERGENCY") || sttContent.contains("비상")
                 || gmsAnalysisResult;
@@ -207,7 +202,7 @@ public class FallEventService {
         }
     }
 
-    public java.util.Map<String, String> getVideoUrl(Integer eventId) {
+    public Map<String, String> getVideoUrl(Integer eventId) {
         FallEvent event = fallEventRepository.findById(eventId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "낙상 이벤트를 찾을 수 없습니다."));
 

@@ -13,6 +13,7 @@ import org.ssafy.eeum.global.infra.s3.S3Service;
 
 import org.ssafy.eeum.global.error.exception.CustomException;
 import org.ssafy.eeum.global.error.model.ErrorCode;
+import org.ssafy.eeum.global.infra.fcm.FcmService;
 import org.ssafy.eeum.global.infra.fcm.FcmUnregisteredTokenException;
 
 @Slf4j
@@ -22,7 +23,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final S3Service s3Service;
-    private final org.ssafy.eeum.global.infra.fcm.FcmService fcmService;
+    private final FcmService fcmService;
 
     @Transactional
     public ProfileResponseDto updateProfile(String id, ProfileRequestDto profileRequest, MultipartFile file) {

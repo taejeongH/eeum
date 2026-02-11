@@ -15,6 +15,8 @@ import org.ssafy.eeum.domain.voice.service.VoiceAiClient;
 import org.ssafy.eeum.domain.voice.service.VoiceService;
 import org.ssafy.eeum.domain.voice.repository.VoiceSampleRepository;
 import org.ssafy.eeum.domain.voice.repository.VoiceLogRepository;
+import org.ssafy.eeum.domain.voice.entity.VoiceLog;
+import org.ssafy.eeum.domain.voice.entity.VoiceSample;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
@@ -112,7 +114,7 @@ public class TtsCleanupScheduler {
                 messageRepository.save(message);
 
                 // [ADDED] VoiceLog Creation for Polling Logic
-                org.ssafy.eeum.domain.voice.entity.VoiceLog voiceLog = org.ssafy.eeum.domain.voice.entity.VoiceLog
+                VoiceLog voiceLog = VoiceLog
                         .builder()
                         .groupId(message.getGroup().getId())
                         .voiceId(message.getId())
@@ -123,7 +125,7 @@ public class TtsCleanupScheduler {
                 iotSyncService.notifyUpdate(message.getGroup().getId(), "voice");
             }
         } else if (task.getType() == VoiceTask.TaskType.SAMPLE) {
-            org.ssafy.eeum.domain.voice.entity.VoiceSample sample = voiceSampleRepository.findByVoiceTask(task)
+            VoiceSample sample = voiceSampleRepository.findByVoiceTask(task)
                     .orElse(null);
             if (sample != null) {
                 sample.completeTts(task.getResultUrl());

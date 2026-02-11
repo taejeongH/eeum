@@ -11,6 +11,7 @@ import org.springframework.web.client.RestTemplate;
 import org.ssafy.eeum.domain.voice.dto.PythonTtsRequestDTO;
 
 import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 @Component
@@ -41,7 +42,7 @@ public class VoiceAiClient {
             headers.set("Authorization", AI_SERVER_KEY);
             headers.set("X-API-Key", INTERNAL_KEY);
 
-            java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
+            Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("input", requestDto);
             if (webhookUrl != null) {
                 requestBody.put("webhook", webhookUrl);
@@ -88,7 +89,7 @@ public class VoiceAiClient {
 
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate
-                    .exchange(statusUrl, HttpMethod.GET, entity, java.util.Map.class)
+                    .exchange(statusUrl, HttpMethod.GET, entity, Map.class)
                     .getBody();
 
             if (response != null) {
@@ -97,7 +98,7 @@ public class VoiceAiClient {
 
                 if ("COMPLETED".equals(status)) {
                     @SuppressWarnings("unchecked")
-                    java.util.Map<String, Object> output = (java.util.Map<String, Object>) response.get("output");
+                    Map<String, Object> output = (Map<String, Object>) response.get("output");
                     if (output != null) {
                         String voiceUrl = (String) output.get("url");
                         String outputStatus = output.get("status") != null ? output.get("status").toString() : null;

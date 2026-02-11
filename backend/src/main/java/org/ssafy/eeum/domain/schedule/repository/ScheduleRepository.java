@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.ssafy.eeum.domain.schedule.entity.Schedule;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,8 +30,13 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Integer> {
                         "  OR (s.startAt <= :endDate AND s.endAt >= :startDate)" +
                         ")")
         List<Schedule> findCandidates(@Param("familyId") Integer familyId,
-                        @Param("startDate") java.time.LocalDateTime startDate,
-                        @Param("endDate") java.time.LocalDateTime endDate);
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate);
+
+        List<Schedule> findByFamilyIdAndStartAtBetween(
+                        @Param("familyId") Integer familyId,
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate);
 
         Optional<Schedule> findByParentIdAndStartAt(Integer parentId, LocalDate startAt);
 

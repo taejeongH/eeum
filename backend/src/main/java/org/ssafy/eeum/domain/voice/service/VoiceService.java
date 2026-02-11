@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.ssafy.eeum.domain.auth.entity.User;
+import org.ssafy.eeum.domain.auth.repository.UserRepository;
 import org.ssafy.eeum.domain.voice.dto.PythonTtsRequestDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceTaskStatusResponseDTO;
 import org.ssafy.eeum.domain.voice.dto.VoiceSampleRequestDTO;
@@ -33,7 +34,7 @@ public class VoiceService {
     private final VoiceScriptRepository scriptRepository;
     private final VoiceSampleRepository sampleRepository;
     private final VoiceTaskRepository taskRepository;
-    private final org.ssafy.eeum.domain.auth.repository.UserRepository userRepository; // Inject UserRepository
+    private final UserRepository userRepository; // Inject UserRepository
     private final S3Service s3Service;
     private final VoiceAiClient voiceAiClient;
 

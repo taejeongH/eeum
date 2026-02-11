@@ -5,7 +5,6 @@ import org.eclipse.paho.mqttv5.client.MqttConnectionOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.mqtt.inbound.Mqttv5PahoMessageDrivenChannelAdapter;
 import org.springframework.integration.mqtt.outbound.Mqttv5PahoMessageHandler;
@@ -16,9 +15,16 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.UUID;
 
+/**
+ * Eclipse Paho V5 클라이언트를 이용한 MQTT(Message Queuing Telemetry Transport) 프로토콜 설정
+ * 클래스입니다.
+ * 
+ * @summary MQTT 통신 설정 클래스
+ */
 @Slf4j
 @Configuration
 public class MqttConfig {
@@ -38,6 +44,15 @@ public class MqttConfig {
     @Value("${spring.mqtt.password}")
     private String password;
 
+    @Value("${spring.mqtt.inbound-topics}")
+    private String[] inboundTopics;
+
+    /**
+     * MQTT 브로커 연결을 위한 옵션(URL, 인증, SSL/TLS 등)을 구성합니다.
+     * 
+     * @summary MQTT 연결 옵션 구성
+     * @return MqttConnectionOptions 객체
+     */
     @Bean
     public MqttConnectionOptions mqttConnectionOptions() {
         MqttConnectionOptions options = new MqttConnectionOptions();
@@ -60,10 +75,10 @@ public class MqttConfig {
                         public void checkServerTrusted(X509Certificate[] certs, String authType) {
                         }
                     }
-            }, new java.security.SecureRandom());
+            }, new SecureRandom());
             options.setSocketFactory(sslContext.getSocketFactory());
         } catch (Exception e) {
-            log.error("MQTT SSL 설정 오류: {}", e.getMessage());
+            log.error("MQTT SSL/TLS 설정 중 오류가 발생했습니다: {}", e.getMessage());
         }
 
         options.setCleanStart(true);
@@ -73,28 +88,31 @@ public class MqttConfig {
         return options;
     }
 
+    /**
+     * MQTT 메시정 유입을 위한 입력 채널을 생성합니다.
+     * 
+     * @summary MQTT 입력 채널 생성
+     * @return MessageChannel 객체
+     */
     @Bean
     public MessageChannel mqttInputChannel() {
         return new DirectChannel();
     }
 
+    /**
+     * MQTT 인바운드 어댑터를 설정하여 브로커로부터 메시지를 수신합니다.
+     * 
+     * @summary MQTT 인바운드 어댑터 설정
+     * @param mqttConnectionOptions 연결 옵션
+     * @return Mqttv5PahoMessageDrivenChannelAdapter 객체
+     */
     @Bean
     public Mqttv5PahoMessageDrivenChannelAdapter inbound(MqttConnectionOptions mqttConnectionOptions) {
         String uniqueInboundId = clientId + "-in-" + UUID.randomUUID().toString().substring(0, 5);
 
         Mqttv5PahoMessageDrivenChannelAdapter adapter = new Mqttv5PahoMessageDrivenChannelAdapter(
                 mqttConnectionOptions, uniqueInboundId,
-                "eeum/sensor/data",
-                "eeum/ai/sentiment",
-                "eeum/family/code",
-                "eeum/init/device/+/req",
-                "eeum/fall/response",
-                "eeum/init/device/pair/req",
-                "eeum/response",
-                "eeum/event",
-                "eeum/update",
-                "eeum/status",
-                "eeum/responsenull");
+                inboundTopics);
 
         adapter.setCompletionTimeout(5000);
         adapter.setQos(1);
@@ -102,13 +120,25 @@ public class MqttConfig {
         return adapter;
     }
 
+    /**
+     * MQTT 메시지 전송을 위한 출력 채널을 생성합니다.
+     * 
+     * @summary MQTT 출력 채널 생성
+     * @return MessageChannel 객체
+     */
     @Bean
     public MessageChannel mqttOutboundChannel() {
         return new DirectChannel();
     }
 
+    /**
+     * MQTT 아웃바운드 어댑터를 설정하여 브로커로 메시지를 전송합니다.
+     * 
+     * @summary MQTT 아웃바운드 어댑터 설정
+     * @param mqttConnectionOptions 연결 옵션
+     * @return MessageHandler 객체
+     */
     @Bean
-    @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MessageHandler mqttOutbound(MqttConnectionOptions mqttConnectionOptions) {
         String uniqueOutboundId = clientId + "-out-" + UUID.randomUUID().toString().substring(0, 5);
 

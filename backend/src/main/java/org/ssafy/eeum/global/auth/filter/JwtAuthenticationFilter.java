@@ -14,6 +14,12 @@ import org.ssafy.eeum.global.auth.jwt.JwtProvider;
 
 import java.io.IOException;
 
+/**
+ * 모든 HTTP 요청에 대해 JWT 토큰의 유효성을 검사하는 보안 필터입니다.
+ * 유효한 토큰이 존재할 경우 해당 사용자의 인증 정보를 SecurityContext에 저장합니다.
+ * 
+ * @summary JWT 인증 필터
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -23,6 +29,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
 
+    /**
+     * HTTP 요청 헤더에서 JWT 토큰을 추출하고 유효성을 검증한 후 인증 정보를 설정합니다.
+     * 
+     * @summary 인증 필터 내부 로직 수행
+     * @param request     HTTP 요청 객체
+     * @param response    HTTP 응답 객체
+     * @param filterChain 필터 체인
+     * @throws ServletException 서블릿 예외
+     * @throws IOException      입출력 예외
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
