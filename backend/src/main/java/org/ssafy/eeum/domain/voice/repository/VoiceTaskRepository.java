@@ -10,5 +10,8 @@ public interface VoiceTaskRepository extends JpaRepository<VoiceTask, Integer> {
 
     List<VoiceTask> findByStatusInAndJobIdIsNotNull(List<VoiceTask.TaskStatus> statuses);
 
+    List<VoiceTask> findByStatusInAndJobIdIsNotNullAndTypeIn(List<VoiceTask.TaskStatus> statuses,
+            List<VoiceTask.TaskType> types);
+
     Optional<VoiceTask> findByJobId(String jobId);
 }

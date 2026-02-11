@@ -39,8 +39,10 @@ public class TtsCleanupScheduler {
     @Scheduled(fixedDelay = 10000)
     @Transactional
     public void cleanupTtsJobs() {
-        List<VoiceTask> pendingTasks = taskRepository.findByStatusInAndJobIdIsNotNull(
-                List.of(VoiceTask.TaskStatus.IN_QUEUE, VoiceTask.TaskStatus.IN_PROGRESS));
+        // 메시지 타입은 웹후크로 처리되므로 폴링 대상에서 제외 (TRAINING, SAMPLE만 폴링)
+        List<VoiceTask> pendingTasks = taskRepository.findByStatusInAndJobIdIsNotNullAndTypeIn(
+                List.of(VoiceTask.TaskStatus.IN_QUEUE, VoiceTask.TaskStatus.IN_PROGRESS),
+                List.of(VoiceTask.TaskType.TRAINING, VoiceTask.TaskType.SAMPLE));
 
         if (pendingTasks.isEmpty()) {
             return;
