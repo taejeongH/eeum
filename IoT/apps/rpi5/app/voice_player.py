@@ -220,9 +220,6 @@ async def download_then_emit_new(state, vid: int, url: str, desc: str, sender: d
 
     await emit_voice_new(state, vid, desc, sender=sender)
 
-async def download_only(state, vid: int, url: str) -> str:
-    return await download_voice_to_local(state, vid, url)
-
 async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: int = 10):
     """
     - voice_downloads 기반으로 pending/failed(+stuck downloading) 다운로드
@@ -237,7 +234,6 @@ async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: i
     while not getattr(state, "shutting_down", False):
         await asyncio.sleep(float(interval_sec))
 
-        # 바쁜 상태면 쉬기 (I/O 경쟁 방지)
         try:
             audio_busy = bool(getattr(state, "audio", None) and getattr(state.audio, "is_playing", False))
         except Exception:
@@ -260,8 +256,8 @@ async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: i
             async def _handle_one(it: dict):
                 vid = int(it["id"])
                 url = str(it["url"])
-                # loop에서는 다운로드만 수행 (emit은 다른 곳에서 할 수도 있으니 중복 방지)
-                await download_only(state, vid, url)
+                # loop에서는 다운로드만 수행
+                await download_voice_to_local(state, vid, url)
 
             tasks = [asyncio.create_task(_handle_one(it)) for it in items]
             await asyncio.gather(*tasks, return_exceptions=True)
