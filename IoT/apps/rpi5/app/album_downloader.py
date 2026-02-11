@@ -123,6 +123,18 @@ def _mark_failed(repo, it: dict, pid: int, final_path: str, err: Exception) -> N
         pass
 
 async def _download_one(state, it: dict, *, root: str, sem: asyncio.Semaphore | None) -> None:
+    """
+    album_downloads의 항목 1개를 다운로드하여 로컬 파일로 저장하고 상태를 갱신합니다.
+
+    - repo download_status를 downloading -> done/failed로 업데이트합니다.
+    - 성공 시 state.album_cache[pid]["local_path"]를 갱신합니다(있을 때만).
+
+    :param state: 전역 상태(MonitorState)
+    :param it: 다운로드 항목(dict). 최소 {"id", "url"} 포함
+    :param root: 저장 루트 디렉토리
+    :param sem: 동시 다운로드 제한 세마포어(None이면 제한 없음)
+    :return: None
+    """
     repo = state.album_repo
     session = state.http_session
 

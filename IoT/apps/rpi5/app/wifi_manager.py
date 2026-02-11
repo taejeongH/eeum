@@ -38,10 +38,10 @@ async def _run_nmcli(cmd: list[str], *, check: bool, timeout: float):
     """
     nmcli/네트워크 관련 명령 실행을 락으로 직렬화합니다.
 
-    :param cmd: 실행할 명령
+    :param cmd: 실행할 명령(list[str])
     :param check: 비정상 종료 시 예외 발생 여부
     :param timeout: 타임아웃(초)
-    :return: CmdResult
+    :return: CmdResult(async_sh 반환)
     """
     async with _wifi_lock:
         return await async_sh(cmd, check=check, timeout=timeout)
@@ -92,7 +92,7 @@ def _dedupe_and_sort_aps(nmcli_text: str) -> List[Dict[str, object]]:
       2) signal 내림차순
 
     :param nmcli_text: nmcli 출력 텍스트
-    :return: AP 리스트(dict)
+    :return: AP 리스트(dict: ssid/signal/security/in_use)
     """
     best_by_ssid: Dict[str, Dict[str, object]] = {}
 

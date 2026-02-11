@@ -15,6 +15,7 @@ class CmdResult:
 def _decode_output(data: bytes | None) -> str:
     """
     subprocess 출력(bytes)을 안전하게 문자열로 변환합니다.
+
     :param data: stdout/stderr bytes (None 가능)
     :return: 디코딩된 문자열
     """
@@ -23,6 +24,7 @@ def _decode_output(data: bytes | None) -> str:
 async def _terminate_process(proc: asyncio.subprocess.Process) -> None:
     """
     프로세스를 안전하게 종료한 뒤 기다립니다.
+    
     :param proc: asyncio subprocess 프로세스
     :return: None
     """

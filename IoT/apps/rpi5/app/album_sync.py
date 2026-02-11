@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_SYNC_PATH = "/api/iot/device/sync/album"
 
 def _safe_remove(path: str) -> None:
+    """파일을 best-effort로 삭제합니다."""
     try:
         if path and os.path.exists(path):
             os.remove(path)
@@ -28,7 +29,6 @@ def _collect_local_paths_for_deleted(state: MonitorState, deleted_ids: List[int]
     if not deleted_ids or not state.album_repo:
         return []
 
-    # repo.conn 직접 사용 (repo가 conn을 들고 있음)
     q = ",".join(["?"] * len(deleted_ids))
     rows = state.album_repo.conn.execute(
         f"SELECT local_path FROM album_downloads WHERE photo_id IN ({q})",
@@ -149,6 +149,7 @@ def _sync_prerequisite_check(state: MonitorState) -> tuple[bool, dict]:
     return True, {"token": token, "sync_url": sync_url}
 
 def _normalize_log_id(delta: Dict[str, Any], fallback_last_log_id: int) -> int:
+    """delta의 log_id를 int로 정규화하고 실패 시 fallback을 사용합니다."""
     try:
         return int(delta.get("log_id"))
     except Exception:
@@ -161,7 +162,8 @@ async def async_sync_album_once(state: MonitorState) -> Dict[str, Any]:
     - 삭제된 사진의 로컬 파일(local_path)은 best-effort로 제거합니다.
 
     :param state: 전역 상태
-    :return: sync 결과 dict
+    :return: {"ok": bool, ...} 형태의 결과 dict.
+             성공 시 last/new log id, db/cache 반영 개수, 제거한 파일 수, dt_sec 포함
     """
     ok, info = _sync_prerequisite_check(state)
     if not ok:

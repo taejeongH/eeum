@@ -14,10 +14,25 @@ logger = logging.getLogger(__name__)
 VOICE_DIR = VOICE_PATH or "./voice"
 os.makedirs(VOICE_DIR, exist_ok=True)
 
+
 def voice_path(vid: int) -> str:
+    """
+    voice id에 대응하는 로컬 mp3 경로를 반환합니다.
+
+    :param vid: voice id
+    :returns: 로컬 파일 경로
+    """
     return os.path.join(VOICE_DIR, f"{int(vid)}.mp3")
 
+
 def _get_or_create_voice_lock(state, vid: int) -> Optional[asyncio.Lock]:
+    """
+    vid 단위 다운로드 직렬화를 위한 락을 조회/생성합니다.
+
+    :param state: MonitorState (voice_dl_locks 보유)
+    :param vid: voice id
+    :returns: asyncio.Lock 또는 None
+    """
     try:
         if getattr(state, "voice_dl_locks", None) is None:
             state.voice_dl_locks = {}
@@ -29,25 +44,55 @@ def _get_or_create_voice_lock(state, vid: int) -> Optional[asyncio.Lock]:
     except Exception:
         return None
 
+
 async def _fanout_voice_event(state, event_name: str, data: dict) -> None:
+    """
+    voice SSE 이벤트를 subscriber들에게 fanout합니다.
+
+    :param state: MonitorState (voice_subscribers 보유)
+    :param event_name: 이벤트명("voice", "voice_done" 등)
+    :param data: payload dict
+    :returns: None
+    """
     envelope = {"_event": event_name, "data": data}
     delivered = fanout_nowait(state.voice_subscribers, envelope)
     logger.debug("[sse_voice] event=%s delivered=%d", event_name, int(delivered))
 
-async def emit_voice_new(state, vid: int, desc: str, sender: dict | None = None):
+
+async def emit_voice_new(state, vid: int, desc: str, sender: dict | None = None) -> None:
+    """
+    새 voice 수신 이벤트를 emit 합니다.
+
+    :param state: MonitorState
+    :param vid: voice id
+    :param desc: 설명/메시지
+    :param sender: 발신자 정보(optional)
+    :returns: None
+    """
     payload = {"id": int(vid), "description": str(desc or ""), "ts": float(now_ts())}
     if sender:
         payload["sender"] = sender
     await _fanout_voice_event(state, "voice", payload)
 
-async def emit_voice_done(state, vid: int, result: str):
+
+async def emit_voice_done(state, vid: int, result: str) -> None:
+    """
+    voice 재생/처리 완료 이벤트를 emit 합니다.
+
+    :param state: MonitorState
+    :param vid: voice id
+    :param result: 결과 문자열(예: "ok", "skipped", "error" 등)
+    :returns: None
+    """
     await _fanout_voice_event(
         state,
         "voice_done",
         {"id": int(vid), "result": str(result), "ts": float(now_ts())},
     )
 
+
 def _mark_voice_done_if_file_exists(state, vid: int, path: str) -> None:
+    """로컬 파일이 이미 있을 때 DB download_status를 done으로 best-effort 갱신합니다."""
     if not state.voice_repo:
         return
     try:
@@ -62,7 +107,9 @@ def _mark_voice_done_if_file_exists(state, vid: int, path: str) -> None:
     except Exception:
         pass
 
+
 def _mark_voice_downloading(repo, vid: int, path: str) -> None:
+    """다운로드 시작 상태로 best-effort 갱신합니다."""
     if not repo:
         return
     try:
@@ -77,7 +124,9 @@ def _mark_voice_downloading(repo, vid: int, path: str) -> None:
     except Exception:
         pass
 
+
 def _mark_voice_failed(repo, vid: int, path: str, err: Exception, retry_count: Any = None) -> None:
+    """다운로드 실패 상태로 best-effort 갱신하고 backoff 기반 next_try_at을 설정합니다."""
     if not repo:
         return
     try:
@@ -93,14 +142,25 @@ def _mark_voice_failed(repo, vid: int, path: str, err: Exception, retry_count: A
     except Exception:
         pass
 
+
 def _safe_remove(path: str) -> None:
+    """파일이 존재하면 제거합니다."""
     try:
         if path and os.path.exists(path):
             os.remove(path)
     except Exception:
         pass
 
+
 async def _download_voice_file(session: aiohttp.ClientSession, url: str, tmp: str) -> tuple[int, str]:
+    """
+    URL에서 파일을 내려받아 tmp에 저장하고 sha256을 계산합니다.
+
+    :param session: aiohttp ClientSession
+    :param url: 다운로드 URL
+    :param tmp: 임시 파일 경로
+    :returns: (다운로드 바이트 수, sha256 hex)
+    """
     async with session.get(url, timeout=aiohttp.ClientTimeout(total=20.0)) as r:
         r.raise_for_status()
         total = 0
@@ -114,14 +174,18 @@ async def _download_voice_file(session: aiohttp.ClientSession, url: str, tmp: st
                 sha.update(chunk)
     return total, sha.hexdigest()
 
+
 async def download_voice_to_local(state, vid: int, url: str) -> str:
     """
-    vid 단위 직렬화 락으로 downloader_loop와 consumer 경쟁을 방지합니다.
+    voice 파일을 로컬로 다운로드합니다.
+    - vid 단위 락으로 downloader_loop vs 다른 consumer 경쟁을 방지합니다.
+    - 이미 파일이 있으면 다운로드를 건너뛰고 상태만 보정합니다.
 
-    :param state: 전역 상태
+    :param state: MonitorState
     :param vid: voice id
     :param url: 다운로드 URL
-    :return: 로컬 파일 경로
+    :returns: 로컬 파일 경로
+    :raises RuntimeError: http_session이 없거나 closed인 경우
     """
     lock = _get_or_create_voice_lock(state, vid)
 
@@ -196,18 +260,38 @@ async def download_voice_to_local(state, vid: int, url: str) -> str:
     async with lock:
         return await _inner()
 
+
 def _should_probe_duration_after_download(state) -> bool:
+    """
+    다운로드 직후 duration probe(ffprobe)를 해도 되는지 판단합니다.
+    (재생/무거운 작업 중이면 I/O 경쟁을 피하기 위해 스킵)
+
+    :param state: MonitorState
+    :returns: probe 가능 여부
+    """
     audio_busy = bool(getattr(state, "audio", None) and getattr(state.audio, "is_playing", False))
     stt_busy = bool(getattr(state, "stt_busy", False))
     paused = bool(getattr(state, "heavy_ops_pause", False))
     return (not audio_busy) and (not stt_busy) and (not paused)
 
-async def download_then_emit_new(state, vid: int, url: str, desc: str, sender: dict | None = None):
+
+async def download_then_emit_new(state, vid: int, url: str, desc: str, sender: dict | None = None) -> None:
+    """
+    voice를 다운로드하고(필요 시) 새 voice 이벤트를 emit 합니다.
+    - 상황이 허용되면 ffprobe로 duration을 갱신합니다.
+
+    :param state: MonitorState
+    :param vid: voice id
+    :param url: 다운로드 URL
+    :param desc: 설명/메시지
+    :param sender: 발신자 정보(optional)
+    :returns: None
+    """
     path = await download_voice_to_local(state, vid, url)
 
     try:
         if _should_probe_duration_after_download(state):
-            dur = await ffprobe_duration_sec(path, timeout_sec = 3.0)
+            dur = await ffprobe_duration_sec(path, timeout_sec=3.0)
             logger.info("[voice] downloaded id=%s dur=%.2fs", vid, dur)
             try:
                 state.voice_duration_cache[int(vid)] = float(dur)
@@ -220,11 +304,16 @@ async def download_then_emit_new(state, vid: int, url: str, desc: str, sender: d
 
     await emit_voice_new(state, vid, desc, sender=sender)
 
-async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: int = 10):
+
+async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: int = 10) -> None:
     """
-    - voice_downloads 기반으로 pending/failed(+stuck downloading) 다운로드
-    - state.download_sem으로 동시 다운로드 제한 (album과 공유)
-    - 오디오 재생 / STT / heavy_ops_pause / wifi_busy 중에는 I/O 경쟁 방지로 스킵
+    voice_downloads 테이블을 폴링하며 pending/failed(+stuck downloading) 항목을 다운로드합니다.
+    바쁜 상태(오디오/STT/heavy_ops/wifi)에서는 I/O 경쟁 방지로 스킵합니다.
+
+    :param state: MonitorState
+    :param interval_sec: 폴링 간격(초)
+    :param batch_limit: 한 번에 처리할 최대 개수
+    :returns: None
     """
     repo = getattr(state, "voice_repo", None)
     if repo is None:
@@ -253,7 +342,7 @@ async def voice_downloader_loop(state, interval_sec: float = 1.0, batch_limit: i
             if not items:
                 continue
 
-            async def _handle_one(it: dict):
+            async def _handle_one(it: dict) -> None:
                 vid = int(it["id"])
                 url = str(it["url"])
                 # loop에서는 다운로드만 수행

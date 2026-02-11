@@ -81,6 +81,20 @@ async def _download_and_emit_new_voices(state, inserted_ids: list[int]) -> None:
         await download_then_emit_new(state, int(vid), url, desc, sender)
 
 async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
+    """
+    부팅/토큰 설정 직후 수행하는 초기 동기화 워커입니다.
+
+    순서:
+    1) Wi-Fi 활성화 대기
+    2) album/voice 단발 sync 수행
+    3) 신규 voice가 있으면 다운로드 후 SSE emit
+    4) album sync 성공 시 슬라이드 playlist rebuild + 현재 슬라이드 emit
+    5) 신규 voice가 있으면 기본 TTS(디바운스 적용) 1회 재생
+
+    :param state: 전역 상태(MonitorState)
+    :param timeout_sec: Wi-Fi 활성 대기 최대 시간(초)
+    :returns: None
+    """
     try:
         ok_wifi = await _wait_wifi_active(state, timeout_sec=timeout_sec, poll_sec=1.0)
         if not ok_wifi:
@@ -123,6 +137,16 @@ async def initial_sync_worker(state, *, timeout_sec: float = 60.0) -> None:
             pass
 
 def schedule_initial_sync(state, *, timeout_sec: float = 60.0) -> bool:
+    """
+    초기 동기화를 1회 스케줄합니다(중복 실행 방지).
+    - 이미 시작됐으면 False
+    - token이 없으면 False
+    - 스케줄 성공 시 task 생성 후 True
+
+    :param state: 전역 상태(MonitorState)
+    :param timeout_sec: Wi-Fi 활성 대기 최대 시간(초)
+    :returns: 스케줄 성공 여부
+    """ 
     if getattr(state, "initial_sync_started", False):
         return False
 

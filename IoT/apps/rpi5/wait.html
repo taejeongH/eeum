@@ -24,25 +24,5 @@
     <div style="font-size:22px;">EEUM 시작 중…</div>
     <div class="sub">서버 준비를 기다리는 중입니다</div>
   </div>
-
-  <script>
-    const healthCheckUrl = "http://localhost:8080/ping";
-    const appUrl = "http://localhost:8080/";
-    const pollIntervalMs = 1000;
-
-    async function waitForServer() {
-      try {
-        const res = await fetch(healthCheckUrl, { cache: "no-store" });
-        if (res.ok) {
-          location.replace(appUrl);
-          return;
-        }
-      } catch (_) {}
-
-      setTimeout(waitForServer, pollIntervalMs);
-    }
-
-    waitForServer();
-  </script>
 </body>
 </html>

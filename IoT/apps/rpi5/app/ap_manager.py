@@ -11,6 +11,7 @@ _IPV4_PATTERN = re.compile(r"\binet\s+(\d+\.\d+\.\d+\.\d+)/\d+")
 async def async_ap_up() -> None:
     """
     nmcli를 이용해 AP 프로필을 올립니다.
+    
     :return: None
     """
     try:

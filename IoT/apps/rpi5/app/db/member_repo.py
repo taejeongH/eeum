@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+from app.profile_cache import cache_key_url
 from app.sync_utils import now_ts
 
 class MemberRepo:
@@ -67,7 +68,10 @@ class MemberRepo:
                 if old:
                     old_name = str(old["name"] or "")
                     old_purl = str(old["profile_image_url"] or "")
-                    if old_name == name and old_purl == purl:
+                    old_key = cache_key_url(old_purl)
+                    new_key = cache_key_url(purl)
+
+                    if old_name == name and old_key == new_key:
                         continue
 
                     if on_changed:

@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 def ok(data: Any = None) -> dict:
     """
     공통 성공 응답 포맷을 반환합니다.
+
     :param data: 응답 데이터
     :return: {"ok": True, "reason": None, "data": data}
     """
@@ -13,6 +14,7 @@ def ok(data: Any = None) -> dict:
 def fail(reason: str, data: Any = None) -> dict:
     """
     공통 실패 응답 포맷을 반환합니다.
+
     :param reason: 실패 사유 코드/문자열
     :param data: 추가 데이터
     :return: {"ok": False, "reason": reason, "data": data}
@@ -22,6 +24,7 @@ def fail(reason: str, data: Any = None) -> dict:
 def ok_voice(action: str, vid: int, *, duration_sec: float | None = None) -> dict:
     """
     voice 관련 성공 응답 포맷을 반환합니다.
+
     :param action: "play" 또는 "skip"
     :param vid: voice id
     :param duration_sec: 선택적으로 제공 가능한 재생 길이(초)
@@ -35,6 +38,7 @@ def ok_voice(action: str, vid: int, *, duration_sec: float | None = None) -> dic
 def fail_voice(reason: str, action: str, vid: int) -> dict:
     """
     voice 관련 실패 응답 포맷을 반환합니다.
+
     :param reason: 실패 사유 코드/문자열
     :param action: "play" 또는 "skip"
     :param vid: voice id
@@ -50,6 +54,7 @@ def queue_put_drop_oldest(queue: asyncio.Queue, item: Any) -> None:
     """
     큐가 가득 찬 경우 가장 오래된 항목 1개를 버리고 새 항목을 넣습니다.
     어떤 경우에도 예외를 밖으로 전파하지 않습니다.
+    
     :param queue: asyncio.Queue
     :param item: 넣을 항목
     :return: None
@@ -75,6 +80,7 @@ def queue_put_drop_oldest(queue: asyncio.Queue, item: Any) -> None:
 def sse_response(gen: AsyncIterator[str]) -> StreamingResponse:
     """
     SSE(서버 전송 이벤트)용 StreamingResponse를 생성합니다.
+
     :param gen: "event/data" 포맷 문자열을 yield 하는 async generator
     :return: StreamingResponse
     """

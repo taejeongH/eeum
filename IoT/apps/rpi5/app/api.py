@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 def create_app(state: MonitorState) -> FastAPI:
     """
     FastAPI 인스턴스를 생성하고 미들웨어/정적 서빙/라우트를 등록합니다.
+    
     :param state: MonitorState
     :return: FastAPI
     """

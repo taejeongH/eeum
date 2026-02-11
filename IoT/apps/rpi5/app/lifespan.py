@@ -33,7 +33,7 @@ from app.monitor import (
     wifi_active_loop,
     wifi_scan_loop,
 )
-from app.slideshow import rebuild_playlist, slideshow_timer_loop
+from app.slideshow import init_slide_seq_from_db, rebuild_playlist, slideshow_timer_loop
 from app.state import MonitorState
 from app.stt_service import FasterWhisperSTT
 from app.tts_service import _safe_slug, ensure_tts_mp3
@@ -141,6 +141,7 @@ async def _init_state(state: MonitorState) -> None:
     state.voice_repo = VoiceRepo(db.conn)
     state.member_repo = MemberRepo(db.conn)
 
+    init_slide_seq_from_db(state)
     load_member_cache_from_db(state)
     load_album_cache_from_db(state)
     rebuild_playlist(state)

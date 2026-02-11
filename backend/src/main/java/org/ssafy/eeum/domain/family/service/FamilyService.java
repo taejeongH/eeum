@@ -83,23 +83,17 @@ public class FamilyService {
                                 })
                                 .collect(Collectors.toList());
 
-                // [Changed] Get JETSON device serial as streamingUrl
-                // If multiple, pick first. If none, use family.getStreamingUrl() (fallback) or
-                // null
                 String streamingTarget = family.getStreamingUrl();
                 List<IotDevice> devices = iotDeviceRepository
                                 .findAllByFamilyId(familyId);
 
-                // [Logic Update] Prioritize valid JETSON devices
                 for (IotDevice device : devices) {
                         if ("JETSON".equalsIgnoreCase(device.getDeviceType())) {
                                 String sn = device.getSerialNumber();
-                                // Filter out garbage data like 'falls'
                                 if (sn != null && sn.length() > 5 && sn.toUpperCase().startsWith("EEUM")) {
                                         streamingTarget = sn;
                                         break;
                                 } else if (streamingTarget == null || streamingTarget.length() < 5) {
-                                        // Keep as candidate if strictly better than nothing, but prefer EEUM
                                         streamingTarget = sn;
                                 }
                         }

@@ -60,6 +60,7 @@ def _clamp_float(value, default: float, min_v: float, max_v: float) -> float:
     return max(min_v, min(max_v, v))
 
 class FasterWhisperSTT:
+    """faster-whisper 기반 STT 래퍼. WhisperModel 로드 및 transcribe 인터페이스 제공."""
     def __init__(
         self,
         model_size: str = "base",
@@ -95,7 +96,7 @@ class FasterWhisperSTT:
         - 16k/mono/pcm_s16le 강제
 
         :param wav_path: 입력 wav 경로
-        :return: 전처리된 wav 경로(실패 시 원본)
+        :returns: 전처리된 wav 경로(실패 시 원본)
         """
         out = f"/tmp/eeum_stt_proc_{int(now_ts()*1000)}.wav"
         af = "highpass=f=180,lowpass=f=3400,agate=threshold=-45dB:attack=5:release=500"
@@ -188,7 +189,7 @@ class FasterWhisperSTT:
         :param wav_path: 입력 wav 경로
         :param lang: 언어 코드
         :param timeout_sec: 인식 타임아웃(초)
-        :return: STTResult
+        :returns: STTResult
         """
         t0 = now_ts()
         logger.info("[stt] transcribe start wav=%s timeout=%.1fs", wav_path, float(timeout_sec))
@@ -289,7 +290,7 @@ async def record_with_vad(
     :param start_speech_streak: 연속 speech로 시작 확정
     :param max_speech_sec: 말 시작 후 최대 길이 캡(초)
     :param start_guard_sec: 시작 직후 VAD 판단 무시(초)
-    :return: (ok, msg)
+    :returns: (ok, msg)
     """
     os.makedirs(os.path.dirname(out_wav) or ".", exist_ok=True)
 

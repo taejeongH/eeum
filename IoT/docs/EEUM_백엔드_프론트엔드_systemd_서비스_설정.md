@@ -111,28 +111,37 @@ waitUrl="about:blank"
 
 gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true >/dev/null 2>&1 || true
 
-exec "$browserCmd" \
-  --ozone-platform=wayland \
-  --enable-features=UseOzonePlatform \
-  --enable-wayland-ime \
-  --wayland-text-input-version=3 \
-  --app="$waitUrl" \
-  --start-maximized \
-  --user-data-dir="$chromeProfileDir" \
-  --incognito \
-  --password-store=basic \
-  --use-mock-keychain \
-  --no-first-run \
-  --no-default-browser-check \
-  --disable-infobars \
-  --disable-session-crashed-bubble \
-  --disable-translate \
-  --disable-features=TranslateUI,CloudMessaging,TouchpadOverscrollHistoryNavigation,UseX11Platform \
-  --overscroll-history-navigation=0 \
-  --disable-pinch \
-  --disable-background-networking \
-  --disable-sync \
-  --disable-component-update
+commonFlags=(
+  --ozone-platform=wayland
+  --enable-features=UseOzonePlatform
+  --enable-wayland-ime
+  --wayland-text-input-version=3
+  --start-maximized
+  --user-data-dir="$chromeProfileDir"
+  --incognito
+  --password-store=basic
+  --use-mock-keychain
+  --no-first-run
+  --no-default-browser-check
+  --disable-infobars
+  --disable-session-crashed-bubble
+  --disable-translate
+  --disable-features=TranslateUI,CloudMessaging,TouchpadOverscrollHistoryNavigation,UseX11Platform
+  --overscroll-history-navigation=0
+  --disable-pinch
+)
+
+"$browserCmd" --allow-file-access-from-files --app="$waitUrl" "${commonFlags[@]}" &
+waitPid=$!
+
+until curl -fsS "http://localhost:8080/ping" >/dev/null; do
+  sleep 1
+done
+
+kill "$waitPid" 2>/dev/null || true
+sleep 0.3
+
+exec "$browserCmd" --app="http://localhost:8080/" "${commonFlags[@]}"
 ```
 
 ### CRLF 제거(필요 시)
@@ -150,10 +159,18 @@ chmod +x ~/eeum/kiosk.sh
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EEUM 시작 중</title>
   <style>
-    body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
-    font-family:system-ui,sans-serif;background:#000;color:#fff}
-    .box{text-align:center}
-    .sub{margin-top:8px;opacity:.7;font-size:14px}
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, sans-serif;
+      background: #000;
+      color: #fff;
+    }
+    .box { text-align: center; }
+    .sub { margin-top: 8px; opacity: 0.7; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -161,21 +178,6 @@ chmod +x ~/eeum/kiosk.sh
     <div style="font-size:22px;">EEUM 시작 중…</div>
     <div class="sub">서버 준비를 기다리는 중입니다</div>
   </div>
-
-<script>
-const PING = "http://localhost:8080/ping";
-const TARGET = "http://localhost:8080/";
-const INTERVAL = 1000;
-
-async function check() {
-  try {
-    const r = await fetch(PING, { cache: "no-store" });
-    if (r.ok) { location.replace(TARGET); return; }
-  } catch (e) {}
-  setTimeout(check, INTERVAL);
-}
-check();
-</script>
 </body>
 </html>
 ```
