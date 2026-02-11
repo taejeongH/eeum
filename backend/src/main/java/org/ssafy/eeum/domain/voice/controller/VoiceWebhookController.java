@@ -53,10 +53,12 @@ public class VoiceWebhookController {
     private void processTtsResult(Integer messageId, String voiceUrl) {
         Message message = messageRepository.findById(messageId).orElse(null);
         if (message != null) {
+            // S3 키 추출 및 메시지의 voiceUrl 업데이트
             String voiceKey = voiceService.extractS3Key(voiceUrl);
             message.updateVoiceUrl(voiceKey);
             messageRepository.save(message);
 
+            // 음성 메시지 추가 로그 기록
             VoiceLog voiceLog = VoiceLog.builder()
                     .groupId(message.getGroup().getId())
                     .voiceId(messageId)
@@ -64,9 +66,10 @@ public class VoiceWebhookController {
                     .build();
             voiceLogRepository.save(voiceLog);
 
+            // IoT 기기에 동기화 알림 발송
             iotSyncService.notifyUpdate(message.getGroup().getId(), "voice");
         } else {
-
+            log.error("[TTS 웹후크] 해당 ID의 메시지를 찾을 수 없습니다: {}", messageId);
         }
     }
 }
