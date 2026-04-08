@@ -189,6 +189,148 @@
                 </button>
             </div>
         </div>
+        <div class="text-center mb-10">
+          <h3 class="text-slate-500 text-sm font-semibold mb-6">아래 문장을 읽어주세요</h3>
+          <p class="text-2xl font-bold text-slate-900 leading-relaxed word-keep-all">
+            "{{ selectedSample.text }}"
+          </p>
+        </div>
+        <div class="flex justify-center items-center gap-1 h-16 mb-10">
+          <div
+            v-for="n in 20"
+            :key="n"
+            class="w-1.5 bg-primary rounded-full animate-bounce"
+            :style="{ height: `${Math.random() * 100}%`, animationDelay: `${n * 0.05}s` }"
+          ></div>
+        </div>
+        <div class="flex items-center justify-center gap-6">
+          <button
+            @click="selectedSample = null"
+            class="w-14 h-14 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <button
+            @click="toggleRecord"
+            class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-500/30 active:scale-95 transition-all"
+          >
+            <span class="material-symbols-outlined text-4xl">{{
+              isRecording ? 'stop' : 'mic'
+            }}</span>
+          </button>
+          <button
+            v-if="!isRecording && recordedBlob"
+            @click="saveRecording"
+            class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center animate-bounce-small"
+          >
+            <span class="material-symbols-outlined">check</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showHelpModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6">
+      <div
+        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        @click="showHelpModal = false"
+      ></div>
+      <div
+        class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-fade-in"
+      >
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary">live_help</span>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900">도움말</h3>
+        </div>
+
+        <div class="space-y-6 mb-8 text-slate-600">
+          <div class="flex gap-4">
+            <span
+              class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500"
+              >1</span
+            >
+            <p class="text-sm leading-relaxed">
+              <strong>조용한 장소에서 녹음해 주세요.</strong><br />주변 소음이 섞이면 고품질의
+              목소리 생성이 어려울 수 있습니다.
+            </p>
+          </div>
+          <div class="flex gap-4">
+            <span
+              class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500"
+              >2</span
+            >
+            <p class="text-sm leading-relaxed">
+              <strong>일정한 거리를 유지해 주세요.</strong><br />마이크와 입 사이의 거리를 약 25cm
+              정도로 일정하게 유지하는 것이 좋습니다.
+            </p>
+          </div>
+          <div class="flex gap-4">
+            <span
+              class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500"
+              >3</span
+            >
+            <p class="text-sm leading-relaxed">
+              <strong>또박또박 읽어 주세요.</strong><br />문장을 평소 대화하듯 자연스럽고
+              또박또박하게 끝까지 읽어 주세요.
+            </p>
+          </div>
+          <div class="flex gap-4">
+            <span
+              class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500"
+              >4</span
+            >
+            <p class="text-sm leading-relaxed">
+              <strong>최소 3초 이상 녹음해 주세요.</strong><br />너무 짧은 녹음은 학습에 활용될 수
+              없습니다. (3~10초 사이 권장)
+            </p>
+          </div>
+        </div>
+
+        <button
+          @click="showHelpModal = false"
+          class="w-full py-4 rounded-2xl bg-slate-900 text-white font-bold text-base hover:bg-slate-800 transition-all"
+        >
+          확인했습니다
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showLimitModal" class="fixed inset-0 z-[60] flex items-center justify-center px-6">
+      <div
+        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        @click="showLimitModal = false"
+      ></div>
+      <div
+        class="relative w-full max-w-sm bg-white rounded-3xl p-8 animate-scale-in text-center shadow-2xl"
+      >
+        <div
+          class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6"
+        >
+          <span class="material-symbols-outlined text-3xl">error</span>
+        </div>
+
+        <h3 class="text-xl font-bold text-slate-900 mb-2">목소리 모델 가득 참</h3>
+        <p class="text-slate-500 mb-8 leading-relaxed">
+          생성된 샘플이 가득 찼습니다.<br />
+          기존 샘플을 삭제 후 다시 시도해주세요.
+        </p>
+
+        <div class="flex flex-col gap-3">
+          <button
+            @click="goToSettings"
+            class="w-full py-4 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/30 active:scale-95 transition-all"
+          >
+            목소리 설정으로 이동
+          </button>
+          <button
+            @click="showLimitModal = false"
+            class="w-full py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold active:scale-95 transition-all"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
     </div>
 
     <div v-if="showHelpModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6">
@@ -346,6 +488,9 @@ const fetchScripts = async () => {
     } finally {
         isLoading.value = false;
     }
+  } else {
+    await startRecording();
+  }
 };
 
 const openRecorder = async (sample) => {

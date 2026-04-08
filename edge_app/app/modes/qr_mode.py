@@ -1,7 +1,6 @@
 """
 QR 페어링 모드
-
-카메라에서 QR 코드를 감지하고 서버와 페어링
+카메라에서 QR 코드를 인식하고 서버와의 장치 페어링을 수행합니다.
 """
 
 import cv2
@@ -28,6 +27,25 @@ try:
 except ImportError:
     SCIPY_AVAILABLE = False
 
+try:
+    if sys.platform == "win32":
+        # Windows 환경에서는 libzbar DLL 의존성 문제로 기본 비활성화 처리
+        PYZBAR_AVAILABLE = False
+    else:
+        from pyzbar.pyzbar import decode, ZBarSymbol
+        PYZBAR_AVAILABLE = True
+except (ImportError, OSError):
+    PYZBAR_AVAILABLE = False
+    decode = None
+    ZBarSymbol = None
+
+try:
+    from scipy.signal import convolve2d
+    from scipy.ndimage import gaussian_filter
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+
 from .base_mode import BaseMode
 from ..state.device_state import get_device_state
 from ..api.server_client import ServerClient
@@ -35,16 +53,15 @@ from ..config import FRAME_W, FRAME_H, JPEG_QUALITY, DEVICE_ID
 
 logger = logging.getLogger(__name__)
 
-
 class QRMode(BaseMode):
     """
-    QR 코드 인식 및 기기 페어링 모드
+    장치 등록을 위한 QR 코드 인식 모드입니다.
     
-    흐름:
-    1. 카메라에서 프레임 캡처
-    2. QR 코드 감지
-    3. 서버와 토큰 검증
-    4. 등록 완료 시 LiveMode로 전환
+    작동 흐름:
+    1. 실시간 카메라 프레임 캡처
+    2. 강력한 영상 처리 알고리즘을 통한 QR 코드 감지 (디블러링, 샤프닝 등)
+    3. QR 토큰 추출 및 서버 검증/등록 요청
+    4. 등록 성공 시 액세스 토큰을 확보하고 장치 상태를 업데이트
     """
     
     def __init__(self, cap: cv2.VideoCapture, jpeg_quality: int = 80):
@@ -61,7 +78,7 @@ class QRMode(BaseMode):
         self.qr_cooldown = 1.0  
     
     def setup(self) -> bool:
-        """모드 초기화"""
+        """모드를 시작하기 전 필요한 초기 설정을 수행합니다."""
         try:
             logger.info("Initializing QR Mode")
             self.is_running = True
@@ -71,20 +88,20 @@ class QRMode(BaseMode):
             return False
     
     def cleanup(self):
-        """모드 정리"""
+        """모드 종료 시 리소스를 정리합니다."""
         self.is_running = False
         logger.info("QR Mode cleaned up")
     
-    def step(self) -> Tuple[Optional[Dict[str, Any]], Optional[bytes], Optional[Any]]:
+    def step(self) -> Tuple[Optional[Dict[str, Any]], Optional[bytes], Optional[Any], Optional[Any]]:
         """
-        한 프레임 처리: QR 감지 시도
+        한 프레임에 대해 QR 코드 감지를 시도합니다.
         
         Returns:
-            (None, jpg, frame) - obs는 QR 모드에선 의미 없음
+            (None, jpg_데이터, bgr_프레임, None)
         """
         ok, frame = self.cap.read()
         if not ok:
-            return None, None, None
+            return None, None, None, None
         
         
         qr_data = self._detect_qr(frame)
@@ -256,23 +273,32 @@ class QRMode(BaseMode):
             logger.warning(f"[QR] Deblur failed: {e}")
             return img
     
+    def _richardson_lucy_deblur(self, img, iterations=10, psf_size=5):
+        """ Richardson-Lucy 디콘볼루션을 통해 영상의 흐림 현상을 개선합니다. """
+        if not SCIPY_AVAILABLE: return img
+        try:
+            psf = np.zeros((psf_size, psf_size))
+            psf[psf_size//2, psf_size//2] = 1
+            psf = gaussian_filter(psf, sigma=1.5)
+            psf /= psf.sum()
+            
+            img_float = img.astype(np.float64) / 255.0
+            img_float = np.maximum(img_float, 1e-10)
+            
+            estimated = img_float.copy()
+            for _ in range(iterations):
+                reblurred = convolve2d(estimated, psf, mode='same', boundary='symm')
+                reblurred = np.maximum(reblurred, 1e-10)
+                correction = convolve2d(img_float / reblurred, psf[::-1, ::-1], mode='same', boundary='symm')
+                estimated *= correction
+                estimated = np.maximum(estimated, 1e-10)
+            
+            return np.clip(estimated * 255, 0, 255).astype(np.uint8)
+        except Exception:
+            return img
+    
     def _handle_qr(self, qr_token: str):
-        """
-        QR 코드 처리
-        
-        1. 토큰 검증
-        2. 서버에 등록 요청
-        3. 서버 응답 저장:
-           {
-               "status": 200,
-               "data": {
-                   "access_token": "eyJhbG...",
-                   "refresh_token": "eyJhbG...",
-                   "group_id": 1,
-                   "serial_number": "JETSON-MASTER-001"
-               }
-           }
-        """
+        """인식된 QR 토큰을 서버에 보내 장치 등록을 시도합니다."""
         current_time = time.time()
         
         
@@ -292,7 +318,6 @@ class QRMode(BaseMode):
             
             if result and result.get("statusCode") == "200 OK":
                 data = result.get("data", {})
-                
                 access_token = data.get("access_token")
                 refresh_token = data.get("refresh_token")
                 group_id = data.get("group_id")
@@ -323,12 +348,6 @@ class QRMode(BaseMode):
                     logger.info(f"Device registered successfully: {DEVICE_ID} (group: {group_id})")
                     
                     return True
-                else:
-                    logger.error("Failed to save device state")
-                    return False
-            else:
-                logger.error(f"Server registration failed: {result}")
-                return False
         except Exception as e:
             logger.error(f"Registration error: {e}")
         
@@ -336,5 +355,5 @@ class QRMode(BaseMode):
     
     @property
     def is_pairing_complete(self) -> bool:
-        """페어링 완료 확인"""
+        """현재 장치가 서버에 페어링되었는지 여부를 확인합니다."""
         return self.device_state.is_registered()

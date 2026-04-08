@@ -1,7 +1,20 @@
 
 import api from './api'
 
+/**
+ * 메시지 및 알림 관련 API 호출을 담당하는 서비스 객체입니다.
+ */
 export const messageService = {
+  /**
+   * 가족에게 메시지를 전송합니다.
+   * @param {string|number} familyId - 가족 그룹의 고유 ID
+   * @param {Object} messageData - 메시지 데이터 (content 등)
+   * @returns {Promise<Object>} API 응답 데이터
+   */
+  async sendFamilyMessage(familyId, messageData) {
+    const response = await api.post(`/families/${familyId}/message`, messageData);
+    return response.data;
+  },
 
     
     async sendFamilyMessage(familyId, messageData) {

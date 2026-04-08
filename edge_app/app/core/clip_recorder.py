@@ -21,6 +21,8 @@ from ..config import (
     ABNORMAL_TIMEOUT_S, JPEG_QUALITY  
 )
 
+logger = logging.getLogger(__name__)
+
 os.makedirs(CLIP_DIR, exist_ok=True)
 
 class ClipRecorder:
@@ -107,15 +109,8 @@ class ClipRecorder:
 
     def _open_writer(self, path: str, fps: float, frame_shape: Tuple[int, int, int]):
         """
-        동적 해상도 기반 VideoWriter 생성 (다중 코덱 재시도)
-        
-        Args:
-            path: 저장 경로
-            fps: 프레임레이트
-            frame_shape: (H, W, C) 형태의 프레임 형상
-        
-        Returns:
-            cv2.VideoWriter 인스턴스
+        동영상 저장을 위한 cv2.VideoWriter 객체를 생성합니다.
+        여러 코덱을 순차적으로 시도하여 호환성을 확보합니다.
         """
         h, w = frame_shape[:2]
         
@@ -161,6 +156,7 @@ class ClipRecorder:
         return writer
 
     def status(self):
+        """현재 레코더의 작동 상태와 버퍼 정보 등을 반환합니다."""
         with self.lock:
             return {
                 "clip_recording": self.recording,
@@ -187,23 +183,17 @@ class ClipRecorder:
     def save_segment(self, incident_ts: float, pre_sec: float, post_sec: float,
                  filename_prefix: str = "incident") -> Optional[str]:
         """
-        버퍼에서 [incident_ts - pre_sec, incident_ts + post_sec] 범위 추출 후 저장
-        
-        개선사항:
-        - 중복 저장 방지: 3초 내에 같은 구간이 저장되면 무시
-        - 실제 낙상 시작 시간(incident_ts) 기준으로 영상 저장
-        - 첫 프레임 기준으로 동적 해상도 결정
+        특정 사건 발생 시점(incident_ts)을 기준으로 전/후 구간을 동영상으로 저장합니다.
         
         Args:
-            incident_ts: 낙상 의심 시작 시간 (abnormal_enter 시점) - 가장 정확한 기준
-            pre_sec: 사건 전 기록 시간
-            post_sec: 사건 후 기록 시간
-            filename_prefix: 저장 파일명 접두사
-        
+            incident_ts: 사건 발생 시점 (abnormal_enter 등)
+            pre_sec: 사건 이전 기록 시간(초)
+            post_sec: 사건 이후 기록 시간(초)
+            filename_prefix: 파일명 접두어
+            
         Returns:
-            저장된 파일 경로 또는 None (중복/실패 시)
+            저장된 영상의 경로 또는 None
         """
-
         with self.lock:
             if len(self.buffer) == 0:
                 return None
@@ -413,33 +403,13 @@ class ClipRecorder:
         return path
 
     def transcode_mp4_for_web(self, in_path: str) -> str:
-        """
-        브라우저 호환(H.264/AAC/yuv420p) + faststart로 재인코딩.
-        """
+        """FFmpeg를 호출하여 영상을 스트리밍에 최적화된 형식(H.264, Faststart)으로 변환합니다."""
         p = Path(in_path)
         out_path = str(p.with_suffix(".web.tmp.mp4"))
-
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", str(p),
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-movflags", "+faststart",
-            out_path,
-        ]
-
+        cmd = ["ffmpeg", "-y", "-i", str(p), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-movflags", "+faststart", out_path]
         try:
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             os.replace(out_path, str(p))
-            return str(p)
-        except FileNotFoundError:
-            return str(p)
-        except subprocess.CalledProcessError:
-            try:
-                if os.path.exists(out_path):
-                    os.remove(out_path)
-            except Exception:
-                pass
-            return str(p)
+        except Exception:
+            if os.path.exists(out_path): os.remove(out_path)
+        return str(p)

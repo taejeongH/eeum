@@ -46,6 +46,7 @@ streamer = WebSocketStreamer(controller=controller)
 app = FastAPI()
 
 
+# ---------- 생명주기(Lifecycle) 이벤트 ----------
 @app.on_event("startup")
 async def startup_event():
     logger.info("[STARTUP] Starting Application Controller and Streamer")
@@ -122,6 +123,7 @@ def pose():
 
 @app.get("/api/iot/device/falls/stream_overlay")
 def stream():
+    """스켈레톤 오버레이가 포함된 MJPEG 스트림을 제공합니다."""
     boundary = "frame"
 
     def gen():

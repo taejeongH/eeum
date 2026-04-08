@@ -2,21 +2,33 @@ import os
 
 
 CAM_INDEX = int(os.getenv("CAM_INDEX", "0"))
+# 처리 프레임 해상도
 FRAME_W = int(os.getenv("FRAME_W", "1920"))
 FRAME_H = int(os.getenv("FRAME_H", "1080"))
+# 스트리밍 및 썸네일 JPEG 품질 (1-100)
 JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "80"))
+# YOLO 모델 추론 신뢰도 임계치
 DEFAULT_CONF = float(os.getenv("DEFAULT_CONF", "0.50"))
 
 MODEL_IOU = float(os.getenv("MODEL_IOU", "0.50"))
 MODEL_DET = float(os.getenv("MODEL_DET", "30"))
 
+# ---------------------------------------------------------
+# AI 모델 및 하드웨어 가속 설정
+# ---------------------------------------------------------
+# 결정론적 추론 활성화 (디버깅용)
 DETERMINISTIC = os.getenv("DETERMINISTIC", "1") == "1"
+# FP16 절반 정밀도 연산 사용 여부
 USE_HALF = False if DETERMINISTIC else (os.getenv("USE_HALF", "1") == "1")
+# YOLOv8 Pose 모델 파일 경로
+MODEL_PATH = os.getenv("MODEL_PATH", "yolov8s-pose.pt")
 
 MODEL_PATH = os.getenv("MODEL_PATH", "yolov8s-pose.pt")
 DEVICE_ID = os.getenv("DEVICE_ID", "EEUM-J105")
 DEVICE_NAME = os.getenv("DEVICE_NAME", "Jetson-Orin-Nano")
+# 설치 장소 에칭
 LOCATION_ID = os.getenv("LOCATION_ID", "LivingRoom")
+# 통합 백엔드 API 서버 URL
 SERVER_URL = os.getenv("SERVER_URL", "https://i14a105.p.ssafy.io")
 WS_SERVER_URL = os.getenv("WS_SERVER_URL", SERVER_URL.replace("http", "ws") + "/api/ws/stream")
 RPI_URL = os.getenv("RPI_URL", "http://10.10.0.1:8080/eeum")
@@ -29,15 +41,17 @@ CLIP_DIR = os.getenv("CLIP_DIR", f"{RUNS_DIR}/clips")
 CLIP_FPS = int(os.getenv("CLIP_FPS", "24"))
 CLIP_RESIZE_WIDTH = int(os.getenv("CLIP_RESIZE_WIDTH", "640"))
 CLIP_RESIZE_HEIGHT = int(os.getenv("CLIP_RESIZE_HEIGHT", "480"))
+# 사고 시점 기준 전후 녹화 시간 (초)
 CLIP_PRE_SEC = int(os.getenv("CLIP_PRE_SEC", "6"))
 CLIP_POST_SEC = int(os.getenv("CLIP_POST_SEC", "6"))
+# 전송 후 재녹화 방지 쿨다운 시간
 CLIP_COOLDOWN_S = float(os.getenv("CLIP_COOLDOWN_S", "30.0"))
 CLIP_EVENT_POST_SEC = int(os.getenv("CLIP_EVENT_POST_SEC", "7"))
 ABNORMAL_TIMEOUT_S = float(os.getenv("ABNORMAL_TIMEOUT_S", "30.0"))
 
 
 KP_EMA_ENABLE = os.getenv("KP_EMA_ENABLE", "1") == "1"
-KP_EMA_ALPHA = float(os.getenv("KP_EMA_ALPHA", "0.75"))
+# 신뢰도에 따른 스무딩 적용 최소 기준점
 KP_MIN_CONF_FOR_SMOOTH = float(os.getenv("KP_MIN_CONF", "0.30"))
 
 

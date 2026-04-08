@@ -12,7 +12,13 @@
       
       <!-- Search Input -->
       <div v-if="isSearchOpen" class="mb-4 animate-fade-in">
-        <input v-model="searchQuery" type="text" placeholder="일정 검색..." class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" autofocus />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="일정 검색..."
+          class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          autofocus
+        />
       </div>
 
       <!-- Month Navigation -->
@@ -64,38 +70,51 @@
         <div class="py-2 text-sm font-semibold text-slate-500">금</div>
         <div class="py-2 text-sm font-semibold text-blue-400">토</div>
 
-        <div v-for="(day, index) in calendarDays" 
-             :key="index" 
-             @click="selectDate(day)"
-             class="h-16 flex flex-col items-center justify-start pt-2 relative cursor-pointer rounded-xl transition-colors hover:bg-slate-50"
-             :class="{
+            <div
+              v-for="(day, index) in calendarDays"
+              :key="index"
+              @click="selectDate(day)"
+              class="h-16 flex flex-col items-center justify-start pt-2 relative cursor-pointer rounded-xl transition-colors hover:bg-slate-50"
+              :class="{
                 'opacity-30': day.type !== 'current',
                 'text-red-500': day.date.getDay() === 0,
-                'text-blue-500': day.date.getDay() === 6
-             }"
-        >
-            <!-- Highlight Selection: custom primary-light style -->
-            <div v-if="selectedDate === day.dateString" 
-                 class="absolute w-8 h-8 top-1 rounded-full z-0 animate-scale-in"
-                 style="background-color: #ec856b"></div>
-            <!-- Today highlight: Border if not selected -->
-            <div v-else-if="isToday(day)" class="absolute w-8 h-8 top-1 border-2 border-primary/50 rounded-full bg-primary/5 z-0"></div>
-            
-            <span class="relative z-10 text-sm" 
-                  :class="{
-                      'text-white font-bold': selectedDate === day.dateString,
-                      'font-bold': isToday(day) && selectedDate !== day.dateString
-                  }">{{ day.day }}</span>
+                'text-blue-500': day.date.getDay() === 6,
+              }"
+            >
+              <!-- 선택된 날짜 하이라이트: 커스텀 프라이머리 스타일 -->
+              <div
+                v-if="selectedDate === day.dateString"
+                class="absolute w-8 h-8 top-1 rounded-full z-0 animate-scale-in"
+                style="background-color: #ec856b"
+              ></div>
+              <!-- 오늘 날짜 하이라이트: 선택되지 않았을 때 테두리 -->
+              <div
+                v-else-if="isToday(day)"
+                class="absolute w-8 h-8 top-1 border-2 border-primary/50 rounded-full bg-primary/5 z-0"
+              ></div>
 
-            <!-- Event Indicators (Bars or Dots) -->
-            <div class="absolute bottom-3 flex gap-0.5 justify-center w-full px-1 flex-wrap">
-                <!-- Limit to 3-4 dots to prevent overflow -->
-                <div v-for="(indicator, i) in getIndicatorsForDay(day.dateString)" :key="i"
-                     class="w-1.5 h-1.5 rounded-full"
-                     :class="indicator.class"
+              <span
+                class="relative z-10 text-sm"
+                :class="{
+                  'text-white font-bold': selectedDate === day.dateString,
+                  'font-bold': isToday(day) && selectedDate !== day.dateString,
+                }"
+                >{{ day.day }}</span
+              >
+
+              <!-- 이벤트 인디케이터 (바 또는 점) -->
+              <div class="absolute bottom-3 flex gap-0.5 justify-center w-full px-1 flex-wrap">
+                <!-- 오버플로우 방지를 위해 3-4개로 제한 -->
+                <div
+                  v-for="(indicator, i) in getIndicatorsForDay(day.dateString)"
+                  :key="i"
+                  class="w-1.5 h-1.5 rounded-full"
+                  :class="indicator.class"
                 ></div>
+              </div>
             </div>
-        </div>
+          </div>
+        </Transition>
       </div>
       </Transition>
       </div>
@@ -103,46 +122,73 @@
       <div class="h-px bg-slate-200 w-full mb-6"></div>
       <div class="space-y-4 px-2 pb-24">
         <div class="flex justify-between items-center mb-2">
-           <!-- Dynamic Subtitle based on Selection/Search -->
-           <span v-if="searchQuery" class="text-sm text-slate-500">'{{ searchQuery }}' 검색 결과</span>
-           <span v-else-if="selectedDate" class="text-sm text-slate-500">{{ selectedDate.split('-')[1] }}월 {{ selectedDate.split('-')[2] }}일 일정</span>
-           <span v-else class="text-sm text-slate-500">전체 일정</span>
+          <!-- 선택/검색에 따른 동적 부제목 -->
+          <span v-if="searchQuery" class="text-sm text-slate-500"
+            >'{{ searchQuery }}' 검색 결과</span
+          >
+          <span v-else-if="selectedDate" class="text-sm text-slate-500"
+            >{{ selectedDate.split('-')[1] }}월 {{ selectedDate.split('-')[2] }}일 일정</span
+          >
+          <span v-else class="text-sm text-slate-500">전체 일정</span>
         </div>
 
         <div v-if="filteredEvents.length === 0" class="text-center py-10 text-slate-400">
-            일정이 없습니다.
+          일정이 없습니다.
         </div>
 
-        <div v-for="event in filteredEvents" :key="event.scheduleId" 
-             @click="goToDetail(event.scheduleId)" 
-             class="bg-[#FFFBF7] p-5 rounded-3xl ios-shadow border border-slate-100 transition-all active:scale-[0.98] cursor-pointer mb-3 relative overflow-hidden">
-          
-          <!-- Visited Badge -->
-          <div v-if="event.isVisited" class="absolute top-0 right-0 bg-accent-sage text-[#2d5a3f] text-[10px] font-bold px-2 py-1 rounded-bl-xl">
+        <div
+          v-for="event in filteredEvents"
+          :key="event.scheduleId"
+          @click="goToDetail(event.scheduleId)"
+          class="bg-[#FFFBF7] p-5 rounded-3xl ios-shadow border border-slate-100 transition-all active:scale-[0.98] cursor-pointer mb-3 relative overflow-hidden"
+        >
+          <!-- 방문 완료 뱃지 -->
+          <div
+            v-if="event.isVisited"
+            class="absolute top-0 right-0 bg-accent-sage text-[#2d5a3f] text-[10px] font-bold px-2 py-1 rounded-bl-xl"
+          >
             방문 완료
           </div>
 
           <div class="flex items-start gap-4">
             <div class="flex flex-col items-center mt-1 min-w-[3rem]">
-              <span class="text-base font-bold text-slate-800">{{ event.startAt.split('T')[1]?.substring(0, 5) || '00:00' }}</span>
+              <span class="text-base font-bold text-slate-800">{{
+                event.startAt.split('T')[1]?.substring(0, 5) || '00:00'
+              }}</span>
             </div>
-            
-            <div class="w-1.5 h-10 rounded-full" :class="{
+
+            <div
+              class="w-1.5 h-10 rounded-full"
+              :class="{
                 'bg-accent-lavender': event.categoryType === 'FAMILY_EVENT',
-                'bg-accent-peach': event.categoryType === 'VISIT', 
+                'bg-accent-peach': event.categoryType === 'VISIT',
                 'bg-accent-sage': event.categoryType === 'HEALTH',
-                'bg-slate-300': !['FAMILY_EVENT', 'VISIT', 'HEALTH'].includes(event.categoryType)
-            }"></div>
+                'bg-slate-300': !['FAMILY_EVENT', 'VISIT', 'HEALTH'].includes(event.categoryType),
+              }"
+            ></div>
 
             <div class="flex-1">
               <div class="flex items-center gap-2">
-                  <h3 class="text-xl font-bold text-slate-900 mb-0.5">{{ event.title }}</h3>
-                  <!-- Modified Icon: Display if parentId exists (recurrence exception) -->
-                  <span v-if="event.parentId" class="material-symbols-outlined text-sm text-slate-400" title="수정된 반복 일정">edit_calendar</span>
-                  <!-- Yearly Icon -->
-                  <span v-if="event.repeatType === 'YEARLY'" class="material-symbols-outlined text-sm text-slate-400" title="매년 반복">cached</span>
+                <h3 class="text-xl font-bold text-slate-900 mb-0.5">{{ event.title }}</h3>
+                <!-- 수정된 아이콘: parentId가 있으면 표시 (반복 일정 예외) -->
+                <span
+                  v-if="event.parentId"
+                  class="material-symbols-outlined text-sm text-slate-400"
+                  title="수정된 반복 일정"
+                  >edit_calendar</span
+                >
+                <!-- 매년 반복 아이콘 -->
+                <span
+                  v-if="event.repeatType === 'YEARLY'"
+                  class="material-symbols-outlined text-sm text-slate-400"
+                  title="매년 반복"
+                  >cached</span
+                >
               </div>
-              <p class="text-xs text-slate-500">{{ event.startAt.split('T')[1]?.substring(0, 5) }} - {{ event.endAt.split('T')[1]?.substring(0, 5) }}</p>
+              <p class="text-xs text-slate-500">
+                {{ event.startAt.split('T')[1]?.substring(0, 5) }} -
+                {{ event.endAt.split('T')[1]?.substring(0, 5) }}
+              </p>
             </div>
           </div>
         </div>
@@ -334,6 +380,9 @@ const events = ref([]);
 const year = computed(() => currentDate.value.getFullYear());
 const month = computed(() => currentDate.value.getMonth() + 1);
 
+/**
+ * 서버로부터 해당 월의 일정 목록을 가져옵니다.
+ */
 const fetchCalendarEvents = async () => {
     
     const targetFamilyId = familyId.value;
@@ -349,20 +398,28 @@ const fetchCalendarEvents = async () => {
     }
 };
 
+/**
+ * 일정 상세 페이지로 이동합니다.
+ * @param {string|number} scheduleId
+ */
 const goToDetail = (scheduleId) => {
-    router.push({ name: 'DetailSchedule', params: { familyId: familyId.value }, query: { id: scheduleId } });
+  router.push({
+    name: 'DetailSchedule',
+    params: { familyId: familyId.value },
+    query: { id: scheduleId },
+  });
 };
 
 
 const calendarDays = computed(() => {
-    const currYear = currentDate.value.getFullYear();
-    const currMonth = currentDate.value.getMonth();
+  const currYear = currentDate.value.getFullYear();
+  const currMonth = currentDate.value.getMonth();
 
     const firstDayOfMonth = new Date(currYear, currMonth, 1).getDay(); 
     const lastDateOfMonth = new Date(currYear, currMonth + 1, 0).getDate();
     const lastDateOfPrevMonth = new Date(currYear, currMonth, 0).getDate();
 
-    const days = [];
+  const days = [];
 
     
     for (let i = firstDayOfMonth - 1; i >= 0; i--) {
@@ -399,15 +456,15 @@ const calendarDays = computed(() => {
         });
     }
 
-    return days;
+  return days;
 });
 
 
 const toLocalDateString = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 
@@ -453,20 +510,20 @@ const getEventsForDay = (dateString) => {
 
 
 const getIndicatorsForDay = (dateString) => {
-    const dayEvents = getEventsForDay(dateString);
-    const hasVisit = dayEvents.some(e => e.categoryType === 'VISIT');
-    const hasOther = dayEvents.some(e => e.categoryType !== 'VISIT');
-    
-    const indicators = [];
-    if (hasVisit) indicators.push({ type: 'VISIT', class: 'bg-accent-peach' });
-    if (hasOther) indicators.push({ type: 'OTHER', class: 'bg-primary' });
-    
-    return indicators;
+  const dayEvents = getEventsForDay(dateString);
+  const hasVisit = dayEvents.some((e) => e.categoryType === 'VISIT');
+  const hasOther = dayEvents.some((e) => e.categoryType !== 'VISIT');
+
+  const indicators = [];
+  if (hasVisit) indicators.push({ type: 'VISIT', class: 'bg-accent-peach' });
+  if (hasOther) indicators.push({ type: 'OTHER', class: 'bg-primary' });
+
+  return indicators;
 };
 
 
 const filteredEvents = computed(() => {
-    let result = events.value;
+  let result = events.value;
 
     
     if (searchQuery.value.trim()) {
@@ -492,6 +549,10 @@ const filteredEvents = computed(() => {
     });
 });
 
+/**
+ * 달력의 특정 날짜를 선택합니다.
+ * @param {Object} day
+ */
 const selectDate = (day) => {
     
     
@@ -506,16 +567,39 @@ const selectDate = (day) => {
     sessionStorage.setItem('calendar_last_date', selectedDate.value);
 };
 
+/**
+ * 검색 바 노출 여부를 토글합니다.
+ */
 const toggleSearch = () => {
     isSearchOpen.value = !isSearchOpen.value;
     if (!isSearchOpen.value) searchQuery.value = ''; 
 };
 
+/**
+ * 이벤트 타입에 따른 원형 인디케이터 클래스명을 반환합니다.
+ * @param {string} matchStr
+ * @returns {string}
+ */
 const getEventDotClass = (matchStr) => {
     
     return matchStr === 'VISIT' ? 'bg-accent-peach' : 'bg-primary';
 };
 
+/**
+ * 화면에 표시되는 월과 선택된 날짜를 동기화합니다.
+ * (오늘인 경우 오늘 선택, 아니면 1일 선택)
+ * @param {Date} newDate
+ */
+const syncSelectedDateWithView = (newDate) => {
+  const today = new Date();
+  if (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() === today.getMonth()) {
+    selectedDate.value = toLocalDateString(today);
+  } else {
+    const firstDay = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+    selectedDate.value = toLocalDateString(firstDay);
+  }
+  currentDate.value = newDate;
+};
 
 const syncSelectedDateWithView = (newDate) => {
     
@@ -537,6 +621,9 @@ const prevMonth = () => {
     syncSelectedDateWithView(newDate);
 };
 
+/**
+ * 다음 달로 이동합니다.
+ */
 const nextMonth = () => {
     slideDirection.value = 'next';
     const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1);
@@ -574,10 +661,12 @@ const handleSwipe = () => {
 
 
 const isToday = (day) => {
-    const today = new Date();
-    return day.date.getDate() === today.getDate() &&
-           day.date.getMonth() === today.getMonth() &&
-           day.date.getFullYear() === today.getFullYear();
+  const today = new Date();
+  return (
+    day.date.getDate() === today.getDate() &&
+    day.date.getMonth() === today.getMonth() &&
+    day.date.getFullYear() === today.getFullYear()
+  );
 };
 
 onMounted(async () => {
@@ -610,30 +699,62 @@ onMounted(async () => {
         }
     }
 
-    if (familyId.value) {
-        fetchCalendarEvents();
+  // 가능한 경우 상태 복구
+  const savedDate = sessionStorage.getItem('calendar_last_date');
+  if (savedDate) {
+    // 유효한 날짜 형식인지 확인
+    if (/^\d{4}-\d{2}-\d{2}$/.test(savedDate)) {
+      selectedDate.value = savedDate;
+      // 선택된 날짜에 맞춰 표시 월 업데이트
+      currentDate.value = new Date(savedDate);
     }
+  }
+  // 2. Fallback: If no route param but store has selection (e.g. direct nav bug?) -> Correct URL
+  else if (familyStore.selectedFamily?.id) {
+    familyId.value = familyStore.selectedFamily.id;
+    router.replace({ name: 'CalendarPage', params: { familyId: familyId.value } });
+  }
+  // 3. 폴백: 아무것도 없으면 가져오기
+  else {
+    await familyStore.fetchFamilies();
+    if (familyStore.selectedFamily?.id) {
+      familyId.value = familyStore.selectedFamily.id;
+      router.replace({ name: 'CalendarPage', params: { familyId: familyId.value } });
+    }
+  }
+
+  if (familyId.value) {
+    fetchCalendarEvents();
+  }
 });
 
 
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
-        familyId.value = newId;
-        fetchCalendarEvents();
+      familyId.value = newId;
+      fetchCalendarEvents();
     }
-});
+  },
+);
 
 
 watch(() => familyStore.selectedFamily, (newFamily) => {
     if (newFamily && newFamily.id) {
-        if (String(newFamily.id) !== String(route.params.familyId)) {
-            router.replace({ name: 'CalendarPage', params: { familyId: newFamily.id } });
-        }
+      if (String(newFamily.id) !== String(route.params.familyId)) {
+        router.replace({ name: 'CalendarPage', params: { familyId: newFamily.id } });
+      }
     }
-});
+  },
+);
 
 watch([year, month], () => {
-    fetchCalendarEvents();
+  fetchCalendarEvents();
+});
+
+watch(selectedDate, (newVal) => {
+  if (newVal) {
+    sessionStorage.setItem('calendar_last_date', newVal);
+  }
 });
 
 watch(selectedDate, (newVal) => {
@@ -653,12 +774,22 @@ watch(selectedDate, (newVal) => {
 }
 
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
   font-size: 28px;
 }
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
@@ -667,7 +798,59 @@ watch(selectedDate, (newVal) => {
   animation: scale-in 0.15s ease-out;
 }
 .bg-primary-light {
-    background-color: #ec856b;
+  background-color: #ec856b;
+}
+
+/* 슬라이드 애니메이션 - 연속 (겹침 처리) */
+.slide-next-enter-active,
+.slide-next-leave-active,
+.slide-prev-enter-active,
+.slide-prev-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+/* 부드러운 슬라이드를 위해 나가는 요소 겹침 처리 */
+.slide-next-leave-active,
+.slide-prev-leave-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none; /* 나가는 요소에 대한 클릭 방지 */
+}
+
+.slide-next-enter-from {
+  transform: translateX(100%);
+}
+.slide-next-leave-to {
+  transform: translateX(-100%);
+}
+
+.slide-prev-enter-from {
+  transform: translateX(-100%);
+}
+.slide-prev-leave-to {
+  transform: translateX(100%);
+}
+
+/* Swiper 선택기 스타일 */
+.picker-swiper {
+  height: 200px;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%; /* 40px */
+  font-size: 16px;
+  color: #94a3b8;
+  transition: all 0.3s;
+}
+.swiper-slide-active .picker-item {
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 18px;
+  transform: scale(1.1);
 }
 
 

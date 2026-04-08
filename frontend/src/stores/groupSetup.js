@@ -4,9 +4,13 @@ import api from '@/services/api'
 import { useFamilyStore } from '@/stores/family'
 import { Logger } from '@/services/logger'
 
+/**
+ * 그룹 설정(기본 정보, 질환, 비상 연락처, 복약 정보)을 관리하는 Pinia 스토어입니다.
+ * @summary 그룹 설정 관리 스토어
+ */
 export const useGroupSetupStore = defineStore('groupSetup', () => {
-    const isInitialized = ref(false)
-    const currentFamilyId = ref(null)
+  /** @type {import('vue').Ref<boolean>} 초기화 여부 */
+  const isInitialized = ref(false);
 
     
     const groupName = ref('')
@@ -25,17 +29,43 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
     
     const deletedMedicationIds = ref([])
 
-    const reset = () => {
-        isInitialized.value = false
-        currentFamilyId.value = null
-        groupName.value = ''
-        seniorId.value = null
-        bloodType.value = ''
-        diseases.value = []
-        contactSlots.value = [null, null, null]
-        medications.value = []
-        deletedMedicationIds.value = []
+  /**
+   * 스토어 상태를 초기화합니다.
+   */
+  const reset = () => {
+    isInitialized.value = false;
+    currentFamilyId.value = null;
+    groupName.value = '';
+    seniorId.value = null;
+    bloodType.value = '';
+    diseases.value = [];
+    contactSlots.value = [null, null, null];
+    medications.value = [];
+    deletedMedicationIds.value = [];
+  };
+
+  /**
+   * 특정 가족의 설정을 위한 데이터를 초기화합니다.
+   * @param {number|string} familyId 가족 ID
+   */
+  const initData = async (familyId) => {
+    if (isAlreadyInitialized(familyId)) return;
+
+    reset();
+    currentFamilyId.value = familyId;
+    isInitialized.value = true;
+
+    try {
+      await Promise.all([
+        fetchGroupBasicInfo(familyId),
+        fetchDependentProfileAndHealth(familyId),
+        fetchEmergencyContacts(familyId),
+        fetchMedications(familyId),
+      ]);
+    } catch (error) {
+      handleInitError(error);
     }
+  };
 
     
     const initData = async (familyId) => {
@@ -45,6 +75,9 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
         if (isInitialized.value && currentFamilyId.value === familyId) {
             return
         }
+      });
+    }
+  };
 
         reset() 
         currentFamilyId.value = familyId
@@ -150,6 +183,7 @@ export const useGroupSetupStore = defineStore('groupSetup', () => {
             totalDosesDay
         })
     }
+  };
 
     const removeMedication = (index) => {
         const target = medications.value[index]

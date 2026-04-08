@@ -1,8 +1,12 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #ffffff 0%, var(--color-primary-soft) 100%);">
+  <div
+    class="min-h-screen flex items-center justify-center"
+    style="background: linear-gradient(135deg, #ffffff 0%, var(--color-primary-soft) 100%)"
+  >
     <div class="w-full max-w-md px-6 py-10">
+      <!-- 헤더 영역 -->
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-extrabold mb-2" style="color: var(--color-primary);">회원가입</h1>
+        <h1 class="text-3xl font-extrabold mb-2" style="color: var(--color-primary)">회원가입</h1>
         <p class="eeum-sub">이음과 함께 가족 돌봄을 시작해보세요</p>
       </div>
 
@@ -25,7 +29,11 @@
                 @click="sendCode"
                 :disabled="isCodeSent || isEmailVerified || isLoading"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                :class="isCodeSent ? 'bg-gray-100 text-gray-400' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'"
+                :class="
+                  isCodeSent
+                    ? 'bg-gray-100 text-gray-400'
+                    : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                "
               >
                 {{ isCodeSent ? '전송됨' : '인증번호 전송' }}
               </button>
@@ -55,9 +63,17 @@
           </div>
 
           <!-- 인증 완료 메시지 -->
-          <div v-if="isEmailVerified" class="mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2">
+          <div
+            v-if="isEmailVerified"
+            class="mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2"
+          >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              ></path>
             </svg>
             이메일 인증이 완료되었습니다.
           </div>
@@ -85,7 +101,7 @@
                 required
               />
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호 확인</label>
               <input
@@ -108,7 +124,11 @@
             type="submit"
             :disabled="!isEmailVerified || isLoading"
             class="w-full mt-8 py-3 rounded-xl font-bold text-white transition-all transform active:scale-95"
-            :class="isEmailVerified ? 'bg-orange-500 hover:bg-orange-600 shadow-md hover:shadow-lg' : 'bg-gray-300 cursor-not-allowed'"
+            :class="
+              isEmailVerified
+                ? 'bg-orange-500 hover:bg-orange-600 shadow-md hover:shadow-lg'
+                : 'bg-gray-300 cursor-not-allowed'
+            "
           >
             <span v-if="isLoading">처리 중...</span>
             <span v-else>회원가입 완료</span>
@@ -118,7 +138,10 @@
 
       <div class="text-center mt-6">
         <span class="text-gray-500 text-sm">이미 계정이 있으신가요? </span>
-        <router-link to="/login" class="font-semibold text-sm text-orange-600 hover:text-orange-700">
+        <router-link
+          to="/login"
+          class="font-semibold text-sm text-orange-600 hover:text-orange-700"
+        >
           로그인하기
         </router-link>
       </div>
@@ -140,7 +163,7 @@ const form = reactive({
   code: '',
   name: '',
   password: '',
-  passwordConfirm: ''
+  passwordConfirm: '',
 });
 
 const isCodeSent = ref(false);
@@ -154,7 +177,7 @@ const sendCode = async () => {
     errorMessage.value = '이메일을 입력해주세요.';
     return;
   }
-  
+
   isLoading.value = true;
   errorMessage.value = '';
 
@@ -180,7 +203,11 @@ const verifyCode = async () => {
   errorMessage.value = '';
 
   try {
-    await apiClient.post('/auth/email/verify', { email: form.email, code: form.code }, { withCredentials: false });
+    await apiClient.post(
+      '/auth/email/verify',
+      { email: form.email, code: form.code },
+      { withCredentials: false },
+    );
     isEmailVerified.value = true;
   } catch (e) {
     errorMessage.value = e.response?.data?.message || '인증번호가 올바르지 않습니다.';
@@ -200,31 +227,13 @@ const validatePassword = (password) => {
 
 
 const handleSignup = async () => {
-  if (!validatePassword(form.password)) {
-    errorMessage.value = '비밀번호는 8자 이상이어야 하며, 영문, 숫자, 특수문자를 모두 포함해야 합니다.';
-    return;
-  }
-
-  if (form.password !== form.passwordConfirm) {
-    errorMessage.value = '비밀번호가 일치하지 않습니다.';
-    return;
-  }
-
-  if (!isEmailVerified.value) {
-    errorMessage.value = '이메일 인증을 완료해주세요.';
-    return;
-  }
+  if (!validateSignupForm()) return;
 
   isLoading.value = true;
   errorMessage.value = '';
 
   try {
-    await apiClient.post('/auth/signup', {
-      email: form.email,
-      password: form.password,
-      name: form.name
-    }, { withCredentials: false });
-    
+    await executeSignup();
     await modalStore.openAlert('회원가입이 완료되었습니다. 로그인해주세요.');
     router.push('/login');
   } catch (e) {
@@ -232,6 +241,45 @@ const handleSignup = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+/**
+ * 가입 폼 전체 유효성을 검사합니다. (Internal)
+ * @returns {boolean}
+ */
+const validateSignupForm = () => {
+  if (!isEmailVerified.value) {
+    errorMessage.value = '이메일 인증을 완료해주세요.';
+    return false;
+  }
+
+  if (!validatePassword(form.password)) {
+    errorMessage.value =
+      '비밀번호는 8자 이상이어야 하며, 영문, 숫자, 특수문자를 모두 포함해야 합니다.';
+    return false;
+  }
+
+  if (form.password !== form.passwordConfirm) {
+    errorMessage.value = '비밀번호가 일치하지 않습니다.';
+    return false;
+  }
+
+  return true;
+};
+
+/**
+ * 서버에 회원가입 API를 호출합니다.
+ */
+const executeSignup = () => {
+  return apiClient.post(
+    '/auth/signup',
+    {
+      email: form.email,
+      password: form.password,
+      name: form.name,
+    },
+    { withCredentials: false },
+  );
 };
 </script>
 
@@ -245,7 +293,13 @@ const handleSignup = async () => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

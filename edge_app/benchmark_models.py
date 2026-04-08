@@ -1,3 +1,9 @@
+"""
+모델 성능 벤치마크 도구
+PyTorch(.pt) 모델과 TensorRT(.engine) 모델 간의 추론 속도 및 FPS 성능을 비교합니다.
+Jetson 에지 디바이스에서 최적화 효과를 측정하기 위해 사용됩니다.
+"""
+
 import os
 import time
 import torch
@@ -6,13 +12,14 @@ import cv2
 from ultralytics import YOLO
 
 def benchmark_model(model_path, num_frames=100, warm_up=10):
-    print(f"\n[Benchmarking] {model_path}")
+    """특정 모델 파일에 대해 반복 추론을 수행하여 평균 지연 시간과 FPS를 측정합니다."""
+    print(f"\n[성능 측정 시작] {model_path}")
     
     
     try:
         model = YOLO(model_path)
     except Exception as e:
-        print(f"Failed to load model: {e}")
+        print(f"모델 로드 실패: {e}")
         return None
 
     
@@ -35,7 +42,7 @@ def benchmark_model(model_path, num_frames=100, warm_up=10):
     avg_latency = (total_time / num_frames) * 1000 
     fps = num_frames / total_time
     
-    print(f"  - Result: Avg Latency = {avg_latency:.2f}ms, FPS = {fps:.2f}")
+    print(f"  - 결과: 평균 지연 시간 = {avg_latency:.2f}ms, 초당 프레임(FPS) = {fps:.2f}")
     
     
     del model
@@ -54,21 +61,24 @@ def main():
     
     results = {}
     
+    # 1. 원본 PyTorch 모델 측정
     if os.path.exists(pt_path):
         results["PyTorch (.pt)"] = benchmark_model(pt_path)
     else:
-        print(f"Warning: PT model not found at {pt_path}")
+        print(f"주의: 원본 모델(.pt)을 찾을 수 없습니다: {pt_path}")
 
+    # 2. 최적화 TensorRT 모델 측정
     if os.path.exists(engine_path):
         results["TensorRT (.engine)"] = benchmark_model(engine_path)
     else:
-        print(f"Warning: Engine model not found at {engine_path}")
-        print("Tip: Run 'python export_tensorrt.py' first on Jetson.")
+        print(f"주의: 최적화 엔진(.engine)을 찾을 수 없습니다: {engine_path}")
+        print("참고: 먼저 'python export_tensorrt.py'를 실행하여 모델을 변환하세요.")
 
+    # 3. 종합 성능 비교표 출력
     if len(results) >= 2:
-        print("\n" + "="*40)
-        print(" PERFORMANCE COMPARISON ")
-        print("="*40)
+        print("\n" + "="*50)
+        print(" AI 모델 성능 비교 리포트 (PyTorch vs TensorRT) ")
+        print("="*50)
         pt_res = results.get("PyTorch (.pt)")
         tr_res = results.get("TensorRT (.engine)")
         
@@ -76,11 +86,11 @@ def main():
             speedup = pt_res['latency'] / tr_res['latency']
             fps_gain = tr_res['fps'] - pt_res['fps']
             
-            print(f"PyTorch FPS     : {pt_res['fps']:.2f}")
-            print(f"TensorRT FPS    : {tr_res['fps']:.2f}")
-            print(f"Speedup Factor  : {speedup:.2f}x")
-            print(f"FPS Increase    : +{fps_gain:.2f}")
-        print("="*40)
+            print(f"PyTorch 기본 FPS    : {pt_res['fps']:.2f}")
+            print(f"TensorRT 가속 FPS   : {tr_res['fps']:.2f}")
+            print(f"속도 향상 배수(X)   : {speedup:.2f}배")
+            print(f"프레임 이득(Gain)   : +{fps_gain:.2f} FPS")
+        print("="*50)
 
 if __name__ == "__main__":
     main()

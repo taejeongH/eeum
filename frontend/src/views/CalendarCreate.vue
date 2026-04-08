@@ -1,6 +1,8 @@
 <template>
-  <div class="bg-[#fcfcfc] text-slate-800 min-h-screen flex flex-col pb-24 relative overflow-hidden">
-    <!-- Background Content (Calendar Page Look) -->
+  <div
+    class="bg-[#fcfcfc] text-slate-800 min-h-screen flex flex-col pb-24 relative overflow-hidden"
+  >
+    <!-- 배경 콘텐츠 (달력 페이지 스타일) -->
     <header class="sticky top-0 z-10 bg-[#fcfcfc]/80 backdrop-blur-md px-6 pt-12 pb-4">
       <div class="flex justify-between items-center">
         <button class="p-2 -ml-2 text-slate-600">
@@ -12,7 +14,10 @@
           </button>
           <div class="relative p-2">
             <span class="material-symbols-outlined text-slate-600">notifications</span>
-            <span class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#fcfcfc]">22</span>
+            <span
+              class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#fcfcfc]"
+              >22</span
+            >
           </div>
         </div>
       </div>
@@ -23,10 +28,10 @@
         <h1 class="text-2xl font-bold text-slate-900">{{ headerDateText }}</h1>
       </div>
     </header>
-    
+
     <main class="flex-1 px-4 relative">
-       <!-- Duplicate Grid for background visual -->
-       <div class="calendar-grid text-center mb-6 opacity-30">
+      <!-- 배경 시각화를 위한 복제 그리드 -->
+      <div class="calendar-grid text-center mb-6 opacity-30">
         <div class="py-2 text-sm font-semibold text-red-400">일</div>
         <div class="py-2 text-sm font-semibold text-slate-500">월</div>
         <div class="py-2 text-sm font-semibold text-slate-500">화</div>
@@ -34,15 +39,21 @@
         <div class="py-2 text-sm font-semibold text-slate-500">목</div>
         <div class="py-2 text-sm font-semibold text-slate-500">금</div>
         <div class="py-2 text-sm font-semibold text-blue-400">토</div>
-        <!-- Simplified grid items for visual background -->
-        <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50 text-red-500">25</div>
+        <!-- 배경용 간소화된 그리드 항목 -->
+        <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50 text-red-500">
+          25
+        </div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50">26</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50">27</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50">28</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50">29</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50">30</div>
-        <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50 text-blue-500">31</div>
-        <div class="h-16 flex flex-col items-center justify-start pt-2 text-red-500 font-medium">1</div>
+        <div class="h-16 flex flex-col items-center justify-start pt-2 opacity-50 text-blue-500">
+          31
+        </div>
+        <div class="h-16 flex flex-col items-center justify-start pt-2 text-red-500 font-medium">
+          1
+        </div>
         <div class="h-16 flex flex-col items-center justify-start pt-2">2</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2">3</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 relative">
@@ -53,13 +64,13 @@
         <div class="h-16 flex flex-col items-center justify-start pt-2">6</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 text-blue-500">7</div>
         <div class="h-16 flex flex-col items-center justify-start pt-2 text-red-500">8</div>
-        <!-- Truncated rest for brevity as it is just background -->
+        <!-- 배경용이므로 간결하게 생략됨 -->
       </div>
     </main>
-    
+
     <BottomNav />
 
-    <!-- Modal Overlay: Wrapper Scroll Pattern for Safety -->
+    <!-- 모달 오버레이: 안전성을 위한 래퍼 스크롤 패턴 -->
     <div class="fixed inset-0 z-[60] overflow-y-auto" v-if="true">
       <div class="flex min-h-full items-end justify-center"> <!-- items-end positions it at bottom like a sheet -->
         <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="$router.back()"></div> <!-- Backdrop fixed behind card -->
@@ -102,11 +113,124 @@
                     :key="cat.value"
                     @click="selectCategory(cat.value)"
                     :class="[
-                        'px-5 py-2.5 rounded-full font-semibold text-sm ios-shadow transition-all',
-                        formData.categoryType === cat.value ? 'bg-primary text-white' : 'bg-white text-slate-600 border border-slate-100'
+                      'px-5 py-2.5 rounded-full font-semibold text-sm ios-shadow transition-all',
+                      formData.categoryType === cat.value
+                        ? 'bg-primary text-white'
+                        : 'bg-white text-slate-600 border border-slate-100',
                     ]"
-                    type="button">
+                    type="button"
+                  >
                     {{ cat.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4">
+                <div class="bg-white p-4 rounded-2xl ios-shadow space-y-4">
+                  <div class="flex items-center gap-3">
+                    <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">시작</span>
+                    <div class="flex gap-2 items-center flex-1">
+                      <EeumDatePicker
+                        v-model="formData.startAtDate"
+                        class="flex-[1.4] min-w-[130px]"
+                        is-range
+                        :start-date="formData.startAtDate"
+                        :end-date="formData.endAtDate"
+                        @update:start-date="(val) => (formData.startAtDate = val)"
+                        @update:end-date="(val) => (formData.endAtDate = val)"
+                      />
+                      <input
+                        v-model="formData.startAtTime"
+                        type="time"
+                        class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]"
+                      />
+                    </div>
+                  </div>
+                  <div class="h-px bg-slate-100 ms-11"></div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-slate-500 font-bold text-[11px] w-8 shrink-0">종료</span>
+                    <div class="flex gap-2 items-center flex-1">
+                      <EeumDatePicker
+                        v-model="formData.endAtDate"
+                        class="flex-[1.4] min-w-[130px]"
+                        is-range
+                        :start-date="formData.startAtDate"
+                        :end-date="formData.endAtDate"
+                        @update:start-date="(val) => (formData.startAtDate = val)"
+                        @update:end-date="(val) => (formData.endAtDate = val)"
+                      />
+                      <input
+                        v-model="formData.endAtTime"
+                        type="time"
+                        class="eeum-input !min-h-0 !h-11 !py-0 text-[12px] font-bold !px-2 flex-1 min-w-[80px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 반복 옵션 -->
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 text-base font-semibold text-slate-700 ml-1">
+                  <input
+                    type="checkbox"
+                    v-model="formData.repeatType"
+                    true-value="YEARLY"
+                    false-value="NONE"
+                    class="w-5 h-5 rounded text-primary focus:ring-primary"
+                  />
+                  <span>매년 반복</span>
+                </label>
+                <div v-if="isRepeatingYearly" class="ml-1 mt-2">
+                  <label class="text-xs text-slate-500 block mb-1">반복 종료일</label>
+                  <EeumDatePicker v-model="formData.recurrenceEndAt" placeholder="종료일 선택" />
+                </div>
+              </div>
+
+              <!-- 방문 정보 (카테고리에 따라 조건부 노출) -->
+              <div v-if="formData.categoryType === 'VISIT'" class="space-y-4 pt-2">
+                <div class="space-y-2">
+                  <label class="text-base font-semibold text-slate-700 ml-1">방문자 이름</label>
+                  <input
+                    v-model="formData.visitorName"
+                    type="text"
+                    class="w-full bg-white border-none rounded-2xl p-4 text-sm ios-shadow"
+                    placeholder="누가 방문하나요?"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label class="text-base font-semibold text-slate-700 ml-1">방문 목적</label>
+                  <input
+                    v-model="formData.visitPurpose"
+                    type="text"
+                    class="w-full bg-white border-none rounded-2xl p-4 text-sm ios-shadow"
+                    placeholder="방문 목적이 무엇인가요?"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-base font-semibold text-slate-700 ml-1">메모</label>
+                <textarea
+                  v-model="formData.description"
+                  class="w-full bg-white border-none rounded-2xl p-4 text-base ios-shadow focus:ring-2 focus:ring-primary/50 text-slate-900 placeholder:text-slate-400 resize-none"
+                  placeholder="상세 내용을 입력하세요"
+                  rows="4"
+                ></textarea>
+              </div>
+              <div class="flex gap-3 pt-4">
+                <button
+                  @click="$router.back()"
+                  class="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold text-lg"
+                  type="button"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  class="flex-[2] py-4 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/20"
+                >
+                  저장하기
                 </button>
               </div>
             </div>
@@ -181,9 +305,7 @@
             </div>
           </form>
         </div>
-        <div class="h-8"></div>
       </div>
-    </div>
     </div>
   </div>
 </template>
@@ -247,7 +369,22 @@ const onTouchEnd = () => {
 };
 
 const isEditMode = computed(() => !!route.query.id);
-const pageTitle = computed(() => isEditMode.value ? '일정 수정' : '일정 추가');
+/** @type {import('vue').ComputedRef<string>} 페이지 제목 */
+const pageTitle = computed(() => (isEditMode.value ? '일정 수정' : '일정 추가'));
+
+/** @type {import('vue').ComputedRef<string>} 헤더에 표시할 월 텍스트 */
+const headerDateText = computed(() => {
+  if (!formData.value.startAtDate) return '';
+  const [y, m] = formData.value.startAtDate.split('-');
+  return `${parseInt(m)}월`;
+});
+
+/** @type {import('vue').ComputedRef<string>} 헤더에 표시할 연도 텍스트 */
+const headerYear = computed(() => {
+  if (!formData.value.startAtDate) return '';
+  const [y, m] = formData.value.startAtDate.split('-');
+  return y;
+});
 
 const headerDateText = computed(() => {
     if (!formData.value.startAtDate) return '';
@@ -332,6 +469,11 @@ onMounted(async () => {
         formData.value.startAtDate = route.query.date;
         formData.value.endAtDate = route.query.date;
     }
+  } else if (route.query.date) {
+    // 특정 날짜가 지정된 생성 모드
+    formData.value.startAtDate = route.query.date;
+    formData.value.endAtDate = route.query.date;
+  }
 });
 
 
@@ -339,22 +481,34 @@ watch(() => formData.value.startAtDate, (newVal) => {
     if (!isEditMode.value) { 
         formData.value.endAtDate = newVal;
     }
-});
+  },
+);
 
 const isRepeatingYearly = computed(() => formData.value.repeatType === 'YEARLY');
 const categories = [
-    { label: '방문', value: 'VISIT', class: 'bg-primary text-white' },
-    { label: '행사', value: 'EVENT', class: 'bg-white text-slate-600 border border-slate-100' },
-    { label: '병원', value: 'MEDICAL', class: 'bg-white text-slate-600 border border-slate-100' },
-    { label: '생일', value: 'BIRTHDAY', class: 'bg-white text-slate-600 border border-slate-100' },
-    { label: '기일', value: 'MEMORIAL', class: 'bg-white text-slate-600 border border-slate-100' },
-    { label: '기념일', value: 'ANNIVERSARY', class: 'bg-white text-slate-600 border border-slate-100' }
+  { label: '방문', value: 'VISIT', class: 'bg-primary text-white' },
+  { label: '행사', value: 'EVENT', class: 'bg-white text-slate-600 border border-slate-100' },
+  { label: '병원', value: 'MEDICAL', class: 'bg-white text-slate-600 border border-slate-100' },
+  { label: '생일', value: 'BIRTHDAY', class: 'bg-white text-slate-600 border border-slate-100' },
+  { label: '기일', value: 'MEMORIAL', class: 'bg-white text-slate-600 border border-slate-100' },
+  {
+    label: '기념일',
+    value: 'ANNIVERSARY',
+    class: 'bg-white text-slate-600 border border-slate-100',
+  },
 ];
 
+/**
+ * 일성 카테고리를 선택합니다.
+ * @param {string} type
+ */
 const selectCategory = (type) => {
-    formData.value.categoryType = type;
+  formData.value.categoryType = type;
 };
 
+/**
+ * 폼 데이터를 제출하여 일정을 저장하거나 수정합니다.
+ */
 const submitForm = async () => {
 
     const targetFamilyId = route.params.familyId || familyStore.selectedFamily?.id;
@@ -414,7 +568,11 @@ const submitForm = async () => {
 }
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
 }
 
 @keyframes slide-up {

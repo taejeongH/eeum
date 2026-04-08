@@ -51,7 +51,143 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
+);
+
+// 토큰 만료 처리 및 재발급 로직
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => {
+    // 전역 로딩 종료
+    const uiStore = useUiStore();
+    if (!response.config?.isSilent) {
+      uiStore.finishLoading();
+    }
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+
+    // 에러 로깅
+    Logger.error(
+      `🌐 [API 오류] ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
+      error,
+    );
+    if (error.response) {
+      Logger.error(`   상태 코드: ${error.response.status}`, error.response.data);
+    } else if (error.request) {
+      Logger.error(`   응답 없음. 네트워크 또는 CORS 문제일 수 있습니다.`);
+    } else {
+      Logger.error(`   메시지: ${error.message}`);
+    }
+
+    // 401 에러이고, 재시도 플래그가 없으며, 재발급 요청 자체가 아닌 경우
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes('/auth/reissue')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(apiClient(originalRequest));
+            },
+            reject: (err) => {
+              reject(err);
+            },
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken =
+          localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const { data } = await apiClient.post('/auth/reissue', {
+          refreshToken: refreshToken,
+        });
+
+        const newAccessToken = data.accessToken;
+        const newRefreshToken = data.refreshToken;
+
+        if (newAccessToken) {
+          localStorage.setItem('accessToken', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+
+          if (window.AndroidBridge && window.AndroidBridge.saveAccessToken) {
+            window.AndroidBridge.saveAccessToken(newAccessToken);
+          }
+
+          apiClient.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+          processQueue(null, newAccessToken);
+          return apiClient(originalRequest);
+        } else {
+          throw new Error('No token returned');
+        }
+      } catch (err) {
+        Logger.error('❌ 토큰 갱신 실패:', err);
+        processQueue(err, null);
+
+        // 로그아웃 처리
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+
+        if (window.AndroidBridge) {
+          if (window.AndroidBridge.logout) window.AndroidBridge.logout();
+          if (window.AndroidBridge.saveAccessToken) window.AndroidBridge.saveAccessToken('');
+        }
+
+        const uiStore = useUiStore();
+        uiStore.finishLoading();
+
+        window.location.href = '#/login';
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // 전역 에러 핸들링 (404 등)
+    if (error.response?.status === 404) {
+      const modalStore = useModalStore();
+      modalStore.openAlert('요청하신 페이지나 정보를 찾을 수 없습니다. (404 Not Found)', '오류');
+    }
+
+    // 전역 로딩 종료
+    const uiStore = useUiStore();
+    if (!error.config?.isSilent) {
+      uiStore.finishLoading();
+    }
+
+    return Promise.reject(error);
+  },
 );
 
 
