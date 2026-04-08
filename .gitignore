@@ -19,3 +19,5 @@ bin/
 *.ipr
 out/
 .env.*
+mobile/local.properties
+mobile/app/google-services.json

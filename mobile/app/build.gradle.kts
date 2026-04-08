@@ -4,9 +4,32 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-parcelize") // sh sdk
+}
 
-    //Firebase
-    id("com.google.gms.google-services")
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        load(file.inputStream())
+    }
+}
+
+val googleServicesFile = file("google-services.json")
+val googleServicesSourcePath = localProperties.getProperty("GOOGLE_SERVICES_JSON_PATH")
+    ?: System.getenv("GOOGLE_SERVICES_JSON_PATH")
+
+if (!googleServicesFile.exists() && !googleServicesSourcePath.isNullOrBlank()) {
+    val sourceFile = file(googleServicesSourcePath)
+    if (sourceFile.exists()) {
+        sourceFile.copyTo(googleServicesFile, overwrite = false)
+    } else {
+        logger.warn("GOOGLE_SERVICES_JSON_PATH points to a missing file: $googleServicesSourcePath")
+    }
+}
+
+if (googleServicesFile.exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn("google-services.json not found. Firebase Google Services plugin was not applied.")
 }
 
 android {
@@ -21,14 +44,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Load local.properties
-        val localProperties = Properties().apply {
-            val file = rootProject.file("local.properties")
-            if (file.exists()) {
-                load(file.inputStream())
-            }
-        }
 
         val webviewUrl = localProperties.getProperty("WEBVIEW_URL") ?: "https://i14a105.p.ssafy.io"
         val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "https://i14a105.p.ssafy.io"
