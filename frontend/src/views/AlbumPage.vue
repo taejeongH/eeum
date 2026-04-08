@@ -1,11 +1,13 @@
 <template>
-  <div class="bg-background-light min-h-screen text-[#1c140d] flex flex-col relative overflow-hidden">
-    <!-- Modal Like Header (Pull bar) -->
+  <div
+    class="bg-background-light min-h-screen text-[#1c140d] flex flex-col relative overflow-hidden"
+  >
+    <!-- 모달 스타일 헤더 (당김 바) -->
     <div class="flex flex-col items-center bg-background-light pt-2">
       <div class="h-1.5 w-10 rounded-full bg-[#e8dbce]"></div>
     </div>
 
-    <!-- Top AppBar -->
+    <!-- 상단 앱바 -->
     <div class="flex items-center bg-background-light p-4 pb-2 justify-between sticky top-0 z-10">
       <div class="flex items-center gap-2">
         <button @click="$router.back()" class="p-2 -ml-2 rounded-full hover:bg-primary/10 transition-colors">
@@ -71,8 +73,8 @@
         </div>
       </div>
       <div v-else class="flex flex-col items-center justify-center h-64 text-gray-500">
-          <span class="material-symbols-outlined text-4xl mb-2">image_not_supported</span>
-          <p>사진이 없습니다.</p>
+        <span class="material-symbols-outlined text-4xl mb-2">image_not_supported</span>
+        <p>사진이 없습니다.</p>
       </div>
     </div>
 
@@ -84,7 +86,9 @@
           <p class="text-[10px] text-[#9c7349] uppercase tracking-wider font-semibold">항목 선택</p>
         </div>
         <div class="flex gap-2">
-          <button class="flex items-center justify-center p-3 rounded-full bg-[#f4ede7] text-primary">
+          <button
+            class="flex items-center justify-center p-3 rounded-full bg-[#f4ede7] text-primary"
+          >
             <span class="material-symbols-outlined">share</span>
           </button>
           <button 
@@ -356,7 +360,25 @@ watch(() => route.query, () => {
   scrollbar-width: none;
 }
 .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* 이미지 페이드인 애니메이션 */
+.image-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 

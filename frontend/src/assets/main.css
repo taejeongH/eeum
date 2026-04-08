@@ -49,8 +49,9 @@
   /* 16px */
 
   /* Font */
-  --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont,
-    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-main:
+    'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR',
+    sans-serif;
 }
 
 /* ===============================

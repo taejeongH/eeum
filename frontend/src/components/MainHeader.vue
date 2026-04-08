@@ -175,12 +175,16 @@
     </div>
   </header>
 
-  <GroupCreateModal :show="isGroupCreateModalOpen" @close="closeGroupCreateModal" @create-group="handleCreateGroup" />
-  <InviteCodeModal 
-    v-if="selectedGroup" 
-    :show="isInviteModalOpen" 
-    :family-id="selectedGroup.id" 
-    @close="closeInviteModal" 
+  <GroupCreateModal
+    :show="isGroupCreateModalOpen"
+    @close="closeGroupCreateModal"
+    @create-group="handleCreateGroup"
+  />
+  <InviteCodeModal
+    v-if="selectedGroup"
+    :show="isInviteModalOpen"
+    :family-id="selectedGroup.id"
+    @close="closeInviteModal"
   />
   <AddGroupModal
     :show="isAddGroupModalOpen"
@@ -203,7 +207,18 @@ import GroupSelector from './GroupSelector.vue';
 import GroupCreateModal from './GroupCreateModal.vue';
 import SettingsDropdown from './SettingsDropdown.vue';
 import AddGroupModal from './AddGroupModal.vue';
-import InviteCodeModal from './InviteCodeModal.vue'; 
+import InviteCodeModal from './InviteCodeModal.vue';
+
+const props = defineProps({
+  showProfiles: {
+    type: Boolean,
+    default: true,
+  },
+  showSettings: {
+    type: Boolean,
+    default: false,
+  },
+});
 
 const props = defineProps({
   showProfiles: {
@@ -242,39 +257,81 @@ const isAddGroupModalOpen = ref(false);
 const isCollapsed = ref(false);
 const settingsMenu = ref(null);
 
-const dependentOrPlaceholder = computed(() => members.value.find(m => m.dependent || m.isPlaceholder));
-const otherMembers = computed(() => {
-  const others = members.value.filter(m => !m.dependent && !m.isPlaceholder);
-  const myId = userStore.profile?.id;
-  
-  if (!myId) return others;
+/**
+ * 피부양자 또는 추가 유도 플레이스홀더 항목을 반환합니다.
+ */
+const dependentOrPlaceholder = computed(() =>
+  members.value.find((m) => m.dependent || m.isPlaceholder),
+);
 
-  return [...others].sort((a, b) => { 
+/**
+ * 피부양자를 제외한 나머지 가족 멤버 목록을 반환합니다.
+ * 본인인 경우 목록의 가장 앞으로 정렬합니다.
+ */
+const otherMembers = computed(() => {
+  const others = members.value.filter((m) => !m.dependent && !m.isPlaceholder);
+  return sortMembersByMe(others);
+});
+
+/**
+ * 멤버 목록에서 나 자신을 가장 앞으로 정렬합니다. (내부 사용)
+ * @param {Array} list
+ * @returns {Array}
+ */
+const sortMembersByMe = (list) => {
+  const myId = userStore.profile?.id;
+  if (!myId) return list;
+
+  return [...list].sort((a, b) => {
     if (String(a.userId) === String(myId)) return -1;
     if (String(b.userId) === String(myId)) return 1;
     return 0;
   });
-});
+};
 
-const openGroupCreateModal = () => isGroupCreateModalOpen.value = true;
-const closeGroupCreateModal = () => isGroupCreateModalOpen.value = false;
+/**
+ * 그룹 생성 모달을 엽니다.
+ */
+const openGroupCreateModal = () => (isGroupCreateModalOpen.value = true);
 
+/**
+ * 그룹 생성 모달을 닫습니다.
+ */
+const closeGroupCreateModal = () => (isGroupCreateModalOpen.value = false);
+
+/**
+ * 그룹 참여/생성 선택 모달을 엽니다.
+ */
 const openAddGroupModal = () => {
   isAddGroupModalOpen.value = true;
 };
+
+/**
+ * 그룹 참여/생성 선택 모달을 닫습니다.
+ */
 const closeAddGroupModal = () => {
   isAddGroupModalOpen.value = false;
 };
 
+/**
+ * 현재 그룹으로 가족을 초대하기 위한 코드 생성 모달을 엽니다.
+ */
 const openInviteModal = async () => {
-  if (!selectedGroup.value || !selectedGroup.value.id) {
+  if (!selectedGroup.value?.id) {
     await modalStore.openAlert('그룹을 먼저 선택해주세요.');
     return;
   }
   isInviteModalOpen.value = true;
 };
-const closeInviteModal = () => isInviteModalOpen.value = false;
 
+/**
+ * 초대 코드 모달을 닫습니다.
+ */
+const closeInviteModal = () => (isInviteModalOpen.value = false);
+
+/**
+ * 설정 드롭다운 메뉴를 토글합니다.
+ */
 const toggleSettings = () => {
   isSettingsOpen.value = !isSettingsOpen.value;
 };
@@ -295,7 +352,7 @@ watch(
   [isAddGroupModalOpen, isInviteModalOpen, isGroupCreateModalOpen],
   ([addGroup, invite, groupCreate]) => {
     emit('modal-state-change', addGroup || invite || groupCreate);
-  }
+  },
 );
 
 
@@ -324,15 +381,30 @@ onUnmounted(() => {
     document.removeEventListener('click', handleGlobalClick);
 });
 
+/**
+ * 그룹 정보를 수정하는 페이지로 이동합니다.
+ */
 const goToGroupEdit = () => {
   if (!selectedGroup.value) return;
-  router.push({ name: 'GroupEdit', params: { familyId: selectedGroup.value.id }, query: { groupName: selectedGroup.value.name } });
+  router.push({
+    name: 'GroupEdit',
+    params: { familyId: selectedGroup.value.id },
+    query: { groupName: selectedGroup.value.name },
+  });
   isSettingsOpen.value = false;
 };
 
+/**
+ * 현재 선택된 그룹에서 탈퇴하거나 (대표자일 경우) 그룹을 해체합니다.
+ */
 const leaveGroup = async () => {
   if (!selectedGroup.value) return;
-  if (await modalStore.openConfirm(`'${selectedGroup.value.name}' 그룹을 정말로 탈퇴하시겠습니까? 대표자일 경우 그룹이 삭제됩니다.`)) {
+
+  const confirmed = await modalStore.openConfirm(
+    `'${selectedGroup.value.name}' 그룹을 정말로 탈퇴하시겠습니까? 대표자일 경우 그룹이 삭제됩니다.`,
+  );
+
+  if (confirmed) {
     try {
       await api.delete(`/families/${selectedGroup.value.id}/leave`);
       await modalStore.openAlert('그룹에서 성공적으로 탈퇴/삭제되었습니다.');
@@ -346,11 +418,15 @@ const leaveGroup = async () => {
   isSettingsOpen.value = false;
 };
 
+/**
+ * 새로운 그룹을 생성하고 해당 그룹을 선택 상태로 설정합니다.
+ * @param {Object} groupData
+ */
 const handleCreateGroup = async (groupData) => {
   try {
     const payload = {
       name: groupData.groupName,
-      relation: groupData.relation
+      relation: groupData.relation,
     };
     const response = await api.post('/families', payload);
     
@@ -364,7 +440,10 @@ const handleCreateGroup = async (groupData) => {
   }
 };
 
-
+/**
+ * 초대 코드를 사용하여 신규 그룹에 참여합니다.
+ * @param {string} inviteCode
+ */
 const joinGroup = async (inviteCode) => {
   try {
     const response = await joinFamilyWithCode(inviteCode);
@@ -382,9 +461,15 @@ const joinGroup = async (inviteCode) => {
   }
 };
 
+/**
+ * 그룹 선택 드롭다운을 토글합니다.
+ */
 const toggleGroupSelector = () => groupSelectorRef.value?.toggle();
 
 
+/**
+ * 현재 선택된 그룹의 멤버 목록을 불러와 정렬 처리합니다.
+ */
 const fetchMembers = async () => {
   if (!selectedGroup.value) {
     members.value = [];
@@ -406,7 +491,6 @@ const fetchMembers = async () => {
     members.value = membersCopy;
     
     syncSelectedIdWithRoute();
-    
   } catch (error) {
     Logger.error(`구성원 데이터 처리 실패 (ID: ${selectedGroup.value.id}):`, error);
     members.value = [];
@@ -447,11 +531,18 @@ const syncSelectedIdWithRoute = () => {
     
 };
 
-watch(() => route.params.userId, (newId) => {
-    if (newId) {
-        selectedId.value = newId;
+/**
+ * 현재 URL의 userId 파라미터와 헤더의 선택 상태를 동기화합니다. (내부 사용)
+ */
+const syncSelectedIdWithRoute = () => {
+  /** 1. URL 파라미터가 현재 멤버 목록에 있는 경우 사용 */
+  if (route.params.userId) {
+    const isValid = members.value.some((m) => String(m.userId) === String(route.params.userId));
+    if (isValid) {
+      selectedId.value = route.params.userId;
+      return;
     }
-});
+  }
 
 watch(selectedGroup, (newGroup) => {
 
@@ -459,7 +550,9 @@ watch(selectedGroup, (newGroup) => {
         
     }
     fetchMembers();
-}, { immediate: true });
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>

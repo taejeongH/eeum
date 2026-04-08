@@ -113,6 +113,21 @@ const canRefresh = ref(true);
 const isHomeAddModalOpen = ref(false);
 const addModalStep = ref(0);
 
+// 공용 모달 상태
+/**
+ * @type {Ref<boolean>} 그룹 추가/참여 모달 표시 여부
+ */
+const isHomeAddModalOpen = ref(false);
+
+/**
+ * @type {Ref<number>} 모달 단계 (0: 선택, 1: 참여, 2: 생성)
+ */
+const addModalStep = ref(0);
+
+/**
+ * 모달 상태 변경 핸들러
+ * @param {boolean} isOpen - 모달 열림 상태
+ */
 const handleModalStateChange = (isOpen) => {
   isModalOpen.value = isOpen;
 };

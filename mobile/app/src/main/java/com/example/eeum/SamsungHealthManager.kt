@@ -2,10 +2,10 @@ package com.example.eeum
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-// 와일드카드 대신 명시적으로 임포트 [cite: 40]
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.samsung.android.sdk.health.data.HealthDataService
 import com.samsung.android.sdk.health.data.data.AggregateOperation
 import com.samsung.android.sdk.health.data.data.AggregatedData
@@ -16,11 +16,6 @@ import com.samsung.android.sdk.health.data.permission.Permission
 import com.samsung.android.sdk.health.data.request.Ordering
 import com.samsung.android.sdk.health.data.error.HealthDataException
 import com.samsung.android.sdk.health.data.error.ResolvablePlatformException
-import java.time.LocalDateTime
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-import com.samsung.android.sdk.health.data.request.AggregateRequest
 import com.samsung.android.sdk.health.data.request.DataType
 import com.samsung.android.sdk.health.data.request.LocalTimeGroup
 import com.samsung.android.sdk.health.data.request.LocalTimeGroupUnit
@@ -33,8 +28,17 @@ import java.time.Duration
 //import com.samsung.android.sdk.health.data.error.*
 //import java.time.LocalDateTime
 
+/**
+ * 삼성 헬스 데이터 관리자
+ *
+ * 삼성 헬스 SDK와 연동하여 건강 데이터를 조회하고 집계하는 역할을 담당합니다.
+ * - 권한 관리 (확인 및 요청)
+ * - 건강 데이터 조회 (심박수, 걸음 수, 수면, 혈압, 혈당 등)
+ * - 데이터 집계 및 포맷팅
+ */
 class SamsungHealthManager(private val context: Context) {
-    // 삼성 헬스 데이터 스토어 인스턴스 가져오기
+    
+    // 삼성 헬스 데이터 스토어 인스턴스
     private val healthDataStore = HealthDataService.getStore(context)
 
     // 1. 권한 체크 (요청 없이 현재 상태만 확인)

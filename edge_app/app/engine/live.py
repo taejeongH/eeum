@@ -11,18 +11,19 @@ from .smoothing import ema_smooth_keypoints_inplace
 
 
 COCO17_EDGES = [
-    (0, 1), (0, 2),
-    (1, 3), (2, 4),
-    (5, 6),
-    (5, 7), (7, 9),
-    (6, 8), (8, 10),
-    (5, 11), (6, 12),
-    (11, 12),
-    (11, 13), (13, 15),
-    (12, 14), (14, 16),
+    (0, 1), (0, 2),       # 코 -> 눈
+    (1, 3), (2, 4),       # 눈 -> 귀
+    (5, 6),               # 어깨 사이
+    (5, 7), (7, 9),       # 왼쪽 팔 (어깨-팔꿈치-손목)
+    (6, 8), (8, 10),      # 오른쪽 팔
+    (5, 11), (6, 12),     # 어깨 -> 골반
+    (11, 12),             # 골반 사이
+    (11, 13), (13, 15),   # 왼쪽 다리 (골반-무릎-발목)
+    (12, 14), (14, 16),   # 오른쪽 다리
 ]
 
 def draw_bbox_norm(frame, bbox_norm, color=(0, 255, 0), thickness=2):
+    """정규화된 좌표(0~1)를 바탕으로 프레임에 바운딩 박스를 그립니다."""
     if not bbox_norm:
         return
     h, w = frame.shape[:2]
@@ -33,7 +34,7 @@ def draw_bbox_norm(frame, bbox_norm, color=(0, 255, 0), thickness=2):
 
 def draw_skeleton_norm(frame, keypoints, conf_thr=0.3, edges=COCO17_EDGES,
                        color=(0, 255, 0), pt_radius=3, line_thickness=2):
-    """정규화 좌표 기반 스켈레톤 그리기"""
+    """정규화된 키포인트 좌표를 바탕으로 스켈레톤(관절)을 그립니다."""
     if not keypoints:
         return
     h, w = frame.shape[:2]
@@ -53,6 +54,7 @@ def draw_skeleton_norm(frame, keypoints, conf_thr=0.3, edges=COCO17_EDGES,
             cv2.line(frame, pts[a], pts[b], color, line_thickness)
 
 def keep_top1_person(r):
+    """추론 결과 중 신뢰도가 가장 높은 사람 한 명의 결과만 남깁니다."""
     if r.boxes is None or len(r.boxes) == 0:
         return r
     top = int(torch.argmax(r.boxes.conf).item())
@@ -62,10 +64,7 @@ def keep_top1_person(r):
     return r
 
 def calculate_iou(box1, box2):
-    """
-    Calculate Intersection over Union (IoU) of two bounding boxes.
-    box format: [x1, y1, x2, y2]
-    """
+    """두 바운딩 박스 간의 IoU(Intersection over Union)를 계산합니다."""
     x1 = max(box1[0], box2[0])
     y1 = max(box1[1], box2[1])
     x2 = min(box1[2], box2[2])
@@ -82,9 +81,9 @@ def calculate_iou(box1, box2):
 
 def select_best_person(results, last_bbox=None, iou_thresh=0.3):
     """
-    Select the best person to track.
-    Prioritize IoU overlap with last_bbox if available.
-    Otherwise, pick the highest confidence detection.
+    이전 프레임의 위치 정보를 고려하여 추적할 최적의 대상을 선택합니다.
+    1. 이전 위치(last_bbox)와 IoU가 높은 대상 우선 선택
+    2. 겹치는 대상이 없거나 threshold 미만이면 신뢰도가 가장 높은 대상 선택
     """
     if results.boxes is None or len(results.boxes) == 0:
         return results
@@ -115,6 +114,7 @@ def select_best_person(results, last_bbox=None, iou_thresh=0.3):
     return results
 
 def encode_jpeg(img, jpeg_quality: int) -> Optional[bytes]:
+    """이미지 배열을 JPEG 데이터로 인코딩합니다."""
     ok, jpg = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), int(jpeg_quality)])
     if not ok:
         return None
@@ -122,9 +122,8 @@ def encode_jpeg(img, jpeg_quality: int) -> Optional[bytes]:
 
 class LivePipeline:
     """
-    카메라 -> YOLO -> obs 생성(+EMA) -> annotated jpg 생성
-    
-    실제 카메라 해상도를 자동으로 감지하고 사용합니다.
+    실시간 영상 처리 파이프라인 클래스입니다.
+    카메라 캡처 -> YOLO 추론 -> IoU 추적 -> EMA 스무딩 -> 시각화 단계를 수행합니다.
     """
     def __init__(self, model: YOLO, cap: cv2.VideoCapture, jpeg_quality: int, source_id: str = "cam0"):
         self.model = model
@@ -142,6 +141,15 @@ class LivePipeline:
         self.last_bbox = None
 
     def step(self, overlay: str = "smooth") -> Tuple[Optional[Dict[str, Any]], Optional[bytes], Optional[Any]]:
+        """
+        한 프레임을 읽어와 분석을 수행하고 결과를 반환합니다.
+        
+        Args:
+            overlay: 시각화 옵션 ("raw" | "smooth" | "both")
+            
+        Returns:
+            (관측데이터, 시각화된JPEG바이너리, 원본BGR프레임) 튜플
+        """
         ok, frame = self.cap.read()
         if not ok:
             return None, None, None
@@ -159,6 +167,7 @@ class LivePipeline:
             self.actual_h = frame_h
             self.actual_w = frame_w
 
+        # YOLO 모델을 이용한 객체 탐지 및 포즈 추정
         results = self.model.predict(
             frame,
             device=0,
@@ -186,7 +195,6 @@ class LivePipeline:
         
         t0 = (obs.get("tracks") or [{}])[0]
         bbox_norm = t0.get("bbox")
-
         kps_raw = t0.get("keypoints_raw") or []
         kps_smooth = t0.get("keypoints_smooth") or t0.get("keypoints") or []
 

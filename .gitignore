@@ -21,3 +21,5 @@ out/
 .env.*
 mobile/local.properties
 mobile/app/google-services.json
+IoT/apps/rpi5-fastapi/.env
+IoT/apps/rpi5-fastapi/token.json

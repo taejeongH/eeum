@@ -1,9 +1,8 @@
 from typing import Dict, Any, List, Optional
-
 from ..config import DEFAULT_CONF
 
 def clamp01(x: float) -> float:
-    """0과 1 사이로 값 제한"""
+    """값을 0.0과 1.0 사이의 범위로 제한합니다."""
     return 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
 
 def build_observation(
@@ -14,7 +13,19 @@ def build_observation(
     frame_idx: int,
     source_id: str = "cam0",
 ) -> Dict[str, Any]:
-    """YOLO 결과에서 관측 객체 구축"""
+    """
+    YOLO 추론 결과를 표준 관측(Observation) 데이터 구조로 변환합니다.
+    
+    Args:
+        r0: YOLO 추론 결과 객체
+        frame_w, frame_h: 현재 원본 프레임의 해상도
+        ts: 프레임의 타임스탬프
+        frame_idx: 프레임 번호
+        source_id: 카메라 식별자
+        
+    Returns:
+        표준화된 관측 데이터 딕셔너리
+    """
     obs: Dict[str, Any] = {
         "schema_version": "1.0",
         "ts": float(ts),
@@ -31,10 +42,12 @@ def build_observation(
     box_conf = 0.0
     kps: List[Dict[str, Any]] = []
 
+    # 1. 바운딩 박스 정보 추출 (가장 높은 신뢰도 1개 대상)
     if r0.boxes is not None and len(r0.boxes) > 0:
         b = r0.boxes.xyxy[0].cpu().numpy()
         box_conf = float(r0.boxes.conf[0].item())
         x1, y1, x2, y2 = float(b[0]), float(b[1]), float(b[2]), float(b[3])
+        # 좌표 정규화 (0.0 ~ 1.0)
         bbox_norm = [
             clamp01(x1 / frame_w),
             clamp01(y1 / frame_h),
@@ -42,6 +55,7 @@ def build_observation(
             clamp01(y2 / frame_h),
         ]
 
+    # 2. 키포인트(포즈) 정보 추출
     if r0.keypoints is not None and len(r0.keypoints) > 0:
         has_person = True
         xy = r0.keypoints.xy[0].cpu().numpy()
@@ -56,10 +70,12 @@ def build_observation(
                 }
             )
 
+    # 3. 객체의 전체적인 품질(신뢰도) 점수 계산
     quality = 0.0
     if kps:
         quality = float(sum(k["conf"] for k in kps) / len(kps))
 
+    # 트랙 목록에 추가 (현재는 단일 객체 추적 기준)
     obs["tracks"].append(
         {
             "track_id": 0,

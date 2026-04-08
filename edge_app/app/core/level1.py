@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 from ..config import DEVICE_ID, LOCATION_ID, ABNORMAL_TIMEOUT_S
 
 def bbox_aspect(bbox: Optional[List[float]]) -> Optional[float]:
+    """바운딩 박스의 가로세로비(Height/Width)를 계산합니다."""
     if not bbox or len(bbox) != 4:
         return None
     x1, y1, x2, y2 = bbox
@@ -14,12 +15,14 @@ def bbox_aspect(bbox: Optional[List[float]]) -> Optional[float]:
     return h / w
 
 def bbox_center_y(bbox: Optional[List[float]]) -> Optional[float]:
+    """바운딩 박스 중심의 Y 좌표를 계산합니다."""
     if not bbox or len(bbox) != 4:
         return None
     _, y1, _, y2 = bbox
     return (y1 + y2) * 0.5
 
 def bbox_center_x(bbox: Optional[List[float]]) -> Optional[float]:
+    """바운딩 박스 중심의 X 좌표를 계산합니다."""
     if not bbox or len(bbox) != 4:
         return None
     x1, _, x2, _ = bbox
@@ -152,6 +155,7 @@ class Level1Engine:
         self.baseline_h_at_enter: Optional[float] = None
 
     def reset_all(self):
+        """엔진의 모든 내부 상태를 초기화합니다."""
         self.state = "NORMAL"
         self.abnormal_start_ts = None
         self.level1_fired = False
@@ -341,6 +345,7 @@ class Level1Engine:
         return center_move, kp_move, is_still
 
     def step(self, obs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """한 프레임의 관측 데이터를 분석하여 상태 변화 및 이벤트를 발생시킵니다."""
         ts = float(obs.get("ts", 0.0))
         if ts < self.cooldown_until_ts:
             return None
@@ -397,6 +402,13 @@ class Level1Engine:
 
         shoulder_vy, shoulder_drop = self._compute_shoulder_drop(ts, kps_list)
 
+        if vy is not None and vy > self.p.vy_th:
+            self.last_drop_ts = ts
+            self.last_drop_vy = vy
+
+        shoulder_vy, shoulder_drop = self._compute_shoulder_drop(ts, kps_list)
+
+        # 자세 분석 (절대적 수치 또는 상대적 변화)
         rotate_abs = (aspect < self.p.aspect_abs_th)
         rotate_rel = (baseline is not None and aspect < baseline * self.p.aspect_ratio_th)
         posture_signal = rotate_abs or rotate_rel
@@ -725,6 +737,7 @@ class PresenceParams:
     cool_down_s: float = 0.5     
 
 class PresenceEngine:
+    """재실(Presence) 감지 엔진: 사람의 출입을 판단합니다."""
     def __init__(self, p: PresenceParams):
         self.p = p
         self.state = "ABSENT"   
@@ -733,12 +746,14 @@ class PresenceEngine:
         self.last_emit_ts: float = 0.0
 
     def reset(self):
+        """내부 카운터를 초기화합니다."""
         self.state = "ABSENT"
         self.present_cnt = 0
         self.absent_cnt = 0
         self.last_emit_ts = 0.0
 
     def _is_present(self, obs: Dict[str, Any]) -> bool:
+        """현재 프레임에 사람이 유효하게 존재하는지 확인합니다."""
         tracks = obs.get("tracks") or []
         if not tracks:
             return False
@@ -751,9 +766,8 @@ class PresenceEngine:
         return True
 
     def step(self, obs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """재실 상태 전이를 판단하고 이벤트를 반환합니다."""
         ts = float(obs.get("ts", 0.0))
-        frame_index = int(obs.get("frame_index", -1))
-
         present = self._is_present(obs)
 
         if present:
@@ -773,10 +787,7 @@ class PresenceEngine:
             return {
                 "kind": "vision",
                 "device_id": DEVICE_ID,
-                "data": {
-                    "location_id": LOCATION_ID,
-                    "event": "enter",
-                },
+                "data": {"location_id": LOCATION_ID, "event": "enter"},
                 "ts": ts,
             }
 
@@ -786,10 +797,7 @@ class PresenceEngine:
             return {
                 "kind": "vision",
                 "device_id": DEVICE_ID,
-                "data": {
-                    "location_id": LOCATION_ID,
-                    "event": "exit",
-                },
+                "data": {"location_id": LOCATION_ID, "event": "exit"},
                 "ts": ts,
             }
 

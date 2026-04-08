@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         instance = this
 
+        // 인텐트 데이터 추출 (알림 클릭으로 실행된 경우)
         pendingNotificationId = intent.getStringExtra("notificationId")
         pendingNotificationType = intent.getStringExtra("type") ?: "NORMAL"
         pendingFamilyId = intent.getStringExtra("familyId") ?: ""

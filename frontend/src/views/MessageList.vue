@@ -46,9 +46,9 @@
         <!-- Search Bar (Expanded) -->
         <div v-if="isSearchOpen" class="mb-4">
           <div class="relative">
-            <input 
-              v-model="searchQuery" 
-              type="text" 
+            <input
+              v-model="searchQuery"
+              type="text"
               placeholder="보낸 사람, 내용 검색"
               class="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-full text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#e76f51]"
             />
@@ -69,14 +69,16 @@
         <!-- Patient Profile Section -->
         <div v-if="!familyLoading" class="flex flex-col items-center py-4">
           <div class="relative mb-3">
-            <img 
+            <img
               :src="patientImage || getFullImageUrl(null, 'Family')"
               :alt="patientName || 'Family'"
               class="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
-              style="background-color: #8b9a8f;"
+              style="background-color: #8b9a8f"
             />
           </div>
-          <h2 class="text-lg font-bold text-gray-800 mb-1">{{ patientName || '먼저 피부양자를 등록해주세요' }}</h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-1">
+            {{ patientName || '먼저 피부양자를 등록해주세요' }}
+          </h2>
           <p class="text-sm text-gray-500">따뜻한 마음을 전해주세요!</p>
         </div>
       </div>
@@ -87,18 +89,29 @@
       :style="{ transform: `translateY(${isRefreshing ? 60 : refreshPullDistance * 0.4}px)` }"
     >
       <div v-if="loading" class="flex justify-center items-center py-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2" style="border-color: var(--color-primary);"></div>
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-b-2"
+          style="border-color: var(--color-primary)"
+        ></div>
       </div>
 
       <div v-else-if="messages.length === 0" class="text-center py-20">
         <div class="mb-6">
-          <svg class="w-24 h-24 mx-auto" style="color: var(--text-sub);" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+          <svg
+            class="w-24 h-24 mx-auto"
+            style="color: var(--text-sub)"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"
+            />
           </svg>
         </div>
-        <h3 class="eeum-title text-xl mb-2" style="color: var(--text-title);">아직 메세지가 없습니다</h3>
+        <h3 class="eeum-title text-xl mb-2" style="color: var(--text-title)">
+          아직 메세지가 없습니다
+        </h3>
         <p class="eeum-sub mb-6">가족에게 따뜻한 메시지를 보내보세요!</p>
-
       </div>
 
       <div v-else class="space-y-3">
@@ -109,16 +122,20 @@
           class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
         >
           <div class="flex items-start gap-3 mb-3">
-            <img 
+            <img
               :src="getFullImageUrl(message.senderProfileImage, message.senderName)"
               :alt="message.senderName || 'User'"
               class="w-10 h-10 rounded-full object-cover flex-shrink-0"
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between mb-1">
-                <span class="font-semibold text-gray-800 text-sm">{{ message.senderRelationship || message.senderName }}</span>
+                <span class="font-semibold text-gray-800 text-sm">{{
+                  message.senderRelationship || message.senderName
+                }}</span>
               </div>
-              <p class="text-sm text-gray-600 line-clamp-2 leading-relaxed">{{ message.content }}</p>
+              <p class="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                {{ message.content }}
+              </p>
             </div>
           </div>
           <div class="flex items-center justify-between text-xs text-gray-400">
@@ -144,8 +161,10 @@
             <!-- Detail Header -->
             <div class="flex-none flex items-center justify-between p-5 border-b border-gray-100">
               <div class="flex items-center gap-3">
-                <img 
-                  :src="getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)"
+                <img
+                  :src="
+                    getFullImageUrl(selectedMessage.senderProfileImage, selectedMessage.senderName)
+                  "
                   :alt="selectedMessage.senderName || 'User'"
                   class="w-12 h-12 rounded-full object-cover border border-gray-100 shadow-sm"
                 />
@@ -274,11 +293,18 @@
           >
             Previous
           </button>
-          
-          <span class="px-4 py-2 font-semibold" style="color: var(--color-primary); background-color: var(--color-primary-soft); border-radius: var(--radius-lg);">
+
+          <span
+            class="px-4 py-2 font-semibold"
+            style="
+              color: var(--color-primary);
+              background-color: var(--color-primary-soft);
+              border-radius: var(--radius-lg);
+            "
+          >
             {{ currentPage + 1 }} / {{ totalPages }}
           </span>
-          
+
           <button
             @click="nextPage"
             :disabled="currentPage >= totalPages - 1"
@@ -642,11 +668,12 @@ const fetchFamilyDetails = async () => {
 
 watch(() => route.params.familyId, (newId) => {
     if (newId && newId !== familyId.value) {
-        familyId.value = newId;
-        fetchMessages();
-        fetchFamilyDetails();
+      familyId.value = newId;
+      fetchMessages();
+      fetchFamilyDetails();
     }
-});
+  },
+);
 
 
 watch(() => familyStore.selectedFamily, (newFamily) => {
@@ -656,8 +683,8 @@ watch(() => familyStore.selectedFamily, (newFamily) => {
              router.replace({ name: 'FamilyMessages', params: { familyId: newFamily.id } });
         }
     }
-});
-
+  },
+);
 
 
 onMounted(async () => {
@@ -679,7 +706,7 @@ onMounted(async () => {
       fetchFamilyDetails()
     ]);
   }
-})
+});
 </script>
 
 <style scoped>

@@ -58,7 +58,7 @@ class LiveMode(BaseMode):
         self.local_last_level1_event: Optional[Dict[str, Any]] = None
     
     def setup(self) -> bool:
-        """모드 초기화"""
+        """분석 파이프라인 및 엔진 상태를 초기화합니다."""
         try:
             logger.info("Initializing Live Mode Pipeline")
             self.pipeline = LivePipeline(

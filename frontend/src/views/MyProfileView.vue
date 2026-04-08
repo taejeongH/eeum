@@ -1,19 +1,37 @@
 <template>
   <div class="w-full min-h-screen bg-white font-sans">
     <div class="w-full max-w-lg mx-auto p-6">
-      
+      <!-- 헤더 영역 -->
       <div class="pt-12 pb-8 text-center sticky top-0 bg-white z-10">
         <h2 class="text-3xl font-extrabold text-gray-900">내 프로필 조회</h2>
         <p class="text-lg text-gray-600 mt-2">회원님의 프로필 정보입니다.</p>
       </div>
 
+      <!-- 본문 프로필 상세 영역 -->
       <div v-if="userStore.isAuthenticated && userProfile" class="space-y-6 px-6 pb-8">
-        
         <div class="flex justify-center py-4">
           <div class="w-40 h-40 rounded-full bg-gray-50">
-            <img v-if="userProfile.profileImage" :src="userProfile.profileImage" alt="Profile" class="w-full h-full rounded-full object-cover" />
-            <div v-else class="w-full h-full rounded-full border-4 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <img
+              v-if="userProfile.profileImage"
+              :src="userProfile.profileImage"
+              alt="Profile"
+              class="w-full h-full rounded-full object-cover"
+            />
+            <div
+              v-else
+              class="w-full h-full rounded-full border-4 border-dashed border-gray-200 flex items-center justify-center text-gray-400"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-16 h-16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
             </div>
           </div>
         </div>
@@ -42,14 +60,13 @@
           <label>주소</label>
           <p>{{ userProfile.address }}</p>
         </div>
-        
-        <div class="pt-4">
-          <router-link to="/my-profile-edit" class="edit-btn">
-            프로필 설정
-          </router-link>
-        </div>
 
+        <!-- 정보 수정 버튼 -->
+        <div class="pt-4">
+          <router-link to="/my-profile-edit" class="edit-btn"> 프로필 설정 </router-link>
+        </div>
       </div>
+      <!-- 미인증 또는 로딩 상태 메시지 -->
       <div v-else class="text-center py-10">
         <p class="text-gray-500">프로필 정보를 불러오는 중이거나, 로그인되어 있지 않습니다.</p>
       </div>
@@ -61,7 +78,16 @@
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '../stores/user';
 
+/**
+ * 사용자 스토어 인스턴스
+ * @type {import('../stores/user').UserStore}
+ */
 const userStore = useUserStore();
+
+/**
+ * 사용자 프로필 정보 (반응형)
+ * @type {import('vue').Ref<import('../stores/user').UserProfile | null>}
+ */
 const { profile: userProfile } = storeToRefs(userStore);
 </script>
 

@@ -46,10 +46,7 @@ _prev_frame_shape: Optional[tuple] = None
 _prev_person_id: Optional[int] = None  
 
 def _reset_ema_state() -> None:
-    """
-    EMA 상태를 초기화한다.
-    사람이 사라지거나 바뀔 때 호출.
-    """
+    """EMA 필터의 내부 상태를 완전히 초기화합니다."""
     global _prev_kp_ema, _prev_frame_shape, _prev_person_id
     _prev_kp_ema = None
     _prev_frame_shape = None
@@ -57,19 +54,7 @@ def _reset_ema_state() -> None:
 
 
 def _check_person_changed(track_id: Optional[int]) -> bool:
-    """
-    이전 프레임과 다른 사람인지 확인
-    (YOLO가 인식한 사람이 바뀐 경우 감지)
-    
-    단일 인물 가정: track_id가 None이면 "사람이 없음"이 아니라
-    "track_id 추적 중단"으로 봄 → 이전 ID 유지하여 안정성 향상
-    
-    Args:
-        track_id: 현재 사람의 track_id (None이면 track_id 미제공)
-    
-    Returns:
-        사람이 실제로 바뀌었으면 True, 아니면 False
-    """
+    """트래킹 ID 변화를 감지하여 추적 대상이 교체되었는지 확인합니다."""
     global _prev_person_id
     
     
@@ -82,12 +67,7 @@ def _check_person_changed(track_id: Optional[int]) -> bool:
 
 
 def _bbox_diag(t0: Dict[str, Any]) -> float:
-    """
-    bbox 대각선 길이를 계산한다.
-    - 좌표는 정규화(0~1) 기준 전제
-    - 점프(velocity) 판정의 기준 스케일로 사용
-    - 만약 pixel 단위로 들어오면 게이팅이 망가지므로 방어 필요
-    """
+    """바운딩 박스의 대각선 길이를 계산하여 관절 정규화의 기준 척도로 삼습니다."""
     b = t0.get("bbox")
     if not b or len(b) != 4:
         return 1.0
@@ -103,27 +83,19 @@ def _bbox_diag(t0: Dict[str, Any]) -> float:
         logger.warning(f"bbox out of normalized range: {b} → treating as pixel coords")
         return 1.0
     
-    diag = math.hypot(x2 - x1, y2 - y1)
-    return max(1e-6, diag)
+    return max(1e-6, math.hypot(x2 - x1, y2 - y1))
 
 
 def _alpha_for(kid: int, conf: float) -> float:
     """
-    관절 ID + confidence를 기반으로 EMA alpha 결정
-
-    현재 EMA 정의:
-        smooth = alpha * prev + (1 - alpha) * curr
-
-    → alpha가 클수록 이전값을 더 유지 = 더 강한 스무딩
-    
-    반환값은 안전 범위 [0, 0.99]로 클램프됨
-    (alpha >= 1이면 1-alpha가 음수/0이 되어 EMA 식이 깨짐)
+    관절 부위와 현재 신뢰도를 기반으로 최적의 EMA 알파값을 결정합니다.
+    낮은 신뢰도일수록 이전 값을 더 많이 신뢰하도록 가중치를 조정합니다.
     """
     
     base = float(
         KP_ALPHA_BY_ID.get(
-            kid,
-            KP_ALPHA_DEFAULT if KP_ALPHA_DEFAULT is not None else KP_EMA_ALPHA
+          kid,
+          KP_ALPHA_DEFAULT if KP_ALPHA_DEFAULT is not None else KP_EMA_ALPHA
         )
     )
 
@@ -143,17 +115,8 @@ def _alpha_for(kid: int, conf: float) -> float:
 
 def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
     """
-    keypoints EMA 스무딩을 obs 구조를 유지한 채 in-place 적용
-    
-    단일 사람(가장 높은 정확도) 기준 처리:
-    1. 스무딩 활성화 확인
-    2. 사람 인식 여부 확인 (없으면 리셋)
-    3. 사람 변경 감지 (다른 사람이면 리셋)
-    4. 프레임 크기 변화 감지 (리셋)
-    5. keypoints 유효성 확인
-    6. 첫 프레임 처리 (raw = smooth)
-    7. 관절별 EMA + confidence 기반 처리
-    8. 점프 게이팅 (속도 이상치 감지)
+    관측 데이터(Observation) 내의 키포인트에 지수 이동 평균(EMA) 필터를 적용합니다.
+    데이터 떨림(Jitter)을 제거하고 부드러운 이동 궤적을 생성합니다.
     """
     global _prev_kp_ema, _prev_frame_shape, _prev_person_id
 
@@ -190,10 +153,8 @@ def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
     
     frame_shape = t0.get("frame_shape")
     if frame_shape is not None:
-        frame_shape = tuple(frame_shape)
-        if _prev_frame_shape is None:
-            _prev_frame_shape = frame_shape
-        elif frame_shape != _prev_frame_shape:
+        fs = tuple(frame_shape)
+        if _prev_frame_shape is not None and fs != _prev_frame_shape:
             _reset_ema_state()
             _prev_frame_shape = frame_shape
     else:
@@ -250,19 +211,12 @@ def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
     
     
     if _prev_kp_ema is None:
-        _prev_kp_ema = {kid: {"x": v["x"], "y": v["y"]} for kid, v in curr.items()}
-        
-        smooth_list = sorted(
-            [{"id": kid, "x": v["x"], "y": v["y"], "conf": v["conf"]} for kid, v in curr.items()],
-            key=lambda d: d["id"]
-        )
-        
+        _prev_kp_ema = {kid: {"x": v["x"], "y": v["y"], "jump_cnt": 0} for kid, v in curr.items()}
+        smooth_list = sorted([{"id": k, **v, "conf": curr[k]["conf"]} for k, v in _prev_kp_ema.items() if k in curr], key=lambda x: x["id"])
+        # 불필요 필드 제거 후 반영
+        for s in smooth_list: s.pop("jump_cnt", None)
         t0["keypoints_smooth"] = smooth_list
         t0["keypoints"] = smooth_list
-        t0["quality_score"] = (
-            float(sum(k["conf"] for k in smooth_list) / len(smooth_list))
-            if smooth_list else 0.0
-        )
         return obs
 
     
@@ -364,6 +318,7 @@ def ema_smooth_keypoints_inplace(obs: Dict[str, Any]) -> Dict[str, Any]:
         _prev_kp_ema[kid]["x"] = sx
         _prev_kp_ema[kid]["y"] = sy
 
+        prev["x"], prev["y"] = sx, sy
         out_list.append({"id": kid, "x": sx, "y": sy, "conf": conf})
 
     

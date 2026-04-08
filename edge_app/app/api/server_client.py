@@ -1,13 +1,12 @@
 """
-서버 통신 클라이언트
-
-QR 페어링, 기기 등록, 이벤트 전송 등 모든 서버 통신 처리
+서버 통신 클라이언트 모듈
+백엔드 통합 서버 및 라즈베리파이(RPI) 하위 장치와의 모든 API 통신을 담당합니다.
+페어링, 토큰 갱신, 이벤트 보고, 영상 클립 업로드 등의 기능을 수행합니다.
 """
 
 import requests
 import logging
-from typing import Optional, Dict, Any
-import mimetypes
+from typing import Optional, Dict, Any, Tuple
 import os
 
 logger = logging.getLogger(__name__)
@@ -15,10 +14,18 @@ logger = logging.getLogger(__name__)
 
 class ServerClient:
     """
-    서버와의 API 통신을 담당
+    HTTP/REST 및 WebSocket을 통한 서버 통신 기능을 제공하는 클래스입니다.
     """
     
     def __init__(self, server_url: str = None, rpi_url: str = None, timeout: int = 10):
+        """
+        ServerClient를 초기화합니다.
+        
+        Args:
+            server_url: 통합 백엔드 서버 주소
+            rpi_url: 라즈베리파이(하위 장치) 제어 주소
+            timeout: 요청 타임아웃 시간 (초)
+        """
         from ..config import SERVER_URL, RPI_URL
         self.server_url = server_url or SERVER_URL
         self.rpi_url = rpi_url or RPI_URL
@@ -28,18 +35,8 @@ class ServerClient:
 
     def register_device(self, pairing_code: str, device_id: str) -> Optional[Dict[str, Any]]:
         """
-        기기 등록 (QR 토큰으로 등록 요청)
-        
-        Returns:
-            {
-                "status": 200,
-                "data": {
-                    "access_token": "eyJhbG...",
-                    "refresh_token": "eyJhbG...",
-                    "group_id": 1,
-                    "serial_number": "JETSON-MASTER-001"
-                }
-            }
+        QR 코드를 통해 획득한 pairing_code를 기반으로 서버에 장치 등록을 요청합니다.
+        성공 시 액세스 토큰 및 하위 장치 정보를 포함한 응답을 반환합니다.
         """
         try:
             url = f"{self.server_url}/api/iot/auth/pairing"
@@ -61,9 +58,9 @@ class ServerClient:
             result = resp.json()
             
             if result.get("status") == 200:
-                logger.info(f"Device registered: {device_id}")
+                logger.info(f"Device registration request successful: {device_id}")
             else:
-                logger.warning(f"Registration failed: {result.get('status')}")
+                logger.warning(f"Registration failed with status: {result.get('status')}")
             
             return result
         except Exception as e:
@@ -72,17 +69,10 @@ class ServerClient:
     
     
     def send_access_token_to_rpi(self, access_token: str) -> bool:
-        """
-        액세스 토큰을 라즈베리파이에 전송
-        
-        Args:
-            access_token: 서버에서 발급받은 액세스 토큰
-        """
+        """라즈베리파이에 인증 토큰을 전달하여 동기화합니다."""
         try:
             url = f"{self.rpi_url}/token"
-            payload = {
-                "token": access_token,
-            }
+            payload = {"token": access_token}
             resp = requests.post(url, json=payload, timeout=self.timeout)
             resp.raise_for_status()
             logger.info("Access token sent to RPI")
@@ -93,21 +83,7 @@ class ServerClient:
 
     
     def get_access_token(self, refresh_token: str) -> Optional[Dict[str, Any]]:
-        """
-        리프레시 토큰으로 새로운 토큰 발급
-        
-        Args:
-            serial_number: 기기 시리얼 번호
-            refresh_token: 현재 리프레시 토큰
-            
-        Returns:
-            {
-                "access_token": "...",
-                "refresh_token": "...",
-                "serial_number": "...",
-                "group_id": 1
-            }
-        """
+        """리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다."""
         try:
             url = f"{self.server_url}/api/iot/auth/refresh"
             payload = {
@@ -117,15 +93,11 @@ class ServerClient:
             resp = requests.post(url, json=payload, timeout=self.timeout)
             resp.raise_for_status()
             result = resp.json()
-            print(result)
 
             if result.get("statusCode") == "200 OK":
-                data = result.get("data", {})
-                logger.info("Token refreshed successfully")
-                return data
-            else:
-                logger.warning(f"Token refresh failed: {result.get('message')}")
-                return None
+                logger.info("Access token refreshed via server")
+                return result.get("data", {})
+            return None
         except Exception as e:
             logger.error(f"Token refresh request failed: {e}")
             return None
@@ -133,59 +105,43 @@ class ServerClient:
     
     
     def send_event_rpi(self, payload: Dict[str, Any]) -> bool:
-        """
-        낙상 이벤트 전송
-        
-        Args:
-            payload: {
-                "kind": "vision",
-                "device_id": "EEUM-J105",
-                "data": {"event": "fall", "level": 1, ...},
-                "detected_at": timestamp,
-            }
-        """
+        """낙상/입퇴실 이벤트를 라즈베리파이로 전송하여 알림 및 제어를 수행합니다."""
         try:
             url = f"{self.rpi_url}/event"
             resp = requests.post(url, json=payload, timeout=self.timeout)
             resp.raise_for_status()
-            logger.info(f"Event sent: {payload.get('data', {}).get('event')}")
+            logger.info(f"Event notified to RPI: {payload.get('data', {}).get('event')}")
             return True
         except Exception as e:
-            logger.error(f"Event send failed: {e}")
+            logger.error(f"RPI event notification failed: {e}")
             return False
         
-    def send_event_server(self, payload: Dict[str, Any], access_token: str) -> Optional[str]:
+    def send_event_server(self, payload: Dict[str, Any], access_token: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        낙상 이벤트 전송
-        
-        Args:
-            payload: {
-                "kind": "vision",
-                "device_id": "EEUM-J105",
-                "data": {"event": "fall", "level": 1, ...},
-                "detected_at": timestamp,
-            }
+        사고 발생 이벤트를 통합 백엔드 서버로 전송합니다.
+        서버로부터 사고 영상 업로드를 위한 Presigned URL과 저장 경로를 응답받습니다.
         """
         try:
             url = f"{self.server_url}/api/iot/device/falls/detection"
-            headers = {
-                "Authorization": f"Bearer {access_token}"
-            }
+            headers = {"Authorization": f"Bearer {access_token}"}
             resp = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
             resp.raise_for_status()
-            result = resp.json()
-            presignedUrl = result.get("data", {}).get("presignedUrl")
-            videoPath = result.get("data", {}).get("videoPath")
-            logger.info(f"Event sent: {payload.get('data', {}).get('event')}, videoPath: {videoPath}")
-            return presignedUrl, videoPath
+            
+            data = resp.json().get("data", {})
+            presigned_url = data.get("presignedUrl")
+            video_path = data.get("videoPath")
+            
+            logger.info(f"Fall event reported. videoPath: {video_path}")
+            return presigned_url, video_path
         except Exception as e:
             logger.error(f"Event send failed: {e}")
             return (None, None)
     
     
     def upload_clip_via_presigned_put(self, presigned_url: str, clip_path: str, timeout: float = 120.0):
+        """Pre-signed URL을 사용하여 가공된 사고 영상을 S3 등의 저장소로 직접 업로드합니다."""
         if not os.path.exists(clip_path):
-            raise FileNotFoundError(clip_path)
+            raise FileNotFoundError(f"Clip file not found: {clip_path}")
 
         with open(clip_path, "rb") as f:
             resp = requests.put(
@@ -220,12 +176,8 @@ class ServerClient:
         """
         try:
             url = f"{self.server_url}/api/iot/device/falls/upload-success"
-            payload = {
-                "videoPath": video_path
-            }
-            headers = {
-                "Authorization": f"Bearer {access_token}"
-            }
+            payload = {"videoPath": video_path}
+            headers = {"Authorization": f"Bearer {access_token}"}
             resp = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
             resp.raise_for_status()
             logger.info(f"Event success sent: {payload}")
@@ -291,19 +243,18 @@ class ServerClient:
             logger.info(f"Clip sent: {event_id}")
             return True
         except Exception as e:
-            logger.error(f"Clip send failed: {e}")
+            logger.error(f"Finalization notification failed: {e}")
             return False
     
     
     
     def ping(self) -> bool:
-        """서버 연결 상태 확인"""
+        """백엔드 서버와의 연결 상태를 점검합니다."""
         try:
             url = f"{self.server_url}/health"
             resp = requests.get(url, timeout=self.timeout)
             return resp.status_code == 200
-        except Exception as e:
-            logger.debug(f"Server ping failed: {e}")
+        except Exception:
             return False
 
     
